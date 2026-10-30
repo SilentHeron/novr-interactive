@@ -126,19 +126,6 @@ internal static class HUDBoresightStateViewPositionPatch
         line.transform.localScale = new Vector3(magnitude, 1.0f, 1.0f);
     }
 
-    private static bool TryProjectToCockpitHud(Vector3 worldPosition, out Vector3 hudPosition)
-    {
-        hudPosition = Vector3.zero;
-        var mainCamera = APIBus.MainCamera;
-        var cockpitHudCamera = APIBus.CockpitHudCamera;
-        if (mainCamera == null || cockpitHudCamera == null)
-            return false;
-
-        var mainCameraLocal = mainCamera.transform.InverseTransformPoint(worldPosition);
-        if (mainCameraLocal.z <= 0.0f)
-            return false;
-
-        hudPosition = cockpitHudCamera.transform.TransformPoint(mainCameraLocal).normalized * HudDistance;
-        return true;
-    }
+    private static bool TryProjectToCockpitHud(Vector3 worldPosition, out Vector3 hudPosition) =>
+        VrHudProjection.TryProjectToCockpitHud(worldPosition, out hudPosition);
 }

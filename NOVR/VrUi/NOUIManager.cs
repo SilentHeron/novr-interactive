@@ -6,16 +6,48 @@ using UnityEngine.Rendering.Universal;
 
 namespace NOVR.VrUi;
 
+[DefaultExecutionOrder(50)]
 public class NOUIManager : NOVRBehaviour
 {
-    private const float SmoothingFactor = 10f;
     private Camera? _cockpitHudCamera;
+    private Camera? _startupCamera;
     private GameObject? _smoothedForwardReference;
 
     public static NOUIManager I { get; private set; }
 
     public Camera CockpitHudCamera => _cockpitHudCamera ??= CreateUiCamera("VrCockpitHudCamera", 100);
     public GameObject CockpitHudReference => _smoothedForwardReference ??= CreateSmoothedForwardReference();
+
+    internal void SetStartupPresentation(bool visible)
+    {
+        if (visible && _startupCamera == null)
+        {
+            // A scene-independent stereo base camera keeps the startup card visible
+            // while a content loader replaces the normal menu/mission cameras.
+            // XR owns both eye projections; no FOV, eye matrix or IPD override is used.
+            var pose = Create<NOVRPoseDriver>(transform);
+            pose.name = "NOVR Startup Presentation";
+            _startupCamera = pose.gameObject.AddComponent<Camera>();
+            _startupCamera.enabled = false;
+            _startupCamera.stereoTargetEye = StereoTargetEyeMask.Both;
+            _startupCamera.clearFlags = CameraClearFlags.SolidColor;
+            _startupCamera.backgroundColor = new Color(.018f, .025f, .035f, 1f);
+            _startupCamera.depth = 1000;
+            _startupCamera.nearClipPlane = .01f;
+            _startupCamera.farClipPlane = 10000f;
+            _startupCamera.cullingMask = 1 << (int)LayerHelper.GetVrUiLayer();
+            _startupCamera.allowHDR = _startupCamera.allowMSAA = false;
+            var data = pose.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            data.renderType = CameraRenderType.Base;
+            data.renderPostProcessing = false;
+            VrCameraManager.IgnoredCameras.Add(_startupCamera);
+        }
+        if (_startupCamera != null)
+        {
+            if (_startupCamera.gameObject.activeSelf != visible) _startupCamera.gameObject.SetActive(visible);
+            _startupCamera.enabled = visible;
+        }
+    }
 
     private GameObject CreateSmoothedForwardReference()
     {
@@ -37,6 +69,7 @@ public class NOUIManager : NOVRBehaviour
     private void OnDestroy()
     {
         APIBus.OnMainCameraChanged -= OnMainCameraChanged;
+        if (_startupCamera != null) VrCameraManager.IgnoredCameras.Remove(_startupCamera);
     }
 
     private void Start()
@@ -46,6 +79,7 @@ public class NOUIManager : NOVRBehaviour
         UIBehaviorPatcher.DoPatching();
         Create<VrUiCursor>(transform);
         Create<NativeVrUiRoot>(transform);
+        gameObject.AddComponent<SpecialBehavior.CockpitAlerts>();
         ConfigureUiCameras();
     }
 
@@ -58,15 +92,18 @@ public class NOUIManager : NOVRBehaviour
     private void Update()
     {
         ConfigureUiCameras();
-        UpdateSmoothedPosition();
     }
+
+    private void LateUpdate() => UpdateSmoothedPosition();
     
     private void UpdateSmoothedPosition()
     {
         var smoothedForwardReference = CockpitHudReference;
         var cam = CockpitHudCamera;
         smoothedForwardReference.transform.position = cam.transform.position;
-        smoothedForwardReference.transform.localRotation = Quaternion.Lerp(smoothedForwardReference.transform.localRotation, cam.transform.localRotation, Mathf.Clamp(Time.deltaTime * SmoothingFactor, 0, 1));
+        var response = ModConfiguration.Instance.HmdFollowResponse.Value;
+        var blend = response <= 0f ? 1f : MotionControls.FlightControlMath.SmoothingWeight(Time.unscaledDeltaTime, response);
+        smoothedForwardReference.transform.rotation = Quaternion.Slerp(smoothedForwardReference.transform.rotation, cam.transform.rotation, blend);
     }
 
     

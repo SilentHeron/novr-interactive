@@ -15,6 +15,7 @@
         <TargetFramework>net48</TargetFramework>
         <RootNamespace>UnityEngine.XR.OpenXR</RootNamespace>
         <AssemblyName>Unity.XR.OpenXR</AssemblyName>
+        <DefineConstants>$(DefineConstants);ENABLE_INPUT_SYSTEM</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup Condition=" '$(NuclearOptionGameDirResolved)' == 'NUCLEAR_OPTION_NOT_FOUND' ">

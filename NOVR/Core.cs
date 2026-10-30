@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using NOVR.VrCamera;
 using NOVR.VrTogglers;
 using NOVR.VrUi;
@@ -13,11 +12,10 @@ namespace NOVR;
 public class Core : MonoBehaviour
 {
     
-    private float _originalFixedDeltaTime;
+    private bool _quitting;
 
     private NOVRHeadsetData? _headsetData;
     private NOUIManager? _vrUi;
-    private PropertyInfo? _refreshRateProperty;
     private VrTogglerManager? _vrTogglerManager;
     
     private Aircraft _aircraft;
@@ -33,10 +31,30 @@ public class Core : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         gameObject.AddComponent<VrCameraManager>();
         gameObject.AddComponent<APIBus>();
+        gameObject.AddComponent<MotionControls.CockpitProfiles>();
+        gameObject.AddComponent<MotionControls.CockpitPanelPlacement>();
+        gameObject.AddComponent<MotionControls.CockpitLayout>();
+        gameObject.AddComponent<MotionControls.MotionFlightController>();
+        gameObject.AddComponent<MotionControls.HelmetNightVision>();
+        gameObject.AddComponent<MotionControls.PilotHandVisuals>();
+        gameObject.AddComponent<MotionControls.InteractionAudio>();
+        gameObject.AddComponent<MotionControls.ControllerActions>();
+        gameObject.AddComponent<MotionControls.CockpitViewZoom>();
+        gameObject.AddComponent<MotionControls.OpticalCameraRestore>();
+        gameObject.AddComponent<MotionControls.OpticalTargetingHud>();
+        gameObject.AddComponent<MotionControls.TargetAcquisitionCue>();
+        gameObject.AddComponent<MotionControls.PcVrCapabilities>();
+        gameObject.AddComponent<VrUi.WristMenu>();
+        gameObject.AddComponent<MotionControls.UniversalCockpitPanel>();
+        gameObject.AddComponent<MotionControls.CockpitForeground>();
+        gameObject.AddComponent<MotionControls.Fs20NativeCockpit>();
     }
+
+    private void OnApplicationQuit() => _quitting = true;
 
     private void OnDestroy()
     {
+        if (_quitting) return;
         Debug.Log("NOVR has been destroyed. This shouldn't have happened. Recreating...");
         
         Create();
@@ -45,13 +63,6 @@ public class Core : MonoBehaviour
     private void Start()
     {
         
-        
-        var xrDeviceType = Type.GetType("UnityEngine.XR.XRDevice, UnityEngine.XRModule") ??
-                           Type.GetType("UnityEngine.XR.XRDevice, UnityEngine.VRModule") ??
-                           Type.GetType("UnityEngine.VR.VRDevice, UnityEngine.VRModule") ??
-                           Type.GetType("UnityEngine.VR.VRDevice, UnityEngine");
-
-        _refreshRateProperty = xrDeviceType?.GetProperty("refreshRate");
         
         _headsetData = NOVRBehaviour.Create<NOVRHeadsetData>(transform);
         _vrUi = NOVRBehaviour.Create<NOUIManager>(transform);
@@ -62,27 +73,6 @@ public class Core : MonoBehaviour
 
 
 
-    private void Update()
-    {
-        UpdatePhysicsRate();
-    }
-
-    private void UpdatePhysicsRate()
-    {
-        if (_originalFixedDeltaTime == 0)
-        {
-            _originalFixedDeltaTime = Time.fixedDeltaTime;
-        }
-
-        if (_refreshRateProperty == null) return;
-
-        var headsetRefreshRate = (float)_refreshRateProperty.GetValue(null, null);
-        if (headsetRefreshRate <= 0) return;
-
-
-        Time.fixedDeltaTime = _originalFixedDeltaTime;
-        
-    }
     private void FixedUpdate()
     {
         _oldAircraft = _aircraft;

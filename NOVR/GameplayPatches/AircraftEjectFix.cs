@@ -1,9 +1,7 @@
-using System;
 using System.Collections;
 using HarmonyLib;
-using NaturalPoint.TrackIR;
-using NOVR.VrUi.HarmonyPatches;
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace NOVR.HarmonyPatches;
 
@@ -15,44 +13,36 @@ internal static class AircraftEjectFix
         [HarmonyPostfix]
         private static void Postfix(PilotDismounted __instance)
         {
-            if (!UnitRegistry.TryGetUnit<Aircraft>(__instance.parentUnit, out var unit)) return;
-            if (unit != SceneSingleton<CameraStateManager>.i.followingUnit ||
-                __instance.pilotNumber != (byte)0) return;
-            __instance.StartCoroutine(ApplyCameraPivot(__instance));
+            var camera = SceneSingleton<CameraStateManager>.i;
+            if (!XRSettings.enabled || camera == null || __instance.pilotNumber != 0 ||
+                !UnitRegistry.TryGetUnit<Aircraft>(__instance.parentUnit, out var aircraft) ||
+                camera.followingUnit != aircraft) return;
+            __instance.StartCoroutine(ApplyCameraPivot(__instance, aircraft));
         }
 
-        private static IEnumerator ApplyCameraPivot(PilotDismounted pilotDismounted)
-        { 
-            while (true)
+        private static IEnumerator ApplyCameraPivot(PilotDismounted pilot, Aircraft aircraft)
+        {
+            // Setup is asynchronous: the native camera is reparented after the
+            // next physics update. Its temporary absence is not an exception.
+            var deadline = Time.unscaledTime + 2f;
+            while (pilot != null && Time.unscaledTime < deadline)
             {
-                bool shouldContinue = false;
-                try
+                var camera = SceneSingleton<CameraStateManager>.i;
+                if (camera == null || (camera.followingUnit != aircraft && camera.followingUnit != pilot)) yield break;
+                var head = pilot.transform.Find("pilot/pilot_armature/pelvis/chest/neck/head");
+                var helmet = head != null ? head.Find("helmetCamPoint") : null;
+                if (camera.followingUnit == pilot && camera.cameraPivot != null &&
+                    camera.cameraPivot.IsChildOf(pilot.transform) && helmet != null)
                 {
-                    if (pilotDismounted == null) yield break;
-                
-
-                    var head = pilotDismounted.transform.Find("pilot/pilot_armature/pelvis/chest/neck/head");
-                    if (head == null) throw new Exception("head is null");
-                    var helmetCamPoint = head?.Find("helmetCamPoint");
-                    if (helmetCamPoint == null) throw new Exception("helmetCamPoint is null");
-
-                    var cameraPivot = pilotDismounted.transform.Find("cameraPivot");
-                    if (cameraPivot == null) throw new Exception("cameraPivot is null");
-
-                    cameraPivot.SetPositionAndRotation(helmetCamPoint.position, helmetCamPoint.rotation);
-                    head.gameObject.SetActive(false);
-                    //LayerHelper.SetLayerRecursive(pilotDismounted.transform, LayerHelper.Layers.CockpitAndExternal); // TODO: Fix this
+                    camera.cameraPivot.SetPositionAndRotation(helmet.position, helmet.rotation);
+                    head!.gameObject.SetActive(false);
+                    Debug.Log("[NOVR] Ejection camera attached to the local pilot's helmet viewpoint.");
+                    yield break;
                 }
-                catch (Exception e)
-                {
-                    Debug.Log($"Aircraft ejection: {e}");
-                    shouldContinue = true;
-                }
-
-                if (!shouldContinue) yield break;
                 yield return null;
             }
-            
+            if (pilot != null)
+                Debug.LogWarning("[NOVR] Helmet viewpoint unavailable after ejection; keeping the game's camera placement.");
         }
     }
 }

@@ -19,6 +19,7 @@ public sealed class MainWindow : Window
         MinHeight = 500;
         DataContext = _viewModel;
         _viewModel.SetFolderBrowser(BrowseForFolderAsync);
+        _viewModel.SetPackageBrowser(BrowseForPackageAsync);
         Content = BuildContent();
         Opened += async (_, _) => await _viewModel.InitializeAsync();
     }
@@ -32,6 +33,17 @@ public sealed class MainWindow : Window
         });
 
         return folders.FirstOrDefault()?.Path.LocalPath;
+    }
+
+    private async Task<string?> BrowseForPackageAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select a NOVR Steam Frame release package",
+            AllowMultiple = false,
+            FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("NOVR release ZIP") { Patterns = ["*.zip"] }]
+        });
+        return files.FirstOrDefault()?.Path.LocalPath;
     }
 
     private Control BuildContent()
@@ -51,7 +63,7 @@ public sealed class MainWindow : Window
 
         root.Children.Add(new TextBlock
         {
-            Text = "Install, update, repair, or remove NOVR. BepInEx 5 will be installed automatically if needed.",
+            Text = "Channel: " + InstallerConstants.ReleaseChannel + ". Close Nuclear Option before installing. Your settings and other mods are preserved.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.85
         });
@@ -114,8 +126,11 @@ public sealed class MainWindow : Window
         root.Children.Add(BuildInstallActions());
         root.Children.Add(BuildInstalledActions());
         root.Children.Add(BuildUninstallFinishActions());
+        var package = new Button { Content = "Install a downloaded NOVR package…", MinHeight = 38 };
+        package.Bind(Button.CommandProperty, new Avalonia.Data.Binding(nameof(MainWindowViewModel.InstallPackageCommand)));
+        root.Children.Add(package);
 
-        return root;
+        return new ScrollViewer { Content = root };
     }
 
     private Control BuildInstallActions()

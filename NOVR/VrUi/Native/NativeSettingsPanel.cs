@@ -250,6 +250,10 @@ public class NativeSettingsPanel : MonoBehaviour
         AddFloatRow("Cloud Detail", () => PlayerSettings.graphics.CloudDetail, value => PlayerSettings.graphics.CloudDetail = value, 0f, 1f, 0.05f, value => $"{value * 100f:0}%");
         AddToggleRow("Grass", () => PlayerSettings.DetailSettings.GrassEnabled, value => PlayerSettings.DetailSettings.GrassEnabled = value);
         AddFloatRow("Tree Distance", () => PlayerSettings.DetailSettings.TreeRangeMultiplier, value => PlayerSettings.DetailSettings.TreeRangeMultiplier = value, DetailSettings.TreeRangeMultiplierMin, DetailSettings.TreeRangeMultiplierMax, 0.1f, value => $"{value:0.0}");
+        var zoom = ModConfiguration.Instance.InspectionZoom;
+        AddOptionRow("Zoom Resolution", MotionControls.InspectionZoomSettings.ResolutionLabels, () => zoom.Resolution.Value, value => zoom.Resolution.Value = value);
+        AddOptionRow("Zoom Anti-Aliasing", MotionControls.InspectionZoomSettings.AaLabels, () => zoom.AntiAliasing.Value, value => zoom.AntiAliasing.Value = value);
+        AddToggleRow("Zoom Scene Effects", () => zoom.SceneEffects.Value, value => zoom.SceneEffects.Value = value);
         AddActionRow("Graphics Defaults", "RESET", ResetGraphicsSettings);
     }
 
@@ -268,6 +272,12 @@ public class NativeSettingsPanel : MonoBehaviour
 
     private void RenderControlsTab()
     {
+        if (_contentRoot != null)
+        {
+            StickSensitivitySlider.Create(_contentRoot, new Vector2(0, ConsumeRowY() - 14), 1000, _font!, 18);
+            ConsumeRowY();
+            AddReadOnlyRow("Motion stick: higher sensitivity needs less wrist tilt. Pitch/roll only; yaw is unchanged. Saves immediately.");
+        }
         AddActionRow("Control Bindings", "VIEW", () => SelectTab(SettingsTab.Bindings));
         AddToggleRow("Virtual Joystick", () => PlayerSettings.virtualJoystickEnabled, value => SetPlayerBool("VirtualJoystickEnabled", value, static assigned => PlayerSettings.virtualJoystickEnabled = assigned, apply: true));
         AddToggleRow("Invert Virtual Pitch", () => PlayerSettings.virtualJoystickInvertPitch, value => SetPlayerBool("VirtualJoystickInvertPitch", value, static assigned => PlayerSettings.virtualJoystickInvertPitch = assigned, apply: true));
@@ -781,6 +791,7 @@ public class NativeSettingsPanel : MonoBehaviour
 
         PlayerSettings.graphics.Clear();
         PlayerSettings.DetailSettings.Clear();
+        ModConfiguration.Instance.InspectionZoom.Reset();
         ApplyAndRefresh();
     }
 

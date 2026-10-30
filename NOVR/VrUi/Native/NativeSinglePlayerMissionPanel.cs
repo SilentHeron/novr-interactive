@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using Cysharp.Threading.Tasks;
 using NuclearOption.Networking;
 using NuclearOption.SavedMission;
 using UnityEngine;
@@ -39,11 +41,19 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
     private Text? _pageText;
     private Button? _startButton;
     private Button? _customizeButton;
+    private Text? _startButtonText;
+    private Text? _launchStatusText;
+    private readonly MissionLaunchGate _launch = new();
+    private readonly List<(Button button, bool interactable)> _launchButtonStates = new();
+    private float _launchStartedAt, _nextLaunchStatusTime;
+    private string _launchPhase = "";
+    private int _contentRevision = -1;
+    private float _nextContentCheck;
     private int _selectedIndex;
     private int _page;
     private MissionGroupFilter _activeGroupFilter = MissionGroupFilter.All;
     private int _activeTagFilterIndex;
-    private bool _loaded;
+    private bool _visible;
 
     public void Initialize(NativeGameActionAdapter actions, RectTransform root)
     {
@@ -56,11 +66,15 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
     {
         if (_container == null) return;
 
-        if (visible && !_loaded)
+        if (visible && !_visible && !_launch.IsBusy)
         {
             LoadMissions();
+            SetIdleLaunchStatus();
+            _contentRevision = BlueprinterContentReadiness.Read().Revision;
+            RefreshLaunchButtons();
         }
 
+        _visible = visible;
         NativePanelTransition.SetVisible(_container, visible);
     }
 
@@ -101,10 +115,13 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         _titleText = CreateText("Mission Title", detailsPanel, "", new Vector2(0f, 395f), new Vector2(820f, 44f), 21, TextAnchor.MiddleCenter, Color.white);
         _tagsText = CreateText("Mission Tags", detailsPanel, "", new Vector2(0f, 345f), new Vector2(820f, 28f), 13, TextAnchor.MiddleCenter, new Color(0.82f, 0.86f, 0.72f, 1f));
         _descriptionText = CreateText("Mission Description", detailsPanel, "", new Vector2(0f, 60f), new Vector2(820f, 520f), 15, TextAnchor.UpperLeft, new Color(0.84f, 0.88f, 0.90f, 1f));
+        _launchStatusText = CreateText("Launch Status", detailsPanel, "", new Vector2(0f, -345f), new Vector2(820f, 100f), 15, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
+        _launchStatusText.supportRichText = false;
 
         CreateMenuButton("BACK", _container, new Vector2(NativeUiLayout.FooterLeftX, NativeUiLayout.FooterY), NativeUiLayout.FooterButtonSize, BackButtonColor, BackToMainMenu, 15);
         _customizeButton = CreateMenuButton("CUSTOMIZE MISSION", _container, new Vector2(540f, NativeUiLayout.FooterY), new Vector2(260f, 44f), ButtonColor, CustomizeSelectedMission, 14);
         _startButton = CreateMenuButton("START MISSION", _container, new Vector2(830f, NativeUiLayout.FooterY), new Vector2(240f, 44f), StartButtonColor, StartSelectedMission, 15);
+        _startButtonText = _startButton.GetComponentInChildren<Text>();
 
         NativePanelTransition.SetVisible(_container, false, instant: true);
     }
@@ -166,7 +183,6 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void LoadMissions()
     {
-        _loaded = true;
         _missions.Clear();
         _filteredMissions.Clear();
         _page = 0;
@@ -175,11 +191,12 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         try
         {
             MissionGroup.Init();
-            var entries = MissionSaveLoad
+            var entries = NativeMissionHeaders
                 .QuickLoadMany(MissionGroup.All.GetMissions())
                 .Where(entry => HasTag(entry.mission, MissionTag.SinglePlayer))
                 .Select(entry => new MissionEntry(entry.key, entry.mission));
             _missions.AddRange(entries);
+            Debug.Log($"[NOVR] Loaded {_missions.Count} single-player missions for the VR menu.");
         }
         catch (System.Exception exception)
         {
@@ -257,8 +274,11 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SelectMission(int index)
     {
+        if (_launch.IsBusy) return;
+        SetIdleLaunchStatus();
         if (index < 0 || index >= _filteredMissions.Count)
         {
+            _selectedIndex = -1;
             if (_titleText != null) _titleText.text = "";
             if (_tagsText != null) _tagsText.text = "";
             if (_descriptionText != null) _descriptionText.text = "";
@@ -273,15 +293,14 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         if (_titleText != null) _titleText.text = mission.Key.Name;
         if (_tagsText != null) _tagsText.text = string.Join("   ", mission.Mission.missionSettings.Tags.Select(tag => tag.Tag));
         if (_descriptionText != null) _descriptionText.text = mission.Mission.missionSettings.description ?? "";
-        if (_startButton != null) _startButton.interactable = true;
-        if (_customizeButton != null) _customizeButton.interactable = true;
+        RefreshLaunchButtons();
         _actions?.TrySelectOriginalMission(mission.Key);
         RefreshList();
     }
 
     private void PreviousPage()
     {
-        if (_page <= 0) return;
+        if (_launch.IsBusy || _page <= 0) return;
 
         _page--;
         SelectMission(Mathf.Clamp(_selectedIndex, _page * PageSize, Mathf.Min(_filteredMissions.Count - 1, (_page + 1) * PageSize - 1)));
@@ -290,7 +309,7 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void NextPage()
     {
-        if ((_page + 1) * PageSize >= _filteredMissions.Count) return;
+        if (_launch.IsBusy || (_page + 1) * PageSize >= _filteredMissions.Count) return;
 
         _page++;
         SelectMission(_page * PageSize);
@@ -299,7 +318,7 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SetGroupFilter(MissionGroupFilter filter)
     {
-        if (_activeGroupFilter == filter) return;
+        if (_launch.IsBusy || _activeGroupFilter == filter) return;
 
         _activeGroupFilter = filter;
         _page = 0;
@@ -309,7 +328,7 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SetTagFilter(int filterIndex)
     {
-        if (filterIndex < 0 || filterIndex >= _tagFilters.Count || _activeTagFilterIndex == filterIndex) return;
+        if (_launch.IsBusy || filterIndex < 0 || filterIndex >= _tagFilters.Count || _activeTagFilterIndex == filterIndex) return;
 
         _activeTagFilterIndex = filterIndex;
         _page = 0;
@@ -319,17 +338,24 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void BackToMainMenu()
     {
+        if (_launch.IsBusy) return;
         _actions?.TryInvokeCurrentMenuButton("Back", "< BACK", "BACK", "MenuExit_Button");
     }
 
     private void OpenUserFolder()
     {
+        if (_launch.IsBusy) return;
         _actions?.TryInvokeCurrentMenuButton("Open User Folder", "Open User Folder", "OPEN USER FOLDER");
     }
 
     private void CustomizeSelectedMission()
     {
-        if (_selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
+        if (_launch.IsBusy || HasActiveSession() || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
+        if (!BlueprinterContentReadiness.Read().CanLaunch)
+        {
+            SetIdleLaunchStatus();
+            return;
+        }
 
         _actions?.TrySelectOriginalMission(_filteredMissions[_selectedIndex].Key);
         _actions?.TryInvokeCurrentMenuButton("Customize Mission", "Customize Mission", "CUSTOMIZE MISSION");
@@ -337,18 +363,162 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void StartSelectedMission()
     {
-        if (_selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
-
-        var missionKey = _filteredMissions[_selectedIndex].Key;
-        if (!missionKey.TryLoad(out var mission, out var error))
+        if (_launch.IsBusy || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
+        if (!BlueprinterContentReadiness.Read().CanLaunch)
         {
-            if (_descriptionText != null) _descriptionText.text = error;
-            Debug.LogWarning($"[NOVR] Native single player failed to load mission '{missionKey}': {error}");
+            SetIdleLaunchStatus();
+            RefreshLaunchButtons();
+            return;
+        }
+        var manager = NetworkManagerNuclearOption.i;
+        if (manager == null)
+        {
+            SetLaunchStatus("The game is still preparing. Please try again in a moment.");
+            return;
+        }
+        if (!_launch.TryBegin(HasActiveSession()))
+        {
+            SetLaunchStatus("A session is already open. Return to the main menu before starting another mission.");
+            RefreshLaunchButtons();
             return;
         }
 
-        MissionManager.SetMission(mission, checkIfSame: false);
-        NetworkManagerNuclearOption.i.StartHost(new HostOptions(SocketType.Offline, GameState.SinglePlayer, mission.MapKey));
+        // Lock before loading or yielding, including direct event invocations.
+        _launchStartedAt = Time.unscaledTime;
+        _launchPhase = "Preparing mission";
+        _nextLaunchStatusTime = 0;
+        LockLaunchButtons();
+        StartMissionAsync(_filteredMissions[_selectedIndex].Key, manager).Forget();
+    }
+
+    private async UniTaskVoid StartMissionAsync(MissionKey missionKey, NetworkManagerNuclearOption manager)
+    {
+        try
+        {
+            SetLaunchStatus("Preparing mission…");
+            // Let the disabled buttons and status render before synchronous IO.
+            await UniTask.NextFrame(cancellationToken: this.GetCancellationTokenOnDestroy());
+            // The loader may have started in the yielded frame. Never race its
+            // temporary asset-preload host even if a click was already accepted.
+            if (!BlueprinterContentReadiness.Read().CanLaunch)
+            {
+                SetIdleLaunchStatus();
+                return;
+            }
+            if (manager == null || HasActiveSession())
+            {
+                SetLaunchStatus("A session is already open. Return to the main menu before starting another mission.");
+                return;
+            }
+            if (!missionKey.TryLoad(out var mission, out var error))
+            {
+                SetLaunchStatus("Couldn't open this mission. Choose another mission or try again.\n" + error);
+                Debug.LogWarning($"[NOVR] Native single player failed to load mission '{missionKey}': {error}");
+                return;
+            }
+
+            _launchPhase = "Loading map";
+            SetLaunchStatus("Loading map…");
+            MissionManager.SetMission(mission, checkIfSame: false);
+            await manager.StartHostAsync(new HostOptions(SocketType.Offline, GameState.SinglePlayer, mission.MapKey));
+            if (this != null)
+                SetLaunchStatus(manager != null && manager.Server.Active
+                    ? "Mission ready." : "The map couldn't load. Choose another mission or try again.");
+        }
+        catch (OperationCanceledException)
+        {
+            if (this != null) SetLaunchStatus("Mission loading stopped. Return to the main menu to try again.");
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError($"[NOVR] Native single player launch failed: {exception}");
+            if (this != null) SetLaunchStatus("Couldn't start the mission. Return to the main menu and try again.");
+        }
+        finally
+        {
+            _launch.Finish();
+            if (this != null) RestoreLaunchButtons();
+        }
+    }
+
+    private static bool HasActiveSession()
+    {
+        var manager = NetworkManagerNuclearOption.i;
+        return manager != null && (manager.Server.Active || manager.Client.Active);
+    }
+
+    private void Update()
+    {
+        if (!_launch.IsBusy && _visible && Time.unscaledTime >= _nextContentCheck)
+        {
+            _nextContentCheck = Time.unscaledTime + .25f;
+            var content = BlueprinterContentReadiness.Read();
+            if (_contentRevision != content.Revision)
+            {
+                _contentRevision = content.Revision;
+                if (content.Phase == MissionContentPhase.Ready) RefreshContentMissions();
+                SetIdleLaunchStatus();
+            }
+            RefreshLaunchButtons();
+        }
+        if (!_launch.IsBusy || Time.unscaledTime < _nextLaunchStatusTime) return;
+        _nextLaunchStatusTime = Time.unscaledTime + 1;
+        var elapsed = Mathf.Max(0, Mathf.FloorToInt(Time.unscaledTime - _launchStartedAt));
+        SetLaunchStatus(elapsed < 3 ? _launchPhase + "…" : $"{_launchPhase}… {elapsed}s\nPlease wait for loading to finish.");
+    }
+
+    private void SetLaunchStatus(string status)
+    {
+        if (_launchStatusText != null) _launchStatusText.text = status;
+    }
+
+    private void SetIdleLaunchStatus() => SetLaunchStatus(BlueprinterContentReadiness.Read().Status);
+
+    private void RefreshContentMissions()
+    {
+        // Content loaders can add missions at the end of startup. Refresh once
+        // on that observed transition, preserving the pilot's choice and filters.
+        MissionKey? selected = _selectedIndex >= 0 && _selectedIndex < _filteredMissions.Count
+            ? _filteredMissions[_selectedIndex].Key : null;
+        LoadMissions();
+        if (!selected.HasValue) return;
+        var index = _filteredMissions.FindIndex(entry => entry.Key.Equals(selected.Value));
+        if (index < 0) return;
+        _page = index / PageSize;
+        SelectMission(index);
+    }
+
+    private void LockLaunchButtons()
+    {
+        _launchButtonStates.Clear();
+        if (_container != null)
+            foreach (var button in _container.GetComponentsInChildren<Button>(true))
+            {
+                _launchButtonStates.Add((button, button.interactable));
+                button.interactable = false;
+            }
+        if (_startButtonText != null) _startButtonText.text = "LOADING…";
+    }
+
+    private void RestoreLaunchButtons()
+    {
+        foreach (var state in _launchButtonStates)
+            if (state.button != null) state.button.interactable = state.interactable;
+        _launchButtonStates.Clear();
+        RefreshLaunchButtons();
+    }
+
+    private void RefreshLaunchButtons()
+    {
+        var selectable = !_launch.IsBusy && _selectedIndex >= 0 && _selectedIndex < _filteredMissions.Count;
+        var activeSession = HasActiveSession();
+        var content = BlueprinterContentReadiness.Read();
+        if (_startButton != null) _startButton.interactable = selectable && !activeSession && content.CanLaunch;
+        if (_customizeButton != null) _customizeButton.interactable = selectable && !activeSession && content.CanLaunch;
+        if (_startButtonText != null) _startButtonText.text = _launch.IsBusy ? "LOADING…"
+            : content.Phase == MissionContentPhase.Preparing ? "PREPARING CONTENT"
+            : content.Phase == MissionContentPhase.Failed ? "CONTENT NOT READY"
+            : activeSession ? "SESSION OPEN" : "START MISSION";
     }
 
     private bool MatchesGroupFilter(MissionEntry mission)

@@ -12,6 +12,7 @@ public sealed class NativePanelTransition : MonoBehaviour
     private Vector2 _shownPosition;
     private Vector2 _hiddenPosition;
     private bool _targetVisible;
+    private bool _initialized;
 
     public static void SetVisible(RectTransform target, bool visible, bool instant = false)
     {
@@ -27,10 +28,12 @@ public sealed class NativePanelTransition : MonoBehaviour
 
     private void Initialize()
     {
+        if (_initialized) return;
         _rectTransform ??= (RectTransform)transform;
         _canvasGroup ??= gameObject.GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         _shownPosition = _rectTransform.anchoredPosition;
         _hiddenPosition = _shownPosition + new Vector2(HiddenOffsetX, 0f);
+        _initialized = true;
     }
 
     public void SetVisible(bool visible, bool instant = false)
@@ -60,12 +63,12 @@ public sealed class NativePanelTransition : MonoBehaviour
         if (_canvasGroup == null || _rectTransform == null) return;
 
         var targetAlpha = _targetVisible ? 1f : 0f;
-        var targetPosition = _targetVisible ? _shownPosition : _hiddenPosition;
         var maxAlphaDelta = Time.unscaledDeltaTime / DurationSeconds;
-        var positionT = Mathf.Clamp01(Time.unscaledDeltaTime / DurationSeconds);
 
         _canvasGroup.alpha = Mathf.MoveTowards(_canvasGroup.alpha, targetAlpha, maxAlphaDelta);
-        _rectTransform.anchoredPosition = Vector2.Lerp(_rectTransform.anchoredPosition, targetPosition, positionT);
+        // Derive movement from the fade, always relative to the original anchor.
+        // Repeated SetVisible calls and interrupted transitions cannot accumulate drift.
+        _rectTransform.anchoredPosition = Vector2.Lerp(_hiddenPosition, _shownPosition, _canvasGroup.alpha);
 
         if (!_targetVisible && _canvasGroup.alpha <= 0.01f)
         {

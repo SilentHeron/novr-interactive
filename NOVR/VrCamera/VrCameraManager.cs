@@ -16,14 +16,24 @@ public class VrCameraManager: MonoBehaviour
     private static readonly string[] TrackedChildNames = {"cockpitRenderer", "postProcessingRenderer"};
 
     public static HashSet<Camera> IgnoredCameras = new();
+    private Camera[] _cameraBuffer = System.Array.Empty<Camera>();
+    private int _cameraCount;
     
     private void Update() // Todo: Make me behave on events if possible
     {
-        Camera[] cameras = new Camera[Camera.allCamerasCount];
-        Camera.GetAllCameras(cameras);
+        // Keep discovering scene/menu cameras every frame, but reuse storage
+        // instead of allocating an array for every headset frame.
+        var capacity = Camera.allCamerasCount;
+        if (_cameraBuffer.Length < capacity)
+            _cameraBuffer = new Camera[Mathf.NextPowerOfTwo(capacity)];
+        var count = Camera.GetAllCameras(_cameraBuffer);
+        if (count < _cameraCount) System.Array.Clear(_cameraBuffer, count, _cameraCount - count);
+        _cameraCount = count;
 
-        foreach (var camera in cameras)
+        for (var i = 0; i < count; i++)
         {
+            var camera = _cameraBuffer[i];
+            if (camera == null) continue;
             var gameObject = camera.gameObject;
             if (gameObject.name is not (NuclearOptionMainCameraName or NuclearOptionMenuCameraName))
             {

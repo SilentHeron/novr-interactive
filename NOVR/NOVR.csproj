@@ -15,9 +15,20 @@
         <RootNamespace>NOVR</RootNamespace>
     </PropertyGroup>
     <ItemGroup>
+        <EmbeddedResource Include="Assets/PilotFabricDetail.png" LogicalName="NOVR.PilotFabricDetail.png" />
+        <EmbeddedResource Include="Assets/GloveColor.jpg" LogicalName="NOVR.GloveColor.jpg" />
+        <EmbeddedResource Include="Assets/GloveNormal.png" LogicalName="NOVR.GloveNormal.png" />
+        <EmbeddedResource Include="Assets/Glove-left.json" LogicalName="NOVR.Glove.left.json" />
+        <EmbeddedResource Include="Assets/Glove-right.json" LogicalName="NOVR.Glove.right.json" />
+        <EmbeddedResource Include="Assets/CockpitPanel.json" LogicalName="NOVR.CockpitPanel.json" />
         <ProjectReference Include="..\NOVR.XR.OpenXR\NOVR.XR.OpenXR.csproj" Private="false"/>
     </ItemGroup>
     <ItemGroup>
+        <Content Include="../ThirdParty/Valve-Gloves-NOTICE.txt" Link="ThirdParty/Valve-Gloves-NOTICE.txt"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+        <Content Include="../ThirdParty/Valve-Gloves-LICENSE.txt" Link="ThirdParty/Valve-Gloves-LICENSE.txt"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+        <Content Include="../NOVR.XR.OpenXR/Features/Valve/LICENSE.md" Link="ThirdParty/Valve-SteamFrame-LICENSE.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <Content Include="Assets\**\*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>

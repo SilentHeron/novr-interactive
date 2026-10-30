@@ -7,7 +7,6 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class FlightHudVelocityVectorPatch
 {
-    private const float HudDistance = 1000.0f;
     private const float VelocityVectorProjectionDistance = 1000.0f;
     private static readonly FieldInfo CockpitTransformField = AccessTools.Field(typeof(global::FlightHud), "cockpitTransform");
     private static readonly FieldInfo CockpitRbField = AccessTools.Field(typeof(global::FlightHud), "cockpitRB");
@@ -38,15 +37,14 @@ internal static class FlightHudVelocityVectorPatch
                 return;
 
             var velocityWorldPosition = cockpitTransform.position + velocity * VelocityVectorProjectionDistance;
-            var mainCameraLocalPosition = mainCamera.transform.InverseTransformPoint(velocityWorldPosition);
-            if (mainCameraLocalPosition.z <= 0.0f)
+            if (!VrHudProjection.TryProjectToCockpitHud(velocityWorldPosition, out var hudPosition))
             {
                 velocityVector.enabled = false;
                 return;
             }
 
             velocityVector.enabled = true;
-            velocityVector.transform.position = cockpitHudCamera.transform.TransformPoint(mainCameraLocalPosition).normalized * HudDistance;
+            velocityVector.transform.position = hudPosition;
             velocityVector.transform.forward = cockpitHudCamera.transform.forward;
         }
     }

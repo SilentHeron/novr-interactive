@@ -18,6 +18,7 @@ public sealed class NativeButtonFeedback : MonoBehaviour, IPointerEnterHandler, 
 
     public static void Configure(Button button, Color normalColor, Color? disabledColor = null)
     {
+        button.transition = Selectable.Transition.ColorTint;
         var colors = button.colors;
         colors.normalColor = normalColor;
         colors.highlightedColor = Brighten(normalColor, 0.22f);
@@ -30,7 +31,9 @@ public sealed class NativeButtonFeedback : MonoBehaviour, IPointerEnterHandler, 
 
         if (button.targetGraphic != null)
         {
-            button.targetGraphic.color = normalColor;
+            // ColorTint already multiplies the CanvasRenderer color. Tinting
+            // the Image too squares dark theme colors and hides button edges.
+            button.targetGraphic.color = Color.white;
         }
 
         var feedback = button.GetComponent<NativeButtonFeedback>() ??

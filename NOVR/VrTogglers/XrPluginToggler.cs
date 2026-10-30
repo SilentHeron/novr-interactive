@@ -9,6 +9,7 @@ public abstract class XrPluginToggler: VrToggler
 {
     protected XRGeneralSettings _generalSettings;
     protected XRManagerSettings _managerSetings;
+    private bool _previousRunInBackground;
     
     protected override bool SetUp()
     {
@@ -33,6 +34,8 @@ public abstract class XrPluginToggler: VrToggler
 
     protected override bool EnableVr()
     {
+        if (!IsVrEnabled) _previousRunInBackground = Application.runInBackground;
+        Application.runInBackground = true;
         _managerSetings.StartSubsystems();
         return _managerSetings.activeLoader != null;
     }
@@ -43,6 +46,7 @@ public abstract class XrPluginToggler: VrToggler
 
         _managerSetings.StopSubsystems();
         _managerSetings.DeinitializeLoader();
+        Application.runInBackground = _previousRunInBackground;
         return _managerSetings.activeLoader == null;
     }
 

@@ -37,6 +37,7 @@ public static class LayerHelper
         
         
         // Ours
+        VrForeground = 29,
         VrUi = 30,
         VrUiCapture = 31,
     }

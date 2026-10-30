@@ -20,7 +20,7 @@
       SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="DeployToGame" AfterTargets="StageGameLayout" Condition="'$(GameDeployPath)' != '' And '$(NuclearOptionGameDirResolved)' != 'NUCLEAR_OPTION_NOT_FOUND'">
+  <Target Name="DeployToGame" AfterTargets="StageGameLayout" Condition="'$(DeployToGame)' == 'true' And '$(GameDeployPath)' != '' And '$(NuclearOptionGameDirResolved)' != 'NUCLEAR_OPTION_NOT_FOUND'">
     <ItemGroup>
       <GameDeployFiles Include="$(GameLayoutOutputDir)/$(GameDeployPath)/**/*" />
     </ItemGroup>

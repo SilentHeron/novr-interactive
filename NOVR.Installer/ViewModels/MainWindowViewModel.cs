@@ -26,11 +26,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _removeBepInExOnFinish;
     private bool _showUninstallFinish;
     private Func<Task<string?>>? _browseForFolderAsync;
+    private Func<Task<string?>>? _browseForPackageAsync;
     private Task<DownloadedNovrRelease>? _latestNovrDownloadTask;
-    private object _downloadLock = new();
+    private readonly object _downloadLock = new();
     
     
-    private string _latestReleaseZip = string.Empty;
 
     public MainWindowViewModel()
     {
@@ -40,6 +40,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         FinishUninstallCommand = new AsyncCommand(FinishUninstallAsync, () => !IsBusy && GameInfo?.IsValid == true);
         RescanCommand = new AsyncCommand(ScanAsync, () => !IsBusy);
         BrowseCommand = new AsyncCommand(BrowseAsync, () => !IsBusy);
+        InstallPackageCommand = new AsyncCommand(InstallPackageAsync, () => !IsBusy && GameInfo?.IsValid == true);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -132,47 +133,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand FinishUninstallCommand { get; }
     public ICommand RescanCommand { get; }
     public ICommand BrowseCommand { get; }
+    public ICommand InstallPackageCommand { get; }
+    public void SetPackageBrowser(Func<Task<string?>> browse) => _browseForPackageAsync = browse;
 
     public void SetFolderBrowser(Func<Task<string?>> browseForFolderAsync)
     {
         _browseForFolderAsync = browseForFolderAsync;
     }
 
-    public async Task InitializeAsync()
-    {
-        await ScanAsync();
-        var progress = new Progress<string>(message => Status = message);
-        await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None);
-        
-        var currentInstalled = GameInfo?.Version;
-        var latest = _releaseClient.FoundNOVRRelease;
+    // Opening the installer must work offline and leave the local-package button immediately available.
+    public Task InitializeAsync() => ScanAsync();
 
-        var installType = InstallType.Install;
-        ((IProgress<string>)progress).Report($"Latest: {latest}");
-        
-        if (GameInfo?.ModState == InstallState.FullyInstalled && currentInstalled >= latest)
-        {
-            ((IProgress<string>)progress).Report($"NOVR is up to date. {latest}");
-            installType = InstallType.Repair;
-        }
-        else if (GameInfo?.ModState == InstallState.FullyInstalled && currentInstalled < latest)
-        {
-            ((IProgress<string>)progress).Report($"Update available. {currentInstalled} -> {latest}");
-            installType = InstallType.Update;
-        }
-        
-        // I don't know why this has to be done like this but it does
-        ((IProgress<string>)new Progress<string>(message => PrimaryActionText = message)).Report(installType.ToString());
-    }
-
-    
     private Task<DownloadedNovrRelease> EnsureLatestNovrReleaseDownloadedAsync(
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
         lock (_downloadLock)
         {
-            _latestNovrDownloadTask ??= DownloadLatestNovrReleaseAsync(progress, cancellationToken);
+            if (_latestNovrDownloadTask is null || _latestNovrDownloadTask.IsFaulted || _latestNovrDownloadTask.IsCanceled)
+                _latestNovrDownloadTask = DownloadLatestNovrReleaseAsync(progress, cancellationToken);
             return _latestNovrDownloadTask;
         }
     }
@@ -258,7 +237,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return InstallOrUpdateAsync(InstallType.Repair);
     }
 
-    private async Task InstallOrUpdateAsync(InstallType installType)
+    private async Task InstallPackageAsync()
+    {
+        if (_browseForPackageAsync is null) return;
+        var path = await _browseForPackageAsync();
+        if (!string.IsNullOrEmpty(path)) await InstallOrUpdateAsync(InstallType.Install, path);
+    }
+
+    private async Task InstallOrUpdateAsync(InstallType installType, string? localPackage = null)
     {
         var info = ValidateSelectedGame();
         if (info is null)
@@ -273,14 +259,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             try
             {
+                var release = localPackage is null
+                    ? await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None)
+                    : new DownloadedNovrRelease(localPackage, NovrPackage.ReadVersion(localPackage), string.Empty);
+                NovrPackage.Validate(release.ZipPath, release.Version.ToString());
+                if (info.ModState == InstallState.FullyInstalled && info.Version > release.Version)
+                    throw new InvalidOperationException($"Installed NOVR {info.Version} is newer than {release.Version}. Choose a matching or newer Steam Frame package; your installed files have not been changed.");
+
                 if (!info.HasBepInEx)
                 {
                     var bepInExZip = await _releaseClient.DownloadLatestBepInEx5Async(tempDir, progress, CancellationToken.None);
                     await _installer.InstallBepInExAsync(info, bepInExZip, progress, CancellationToken.None);
                     info = _gameLocator.Inspect(info.GameDir);
                 }
-
-                var release = await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None);
 
                 await _installer.InstallOrUpdateNovrAsync(
                     info,
@@ -388,7 +379,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             return "No game folder selected.";
         }
 
-        return $"Game: {info.GameDir}{Environment.NewLine}" +
+        return $"Channel: {InstallerConstants.ReleaseChannel}{Environment.NewLine}" +
+               $"Game: {info.GameDir}{Environment.NewLine}" +
                $"BepInEx: {(info.HasBepInEx ? "installed" : "not installed")}{Environment.NewLine}" +
                $"NOVR: {info.ModState}";
     }
@@ -424,6 +416,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         (FinishUninstallCommand as AsyncCommand)?.RaiseCanExecuteChanged();
         (RescanCommand as AsyncCommand)?.RaiseCanExecuteChanged();
         (BrowseCommand as AsyncCommand)?.RaiseCanExecuteChanged();
+        (InstallPackageCommand as AsyncCommand)?.RaiseCanExecuteChanged();
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

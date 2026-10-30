@@ -25,6 +25,7 @@ internal static class ThreatItemNotchDirectionPatch
     private static readonly Dictionary<global::ThreatItem, float> SmoothedGapOffsets = new();
     private static readonly Dictionary<global::ThreatItem, int> ThreatSlots = new();
     private static readonly Dictionary<Image, LineImages> LineImageCache = new();
+    private static readonly HashSet<GameObject> CompactHiddenIndicators = new();
     private static int _slotFrame = -1;
     private static int _nextSlot;
 
@@ -61,7 +62,11 @@ internal static class ThreatItemNotchDirectionPatch
         private static bool Prefix(global::ThreatItem __instance)
         {
             var notchIndicator = (GameObject)NotchIndicatorField.GetValue(__instance);
-            if (notchIndicator == null || !TryGetNotchDirection(__instance, out var notchDirection))
+            if (notchIndicator == null) return false;
+            var compact = SpecialBehavior.CockpitAlerts.Active && !ModConfiguration.Instance.CockpitAlerts.WorldNotch.Value;
+            if (compact) { CompactHiddenIndicators.Add(notchIndicator); notchIndicator.SetActive(false); }
+            else if (CompactHiddenIndicators.Remove(notchIndicator)) notchIndicator.SetActive(true);
+            if (compact || !TryGetNotchDirection(__instance, out var notchDirection))
                 return false;
 
             var missile = (global::Missile)MissileField.GetValue(__instance);
@@ -114,12 +119,12 @@ internal static class ThreatItemNotchDirectionPatch
         }
     }
 
-    private static bool TryGetNotchDirection(global::ThreatItem threatItem, out Vector3 notchDirection)
+    internal static bool TryGetNotchDirection(global::ThreatItem threatItem, out Vector3 notchDirection)
     {
         notchDirection = Vector3.zero;
 
         var missile = (global::Missile)MissileField.GetValue(threatItem);
-        var aircraft = SceneSingleton<CombatHUD>.i.aircraft;
+        var aircraft = SceneSingleton<CombatHUD>.i?.aircraft;
         var mainCamera = APIBus.MainCamera;
         if (missile == null || aircraft == null || mainCamera == null)
             return false;
@@ -141,6 +146,26 @@ internal static class ThreatItemNotchDirectionPatch
 
         notchDirection.Normalize();
         return true;
+    }
+
+    internal static void RestoreCompactIndicators()
+    {
+        foreach (var indicator in CompactHiddenIndicators) if (indicator != null) indicator.SetActive(true);
+        CompactHiddenIndicators.Clear();
+    }
+
+    [HarmonyPatch(typeof(global::ThreatItem), "OnDestroy")]
+    private static class ForgetDestroyedThreat
+    {
+        [HarmonyPrefix]
+        private static void Prefix(global::ThreatItem __instance)
+        {
+            SmoothedGapOffsets.Remove(__instance); ThreatSlots.Remove(__instance);
+            var indicator = NotchIndicatorField.GetValue(__instance) as GameObject;
+            if (indicator != null) CompactHiddenIndicators.Remove(indicator);
+            var box = NotchIndicatorBoxField.GetValue(__instance) as Image;
+            if (box != null) LineImageCache.Remove(box);
+        }
     }
     
     private static float GetSmoothedGapOffset(global::ThreatItem threatItem)

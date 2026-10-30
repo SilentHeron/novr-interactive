@@ -1,4 +1,5 @@
 using HarmonyLib;
+using NOVR.VrUi.SpecialBehavior;
 using System.Reflection;
 using NuclearOption.UIStyleSystem;
 using UnityEngine;
@@ -32,6 +33,7 @@ internal static class HUDUnitMarkerViewPositionPatch
         [HarmonyPrefix]
         private static bool Prefix(global::HUDUnitMarker __instance, FactionHQ hq, global::GlobalPosition viewPosition, Vector3 cameraForward)
         {
+            HudElementStyle.Add(__instance.image, HudElementKind.Marker);
             var mainCamera = APIBus.MainCamera;
             var cockpitHudCamera = APIBus.CockpitHudCamera;
             if (mainCamera == null || cockpitHudCamera == null)

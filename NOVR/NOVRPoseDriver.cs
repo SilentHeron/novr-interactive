@@ -46,7 +46,7 @@ public class NOVRPoseDriver: NOVRBehaviour
     private void UpdateTransform()
     {
         transform.localRotation = NOVRHeadsetData.Rotation;
-        transform.localPosition = NOVRHeadsetData.Translation;
+        transform.localPosition = NOVRHeadsetData.Translation + MotionControls.CockpitProfiles.SeatOffset;
     }
 
    

@@ -22,7 +22,8 @@ internal static class VrHudProjection
         if (mainCameraLocal.z <= 0.0f)
             return false;
 
-        hudPosition = cockpitHudCamera.transform.TransformPoint(mainCameraLocal).normalized * HudDistance;
+        hudPosition = cockpitHudCamera.transform.position +
+                      cockpitHudCamera.transform.TransformDirection(mainCameraLocal.normalized) * HudDistance;
         return true;
     }
 
@@ -38,7 +39,8 @@ internal static class VrHudProjection
         if (mainCameraLocal.sqrMagnitude <= Mathf.Epsilon)
             return false;
 
-        hudPosition = cockpitHudCamera.transform.TransformPoint(mainCameraLocal).normalized * HudDistance;
+        hudPosition = cockpitHudCamera.transform.position +
+                      cockpitHudCamera.transform.TransformDirection(mainCameraLocal.normalized) * HudDistance;
         return true;
     }
 
@@ -54,7 +56,7 @@ internal static class VrHudProjection
         var directionToTarget = worldPosition - mainCamera.transform.position;
         if (directionToTarget.sqrMagnitude <= Mathf.Epsilon)
         {
-            hudPosition = cockpitHudCamera.transform.forward * HudDistance;
+            hudPosition = cockpitHudCamera.transform.position + cockpitHudCamera.transform.forward * HudDistance;
             return false;
         }
 
@@ -78,7 +80,8 @@ internal static class VrHudProjection
         }
 
         var pinnedLocalDirection = DirectionFromYawPitch(pinnedYawDegrees, pinnedPitchDegrees);
-        hudPosition = cockpitHudCamera.transform.TransformDirection(pinnedLocalDirection).normalized * HudDistance;
+        hudPosition = cockpitHudCamera.transform.position +
+                      cockpitHudCamera.transform.TransformDirection(pinnedLocalDirection).normalized * HudDistance;
         arrowAngle = Mathf.Atan2(targetPitchDegrees, targetYawDegrees);
         return screenEdge;
     }
@@ -145,7 +148,7 @@ internal static class VrHudProjection
 
     public static float ReferencePixelsToHudDistance(float pixels) => pixels / GetScreenHeightScale();
 
-    private static float GetScreenHeightScale() => 1080.0f / Screen.height;
+    private static float GetScreenHeightScale() => 1080.0f / Mathf.Max(1, Screen.height);
 
     private static Vector3 DirectionFromYawPitch(float yawDegrees, float pitchDegrees)
     {

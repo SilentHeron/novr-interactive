@@ -2,69 +2,34 @@ using UnityEngine;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
+[DefaultExecutionOrder(60)]
 public class NOVRHMDBehavior : UIRenderedCanvasBehavior
 {
-    
-    
-    private float _offset = 1000;
+    private Vector3 _nativeScale;
 
-    private void Update()
+    public override void Awake()
     {
-        var uiCam = APIBus.CockpitHudReference;
-        transform.position = uiCam.transform.forward * _offset;
-        transform.rotation = uiCam.transform.rotation;
-        
-        SetLocalPosition("Speed", new Vector3(-110f, 150f, 0f)); // TODO: Patch game files and use events to set these gameobjects
-        SetLocalPosition("Altitude", new Vector3(110f, 150f, 0f));
-        SetLocalPosition("Bearing", new Vector3(0f, 200f, 0f));
-        SetLocalPosition("Artificial Horizon", new Vector3(0f, 150f, 0f));
+        base.Awake();
+        _nativeScale = transform.localScale;
+        InstrumentBrightness.Add(transform);
     }
 
-    private void SetLocalPosition(string childName, Vector3 localPosition)
+    private void LateUpdate()
     {
-        var child = FindChildRecursive(transform, childName);
-        if (child == null)
-        {
-            return;
-        }
+        if (NOUIManager.I == null) return;
+        var reference = APIBus.CockpitHudReference;
+        if (reference == null) return;
+        transform.position = reference.transform.position + reference.transform.forward * 1000f;
+        transform.rotation = reference.transform.rotation;
 
-        child.localPosition = localPosition;
+        // Keep the native speed/altitude/bearing/horizon arrangement, including
+        // the player's native HMD settings. Scale their common parent instead
+        // of repeatedly replacing four child positions with a custom layout.
+        // Native visibility still hides the HMD duplicates while looking at
+        // the aircraft's forward diegetic HUD.
+        var config = ModConfiguration.Instance;
+        transform.localScale = _nativeScale * (config.FocusedFlightHud.Value ? config.FlightHudScale.Value : 1f);
     }
 
-    private void SetLocalPositionRotationAndScale(
-        string childName,
-        Vector3 localPosition,
-        Vector3 localEulerAngles,
-        Vector3 localScale)
-    {
-        var child = FindChildRecursive(transform, childName);
-        if (child == null)
-        {
-            return;
-        }
-
-        child.localPosition = localPosition;
-        child.localEulerAngles = localEulerAngles;
-        child.localScale = localScale;
-    }
-
-    private static Transform FindChildRecursive(Transform parent, string childName)
-    {
-        for (var i = 0; i < parent.childCount; i++)
-        {
-            var child = parent.GetChild(i);
-            if (child.name == childName)
-            {
-                return child;
-            }
-
-            var nestedChild = FindChildRecursive(child, childName);
-            if (nestedChild != null)
-            {
-                return nestedChild;
-            }
-        }
-
-        return null;
-    }
+    private void OnDisable() => transform.localScale = _nativeScale;
 }

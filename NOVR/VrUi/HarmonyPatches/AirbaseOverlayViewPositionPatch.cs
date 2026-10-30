@@ -1,4 +1,6 @@
 using HarmonyLib;
+using NOVR.VrUi.SpecialBehavior;
+using UnityEngine.UI;
 using System;
 using System.Reflection;
 using UnityEngine;
@@ -30,6 +32,9 @@ internal static class AirbaseOverlayViewPositionPatch
             if (aircraft == null || mainCamera == null || cockpitHudCamera == null)
                 return;
 
+            HudElementStyle.Add(AirbaseMarkerField.GetValue(__instance) as Graphic, HudElementKind.Marker);
+            HudElementStyle.Add(AirbaseLabelField.GetValue(__instance) as Graphic, HudElementKind.Label);
+            HudElementStyle.Add(GlideslopeAimPointField.GetValue(__instance) as Graphic, HudElementKind.Reticle);
             __instance.transform.rotation = cockpitHudCamera.transform.rotation;
             
             UpdateAirbaseMarker(__instance, aircraft);
@@ -63,10 +68,13 @@ internal static class AirbaseOverlayViewPositionPatch
             markerWorldPosition = runwayUsage.Value.GetEnd().position;
         }
 
-        if (VrHudProjection.PinToScreenEdge(markerWorldPosition, out var markerHudPosition))
+        var offScreen = NavigationHudProjection.PinToEdge(markerWorldPosition, out var markerHudPosition, out _);
+        if (offScreen)
         {
             airbaseMarker.transform.position = markerHudPosition;
-            airbaseLabel.transform.position = markerHudPosition - markerHudPosition.normalized * 50.0f;
+            airbaseLabel.transform.position = airbaseLabel is TMPro.TMP_Text label
+                ? NavigationHudProjection.LabelPosition(markerHudPosition, label)
+                : markerHudPosition - cockpitHudCamera.transform.up * 20;
         }
         else
         {
@@ -77,7 +85,7 @@ internal static class AirbaseOverlayViewPositionPatch
         var rotation = Quaternion.LookRotation(airbaseMarker.transform.position - cockpitHudCamera.transform.position);
         
         airbaseMarker.transform.rotation = rotation;
-        airbaseLabel.transform.rotation = rotation;
+        airbaseLabel.transform.rotation = offScreen ? cockpitHudCamera.transform.rotation : rotation;
     }
 
     private static void UpdateRunwayBorders(global::AirbaseOverlay overlay)

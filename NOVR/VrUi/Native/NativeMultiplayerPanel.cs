@@ -96,7 +96,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
     private int _maxPingFilterIndex;
     private PingDistanceFilter _distanceFilter = PingDistanceFilter.Any;
     private bool _hostPasswordEnabled;
-    private bool _hostMissionsLoaded;
     private bool _isHosting;
     private NativeLobbyEntry? _pendingPasswordLobby;
     private float _nextSourceRefreshTime;
@@ -683,10 +682,7 @@ public class NativeMultiplayerPanel : MonoBehaviour
         _detailsPanel?.gameObject.SetActive(false);
         _hostPanel?.gameObject.SetActive(true);
         _passwordPanel?.gameObject.SetActive(false);
-        if (!_hostMissionsLoaded)
-        {
-            LoadHostMissions();
-        }
+        LoadHostMissions();
 
         RefreshHostControls();
     }
@@ -701,7 +697,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void LoadHostMissions()
     {
-        _hostMissionsLoaded = true;
         _hostMissions.Clear();
         _hostMissionPage = 0;
         _hostSelectedMissionIndex = 0;
@@ -709,13 +704,14 @@ public class NativeMultiplayerPanel : MonoBehaviour
         try
         {
             MissionGroup.Init();
-            var entries = MissionSaveLoad.QuickLoadMany(MissionGroup.All.GetMissions());
+            var entries = NativeMissionHeaders.QuickLoadMany(MissionGroup.All.GetMissions());
             foreach (var entry in entries)
             {
                 if (!HasTag(entry.mission, MissionTag.Multiplayer)) continue;
 
                 _hostMissions.Add(new HostMissionEntry(entry.key, entry.mission));
             }
+            Debug.Log($"[NOVR] Loaded {_hostMissions.Count} multiplayer missions for the VR host menu.");
         }
         catch (Exception exception)
         {

@@ -222,7 +222,7 @@ public class Patcher
     {
         var copyToGameFolderPath = Path.Combine(patcherPath, "CopyToGame");
 
-        Console.WriteLine($"Copying mod files to game... These files get overwritten every time the game starts. If you want to change them manually, replace them in the mod folder instead: {copyToGameFolderPath}");
+        Console.WriteLine($"Installing changed NOVR runtime files. Payload source: {copyToGameFolderPath}");
 
         CopyDirectory(Path.Combine(copyToGameFolderPath, "Data"), dataPath);
 
@@ -231,21 +231,22 @@ public class Patcher
 
         var uuvrPluginsPath = Path.Combine(copyToGameFolderPath, "Plugins");
 
-        DeleteExistingVrPlugins(gamePluginsPath);
-
         // IntPtr size is 4 on x86, 8 on x64.
         var is64Bit = IntPtr.Size == 8;
         Console.WriteLine($"Detected game as being {(is64Bit ? "x64" : "x86")}");
 
+        var nativePayload = Path.Combine(uuvrPluginsPath, is64Bit ? "x64" : "x86");
+        DeleteExistingVrPlugins(gamePluginsPath, nativePayload);
+
         // Unity plugins are often in a subfolder of the Plugins folder, but they also get detected from the root folder,
         // so we don't need to worry about the subfolders.
-        CopyDirectory(is64Bit ? Path.Combine(uuvrPluginsPath, "x64") : Path.Combine(uuvrPluginsPath, "x86"), gamePluginsPath);
+        CopyDirectory(nativePayload, gamePluginsPath);
     }
 
     // There might be leftover stuff from previous UUVR versions, or from other filthy VR mods,
     // and they might be in different subfolders, which could cause conflicts.
     // So we should make sure to nuke them all before replacing with our own.
-    private static void DeleteExistingVrPlugins(string gamePluginsPath)
+    private static void DeleteExistingVrPlugins(string gamePluginsPath, string nativePayload)
     {
         var pluginPaths = Directory
             .GetFiles(gamePluginsPath, "*.dll", SearchOption.AllDirectories)
@@ -257,6 +258,11 @@ public class Patcher
 
         foreach (var pluginPath in pluginPaths)
         {
+            // Current payload files are updated by CopyIfChanged. Only remove obsolete
+            // libraries or duplicates in subdirectories; deleting a current DLL first
+            // would defeat the unchanged-file check and can fail when Unity maps it.
+            if (Path.GetDirectoryName(pluginPath) == gamePluginsPath &&
+                File.Exists(Path.Combine(nativePayload, Path.GetFileName(pluginPath)))) continue;
             try
             {
                 Console.WriteLine($"Deleting plugin `{pluginPath}`");
@@ -282,7 +288,7 @@ public class Patcher
         foreach (var file in dir.GetFiles())
         {
             var targetFilePath = Path.Combine(destinationDir, file.Name);
-            file.CopyTo(targetFilePath, true);
+            PayloadFile.CopyIfChanged(file.FullName, targetFilePath);
         }
 
         foreach (var subDir in dirs)

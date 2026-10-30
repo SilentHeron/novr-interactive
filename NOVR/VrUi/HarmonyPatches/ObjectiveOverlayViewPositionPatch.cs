@@ -1,5 +1,6 @@
 using System.Reflection;
 using HarmonyLib;
+using NOVR.VrUi.SpecialBehavior;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -42,26 +43,27 @@ internal static class ObjectiveOverlayViewPositionPatch
             if (objectivePointer == null || objectiveDot == null || sizeIndicator == null || objectiveInfo == null || pointerTail == null)
                 return true;
 
+            HudElementStyle.Add(objectivePointer, HudElementKind.Marker);
+            HudElementStyle.Add(objectiveDot, HudElementKind.Marker);
+            HudElementStyle.Add(objectiveInfo, HudElementKind.Label);
+            HudElementStyle.Add(sizeIndicator, HudElementKind.WorldGeometry);
             PrepareForVr(__instance, objectiveInfo);
             HiddenField.SetValue(__instance, false);
             objectiveInfo.enabled = true;
 
             var hudRotation = cockpitHudCamera.transform.rotation;
             var worldPosition = result.Position.ToLocalPosition();
-            var offScreen = VrHudProjection.PinToScreenEdge(worldPosition, out var hudPosition, out var arrowAngle);
+            var offScreen = NavigationHudProjection.PinToEdge(worldPosition, out var hudPosition, out var arrowAngle);
 
             objectivePointer.transform.position = hudPosition;
             objectivePointer.transform.rotation = hudRotation * Quaternion.Euler(0.0f, 0.0f, arrowAngle * Mathf.Rad2Deg - 90.0f);
             objectiveDot.transform.position = hudPosition;
             objectiveDot.transform.rotation = hudRotation;
 
-            var dotMode = Vector3.Angle(mainCamera.transform.forward, result.Direction) <= DotModeMaxAngleDegrees;
+            var dotMode = !offScreen && Vector3.Angle(mainCamera.transform.forward, result.Direction) <= DotModeMaxAngleDegrees;
             objectivePointer.enabled = !dotMode;
             objectiveDot.enabled = dotMode;
 
-            objectiveInfo.transform.position = dotMode
-                ? hudPosition - cockpitHudCamera.transform.up * VrHudProjection.ReferencePixelsToHudDistance(DotLabelOffsetPixels)
-                : pointerTail.position;
             objectiveInfo.transform.rotation = hudRotation;
 
             UpdateSizeIndicator(sizeIndicator, result, worldPosition, hudPosition, hudRotation, offScreen, mainCamera);
@@ -69,6 +71,9 @@ internal static class ObjectiveOverlayViewPositionPatch
             var label = result.Objective != null ? result.Objective.SavedObjective.DisplayName : "Waypoint";
             objectiveInfo.text = label + " " + global::UnitConverter.DistanceReading(result.Distance);
             objectiveInfo.fontSize = (int)global::PlayerSettings.overlayTextSize;
+            objectiveInfo.transform.position = offScreen ? NavigationHudProjection.LabelPosition(hudPosition, objectiveInfo) : dotMode
+                ? hudPosition - cockpitHudCamera.transform.up * VrHudProjection.ReferencePixelsToHudDistance(DotLabelOffsetPixels * ModConfiguration.Instance.MarkerScale.Value)
+                : pointerTail.position;
             return false;
         }
     }

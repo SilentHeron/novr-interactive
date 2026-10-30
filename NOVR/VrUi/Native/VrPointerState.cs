@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace NOVR.VrUi.Native;
 
@@ -14,8 +13,7 @@ public class VrPointerState
 
     public void Update(VrUiCursor? cursor)
     {
-        var mouse = Mouse.current;
-        IsAvailable = cursor != null && cursor.IsActive && mouse != null;
+        IsAvailable = cursor != null && cursor.IsActive;
         if (!IsAvailable)
         {
             PrimaryButtonPressed = false;
@@ -26,8 +24,8 @@ public class VrPointerState
 
         ScreenPosition = cursor!.GetScreenPoint();
         WorldPosition = cursor.CursorPosition;
-        PrimaryButtonPressed = mouse!.leftButton.wasPressedThisFrame;
-        PrimaryButtonHeld = mouse.leftButton.isPressed;
-        Scroll = mouse.scroll.ReadValue();
+        PrimaryButtonPressed = cursor.PrimaryPressed;
+        PrimaryButtonHeld = cursor.PrimaryHeld;
+        Scroll = cursor.Scroll;
     }
 }

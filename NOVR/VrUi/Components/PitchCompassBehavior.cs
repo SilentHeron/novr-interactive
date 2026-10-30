@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
+[DefaultExecutionOrder(60)]
 public class PitchCompassBehavior : MonoBehaviour
 {
     private const int FullPitchStepCount = 36;
@@ -35,13 +36,14 @@ public class PitchCompassBehavior : MonoBehaviour
         BuildSlices();
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         if (!_hasBuiltSlices) return;
         RefreshCockpitTransform();
         if (_sliceRoot == null || _cockpitTransform == null) return;
         
-        _sliceRoot.transform.position = Vector3.zero;
+        if (NOUIManager.I == null) return;
+        _sliceRoot.transform.position = APIBus.CockpitHudCamera.transform.position;
         
         
         var inverseCockpitRotation = Quaternion.Inverse(_cockpitTransform.rotation);
@@ -53,6 +55,20 @@ public class PitchCompassBehavior : MonoBehaviour
         
         _sliceRoot.transform.rotation = Quaternion.LookRotation(targetForward, targetUp);
         
+        var focused = ModConfiguration.Instance.FocusedFlightHud.Value;
+        var size = focused ? ModConfiguration.Instance.FlightHudScale.Value : 1f;
+        for (var i = 0; i < _sliceRoot.childCount; i++)
+        {
+            var slice = _sliceRoot.GetChild(i);
+            slice.localScale = Vector3.one * (.8f * size);
+            var direction = slice.position - APIBus.CockpitHudCamera.transform.position;
+            var yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            var pitch = Mathf.Atan2(direction.y, new Vector2(direction.x, direction.z).magnitude) * Mathf.Rad2Deg;
+            // Clip the ladder to the aircraft's forward instrument window, not
+            // the user's entire view. Line positions retain their real angles.
+            slice.gameObject.SetActive(!focused || direction.z > 0 &&
+                Mathf.Abs(yaw) <= 16f * size / .38f && Mathf.Abs(pitch) <= 10f * size / .38f);
+        }
         _sourcePitchCompass.enabled = false;
     }
     
@@ -94,6 +110,7 @@ public class PitchCompassBehavior : MonoBehaviour
         var sourceRectTransform = _sourcePitchCompass.rectTransform;
         _fullTextureDisplayHeight = sourceRectTransform.rect.height / _sourcePitchCompass.uvRect.height;
         _sliceRoot = CreateSliceRoot(sourceRectTransform);
+        InstrumentBrightness.Add(_sliceRoot);
 
         for (var sliceIndex = 0; sliceIndex < FullPitchStepCount; sliceIndex++)
         {

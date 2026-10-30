@@ -1,0 +1,65 @@
+name: Portable checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-checks:
+    name: Source checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          # Only source required by these suites: no Unity/game/native binaries.
+          sparse-checkout: |
+            /tests/
+            /tools/verify.py
+            /tools/verification/
+            /tools/HandComfortChecks/
+            /tools/SleeveBoundsChecks/
+            /tools/FeedbackPreviewChecks/
+            /tools/MfdContextChecks/
+            /validation/MissionReadiness/
+            /validation/StartupSplash/
+            /NOVR.Installer.Tests/
+            /NOVR.Installer/InstallerConstants.cs
+            /NOVR.Installer/Models/
+            /NOVR.Installer/Services/
+            /NOVR/MotionControls/
+            /NOVR/VrUi/Components/
+            /NOVR/VrUi/Native/
+            /NOVR.Patcher/PayloadFile.cs
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify source-only suites
+        run: python tools/verify.py portable
+      - name: Retain verification logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: portable-checks-${{ matrix.os }}
+          path: artifacts/verification/portable/
+          if-no-files-found: warn
+          retention-days: 14

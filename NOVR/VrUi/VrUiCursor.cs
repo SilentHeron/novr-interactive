@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+using NOVR.MotionControls;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UI;
+using UnityEngine.XR;
+using UnityEngine.XR.OpenXR;
 
 namespace NOVR.VrUi;
 
@@ -14,6 +17,19 @@ public class VrUiCursor: NOVRBehaviour
     public static VrUiCursor? I => Instance;
 
     public bool IsActive => _cursor != null && _cursor.activeSelf;
+    public bool IsControllerPointer { get; private set; }
+    public bool PrimaryHeld { get; private set; }
+    public bool PrimaryPressed { get; private set; }
+    public Vector2 Scroll { get; private set; }
+    internal bool ControllerOverMap => IsControllerPointer && _controllerPointer.OverMap;
+    private readonly ControllerUiPointer _controllerPointer = new();
+    private readonly ControllerButtonGate _mouseClick = new();
+    private LineRenderer? _laser;
+    private Material? _laserMaterial;
+    private UnityEngine.InputSystem.UI.InputSystemUIInputModule? _boundUiModule;
+    private Native.NativeVrUiRoot? _nativeMenu;
+    private string? _reportedPointerState;
+    private float _nextPointerReport;
     public Vector3 CursorPosition => _cursor != null ? _cursor.transform.position : Vector3.zero;
 
     protected override void Awake()
@@ -24,6 +40,11 @@ public class VrUiCursor: NOVRBehaviour
 
     private void OnDestroy()
     {
+        _controllerPointer.Cancel();
+        if (_cursor != null) Destroy(_cursor);
+        if (_laser != null) Destroy(_laser.gameObject);
+        if (_laserMaterial != null) Destroy(_laserMaterial);
+        if (_texture != null) Destroy(_texture);
         if (Instance == this)
         {
             Instance = null;
@@ -117,68 +138,136 @@ public class VrUiCursor: NOVRBehaviour
 
     private void Update()
     {
-        if (!Application.isFocused)
+        var camera = UiCamera;
+        if (XRSettings.enabled ? !OpenXRUtility.IsSessionFocused : !Application.isFocused)
         {
-            if (_cursor != null && _cursor.activeSelf)
-            {
-                _cursor.SetActive(false);
-            }
+            ReportPointerState("hidden: input focus");
+            HidePointer();
             return;
         }
-
-        if (!IsRealCursorVisible()) // This means we don't have to manually show and hide it every game update
+        if (_nativeMenu == null && transform.parent != null)
+            _nativeMenu = transform.parent.GetComponentInChildren<Native.NativeVrUiRoot>(true);
+        // The native menu owns its own visibility. A stale desktop cursor flag
+        // after a loading-scene transition must not disable its tracked pointer.
+        if (camera == null || (!IsRealCursorVisible() && _nativeMenu?.IsVisible != true && !WristMenu.IsOpen))
         {
-            if (_cursor != null)
-            {
-                _cursor.SetActive(false);
-            }
+            ReportPointerState(camera == null ? "hidden: no UI camera" : "hidden: no interactive UI");
+            HidePointer();
             return;
         }
-        
         if (_virtualMouse == null)
         {
-            _realMouse = Mouse.current ?? throw new System.InvalidOperationException(
-                $"[{nameof(VrUiCursor)}] Unity InputSystem could not find an active hardware Mouse device during initialization.");
+            foreach (var device in InputSystem.devices)
+                if (device is Mouse mouse) { _realMouse = mouse; break; }
             _virtualMouse = InputSystem.AddDevice<Mouse>("VirtualMouse");
-            Debug.Log($"[NOVR] Added VirtualMouse device: name='{_virtualMouse.name}', path='{_virtualMouse.path}', displayName='{_virtualMouse.displayName}'");
         }
-
-        if (!_hasInitializedEventSystem)
-        {
-            if (RestrictUIModuleToVirtualMouse())
-            {
-                _hasInitializedEventSystem = true;
-            }
-        }
+        // Menus may recreate their EventSystem after a scene transition.
+        var currentModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        if (currentModule != _boundUiModule) _hasInitializedEventSystem = false;
+        if (!_hasInitializedEventSystem) _hasInitializedEventSystem = RestrictUIModuleToVirtualMouse();
         if (_texture == null) return;
-        UpdateCursorAngles();
-        
-        var realMouse = _realMouse;
-        if (realMouse == null || _virtualMouse == null) return;
-
-        UpdateCursorAnimation(realMouse);
-
-        var screenPoint = GetScreenPoint();
-
-        ushort buttons = 0;
-        if (realMouse.leftButton.isPressed) buttons |= 1;
-        if (realMouse.rightButton.isPressed) buttons |= 2;
-        if (realMouse.middleButton.isPressed) buttons |= 4;
-
-        InputState.Change(_virtualMouse, new MouseState
+        EnsureCursorCanvas(camera);
+        var wasController = IsControllerPointer;
+        IsControllerPointer = _controllerPointer.Update(camera);
+        if (IsControllerPointer)
         {
-            position = screenPoint,
-            delta = realMouse.delta.ReadValue(),
-            scroll = realMouse.scroll.ReadValue(),
-            buttons = buttons
-        });
-
-        if (realMouse.leftButton.wasPressedThisFrame)
-        {
-            LogRaycastAtCursor();
+            ReportPointerState("controller pointer active");
+            _mouseClick.Reset();
+            _cursor!.SetActive(true);
+            _cursor.transform.position = _controllerPointer.HitPosition;
+            _cursor.transform.rotation = Quaternion.LookRotation(_controllerPointer.Ray.direction, camera.transform.up);
+            _cursorOverInteractive = _controllerPointer.OverInteractive;
+            PrimaryHeld = _controllerPointer.Held;
+            PrimaryPressed = _controllerPointer.Pressed;
+            Scroll = _controllerPointer.Scroll;
+            // The tracked pointer sends UGUI events at its exact surface hit. Keep the
+            // separate mouse pointer off-screen to avoid duplicate hover/click events.
+            InputState.Change(_virtualMouse, new MouseState { position = new Vector2(-10000, -10000) });
+            UpdateLaser(_controllerPointer.Ray.origin, _controllerPointer.HitPosition);
         }
+        else
+        {
+            if (_laser != null) _laser.enabled = false;
+            // A background desktop must not feed mouse clicks into the headset.
+            if (!Application.isFocused) { ReportPointerState("hidden: no tracked pointer and desktop unfocused"); HidePointer(); return; }
+            if (_realMouse == null || !_realMouse.added)
+            {
+                _realMouse = null;
+                foreach (var device in InputSystem.devices)
+                    if (device is Mouse mouse && mouse != _virtualMouse) { _realMouse = mouse; break; }
+                if (_realMouse == null) { ReportPointerState("hidden: no tracked pointer or mouse"); HidePointer(); return; }
+            }
+            ReportPointerState("mouse fallback active");
+            if (wasController) _mouseClick.Reset();
+            UpdateCursorAngles();
+            _mouseClick.Update(true, _realMouse.leftButton.isPressed ? 1f : 0f);
+            PrimaryHeld = _mouseClick.Held;
+            PrimaryPressed = _mouseClick.Pressed;
+            Scroll = _realMouse.scroll.ReadValue();
+            ushort buttons = PrimaryHeld ? (ushort)1 : (ushort)0;
+            if (_realMouse.rightButton.isPressed) buttons |= 2;
+            if (_realMouse.middleButton.isPressed) buttons |= 4;
+            InputState.Change(_virtualMouse, new MouseState
+            {
+                position = GetScreenPoint(), delta = _realMouse.delta.ReadValue(), scroll = Scroll, buttons = buttons
+            });
+        }
+        UpdateCursorAnimation();
     }
-    
+
+    private void ReportPointerState(string state)
+    {
+        if (state == _reportedPointerState || Time.unscaledTime < _nextPointerReport) return;
+        _reportedPointerState = state;
+        _nextPointerReport = Time.unscaledTime + 2f;
+        var left = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
+        var hand = InputDevices.GetDeviceAtXRNode(left ? XRNode.LeftHand : XRNode.RightHand);
+        hand.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked, out var tracked);
+        hand.TryGetFeatureValue(UnityEngine.XR.CommonUsages.trackingState, out var tracking);
+        var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+        head.TryGetFeatureValue(UnityEngine.XR.CommonUsages.isTracked, out var headTracked);
+        var hasPresence = head.TryGetFeatureValue(UnityEngine.XR.CommonUsages.userPresence, out var present);
+        Debug.Log($"[NOVR] UI input: {state}; desktopFocused={Application.isFocused}, xrFocused={OpenXRUtility.IsSessionFocused}, cursor={Cursor.visible}/{Cursor.lockState}, nativeMenu={_nativeMenu?.IsVisible}, pointerEnabled={ModConfiguration.Instance.ControllerBindings.PointerEnabled.Value}, handValid={hand.isValid}, handTracked={tracked}/{tracking}, headTracked={headTracked}, presence={(hasPresence ? present.ToString() : "unreported")}, eventSystem={EventSystem.current != null}.");
+        if (IsControllerPointer)
+            Debug.Log($"[NOVR] UI pointer geometry: origin={_controllerPointer.Ray.origin}, target={_controllerPointer.HitPosition}, camera={UiCamera?.transform.position}, interactive={_controllerPointer.OverInteractive}.");
+    }
+
+    private void HidePointer()
+    {
+        _controllerPointer.Cancel();
+        _mouseClick.Reset();
+        IsControllerPointer = PrimaryHeld = PrimaryPressed = false;
+        Scroll = Vector2.zero;
+        if (_cursor != null) _cursor.SetActive(false);
+        if (_laser != null) _laser.enabled = false;
+        if (_virtualMouse != null)
+            InputState.Change(_virtualMouse, new MouseState { position = new Vector2(-10000, -10000) });
+    }
+
+    private void UpdateLaser(Vector3 start, Vector3 end)
+    {
+        if (_laser == null)
+        {
+            var go = new GameObject("NOVR Controller Laser");
+            go.transform.SetParent(transform, false);
+            go.layer = (int)LayerHelper.GetVrUiLayer();
+            _laser = go.AddComponent<LineRenderer>();
+            _laser.useWorldSpace = true;
+            _laser.positionCount = 2;
+            _laser.startWidth = 0.0015f;
+            _laser.endWidth = 0.0007f;
+            _laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _laser.receiveShadows = false;
+            _laserMaterial = CockpitMaterials.Opaque("NOVR menu pointer", CursorHoverColor);
+            if (_laserMaterial.HasProperty("_Cull")) _laserMaterial.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            _laser.sharedMaterial = _laserMaterial;
+        }
+        _laser.enabled = true;
+        _laser.SetPosition(0, start);
+        _laser.SetPosition(1, end);
+    }
+
+    protected override void OnDisable() { HidePointer(); base.OnDisable(); }
 
     private void UpdateCursorAngles()
     {
@@ -349,16 +438,16 @@ public class VrUiCursor: NOVRBehaviour
                ExecuteEvents.GetEventHandler<IDragHandler>(gameObject) != null;
     }
 
-    private void UpdateCursorAnimation(Mouse realMouse)
+    private void UpdateCursorAnimation()
     {
         if (_cursor == null || _cursorImage == null) return;
 
-        if (realMouse.leftButton.wasPressedThisFrame)
+        if (PrimaryPressed)
         {
             _lastCursorClickTime = Time.unscaledTime;
         }
 
-        var isPressed = realMouse.leftButton.isPressed;
+        var isPressed = PrimaryHeld;
         var idlePulse = Mathf.Sin(Time.unscaledTime * CursorIdlePulseSpeed) * CursorIdlePulseScale;
         var clickProgress = Mathf.Clamp01((Time.unscaledTime - _lastCursorClickTime) / CursorClickPulseDuration);
         var clickPulse = clickProgress < 1f
@@ -484,7 +573,7 @@ public class VrUiCursor: NOVRBehaviour
         try
         {
             if (_virtualMouse == null) return false;
-            var uiModule = FindObjectOfType<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            var uiModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             if (uiModule != null)
             {
                 Debug.Log($"[NOVR] Restricting InputSystemUIInputModule actions to VirtualMouse (path: {_virtualMouse.path})");
@@ -494,6 +583,7 @@ public class VrUiCursor: NOVRBehaviour
                 RestrictActionToVirtualMouse(uiModule.rightClick?.action, _virtualMouse.path);
                 RestrictActionToVirtualMouse(uiModule.scrollWheel?.action, _virtualMouse.path);
                 RestrictNavigationToKeyboardAndGamepad(uiModule.move?.action);
+                _boundUiModule = uiModule;
                 return true;
             }
             else

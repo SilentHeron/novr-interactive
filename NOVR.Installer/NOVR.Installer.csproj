@@ -35,6 +35,8 @@
     <PackageReference Include="Avalonia" Version="11.2.6" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.6" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.6" />
+    <!-- Patched backport for the D-Bus dependency used by Avalonia's Linux portal. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
   <Target Name="PublishInstallersToDist"

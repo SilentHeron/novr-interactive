@@ -1,4 +1,5 @@
 using HarmonyLib;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +18,9 @@ internal static class HudTurretCrosshairPatch
             var circle = traverse.Field("circle").GetValue<Image>();
             var readinessCircle = traverse.Field("readinessCircle").GetValue<Image>();
             var crosshair = traverse.Field("crosshair").GetValue<Image>();
+            HudElementStyle.Add(circle, HudElementKind.Reticle);
+            HudElementStyle.Add(readinessCircle, HudElementKind.Reticle);
+            HudElementStyle.Add(crosshair, HudElementKind.Reticle);
             var gun = traverse.Field("gun").GetValue<Gun>();
             
             
@@ -27,7 +31,7 @@ internal static class HudTurretCrosshairPatch
             var crosshairDirection = APIBus.MainCamera.transform.InverseTransformDirection(direction);
             crosshairDirection = APIBus.CockpitHudCamera.transform.TransformDirection(crosshairDirection);
             
-            crosshairPosition = crosshairDirection * 1000f;
+            crosshairPosition = APIBus.CockpitHudCamera.transform.position + crosshairDirection * 1000f;
             crosshair.gameObject.transform.position = crosshairPosition;
             crosshair.gameObject.transform.rotation = Quaternion.LookRotation(crosshairDirection);
             crosshair.enabled = true;

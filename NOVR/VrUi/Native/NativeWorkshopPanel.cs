@@ -547,8 +547,8 @@ public class NativeWorkshopPanel : MonoBehaviour
     private string GetCurrentTag()
     {
         return _tab == WorkshopTab.AircraftLiveries
-            ? ModTypes.AircraftLivery.Tag
-            : ModTypes.Missions.Tag;
+            ? NuclearOption.ModScripts.Impl.AircraftLiveryMod.MOD_NAME
+            : NuclearOption.ModScripts.Impl.MissionMod.MOD_NAME;
     }
 
     private static string GetOrderLabel(OrderBy orderBy)

@@ -9,6 +9,7 @@
     <ReleasePackageDistDir>$(MSBuildThisFileDirectory)../dist</ReleasePackageDistDir>
     <ReleasePackagePath>$(ReleasePackageDistDir)/NOVR.zip</ReleasePackagePath>
     <ReleasePackageSourceDir>$(GameLayoutOutputDir)/BepInEx</ReleasePackageSourceDir>
+    <ReleasePackageStagingDir>$(MSBuildThisFileDirectory)obj/release-package</ReleasePackageStagingDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +25,27 @@
 
   <Target Name="CreateReleaseZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <MakeDir Directories="$(ReleasePackageDistDir)" />
+    <WriteLinesToFile Condition="'$(NovrReleaseVersion)' != ''"
+                      File="$(ReleasePackageSourceDir)/plugins/NOVR/version.txt"
+                      Lines="$(NovrReleaseVersion)" Overwrite="true" />
+    <RemoveDir Directories="$(ReleasePackageStagingDir)" />
+    <ItemGroup>
+      <ReleasePluginFiles Include="$(ReleasePackageSourceDir)/plugins/NOVR/**/*" />
+      <ReleasePatcherFiles Include="$(ReleasePackageSourceDir)/patchers/NOVR/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ReleasePluginFiles)"
+          DestinationFiles="@(ReleasePluginFiles->'$(ReleasePackageStagingDir)/plugins/NOVR/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(ReleasePatcherFiles)"
+          DestinationFiles="@(ReleasePatcherFiles->'$(ReleasePackageStagingDir)/patchers/NOVR/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../README.md;$(MSBuildThisFileDirectory)../LICENSE"
+          DestinationFolder="$(ReleasePackageStagingDir)" />
     <Delete Files="$(ReleasePackagePath)" />
-    <ZipDirectory SourceDirectory="$(ReleasePackageSourceDir)" DestinationFile="$(ReleasePackagePath)" Overwrite="true" />
+    <ZipDirectory SourceDirectory="$(ReleasePackageStagingDir)" DestinationFile="$(ReleasePackagePath)" Overwrite="true" />
+    <GetFileHash Files="$(ReleasePackagePath)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="ReleasePackageHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(ReleasePackagePath).sha256"
+                      Lines="@(ReleasePackageHash->'%(FileHash)  %(Filename)%(Extension)')"
+                      Overwrite="true" />
   </Target>
 </Project>

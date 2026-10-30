@@ -1,0 +1,8 @@
+Valve SteamVR Unity Plugin slim rigged gloves and reference poses
+Source: https://github.com/ValveSoftware/steamvr_unity_plugin
+Revision: 056c82369d78f253af8cefcae9b289efd69bd960
+Assets/SteamVR/Models/vr_glove_{left,right}_model_slim.fbx
+Assets/SteamVR/Resources/ReferencePose_{BindPose,OpenHand,Fist}.asset
+BSD 3-Clause; see Valve-Gloves-LICENSE.txt.
+Modified for NOVR: axis conversion, skin data serialization, pose retargeting, preserved UV seams, runtime pilot-palette tint and normal-map channel conversion. No Nuclear Option assets are included.
+Assets/SteamVR/Models/Materials/vr_glove_color.jpg and vr_glove_normal.png are also used under the same license.

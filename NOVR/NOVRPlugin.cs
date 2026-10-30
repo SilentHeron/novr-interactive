@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using HarmonyLib;
@@ -17,8 +17,8 @@ namespace NOVR;
 
 [BepInPlugin(
     "deltawing.novr",
-    "NOVR",
-    "0.4.4")]
+    "NOVR Interactive",
+    "0.4.7.5")]
 public class NOVRPlugin : BaseUnityPlugin
 {
     
@@ -33,13 +33,17 @@ public class NOVRPlugin : BaseUnityPlugin
         ModFolderPath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(NOVRPlugin)).Location);
         
         new ModConfiguration(Config);
+        Compatibility.ProtonControllerCompatibility.Initialize();
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
         Core.Create();
     }
 
     private void TrackingAcquired(XRNodeState obj)
     {
-        NOVRHeadsetData.CalibrateTranslation();
+        // Controller tracking can return while the pilot is reaching for a control.
+        // Only headset tracking acquisition should recenter the cockpit.
+        if (obj.nodeType is XRNode.Head or XRNode.CenterEye)
+            NOVRHeadsetData.CalibrateTranslation();
     }
      
     private void Awake()
