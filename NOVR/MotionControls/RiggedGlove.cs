@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -22,20 +23,24 @@ internal sealed class RiggedGlove : IDisposable
     internal readonly Transform Root;
     internal readonly SkinnedMeshRenderer Renderer;
     private readonly Transform[] _bones;
-    private readonly Quaternion[] _open, _closed, _fs20Throttle, _fs20Stick, _throttleThumb, _stickThumb, _stickThumbPress, _fireTouch, _firePress, _switchPinch;
+    private readonly Quaternion[] _open, _closed, _fs20Throttle, _fs20Stick, _throttleThumb, _stickThumb, _stickThumbPress, _stickTrigger, _fireTouch, _firePress, _switchPinch;
     private readonly int[] _fingers;
     private readonly Mesh _mesh;
     private readonly bool _left;
-    private float _grip, _trigger, _thumb, _thumbContact, _indexContact;
-    private float _buttonBlend;
-    private bool _wasFitted;
-    private const float AttachmentEntrySeconds = .12f;
+    private float _grip, _trigger, _thumb, _thumbContact, _indexContact, _triggerPressure;
+    private bool _wasFittedStick;
+    private readonly Quaternion[] _animatedStickThumb = new Quaternion[3];
+    private const float AttachmentEntrySeconds = .12f, AttachmentReleaseSeconds = .09f;
     private readonly Quaternion[] _attachmentFromBones;
     private Vector3 _attachmentFromPosition;
     private Quaternion _attachmentFromRotation;
-    private float _attachmentEntryTime;
+    private float _attachmentEntryTime, _attachmentTransitionSeconds;
     private int _attachmentKind;
-    private bool _hasRenderedPose, _enteringAttachment;
+    private bool _hasRenderedPose, _transitioning;
+    private Vector3 _lastTrackedPosition;
+    private Quaternion _lastTrackedRotation;
+    internal bool IsTransitioning => _transitioning;
+    internal float TransitionProgress { get; private set; } = 1;
     private readonly Vector3 _indexRest;
     internal static Asset Load(bool left)
     {
@@ -61,7 +66,7 @@ internal sealed class RiggedGlove : IDisposable
         Root = new GameObject(left ? "NOVR Left Glove" : "NOVR Right Glove").transform; Root.SetParent(parent, false);
         _bones = new Transform[asset.bones.Length]; _open = new Quaternion[_bones.Length]; _closed = new Quaternion[_bones.Length]; _fs20Throttle = new Quaternion[_bones.Length]; _fs20Stick = new Quaternion[_bones.Length]; _throttleThumb = new Quaternion[_bones.Length]; _stickThumb = new Quaternion[_bones.Length]; _fingers = new int[_bones.Length];
         _fireTouch = new Quaternion[_bones.Length]; _firePress = new Quaternion[_bones.Length];
-        _stickThumbPress = new Quaternion[_bones.Length]; _switchPinch = new Quaternion[_bones.Length];
+        _stickTrigger = new Quaternion[_bones.Length]; _stickThumbPress = new Quaternion[_bones.Length]; _switchPinch = new Quaternion[_bones.Length];
         _attachmentFromBones = new Quaternion[_bones.Length];
         var bind = new Matrix4x4[_bones.Length];
         for (var i = 0; i < _bones.Length; i++)
@@ -71,6 +76,7 @@ internal sealed class RiggedGlove : IDisposable
             _open[i] = Q(asset.open[i]); _closed[i] = Q(asset.fist[i]);
             _fs20Throttle[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i]);
             _fs20Stick[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i]);
+            _stickTrigger[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], triggerPressure: 1);
             _throttleThumb[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i], true);
             _stickThumb[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], true);
             _switchPinch[i] = Fs20HandPoses.SwitchPinchJoint(i, left, _open[i], _closed[i]);
@@ -92,7 +98,7 @@ internal sealed class RiggedGlove : IDisposable
             uv[i] = new Vector2(asset.uv[i*2],asset.uv[i*2+1]);
         }
         _mesh = new Mesh { name = "Valve slim glove / pilot material", vertices=vertices, uv=uv, boneWeights=weights, bindposes=bind, triangles=asset.triangles };
-        _mesh.RecalculateNormals(); _mesh.RecalculateTangents(); _mesh.RecalculateBounds();
+        _mesh.RecalculateNormals(); SmoothSkinSeams(vertices, weights); _mesh.RecalculateTangents(); _mesh.RecalculateBounds();
         Renderer = Root.gameObject.AddComponent<SkinnedMeshRenderer>(); Renderer.sharedMesh=_mesh; Renderer.bones=_bones; Renderer.rootBone=_bones[1]; Renderer.sharedMaterial=material;
         Renderer.localBounds = new Bounds(new Vector3(0,0,.06f),Vector3.one*.45f); Renderer.shadowCastingMode=ShadowCastingMode.Off; Renderer.receiveShadows=true; Renderer.updateWhenOffscreen=false;
         LayerHelper.SetLayerRecursive(Root, LayerHelper.Layers.Cockpit);
@@ -111,9 +117,9 @@ internal sealed class RiggedGlove : IDisposable
     internal void ResetAttachmentTransition()
     {
         _attachmentKind = 0;
-        _hasRenderedPose = _enteringAttachment = false;
-        _wasFitted = false;
-        _buttonBlend = 0;
+        _hasRenderedPose = _transitioning = false;
+        _wasFittedStick = false;
+        TransitionProgress = 1;
     }
     internal void Pose(ControllerSample sample, Pose? attachment, bool stick, bool collective, Pose? cockpitGrip = null, bool pointing = false, bool pinching = false)
     {
@@ -123,26 +129,31 @@ internal sealed class RiggedGlove : IDisposable
         var offset=settings.FreeHandOffset(_left);
         var angles=settings.FreeHandAngles(_left);
         var trackedRotation = sample.Rotation * Quaternion.Euler(angles);
+        // Do not animate through a tracking teleport or stale-frame recovery.
+        // Seat/recenter changes also reset this state through PilotHandVisuals.
+        if (_hasRenderedPose && ((sample.Position - _lastTrackedPosition).sqrMagnitude > .18f * .18f ||
+            Quaternion.Angle(sample.Rotation, _lastTrackedRotation) > 55 || Time.unscaledDeltaTime > .1f))
+            ResetAttachmentTransition();
         var held = attachment.HasValue;
         var buttonContact = cockpitGrip.HasValue && pointing && !pinching && !held;
         var attachmentKind = cockpitGrip.HasValue && !buttonContact ? pinching ? 4 : 5
-            : held ? stick ? 1 : collective ? 3 : 2 : 0;
+            : held ? stick ? 1 : collective ? 3 : 2 : buttonContact ? 6 : pinching ? 7 : pointing ? 8 : 0;
         if (attachmentKind != _attachmentKind)
         {
             _attachmentKind = attachmentKind;
-            _enteringAttachment = attachmentKind != 0 && _hasRenderedPose;
-            if (_enteringAttachment)
+            _transitioning = _hasRenderedPose;
+            _attachmentTransitionSeconds = attachmentKind >= 1 && attachmentKind <= 5 ? AttachmentEntrySeconds : AttachmentReleaseSeconds;
+            if (_transitioning)
             {
                 // Capture the actual last rendered pose, including free-hand
                 // stabilization. Tracking-local coordinates travel with the
-                // aircraft, so acquisition never leaves the wrist trailing it.
+                // aircraft, so acquisition/release never leaves the wrist trailing it.
                 _attachmentFromPosition = Root.localPosition;
                 _attachmentFromRotation = Root.localRotation;
                 for (var i = 0; i < _bones.Length; i++) _attachmentFromBones[i] = _bones[i].localRotation;
                 _attachmentEntryTime = Time.unscaledTime;
             }
         }
-        _buttonBlend = buttonContact ? Mathf.MoveTowards(_buttonBlend, 1, Time.unscaledDeltaTime / .09f) : 0;
         var fitted = held && !collective && !cockpitGrip.HasValue && Fs20NativeCockpit.Selected;
         if (cockpitGrip.HasValue && !buttonContact)
         {
@@ -175,6 +186,7 @@ internal sealed class RiggedGlove : IDisposable
         // Capacitive presence only changes visual joints. It never becomes a
         // click, acquisition action, trigger value, or a synthetic flight input.
         _thumbContact = Mathf.Lerp(_thumbContact, thumbPressed ? 1 : thumbTouch ? .85f : 0, amount);
+        _triggerPressure = Mathf.Lerp(_triggerPressure, Mathf.Clamp01(sample.Trigger), amount);
         _indexContact = Mathf.Lerp(_indexContact, sample.Trigger > .02f ? Mathf.Lerp(.85f,1,Mathf.Clamp01(sample.Trigger)) : sample.TriggerTouched ? .85f : 0, amount);
         // Leave space for a roughly 5 cm grip instead of crushing a full fist
         // through the handle. The index moves a little with the real trigger.
@@ -196,42 +208,81 @@ internal sealed class RiggedGlove : IDisposable
                     // the thumb jump into that pose. Trigger still owns index.
                     var target = sample.Primary ? _firePress[i] : sample.PrimaryTouched ? _fireTouch[i]
                         : sample.StickClick ? _stickThumbPress[i] : sample.ThumbstickTouched ? _stickThumb[i] : pose;
-                    pose = _wasFitted && !_enteringAttachment ? Quaternion.Slerp(_bones[i].localRotation, target, amount) : target;
+                    // Keep the thumb's own animation separate from the final
+                    // attachment blend, so changing targets mid-grab cannot
+                    // restart it from an already blended finger pose.
+                    pose = _wasFittedStick ? Quaternion.Slerp(_animatedStickThumb[i - 2], target, amount) : target;
+                    _animatedStickThumb[i - 2] = pose;
                 }
                 else pose = Quaternion.Slerp(pose, _throttleThumb[i], _thumbContact);
             }
             if (fitted && !stick && i == 2)
                 pose = Quaternion.AngleAxis(-10*Mathf.Sin(Mathf.PI*_thumbContact), Vector3.right) * pose;
+            if (fitted && stick && i >= 7 && i <= 9)
+                pose = Quaternion.Slerp(pose, _stickTrigger[i], _triggerPressure);
             if (fitted && i == 7) pose = Quaternion.AngleAxis(-5*(1-_indexContact), Vector3.right) * pose;
             _bones[i].localRotation = pose;
         }
-        _wasFitted = fitted;
+        _wasFittedStick = fitted && stick;
         if (pinching && cockpitGrip.HasValue)
             Root.position += cockpitGrip.Value.position - (_bones[5].position + _bones[10].position) * .5f;
         if (buttonContact)
         {
             // Solve the pointing fingers first, then align the actual fingertip
             // to the cap. The wrist never occupies the button contact point.
-            Root.rotation = Quaternion.Slerp(Root.rotation, cockpitGrip!.Value.rotation, _buttonBlend);
-            Root.position += (cockpitGrip.Value.position - _bones[10].position) * _buttonBlend;
+            Root.rotation = cockpitGrip!.Value.rotation;
+            Root.position += cockpitGrip.Value.position - _bones[10].position;
         }
-        if (_enteringAttachment)
+        if (_transitioning)
         {
-            // Solve the current socket and fitted fingers first, then ease
-            // into that moving target once. There is no smoothing or lag once
-            // attached, and the button guide retains its own contact blend.
-            var progress = Mathf.Clamp01((Time.unscaledTime - _attachmentEntryTime) / AttachmentEntrySeconds);
-            if (progress >= 1) _enteringAttachment = false;
+            // Solve the live target first, then ease from the last visible
+            // wrist and joints. This also covers release, pointing/pinch changes,
+            // and leaving a button. The fitted socket is exact after entry.
+            var progress = Mathf.Clamp01((Time.unscaledTime - _attachmentEntryTime) / _attachmentTransitionSeconds);
+            if (progress >= 1) { _transitioning = false; TransitionProgress = 1; }
             else
             {
                 var blend = progress * progress * (3 - 2 * progress);
+                TransitionProgress = blend;
                 Root.localPosition = Vector3.Lerp(_attachmentFromPosition, Root.localPosition, blend);
                 Root.localRotation = Quaternion.Slerp(_attachmentFromRotation, Root.localRotation, blend);
                 for (var i = 0; i < _bones.Length; i++)
                     _bones[i].localRotation = Quaternion.Slerp(_attachmentFromBones[i], _bones[i].localRotation, blend);
             }
         }
+        _lastTrackedPosition = sample.Position;
+        _lastTrackedRotation = sample.Rotation;
         _hasRenderedPose = true;
+    }
+    private void SmoothSkinSeams(Vector3[] vertices, BoneWeight[] weights)
+    {
+        // The Valve mesh splits vertices at UV islands. RecalculateNormals
+        // treats those as hard edges, leaving visible lighting seams. Join only
+        // coincident vertices that deform identically and form a smooth surface;
+        // keep cuffs/hard folds, UVs and tangent handedness intact.
+        var groups = new Dictionary<Vector3, List<int>>();
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            if (!groups.TryGetValue(vertices[i], out var group)) groups.Add(vertices[i], group = new List<int>());
+            group.Add(i);
+        }
+        var normals = _mesh.normals;
+        foreach (var group in groups.Values)
+        {
+            if (group.Count < 2) continue;
+            var smooth = true; var sum = Vector3.zero;
+            for (var i = 0; i < group.Count && smooth; i++)
+            {
+                var index = group[i]; sum += normals[index];
+                for (var j = 0; j < i; j++)
+                    if (!weights[index].Equals(weights[group[j]]) || Vector3.Dot(normals[index], normals[group[j]]) < .5f)
+                    { smooth = false; break; }
+            }
+            if (!smooth || sum.sqrMagnitude < .000001f) continue;
+            var normal = sum.normalized;
+            foreach (var index in group) normals[index] = normal;
+        }
+        _mesh.normals = normals;
     }
     private static Vector3 V(float[] a,int i)=>new(a[i],a[i+1],a[i+2]);
     private static Quaternion Q(float[] a)=>new Quaternion(a[0],a[1],a[2],a[3]).normalized;

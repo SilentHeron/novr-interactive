@@ -20,6 +20,8 @@ PORTABLE = (
     ("core", "tests/NOVR.Tests.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
     ("hand-comfort", "tools/HandComfortChecks/HandComfortChecks.csproj"),
+    ("arm-pose", "tools/ArmPoseChecks/ArmPoseChecks.csproj"),
+    ("hand-pose", "tools/HandPoseChecks/HandPoseChecks.csproj"),
     ("sleeve-bounds", "tools/SleeveBoundsChecks/SleeveBoundsChecks.csproj"),
     ("feedback-preview", "tools/FeedbackPreviewChecks/FeedbackPreviewChecks.csproj"),
     ("mfd-context", "tools/MfdContextChecks/MfdContextChecks.csproj"),

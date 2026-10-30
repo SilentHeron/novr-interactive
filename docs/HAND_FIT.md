@@ -34,6 +34,21 @@ An extreme fold into the shoulder also fades through the small invalid reach
 range. This affects local sleeve copies only; the native pilot and cockpit are
 unchanged. Unsupported material shaders retain their original appearance.
 
+## Animation and materials
+
+Version 0.4.7.6 stabilizes the elbow bend through wrist turns and distributes
+wrist rotation into the forearm. Collective cuffs still face toward the shoulder.
+Grip entry takes 120 ms; release and touch-gesture changes take 90 ms. Once
+attached, hands stay fixed to the control. These visual transitions do not delay
+flight input or move the tracked contact points.
+
+The FS-20 trigger finger flexes slightly under pressure. Smoothed glove shading
+removes seams at matching UV boundaries without changing the mesh shape.
+Sleeves use a finer fabric tile, filtered into a copy of the native atlas at up
+to 2048 pixels per side. The original markings, colors, normal maps and UV layout
+are preserved. Texture preparation runs once per source atlas on a background
+worker; GPU readback and upload still occur on Unity's main thread.
+
 ## Validation
 
 Run `dotnet run --project tools/HandComfortChecks/HandComfortChecks.csproj -c Release`.

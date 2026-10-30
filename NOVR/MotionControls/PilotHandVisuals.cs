@@ -18,6 +18,7 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private Transform[] _sourceBones=Array.Empty<Transform>(), _copies=Array.Empty<Transform>();
     private readonly RiggedGlove?[] _gloves=new RiggedGlove?[2];
     private readonly FreeHandStabilizer[] _handStabilizers = { new(), new() };
+    private readonly ArmPoseMath[] _armPoses = { new(), new() };
     private Vector3 _stabilizerSeat, _stabilizerAnchor, _stabilizerTranslation;
     private Quaternion _stabilizerRotation;
     private readonly SkinnedMeshRenderer?[] _sleeves=new SkinnedMeshRenderer?[2];
@@ -89,12 +90,12 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             // Render only, after raw tracking has posed the glove. Contact and
             // grip sockets stay exact; input hit testing still uses the sample.
             if(_gloves[side]!=null)
-                _handStabilizers[side].Apply(_gloves[side]!.Root, sample.Valid && !attachment.HasValue && !cockpitGrip.HasValue && !pointing, Time.unscaledDeltaTime);
+                _handStabilizers[side].Apply(_gloves[side]!.Root, sample.Valid && !attachment.HasValue && !cockpitGrip.HasValue && !pointing && !_gloves[side]!.IsTransitioning, Time.unscaledDeltaTime);
             if(_sleeves[side]!=null)
             {
                 var glove=_gloves[side]!.Root;
-                Vector3? cuff=!attachment.HasValue || !stick ? glove.TransformDirection(Vector3.back) : null;
-                var opacity = settings.PilotArms.Value && sample.Valid ? SolveArm(side,glove.position,cuff) : 0;
+                var opacity = settings.PilotArms.Value && sample.Valid ? SolveArm(side,glove,attachment.HasValue && collective) : 0;
+                if (opacity <= 0) _armPoses[side].Reset();
                 UpdateSleeveBounds(side);
                 _sleeves[side]!.enabled = _sleeveFades[side]?.Apply(opacity) ?? opacity > 0;
             }
@@ -200,10 +201,11 @@ internal sealed class PilotHandVisuals : MonoBehaviour
            !SleeveBoundsMath.Axis(a.z,b.z,c.z,matrix.m20,matrix.m21,matrix.m22,radius,out var z,out var sz))return;
         sleeve.localBounds=new Bounds(new Vector3(x,y,z),new Vector3(sx,sy,sz));
     }
-    private float SolveArm(int side,Vector3 target,Vector3? cuffDirection)
+    private float SolveArm(int side,Transform glove,bool collective)
     {
         var u=_arm[side,0];var f=_arm[side,1];var h=_arm[side,2];if(u<0||f<0||h<0)return 0;
         var upper=_copies[u];var fore=_copies[f];var hand=_copies[h];var shoulder=upper.position;
+        var target=glove.position;
         var a=Vector3.Distance(upper.position,fore.position);var b=Vector3.Distance(fore.position,hand.position);var delta=target-shoulder;var distance=delta.magnitude;
         var reach = ArmReachMath.Evaluate(a, b, distance);
         if (!reach.Valid || reach.Opacity <= 0 || !TrackedControllers.Finite(target)) return 0;
@@ -211,23 +213,33 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         target = shoulder + direction * reach.Distance;
         distance = reach.Distance; a *= reach.Scale; b *= reach.Scale;
         upper.localScale *= reach.Scale; fore.localScale *= reach.Scale;
-        var hint=_root!.TransformDirection(new Vector3(side==0?-.35f:.35f,-.5f,-.2f));
-        // Follow the free hand or held throttle/collective cuff, choosing the closest point
-        // on the elbow's reachable circle. An independent downward elbow hint
-        // otherwise introduces a sideways kink at a naturally aligned wrist.
-        var bend=cuffDirection.HasValue?Vector3.ProjectOnPlane(cuffDirection.Value,direction):Vector3.zero;
-        if(bend.sqrMagnitude<.0001f)bend=Vector3.ProjectOnPlane(hint,direction);
-        bend=bend.normalized;if(bend.sqrMagnitude<.5f)bend=Vector3.ProjectOnPlane(_root.right,direction).normalized;
-        var along=(a*a-b*b+distance*distance)/(2*distance);var height=Mathf.Sqrt(Mathf.Max(0,a*a-along*along));var elbow=shoulder+direction*along+bend*height;
-        upper.rotation=Quaternion.FromToRotation(fore.position-shoulder,elbow-shoulder)*upper.rotation;
-        var oldHand=hand.position;var oldFore=fore.position;fore.position=elbow;fore.rotation=Quaternion.FromToRotation(oldHand-oldFore,target-elbow)*fore.rotation;hand.position=target;
-        return TrackedControllers.Finite(elbow) ? reach.Opacity : 0;
+        var localDirection=_root!.InverseTransformDirection(direction);
+        var localCuff=_root.InverseTransformDirection(glove.TransformDirection(Vector3.back));
+        var bendLocal=_armPoses[side].Bend(side==0,PoseVector(localDirection),PoseVector(localCuff),collective,_gloves[side]!.TransitionProgress);
+        var bend=_root.TransformDirection(new Vector3(bendLocal.X,bendLocal.Y,bendLocal.Z));
+        if (!ArmReachMath.Triangle(a,b,distance,out var along,out var height)) return 0;
+        var elbow=shoulder+direction*along+bend*height;
+        if (!TrackedControllers.Finite(elbow)) return 0;
+        var upperSwing=Quaternion.FromToRotation(fore.position-shoulder,elbow-shoulder);
+        var foreSwing=Quaternion.FromToRotation(hand.position-fore.position,target-elbow);
+        upper.rotation=upperSwing*upper.rotation;
+        fore.position=elbow;fore.rotation=foreSwing*fore.rotation;
+        // The selected pilot rig uses +Y along the bone and +Z on the back of
+        // the hand. Swing preserves that bind convention; the forearm takes
+        // most pronation/supination while the wrist finishes the glove roll.
+        var foreDirection=(target-elbow).normalized;
+        var roll=_armPoses[side].ForearmRoll(PoseVector(_root.InverseTransformDirection(foreDirection)),
+            PoseVector(_root.InverseTransformDirection(fore.forward)),PoseVector(_root.InverseTransformDirection(glove.up)));
+        fore.rotation=Quaternion.AngleAxis(roll,foreDirection)*fore.rotation;
+        hand.SetPositionAndRotation(target,Quaternion.LookRotation(glove.up,glove.forward));
+        return reach.Opacity;
     }
+    private static ArmPoseMath.Vector PoseVector(Vector3 value)=>new(value.x,value.y,value.z);
     private static float Weight(BoneWeight w,int index)=>(w.boneIndex0==index?w.weight0:0)+(w.boneIndex1==index?w.weight1:0)+(w.boneIndex2==index?w.weight2:0)+(w.boneIndex3==index?w.weight3:0);
     private void ResetHandStabilizers()
     {
         for(var side=0;side<2;side++)
-        { _handStabilizers[side].Reset(); _gloves[side]?.ResetAttachmentTransition(); }
+        { _handStabilizers[side].Reset(); _armPoses[side].Reset(); _gloves[side]?.ResetAttachmentTransition(); }
     }
     private sealed class FreeHandStabilizer
     {

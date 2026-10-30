@@ -7,38 +7,124 @@ namespace NOVR.MotionControls;
 internal static class PilotTextureEnhancement
 {
     internal static byte[] Apply(byte[] input, int size, byte[] fabric, int fabricWidth,
+        int fabricHeight, CancellationToken cancellation) =>
+        Apply(input, size, size, fabric, fabricWidth, fabricHeight, cancellation);
+
+    internal static byte[] Apply(byte[] input, int width, int height, byte[] fabric, int fabricWidth,
         int fabricHeight, CancellationToken cancellation)
     {
-        if (size < 1 || size > 2048 || input.Length != (long)size * size * 4 ||
-            fabricWidth < 1 || fabricHeight < 1 || fabric.Length != (long)fabricWidth * fabricHeight)
+        if (width < 1 || width > 2048 || height < 1 || height > 2048 ||
+            input.Length != (long)width * height * 4 || fabricWidth < 1 || fabricHeight < 1 ||
+            fabric.Length != (long)fabricWidth * fabricHeight)
             throw new ArgumentException("Invalid pilot texture dimensions or pixel data.");
         cancellation.ThrowIfCancellationRequested();
+
+        // Filter once at the actual output footprint before repeating. Point sampling
+        // a large weave tile at four repeats aliases threads into noisy dark/light dots.
+        var tileWidth = Math.Max(1, width / 4);
+        var tileHeight = Math.Max(1, height / 4);
+        var tile = ResampleFabric(fabric, fabricWidth, fabricHeight, tileWidth, tileHeight, cancellation);
+        double sum = 0;
+        foreach (var value in tile) sum += value;
+        var mean = (float)(sum / tile.Length);
+        var deviation = 32f;
+        foreach (var value in tile) deviation = Math.Max(deviation, Math.Abs(value - mean));
+        for (var i = 0; i < tile.Length; i++) tile[i] = (tile[i] - mean) * (.055f / deviation);
+
         var output = new byte[input.Length];
-        for (var y = 0; y < size; y++)
+        for (var y = 0; y < height; y++)
         {
             cancellation.ThrowIfCancellationRequested();
-            var row = y * size;
-            var above = Math.Min(size - 1, y + 1) * size;
-            var below = Math.Max(0, y - 1) * size;
-            var fabricRow = ((y * 4) % size) * fabricHeight / size * fabricWidth;
-            for (var x = 0; x < size; x++)
+            var row = y * width;
+            var above = Math.Min(height - 1, y + 1) * width;
+            var below = Math.Max(0, y - 1) * width;
+            var fabricRow = (y % tileHeight) * tileWidth;
+            for (var x = 0; x < width; x++)
             {
                 var at = (row + x) * 4;
                 var left = (row + Math.Max(0, x - 1)) * 4;
-                var right = (row + Math.Min(size - 1, x + 1)) * 4;
+                var right = (row + Math.Min(width - 1, x + 1)) * 4;
                 var up = (above + x) * 4;
                 var down = (below + x) * 4;
-                var grain = (fabric[fabricRow + ((x * 4) % size) * fabricWidth / size] - 128) * .12f;
+                var value = Luminance(input, at);
+                var low = value; var high = value;
+                var neighbours = Neighbour(input, at, left, value, ref low, ref high) +
+                    Neighbour(input, at, right, value, ref low, ref high) +
+                    Neighbour(input, at, up, value, ref low, ref high) +
+                    Neighbour(input, at, down, value, ref low, ref high);
+                // Strong printed edges, seams and atlas islands retain their original
+                // contrast. Within cloth, never sharpen outside the local value range.
+                var edge = Math.Min(1f, (high - low) / 24f);
+                var contrast = Math.Max(-2f, Math.Min(2f, .2f * (value - neighbours * .25f))) * (1f - edge);
+                contrast = Math.Max(low - value, Math.Min(high - value, contrast));
+                var grain = tile[fabricRow + x % tileWidth] * (1f - edge);
+                // A shared multiplier keeps the fabric hue and leaves black markings
+                // black. Additive gray grain would wash out saturated/dark uniforms.
+                var scale = 1f + grain + contrast / Math.Max(16f, value);
+                var brightest = Math.Max(input[at], Math.Max(input[at + 1], input[at + 2]));
+                if (brightest > 0) scale = Math.Min(scale, 255f / brightest);
+                if (input[at + 3] == 0) scale = 1f;
                 for (var channel = 0; channel < 3; channel++)
-                {
-                    var value = input[at + channel];
-                    var neighbours = input[left + channel] + input[right + channel] + input[up + channel] + input[down + channel];
-                    var sharpened = value + .35f * (value - neighbours * .25f) + grain;
-                    output[at + channel] = (byte)Math.Max(0, Math.Min(255, (int)Math.Round(sharpened, MidpointRounding.ToEven)));
-                }
+                    output[at + channel] = (byte)Math.Max(0, Math.Min(255,
+                        (int)Math.Round(input[at + channel] * scale, MidpointRounding.ToEven)));
                 output[at + 3] = input[at + 3];
             }
         }
         return output;
+    }
+
+    private static float Luminance(byte[] pixels, int at) =>
+        pixels[at] * .2126f + pixels[at + 1] * .7152f + pixels[at + 2] * .0722f;
+
+    private static float Neighbour(byte[] pixels, int at, int neighbour, float value, ref float low, ref float high)
+    {
+        // Do not pull invisible padding or a different coverage island into a seam.
+        if (pixels[at + 3] != pixels[neighbour + 3]) return value;
+        var other = Luminance(pixels, neighbour);
+        low = Math.Min(low, other); high = Math.Max(high, other);
+        return other;
+    }
+
+    private static float[] ResampleFabric(byte[] source, int width, int height, int targetWidth,
+        int targetHeight, CancellationToken cancellation)
+    {
+        var horizontal = new float[targetWidth * height];
+        for (var y = 0; y < height; y++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            for (var x = 0; x < targetWidth; x++)
+                horizontal[y * targetWidth + x] = FilterLine(source, y * width, 1, width, x, targetWidth);
+        }
+        var result = new float[targetWidth * targetHeight];
+        for (var y = 0; y < targetHeight; y++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            for (var x = 0; x < targetWidth; x++)
+                result[y * targetWidth + x] = FilterLine(horizontal, x, targetWidth, height, y, targetHeight);
+        }
+        return result;
+    }
+
+    private static float FilterLine<T>(T[] source, int start, int stride, int size, int index, int targetSize)
+        where T : struct, IConvertible
+    {
+        if (targetSize >= size)
+        {
+            // Wrapped, pixel-centred bilinear magnification keeps the repeat seam smooth.
+            var position = (index + .5f) * size / targetSize - .5f;
+            var lower = (int)Math.Floor(position);
+            var blend = position - lower;
+            var a = source[start + ((lower + size) % size) * stride].ToSingle(null);
+            var b = source[start + ((lower + 1) % size) * stride].ToSingle(null);
+            return a + (b - a) * blend;
+        }
+        // Exact area average also handles odd source dimensions without dropping texels.
+        var from = (double)index * size / targetSize;
+        var to = (double)(index + 1) * size / targetSize;
+        double sum = 0;
+        for (var sample = (int)from; sample < Math.Ceiling(to); sample++)
+            sum += source[start + Math.Min(size - 1, sample) * stride].ToSingle(null) *
+                (Math.Min(to, sample + 1) - Math.Max(from, sample));
+        return (float)(sum / (to - from));
     }
 }

@@ -20,15 +20,17 @@ versions declared in each test project. No game paths are autodetected. Each
 project has isolated build imports; the runner rejects assembly references,
 project references or imports that would silently pull in the game build.
 
-The command runs all nine suites and returns a nonzero exit code if any suite
+The command runs all eleven suites and returns a nonzero exit code if any suite
 fails. Read individual logs and JSON/Markdown summaries under
 `artifacts/verification/portable/`; use `--verbose` to print passing output too.
 
 | Suite | What it covers | Current checks |
 | --- | --- | ---: |
-| Core | Flight-control math, fresh-press gates, input ownership, detent/ejection rules, HUD presentation, texture preparation, sound generation and other portable behavior | 138 |
+| Core | Flight-control math, fresh-press gates, input ownership, detent/ejection rules, HUD presentation, texture preparation, sound generation and other portable behavior | 144 |
 | UI lifecycle | Duplicate-open/close handling and mission-launch ownership using offline doubles | 5 |
 | Hand comfort | Per-hand correction bounds, invalid data and continuous bounded sleeve reach | 27 |
+| Arm pose | Elbow singularities, mirrored collective alignment, grip transitions, repeated wrist rotation and smooth reach | 24 |
+| Hand pose | Actual glove controller with transform doubles: grip/gesture transitions, finger isolation, raw contact independence, tracking resets and seam normals on both hands at four frame rates | 10,096 assertions |
 | Sleeve bounds | Animated arm bounds and transformed clothing samples | 6 |
 | Feedback preview | Actual preview component and haptic dispatch with boundary doubles: one-shot hand routing, cancellation, disabled output and shared cues | 21 |
 | MFD context | Four-key page/action matrix, destination availability, optical capability, numeric bounds, short state labels and physical page-picker state | 31 |

@@ -34,6 +34,8 @@ jobs:
             /tools/verify.py
             /tools/verification/
             /tools/HandComfortChecks/
+            /tools/ArmPoseChecks/
+            /tools/HandPoseChecks/
             /tools/SleeveBoundsChecks/
             /tools/FeedbackPreviewChecks/
             /tools/MfdContextChecks/
@@ -44,6 +46,8 @@ jobs:
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
             /NOVR/MotionControls/
+            /NOVR/Assets/Glove-left.json
+            /NOVR/Assets/Glove-right.json
             /NOVR/VrUi/Components/
             /NOVR/VrUi/Native/
             /NOVR.Patcher/PayloadFile.cs

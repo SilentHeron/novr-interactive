@@ -50,7 +50,7 @@ internal static class Fs20HandPoses
         return Quaternion.AngleAxis(angles.z, Vector3.forward) * Quaternion.AngleAxis(angles.y, Vector3.up) * Quaternion.AngleAxis(angles.x, Vector3.right) * pose;
     }
 
-    internal static Quaternion Joint(int bone, bool stick, bool left, Quaternion open, Quaternion closed, bool thumbContact = false)
+    internal static Quaternion Joint(int bone, bool stick, bool left, Quaternion open, Quaternion closed, bool thumbContact = false, float triggerPressure = 0)
     {
         var curl = stick ? bone switch
         {
@@ -67,6 +67,12 @@ internal static class Fs20HandPoses
             17 => .32f, 18 => .63f, 19 => .85f,
             22 => .47f, 23 => .85f, 24 => .64f, _ => 0
         };
+        // A small three-joint squeeze follows analog trigger pressure without
+        // moving the fitted palm. The installed grip is asymmetric: the left
+        // MCP extends slightly as the distal joints curl, maintaining clearance.
+        // Full-pressure travel is 1.74 mm right / .48 mm left; rest stays exact.
+        if (stick && bone >= 7 && bone <= 9)
+            curl += Mathf.Clamp01(triggerPressure) * (bone == 7 ? left ? -.010f : .004f : bone == 8 ? .010f : .0065f);
         if (thumbContact && bone >= 2 && bone <= 4)
             curl = stick ? (bone == 2 ? .11375f : bone == 3 ? .85f : .70f) : (bone == 2 ? .204672f : bone == 3 ? .095984f : .368217f);
         var pose = Quaternion.Slerp(open, closed, curl);

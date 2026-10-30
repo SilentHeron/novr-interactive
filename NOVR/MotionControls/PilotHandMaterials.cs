@@ -17,7 +17,7 @@ internal sealed class PilotHandMaterials : IDisposable
         internal readonly Texture Source;
         internal readonly List<Material> Targets = new();
         internal Texture2D? Ready;
-        internal int Size;
+        internal int Width, Height;
         internal double SnapshotMilliseconds;
         internal Enhancement(Texture source) => Source = source;
     }
@@ -30,7 +30,7 @@ internal sealed class PilotHandMaterials : IDisposable
     private readonly Texture2D _fabric, _gloveColor, _gloveNormal;
     internal PilotHandMaterials()
     {
-        _fabric=Load("PilotFabricDetail.png",false,false);
+        _fabric=Load("PilotFabricDetail.png",true,false);
         _gloveColor=Load("GloveColor.jpg",false);
         _gloveNormal=Load("GloveNormal.png",true,false);
         // Unity's desktop normal-map unpack expects X in alpha, Y in green.
@@ -48,7 +48,7 @@ internal sealed class PilotHandMaterials : IDisposable
     internal Material Sleeve(Material native)
     {
         var material=new Material(native){name="NOVR detailed "+native.name};_materials.Add(material);
-        var source=native.HasProperty("_BaseMap")?native.GetTexture("_BaseMap"):native.mainTexture;
+        var source=NativeAlbedo(native);
         if(source!=null)
         {
             if(!_enhanced.TryGetValue(source,out var enhancement))
@@ -58,13 +58,13 @@ internal sealed class PilotHandMaterials : IDisposable
             enhancement.Targets.Add(material);
             // Render with the original atlas until the copied detail texture is ready.
             if(enhancement.Ready!=null)
-            { SetTexture(material,"_BaseMap",enhancement.Ready);SetTexture(material,"_MainTex",enhancement.Ready); }
+            { ReplaceAlbedo(material,source,enhancement.Ready); }
         }
-        // Several stripped game shader variants ignore detail keywords. Bake a
-        // restrained weave/local-contrast pass into our own albedo copy in the background.
-        material.DisableKeyword("_DETAIL_MULX2");material.DisableKeyword("_DETAIL_SCALED");
-        if(material.HasProperty("_BumpScale"))material.SetFloat("_BumpScale",.55f);
-        if(material.HasProperty("_Smoothness"))material.SetFloat("_Smoothness",.25f);
+        // Albedo detail works with stripped shader variants too. Keep native normal
+        // maps, their strength, detail keywords, masks and UV transforms intact.
+        // Cap cloth sheen without making an already matte native material shinier.
+        LimitSmoothness(material,"_Smoothness");LimitSmoothness(material,"_Glossiness");
+        LimitSmoothness(material,"_GlossMapScale");
         return material;
     }
     internal void Tick()
@@ -81,12 +81,16 @@ internal sealed class PilotHandMaterials : IDisposable
                 try
                 {
                     var timer=Stopwatch.StartNew();
-                    var size=enhancement.Size;
-                    var texture=new Texture2D(size,size,TextureFormat.RGBA32,true){name="NOVR enhanced pilot albedo",filterMode=FilterMode.Trilinear,anisoLevel=4};_textures.Add(texture);
+                    var width=enhancement.Width;var height=enhancement.Height;
+                    var texture=new Texture2D(width,height,TextureFormat.RGBA32,true)
+                    {name="NOVR enhanced pilot albedo",filterMode=FilterMode.Trilinear,
+                        anisoLevel=Mathf.Clamp(enhancement.Source.anisoLevel,8,16),
+                        wrapModeU=enhancement.Source.wrapModeU,wrapModeV=enhancement.Source.wrapModeV};
+                    _textures.Add(texture);
                     texture.SetPixelData(result.Pixels,0);texture.Apply(true,true);enhancement.Ready=texture;
                     foreach(var material in enhancement.Targets)if(material!=null)
-                    { SetTexture(material,"_BaseMap",texture);SetTexture(material,"_MainTex",texture); }
-                    Debug.Log($"[NOVR] Pilot sleeve detail ready at {size}x{size}; snapshot {enhancement.SnapshotMilliseconds:F1} ms, background filter {result.Milliseconds:F1} ms, upload {timer.Elapsed.TotalMilliseconds:F1} ms. Native atlas preserved.");
+                    { ReplaceAlbedo(material,enhancement.Source,texture); }
+                    Debug.Log($"[NOVR] Pilot sleeve detail ready at {width}x{height}; snapshot {enhancement.SnapshotMilliseconds:F1} ms, background filter {result.Milliseconds:F1} ms, upload {timer.Elapsed.TotalMilliseconds:F1} ms. Native atlas preserved.");
                 }
                 catch(Exception e){Debug.LogWarning("[NOVR] Sleeve detail upload unavailable: "+e.Message);}
             }
@@ -97,24 +101,27 @@ internal sealed class PilotHandMaterials : IDisposable
         try
         {
             var timer=Stopwatch.StartNew();
-            var size=Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.Max(next.Source.width,next.Source.height))*2,1024,2048);
-            var input=Snapshot(next.Source,size);
+            var longest=Mathf.Max(next.Source.width,next.Source.height);
+            var target=Mathf.Clamp(Mathf.NextPowerOfTwo(longest)*2,1024,2048);
+            var pixelWidth=Mathf.Max(1,Mathf.RoundToInt(next.Source.width*(float)target/longest));
+            var pixelHeight=Mathf.Max(1,Mathf.RoundToInt(next.Source.height*(float)target/longest));
+            var input=Snapshot(next.Source,pixelWidth,pixelHeight);
             var fabric=_fabricRed ??= Array.ConvertAll(_fabric.GetPixels32(),pixel=>pixel.r);
             var width=_fabric.width;var height=_fabric.height;
-            next.Size=size;next.SnapshotMilliseconds=timer.Elapsed.TotalMilliseconds;_processing=next;
+            next.Width=pixelWidth;next.Height=pixelHeight;next.SnapshotMilliseconds=timer.Elapsed.TotalMilliseconds;_processing=next;
             // Capture arrays/scalars only. Texture creation, reads and uploads stay on Unity's thread.
-            _work=new DeferredTextureJob(token=>PilotTextureEnhancement.Apply(input,size,fabric,width,height,token));
+            _work=new DeferredTextureJob(token=>PilotTextureEnhancement.Apply(input,pixelWidth,pixelHeight,fabric,width,height,token));
         }
         catch(Exception e){_processing=null;Debug.LogWarning("[NOVR] Sleeve detail capture skipped; original atlas retained: "+e.Message);}
     }
-    private static byte[] Snapshot(Texture source,int size)
+    private static byte[] Snapshot(Texture source,int width,int height)
     {
-        var previous=RenderTexture.active;var rt=RenderTexture.GetTemporary(size,size,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);Texture2D? texture=null;
+        var previous=RenderTexture.active;var rt=RenderTexture.GetTemporary(width,height,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);Texture2D? texture=null;
         try
         {
             Graphics.Blit(source,rt);RenderTexture.active=rt;
-            texture=new Texture2D(size,size,TextureFormat.RGBA32,false);
-            texture.ReadPixels(new Rect(0,0,size,size),0,0,false);
+            texture=new Texture2D(width,height,TextureFormat.RGBA32,false);
+            texture.ReadPixels(new Rect(0,0,width,height),0,0,false);
             // ReadPixels populated CPU data; an intermediate Apply/GPU upload is unnecessary.
             return texture.GetRawTextureData();
         }
@@ -135,11 +142,25 @@ internal sealed class PilotHandMaterials : IDisposable
         if(material.HasProperty("_Glossiness"))material.SetFloat("_Glossiness",.22f);
         material.EnableKeyword("_NORMALMAP");return material;
     }
+    private static Texture? NativeAlbedo(Material native) =>
+        (native.HasProperty("_BaseMap")?native.GetTexture("_BaseMap"):null) ?? native.mainTexture;
+    private static void ReplaceAlbedo(Material material,Texture original,Texture replacement)
+    {
+        // Native uniforms can use a cropped/offset atlas. Replacing its contents must
+        // not reset sampling coordinates or overwrite another distinct texture slot.
+        foreach(var property in new[]{"_BaseMap","_MainTex"})
+            if(material.HasProperty(property) && material.GetTexture(property)==original)
+                material.SetTexture(property,replacement);
+    }
+    private static void LimitSmoothness(Material material,string property)
+    {
+        if(material.HasProperty(property))material.SetFloat(property,Mathf.Min(material.GetFloat(property),.25f));
+    }
     private static void SetColor(Material m,string name,Color c){if(m.HasProperty(name))m.SetColor(name,c);}
     private static void SetTexture(Material m,string name,Texture? t){if(m.HasProperty(name)){m.SetTexture(name,t);m.SetTextureScale(name,Vector2.one);m.SetTextureOffset(name,Vector2.zero);}}
     private static Color PilotColor(Material native,Rect patch)
     {
-        var source=native.HasProperty("_BaseMap")?native.GetTexture("_BaseMap"):native.mainTexture;
+        var source=NativeAlbedo(native);
         if(source==null)return new Color(.8f,.9f,.8f);
         var previous=RenderTexture.active;var rt=RenderTexture.GetTemporary(64,64,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);Texture2D? image=null;
         try

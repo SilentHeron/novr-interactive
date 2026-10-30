@@ -24,7 +24,11 @@ internal static class ArmReachMath
         var maximum = length + extension - .002f;
         var minimum = Math.Abs(upper - forearm) + .002f;
         var solvedDistance = Math.Max(minimum, Math.Min(maximum, distance));
-        var scale = Math.Max(1, (solvedDistance + .002f) / length);
+        var extra = solvedDistance + .002f - length;
+        // Ease into extension over two centimeters, so the elbow's velocity
+        // does not kink at the frame where the rigid arm first runs out.
+        var smoothExtra = extra <= -.01f ? 0 : extra >= .01f ? extra : (extra + .01f) * (extra + .01f) / .04f;
+        var scale = 1 + Math.Min(extension, smoothExtra) / length;
         // Reach fades spatially, avoiding a frame-rate-dependent detached cuff.
         var t = FlightControlMath.Clamp((distance - (length - .015f)) / (extension + .013f), 0, 1);
         var opacity = 1 - t * t * (3 - 2 * t);
@@ -33,5 +37,18 @@ internal static class ArmReachMath
         var near = FlightControlMath.Clamp((distance - minimum) / .025f, 0, 1);
         opacity *= near * near * (3 - 2 * near);
         return new Reach(solvedDistance, scale, opacity);
+    }
+
+    internal static bool Triangle(float upper,float forearm,float distance,out float along,out float height)
+    {
+        along=height=0;
+        if (!FlightControlMath.IsFinite(upper) || !FlightControlMath.IsFinite(forearm) || !FlightControlMath.IsFinite(distance) ||
+            upper<=0 || forearm<=0 || distance<=0 || distance>=upper+forearm || distance<=Math.Abs(upper-forearm))return false;
+        // Double precision and Heron's factors retain a useful bend near full
+        // extension instead of subtracting two almost identical float squares.
+        double a=upper,b=forearm,d=distance;
+        along=(float)((a*a-b*b+d*d)/(2*d));
+        height=(float)(Math.Sqrt((a+b+d)*(a+b-d)*(d+a-b)*(d-a+b))/(2*d));
+        return FlightControlMath.IsFinite(along) && FlightControlMath.IsFinite(height);
     }
 }
