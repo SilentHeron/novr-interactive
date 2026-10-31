@@ -194,8 +194,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         var c=matrix.MultiplyPoint3x4(_copies[h].position);
         var scale=_source.transform.lossyScale;
         var largest=Mathf.Max(Mathf.Abs(scale.x),Mathf.Max(Mathf.Abs(scale.y),Mathf.Abs(scale.z)));
-        // Include resized clothing, the solver's <=10% extension and seam margin.
-        var radius=Mathf.Max(.06f,_sleeveBindRadius[side]*largest*Mathf.Max(1,_sleeveThickness)*1.12f+.02f);
+        // Include resized clothing, the solver's bounded extension and seam margin.
+        var radius=Mathf.Max(.06f,_sleeveBindRadius[side]*largest*Mathf.Max(1,_sleeveThickness)*(1+ArmReachMath.MaximumStretchRatio+.02f)+.02f);
         if(!SleeveBoundsMath.Axis(a.x,b.x,c.x,matrix.m00,matrix.m01,matrix.m02,radius,out var x,out var sx) ||
            !SleeveBoundsMath.Axis(a.y,b.y,c.y,matrix.m10,matrix.m11,matrix.m12,radius,out var y,out var sy) ||
            !SleeveBoundsMath.Axis(a.z,b.z,c.z,matrix.m20,matrix.m21,matrix.m22,radius,out var z,out var sz))return;

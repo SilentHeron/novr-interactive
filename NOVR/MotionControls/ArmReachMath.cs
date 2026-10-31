@@ -2,10 +2,11 @@ using System;
 
 namespace NOVR.MotionControls;
 
-// A small visual extension keeps the cuff connected while the sleeve fades.
+// A modest visual extension keeps normal cockpit reaches opaque and connected.
 // It never changes the tracked glove, hit tests, native skeleton or flight input.
 internal static class ArmReachMath
 {
+    internal const float MaximumExtension = .10f, MaximumStretchRatio = .18f;
     internal readonly struct Reach
     {
         internal readonly float Distance, Scale, Opacity;
@@ -20,7 +21,7 @@ internal static class ArmReachMath
             return default;
         var length = upper + forearm;
         if (!FlightControlMath.IsFinite(length)) return default;
-        var extension = Math.Min(.06f, length * .1f);
+        var extension = Math.Min(MaximumExtension, length * MaximumStretchRatio);
         var maximum = length + extension - .002f;
         var minimum = Math.Abs(upper - forearm) + .002f;
         var solvedDistance = Math.Max(minimum, Math.Min(maximum, distance));
@@ -29,8 +30,11 @@ internal static class ArmReachMath
         // does not kink at the frame where the rigid arm first runs out.
         var smoothExtra = extra <= -.01f ? 0 : extra >= .01f ? extra : (extra + .01f) * (extra + .01f) / .04f;
         var scale = 1 + Math.Min(extension, smoothExtra) / length;
-        // Reach fades spatially, avoiding a frame-rate-dependent detached cuff.
-        var t = FlightControlMath.Clamp((distance - (length - .015f)) / (extension + .013f), 0, 1);
+        // Normal reach and the first 60% of modest extension stay fully opaque.
+        // Only the unreachable outer range fades, rather than ghosting a hand
+        // held on a correctly fitted control near ordinary arm's length.
+        var fadeStart = length + extension * .6f;
+        var t = FlightControlMath.Clamp((distance - fadeStart) / (maximum - fadeStart), 0, 1);
         var opacity = 1 - t * t * (3 - 2 * t);
         // A hand folded almost into the shoulder also approaches an invalid IK
         // triangle. Fade that narrow range rather than abruptly clipping it.

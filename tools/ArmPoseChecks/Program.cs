@@ -127,7 +127,7 @@ rollSolver.Reset();
 Check(rollSolver.ForearmRoll(axis,dorsal,axis)==0,"Reset clears previous aircraft/hidden-hand twist history");
 
 var reachGood=true;var maxVelocityChange=0f;float? previousHeight=null;float? previousVelocity=null;
-for(var i=0;i<=4000;i++)
+for(var i=0;i<=6800;i++)
 {
     var distance=.53f+i*.000025f;
     var reach=ArmReachMath.Evaluate(.3f,.27f,distance);
@@ -142,7 +142,7 @@ for(var i=0;i<=4000;i++)
     }
     previousHeight=height;
 }
-Check(reachGood,"4,001 reaches preserve both bone lengths through rigid reach, smooth extension and fade");
+Check(reachGood,"6,801 reaches preserve both bone lengths through rigid reach, smooth extension and fade");
 Check(maxVelocityChange<.05f,"Elbow velocity changes smoothly at the sleeve-extension threshold");
 Check(!ArmReachMath.Triangle(.3f,.27f,float.NaN,out _,out _) && !ArmReachMath.Triangle(.3f,.27f,.7f,out _,out _),"Invalid and impossible IK triangles are rejected before transforms change");
 Console.WriteLine($"{passed} arm pose checks passed.");

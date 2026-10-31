@@ -28,8 +28,10 @@ internal sealed class CockpitViewZoom : MonoBehaviour
     private float _retryAfter;
     private GameObject? _window;
     private ZoomTargetingHud? _hud;
+    private InspectionAimCue? _aimCue;
     private bool _held;
     internal static bool IsActive { get; private set; }
+    internal static bool AimCueVisible => IsActive && InspectionAimCue.Visible;
     private const float Distance = 3f, Width = 1.2f, Height = .75f;
 
     private void Update()
@@ -69,6 +71,7 @@ internal sealed class CockpitViewZoom : MonoBehaviour
         _window!.transform.SetPositionAndRotation(ui.transform.position + ui.transform.forward * Distance, ui.transform.rotation);
         _window.SetActive(true);
         _hud!.Magnification = magnification;
+        _aimCue!.Magnification = magnification;
     }
     private void EnsureView(Camera main, Camera ui)
     {
@@ -100,6 +103,7 @@ internal sealed class CockpitViewZoom : MonoBehaviour
         var overlay = Rect("Magnified targeting HUD", new Vector2(Width * 1000, Height * 1000), Vector2.zero);
         overlay.gameObject.AddComponent<RectMask2D>();
         _hud = overlay.gameObject.AddComponent<ZoomTargetingHud>();
+        _aimCue = overlay.gameObject.AddComponent<InspectionAimCue>();
         LayerHelper.SetLayerRecursive(_window.transform, LayerHelper.GetVrUiLayer());
     }
     private bool ApplyQuality(Camera main)

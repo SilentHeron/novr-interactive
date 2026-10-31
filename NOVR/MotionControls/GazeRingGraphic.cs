@@ -5,8 +5,8 @@ using UnityEngine.UI;
 namespace NOVR.MotionControls;
 
 // Both gaze views use the same angular cue. At their 3 m stereo depth and
-// 0.001 canvas scale, 68 units spans 1.3 degrees. Keep the center completely
-// empty, with a faint dark rim for contrast against bright skies.
+// 0.001 canvas scale, 82 units spans about 1.6 degrees. Keep the center completely
+// empty, with a dark rim for contrast against bright skies.
 internal sealed class GazeRingGraphic : MaskableGraphic
 {
     internal static GameObject Create(Transform parent)
@@ -17,7 +17,7 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         // A small visual-only drop: 26.2 mm at 3 m is about half a degree.
         // Leave the native designator, selection ray and optical camera untouched.
         rect.anchoredPosition = new Vector2(0, -26.2f);
-        rect.sizeDelta = Vector2.one * 68;
+        rect.sizeDelta = Vector2.one * 82;
         var ring = go.AddComponent<GazeRingGraphic>();
         ring.RefreshColor(); ring.raycastTarget = false;
         return go;
@@ -28,9 +28,10 @@ internal sealed class GazeRingGraphic : MaskableGraphic
     private void RefreshColor()
     {
         // Match the game's live HUD theme, including theme changes. Contextual
-        // acquisition fading stays on the parent; this sets the quieter maximum.
+        // acquisition brightening stays on the parent. The idle cue should
+        // remain readable against both the sky and cockpit.
         var tint = ThemeManager.Active != null ? ThemeManager.Active.ColorTheme.AllClear : new Color(.2f, 1f, .35f);
-        tint.a = .42f * ModConfiguration.Instance.InstrumentBrightness.Value;
+        tint.a = .78f * ModConfiguration.Instance.InstrumentBrightness.Value;
         if (color != tint) color = tint;
     }
 
@@ -40,8 +41,8 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         var rect = rectTransform.rect;
         var radius = Mathf.Min(rect.width, rect.height) * .5f;
         if (radius <= 0) return;
-        Ring(vh, rect.center, radius * (36f / 42), radius, new Color(0, 0, 0, color.a * .55f));
-        Ring(vh, rect.center, radius * (37.8f / 42), radius * (40.2f / 42), color);
+        Ring(vh, rect.center, radius * .83f, radius, new Color(0, 0, 0, color.a * .65f));
+        Ring(vh, rect.center, radius * .87f, radius * .97f, color);
     }
 
     private static void Ring(VertexHelper vh, Vector2 center, float inner, float outer, Color color)

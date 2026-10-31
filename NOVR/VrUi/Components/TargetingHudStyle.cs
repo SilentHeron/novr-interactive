@@ -10,12 +10,53 @@ namespace NOVR.VrUi.SpecialBehavior;
 
 internal sealed class TargetingHudStyle : MonoBehaviour
 {
+    private static readonly FieldInfo TargetTextField = AccessTools.Field(typeof(CombatHUD), "targetText");
+    private static readonly FieldInfo TargetInfoField = AccessTools.Field(typeof(CombatHUD), "targetInfo");
+    private static readonly FieldInfo TargetArrowField = AccessTools.Field(typeof(CombatHUD), "targetArrow");
     private float _nextScan;
+    private CombatHUD? _labelOwner;
+    private HudElementStyle? _targetTextStyle, _targetInfoStyle;
+
+    private void UpdateAircraftLabels(CombatHUD? combat)
+    {
+        if (_labelOwner != combat)
+        {
+            RestoreAircraftLabels();
+            _labelOwner = combat;
+            _targetTextStyle = combat == null ? null : HudElementStyle.Add(TargetTextField.GetValue(combat) as TMP_Text, HudElementKind.Label);
+            _targetInfoStyle = combat == null ? null : HudElementStyle.Add(TargetInfoField.GetValue(combat) as TMP_Text, HudElementKind.Label);
+        }
+        var targets = combat?.GetTargetList();
+        var affiliation = LabelAffiliation(targets != null && targets.Count > 0 ? targets[0] : null);
+        // These are shared native labels for the first selected target, not
+        // children of each HUDUnitMarker. Do not infer affiliation from color
+        // (selection changes it) or scale every marker during its update loop.
+        if (_targetTextStyle != null) _targetTextStyle.SetAircraftLabelAffiliation(affiliation);
+        if (_targetInfoStyle != null) _targetInfoStyle.SetAircraftLabelAffiliation(affiliation);
+    }
+
+    internal static AircraftLabelAffiliation LabelAffiliation(Unit? unit) => unit is Aircraft
+        ? DynamicMap.GetFactionMode(unit.NetworkHQ) switch
+        {
+            FactionMode.Friendly => AircraftLabelAffiliation.Friendly,
+            FactionMode.Enemy => AircraftLabelAffiliation.Hostile,
+            _ => AircraftLabelAffiliation.Other
+        }
+        : AircraftLabelAffiliation.Other;
+
+    private void RestoreAircraftLabels()
+    {
+        if (_targetTextStyle != null) _targetTextStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
+        if (_targetInfoStyle != null) _targetInfoStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
+    }
+    private void OnDisable() => RestoreAircraftLabels();
+
     private void LateUpdate()
     {
+        var combat = SceneSingleton<CombatHUD>.i;
+        UpdateAircraftLabels(combat);
         if (Time.unscaledTime < _nextScan) return;
         _nextScan = Time.unscaledTime + .5f;
-        var combat = SceneSingleton<CombatHUD>.i;
         var flight = SceneSingleton<FlightHud>.i;
         if (flight != null)
         {
@@ -24,9 +65,7 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         }
         if (combat == null) return;
         HudElementStyle.Add(combat.targetDesignator, HudElementKind.Reticle);
-        foreach (var name in new[] { "targetText", "targetInfo", "targetArrow" })
-            if (AccessTools.Field(typeof(CombatHUD), name)?.GetValue(combat) is Graphic graphic)
-                HudElementStyle.Add(graphic, graphic is TMP_Text ? HudElementKind.Label : HudElementKind.Marker);
+        HudElementStyle.Add(TargetArrowField.GetValue(combat) as Graphic, HudElementKind.Marker);
         if (flight == null) return;
         foreach (var state in flight.GetComponentsInChildren<HUDWeaponState>(true))
         {

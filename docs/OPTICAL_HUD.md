@@ -44,22 +44,26 @@ The old persistent center diamond is hidden without changing the native aim
 transform. **View → Comfort & display → HUD & display → Aiming & markers →
 Aim cue** cycles:
 
-- **CONTEXT** (default): the hollow circle appears near an
+- **ALWAYS** (default): keep the circle visible during cockpit flight, brightening
+  with acquisition feedback. This also works with landing gear down.
+- **CONTEXT:** the hollow circle appears near an
   available target or during target selection, then fades away.
-- **ALWAYS:** keep the circle visible, brightening with acquisition feedback.
 - **OFF:** hide the aim cue. Target diamonds and weapon-specific sights remain.
 
-The translucent circle matches the native HUD color, with a faint dark outline
-for contrast against bright skies and sensor imagery. It spans about 1.3° with
-an empty center, about 20% smaller than the previous circle. Its maximum opacity
-is 42%, further reduced by the HUD instrument brightness setting and contextual
-fading. The circle sits about 0.5° lower than the targeting axis to keep the
+The hollow circle matches the native HUD color, with a thicker stroke and dark
+outline for contrast against bright skies and sensor imagery. It spans about
+1.6° with an empty center. At full instrument brightness, opacity is about 62%
+while idle and 78% during acquisition. The circle sits about 0.5° lower than the targeting axis to keep the
 center of the view clearer; this is a visual offset only and does not move the
 selection ray or optical camera.
-The optical HEAD image uses the same circle while deliberately active; its size
-stays constant as optical magnification changes. OFF hides this too. The circle
+The optical HEAD image and inspection zoom use the same circle; its size stays
+constant as magnification changes. While EOTS waits for a picture, the ordinary
+cue remains available. OFF hides these too. The circle
 does not change the target selection radius. Acquisition feedback means a
 selectable candidate, not a missile lock.
+
+Upgrading from the former contextual default selects ALWAYS once. OFF is
+preserved, and you can choose CONTEXT again afterward.
 
 The interaction is inspired by the optical HEAD mode documented on page 9 of
 [VTOL VR's official manual](https://cdn.akamai.steamstatic.com/steam/apps/667970/manuals/VTOL_VR_Manual.pdf?t=1703226033).

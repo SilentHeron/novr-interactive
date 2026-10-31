@@ -21,14 +21,18 @@ Check(HandCalibrationMath.Correction(.05f, float.NaN) == 0, "Invalid correction 
 var normal = ArmReachMath.Evaluate(.3f, .27f, .45f);
 Check(normal.Valid && normal.Opacity == 1 && normal.Scale == 1 && Near(normal.Distance, .45f), "Normal reach stays opaque and does not stretch");
 var oldCutoff = ArmReachMath.Evaluate(.3f, .27f, .568f);
-Check(oldCutoff.Valid && oldCutoff.Opacity > .8f, "Sleeve remains visible at the former hard reach cutoff");
+Check(oldCutoff.Valid && oldCutoff.Opacity == 1, "Sleeve stays fully opaque at the former hard reach cutoff");
 var extended = ArmReachMath.Evaluate(.3f, .27f, .6f);
-Check(extended.Valid && extended.Opacity > 0 && extended.Opacity < 1 && extended.Scale > 1, "A small extra reach keeps a connected cuff with partial fade");
-Check(Near(extended.Distance, .6f), "Fading sleeve follows the wrist while within its extended range");
-var outer = ArmReachMath.Evaluate(.3f, .27f, .625f);
-Check(outer.Valid && Near(outer.Opacity, 0) && outer.Scale <= 1.10001f, "Outer reach is invisible before any further sleeve stretching");
+Check(extended.Valid && extended.Opacity == 1 && extended.Scale > 1, "A modest extra reach keeps the cuff connected without ghosting");
+Check(Near(extended.Distance, .6f), "Opaque extended sleeve follows the wrist exactly");
+Check(ArmReachMath.Evaluate(.3f,.27f,.625f).Opacity == 1, "The previously invisible outer cutoff is now a fully opaque cockpit reach");
+Check(ArmReachMath.Evaluate(.3f,.27f,.63f).Opacity == 1, "The first sixty percent of allowed extension remains opaque");
+var fading = ArmReachMath.Evaluate(.3f,.27f,.65f);
+Check(fading.Valid && fading.Opacity > .4f && fading.Opacity < .6f && Near(fading.Distance,.65f), "Only the outer extension band fades while preserving cuff attachment");
+var outer = ArmReachMath.Evaluate(.3f, .27f, .668f);
+Check(outer.Valid && Near(outer.Opacity, 0) && outer.Scale <= 1.18001f, "Outer reach is invisible before any further sleeve stretching");
 var tooFar = ArmReachMath.Evaluate(.3f, .27f, 9);
-Check(tooFar.Valid && tooFar.Opacity == 0 && tooFar.Scale <= 1.10001f && tooFar.Distance <= .62501f, "Unreachable controller never stretches a sleeve across the cockpit");
+Check(tooFar.Valid && tooFar.Opacity == 0 && tooFar.Scale <= 1.18001f && tooFar.Distance <= .66801f, "Unreachable controller never stretches a sleeve across the cockpit");
 Check(ArmReachMath.Evaluate(.3f,.27f,float.NaN).Valid == false, "NaN tracking distance cannot enter the IK solver");
 Check(ArmReachMath.Evaluate(.3f,.27f,float.PositiveInfinity).Valid == false, "Infinite tracking distance cannot enter the IK solver");
 Check(ArmReachMath.Evaluate(.01f,.27f,.2f).Valid == false, "Missing or unusably short arm bones are rejected");
@@ -38,7 +42,7 @@ Check(ArmReachMath.Evaluate(.3f,.27f,.032f).Opacity <= .00001f, "Impossible inne
 Check(ArmReachMath.Evaluate(.3f,.27f,.055f).Opacity > .9f, "Sleeve recovers smoothly outside the small inner reach band");
 var previous = 1f;
 var continuous = true; var monotonic = true; var finite = true; var triangle = true;
-for (var i = 0; i <= 2000; i++)
+for (var i = 0; i <= 3200; i++)
 {
     var distance = .54f + i*.00005f;
     var reach = ArmReachMath.Evaluate(.3f,.27f,distance);
@@ -48,10 +52,12 @@ for (var i = 0; i <= 2000; i++)
     triangle &= reach.Distance < (.3f + .27f)*reach.Scale && reach.Distance > Math.Abs(.3f-.27f)*reach.Scale;
     previous = reach.Opacity;
 }
-Check(continuous, "Reach fade stays continuous across 2,001 boundary samples");
+Check(continuous, "Reach fade stays continuous across 3,201 boundary samples");
 Check(monotonic, "Increasing reach never makes a fading sleeve reappear");
 Check(finite, "Reach sweep returns finite, bounded opacity and scale");
 Check(triangle, "Reach sweep retains a solvable two-bone triangle");
-var large = ArmReachMath.Evaluate(.6f,.5f,1.13f);
-Check(large.Scale < 1.06f, "Large pilot rigs still limit added reach to six centimeters");
+var large = ArmReachMath.Evaluate(.6f,.5f,9);
+Check(large.Opacity == 0 && large.Scale <= 1 + .1f / 1.1f + .00001f && Near(large.Distance,1.198f), "Large pilot rigs cap added reach at ten centimeters");
+var small = ArmReachMath.Evaluate(.15f,.12f,9);
+Check(small.Opacity == 0 && Near(small.Scale,1.18f) && Near(small.Distance,.3166f), "Small pilot rigs cap visual extension at eighteen percent");
 Console.WriteLine($"{passed} hand comfort checks passed.");

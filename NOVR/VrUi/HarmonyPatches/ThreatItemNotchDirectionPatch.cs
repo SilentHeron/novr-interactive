@@ -10,24 +10,13 @@ namespace NOVR.VrUi.HarmonyPatches;
 internal static class ThreatItemNotchDirectionPatch
 {
     private const float NotchIndicatorDistance = 1000.0f;
-    private const float NotchIndicatorLineWidth = 1.0f;
-    private const float NotchIndicatorLineHeight = 4096.0f;
-    private const float NotchIndicatorGapHeight = 72.0f;
-    private const float NotchIndicatorFirstGapOffset = 200.0f;
-    private const float NotchIndicatorGapOffsetStep = 25.0f;
-    private const float NotchIndicatorGapOffsetLerpSpeed = 8.0f;
     private static readonly FieldInfo MissileField = AccessTools.Field(typeof(global::ThreatItem), "missile");
     private static readonly FieldInfo NotchLineField = AccessTools.Field(typeof(global::ThreatItem), "notchLine");
     private static readonly FieldInfo NotchIndicatorField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicator");
     private static readonly FieldInfo NotchIndicatorBoxField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicatorBox");
     private static readonly FieldInfo NotchIndicatorLabelField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicatorLabel");
     private static readonly FieldInfo PlayerAircraftIconTransformField = AccessTools.Field(typeof(global::ThreatItem), "playerAircraftIconTransform");
-    private static readonly Dictionary<global::ThreatItem, float> SmoothedGapOffsets = new();
-    private static readonly Dictionary<global::ThreatItem, int> ThreatSlots = new();
-    private static readonly Dictionary<Image, LineImages> LineImageCache = new();
     private static readonly HashSet<GameObject> CompactHiddenIndicators = new();
-    private static int _slotFrame = -1;
-    private static int _nextSlot;
 
     [HarmonyPatch(typeof(global::CombatHUD), nameof(global::CombatHUD.ShowNotchIndicator))]
     private static class PrepareNotchIndicator
@@ -40,7 +29,12 @@ internal static class ThreatItemNotchDirectionPatch
             // Parenting alone retains the prefab's original HUD layer, which the
             // VR HUD camera does not render.
             LayerHelper.SetLayerRecursive(__result.transform, LayerHelper.GetVrUiLayer());
-            HudElementStyle.Add(__result.GetComponentInChildren<Text>(), HudElementKind.Label);
+            // Keep the game's hollow, sliced box and its authored label below
+            // it. Treat this compact widget as one symbol: scaling both drawn
+            // meshes around the shared origin preserves its proportions, label
+            // spacing and evasion bearing, without altering the RectTransforms.
+            HudElementStyle.Add(__result.GetComponent<Image>(), HudElementKind.Marker);
+            HudElementStyle.Add(__result.GetComponentInChildren<Text>(), HudElementKind.Marker, __result.transform);
         }
     }
 
@@ -117,12 +111,13 @@ internal static class ThreatItemNotchDirectionPatch
             else if (missile.seekerMode == Missile.SeekerMode.activeSearch)
                 color = Color.Lerp(Color.green, Color.yellow, Mathf.Sin(Time.timeSinceLevelLoad * 10f) + 0.5f);
             
-            var gapOffset = GetSmoothedGapOffset(__instance);
-
             var notchIndicatorBox = (Image)NotchIndicatorBoxField.GetValue(__instance);
             if (notchIndicatorBox != null)
             {
-                ConfigureNotchIndicatorLines(notchIndicatorBox, color, gapOffset);
+                // Do not replace the native rectangle with full-height lines:
+                // those alias badly in the headset and lose the notch-box cue.
+                notchIndicatorBox.color = color;
+                notchIndicatorBox.raycastTarget = false;
             }
 
             var notchIndicatorLabel = (Text)NotchIndicatorLabelField.GetValue(__instance);
@@ -130,7 +125,7 @@ internal static class ThreatItemNotchDirectionPatch
             {
                 notchIndicatorLabel.text = $"[{missile.GetSeekerType()}] {UnitConverter.DistanceReading(distance)}";
                 notchIndicatorLabel.color = color;
-                CenterNotchIndicatorLabel(notchIndicatorLabel, gapOffset);
+                notchIndicatorLabel.raycastTarget = false;
             }
 
             return false;
@@ -178,138 +173,8 @@ internal static class ThreatItemNotchDirectionPatch
         [HarmonyPrefix]
         private static void Prefix(global::ThreatItem __instance)
         {
-            SmoothedGapOffsets.Remove(__instance); ThreatSlots.Remove(__instance);
             var indicator = NotchIndicatorField.GetValue(__instance) as GameObject;
             if (indicator != null) CompactHiddenIndicators.Remove(indicator);
-            var box = NotchIndicatorBoxField.GetValue(__instance) as Image;
-            if (box != null) LineImageCache.Remove(box);
         }
-    }
-    
-    private static float GetSmoothedGapOffset(global::ThreatItem threatItem)
-    {
-        if (_slotFrame != Time.frameCount)
-        {
-            _slotFrame = Time.frameCount;
-            _nextSlot = 0;
-            ThreatSlots.Clear();
-        }
-        
-        if (!ThreatSlots.TryGetValue(threatItem, out var slot))
-        {
-            slot = _nextSlot++;
-            ThreatSlots[threatItem] = slot;
-        }
-        
-        var targetOffset = NotchIndicatorFirstGapOffset - slot * NotchIndicatorGapOffsetStep;
-
-        if (!SmoothedGapOffsets.TryGetValue(threatItem, out var currentOffset))
-        {
-            SmoothedGapOffsets[threatItem] = targetOffset;
-            return targetOffset;
-        }
-
-        var lerpFactor = 1.0f - Mathf.Exp(-NotchIndicatorGapOffsetLerpSpeed * Time.unscaledDeltaTime);
-        currentOffset = Mathf.Lerp(currentOffset, targetOffset, lerpFactor);
-        SmoothedGapOffsets[threatItem] = currentOffset;
-        return currentOffset;
-    }
-    
-    private static void ConfigureNotchIndicatorLines(Image notchIndicatorBox, Color color, float gapOffset)
-    {
-        notchIndicatorBox.color = Color.clear;
-        notchIndicatorBox.raycastTarget = false;
-
-        var lines = GetOrCreateLineImages(notchIndicatorBox);
-        var gapHalfHeight = NotchIndicatorGapHeight * 0.5f;
-        var lineSegmentHeight = (NotchIndicatorLineHeight - NotchIndicatorGapHeight) * 0.5f;
-        
-        ConfigureLineSegment(
-            lines.Upper,
-            color,
-            new Vector2(0.0f, gapOffset + gapHalfHeight + lineSegmentHeight * 0.5f),
-            lineSegmentHeight);
-        ConfigureLineSegment(
-            lines.Lower,
-            color,
-            new Vector2(0.0f, gapOffset - gapHalfHeight - lineSegmentHeight * 0.5f),
-            lineSegmentHeight);
-    }
-    
-    private static void CenterNotchIndicatorLabel(Text notchIndicatorLabel, float gapOffset)
-    {
-        if (notchIndicatorLabel.transform is not RectTransform rectTransform)
-            return;
-
-        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        rectTransform.anchoredPosition = new Vector2(0.0f, gapOffset);
-    }
-    
-    private static LineImages GetOrCreateLineImages(Image notchIndicatorBox)
-    {
-        if (LineImageCache.TryGetValue(notchIndicatorBox, out var cached) && cached.IsValid)
-            return cached;
-
-        cached = new LineImages(
-            GetOrCreateLineImage(notchIndicatorBox.transform, "NOVR_NotchIndicatorUpperLine"),
-            GetOrCreateLineImage(notchIndicatorBox.transform, "NOVR_NotchIndicatorLowerLine"));
-        LineImageCache[notchIndicatorBox] = cached;
-        return cached;
-    }
-    
-    private static Image  GetOrCreateLineImage(Transform parent, string name)
-    {
-        var existing = parent.Find(name);
-        if (existing != null && existing.TryGetComponent<Image>(out var existingImage))
-            return existingImage;
-        
-        var go = new GameObject(name)
-        {
-            layer = parent.gameObject.layer,
-            transform =
-            {
-                parent = parent,
-                localPosition = Vector3.zero,
-                localRotation = Quaternion.identity,
-                localScale = Vector3.one
-            }
-        };
-        var rectTransform = go.AddComponent<RectTransform>();
-        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        
-        var image = go.AddComponent<Image>();
-        image.raycastTarget = false;
-        return image;
-    }
-
-    private static void ConfigureLineSegment(Image image, Color color, Vector2 anchoredPosition, float height)
-    {
-        image.color = color;
-        image.type = Image.Type.Simple;
-        image.preserveAspect = false;
-        
-        if (image.transform is RectTransform rectTransform)
-        {
-            rectTransform.anchoredPosition = anchoredPosition;
-            rectTransform.sizeDelta = new Vector2(NotchIndicatorLineWidth, height);
-        }
-    }
-    
-    private readonly struct LineImages
-    {
-        public readonly Image Upper;
-        public readonly Image Lower;
-
-        public LineImages(Image upper, Image lower)
-        {
-            Upper = upper;
-            Lower = lower;
-        }
-
-        public bool IsValid => Upper != null && Lower != null;
     }
 }

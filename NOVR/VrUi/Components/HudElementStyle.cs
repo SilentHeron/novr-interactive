@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
@@ -20,10 +21,14 @@ internal sealed class HudElementStyle : BaseMeshEffect
     private float _lastScale = -1;
     private Vector3 _lastAnchor;
     private bool _flightScaleInherited;
+    private bool _aircraftTargetLabel;
+    private AircraftLabelAffiliation _aircraftLabelAffiliation;
     internal float Scale => Kind switch
     {
         HudElementKind.Marker => ModConfiguration.Instance.MarkerScale.Value,
-        HudElementKind.Label => ModConfiguration.Instance.MarkerLabelScale.Value,
+        HudElementKind.Label => _aircraftTargetLabel
+            ? HudPresentationMath.AircraftLabelScale(ModConfiguration.Instance.MarkerLabelScale.Value, _aircraftLabelAffiliation, XRSettings.enabled)
+            : ModConfiguration.Instance.MarkerLabelScale.Value,
         // Range/guidance widgets follow the same master scale as the native
         // instrument layout. Keep their existing size control as a relative
         // trim (the default .5 is neutral), without touching aim projections.
@@ -33,9 +38,9 @@ internal sealed class HudElementStyle : BaseMeshEffect
         _ => ModConfiguration.Instance.ReticleScale.Value
     };
     internal Vector3 Anchor => Group == null ? Vector3.zero : transform.InverseTransformPoint(Group.position);
-    internal static void Add(Graphic? graphic, HudElementKind kind, Transform? group = null)
+    internal static HudElementStyle? Add(Graphic? graphic, HudElementKind kind, Transform? group = null)
     {
-        if (graphic == null) return;
+        if (graphic == null) return null;
         var style = graphic.GetComponent<HudElementStyle>();
         if (style == null) style = graphic.gameObject.AddComponent<HudElementStyle>();
         style.Kind = kind; style.Group = group;
@@ -43,6 +48,17 @@ internal sealed class HudElementStyle : BaseMeshEffect
         // widgets live directly under HUDCenter and need the master factor here.
         style._flightScaleInherited = kind == HudElementKind.Weapon &&
             (graphic.GetComponentInParent<NOVRHMDBehavior>() != null || graphic.GetComponentInParent<HUDAppManager>() != null);
+        return style;
+    }
+    internal void SetAircraftLabelAffiliation(AircraftLabelAffiliation affiliation)
+    {
+        if (_aircraftTargetLabel && _aircraftLabelAffiliation == affiliation) return;
+        _aircraftTargetLabel = true;
+        _aircraftLabelAffiliation = affiliation;
+        // Selection can change after this component's LateUpdate. Invalidate
+        // immediately so the shared target text uses the new faction this frame.
+        if (_text != null) _text.havePropertiesChanged = true;
+        else graphic.SetVerticesDirty();
     }
     protected override void OnEnable()
     {

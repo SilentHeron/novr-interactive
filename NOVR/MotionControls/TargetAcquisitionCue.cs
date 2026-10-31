@@ -38,11 +38,14 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         }
         if (!XRSettings.enabled || NOUIManager.I == null) { Restore(); Hide(); return; }
         if (_nativeGroup != null) _nativeGroup.alpha = 0;
-        var ready = hud != null && hud.aircraft != null && _native != null && _native.isActiveAndEnabled &&
+        // Native weapon states disable the image with landing gear down. Its
+        // transform still supplies the aim direction for our independent cue.
+        var ready = hud != null && hud.aircraft != null && _native != null && _native.gameObject.activeInHierarchy &&
             CameraStateManager.cameraMode == CameraMode.cockpit && hud.aircraft.cockpit != null && !hud.aircraft.cockpit.IsDetached() &&
             GameManager.flightControlsEnabled && Time.timeScale > 0 && !WristMenu.IsOpen && !CockpitLayout.Active && !DynamicMap.mapMaximized &&
             !CursorManager.GetFlag(CursorFlags.GameMenu) && (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
-            !OpticalTargetingHud.HeadAimActive && !CockpitViewZoom.IsActive;
+            (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+            !OpticalTargetingHud.AimCueVisible && !CockpitViewZoom.AimCueVisible;
         if (!ready) _candidate = false;
         if (ready && Time.unscaledTime >= _nextCandidateCheck)
         {
@@ -57,10 +60,11 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         var candidate = _candidate;
         var selecting = ready && (ControllerActions.Instance?.TargetSelecting == true || GameManager.playerInput.GetButton("Select"));
         var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, ready, candidate, selecting);
-        var desired = show ? candidate || selecting ? 1f : .65f : 0;
+        var desired = show ? candidate || selecting ? 1f : .8f : 0;
         _opacity = Mathf.MoveTowards(_opacity, desired, Time.unscaledDeltaTime * 6);
         if (!ready || _opacity <= .001f) { Hide(); return; }
         var camera = APIBus.CockpitHudCamera;
+        if (camera == null) { Hide(); return; }
         var direction = _native!.transform.position - camera.transform.position;
         if (Vector3.Dot(direction, camera.transform.forward) <= 0) { Hide(); return; }
         EnsureView(camera);

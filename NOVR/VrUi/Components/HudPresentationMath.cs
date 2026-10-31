@@ -2,8 +2,19 @@ using System;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
+internal enum AircraftLabelAffiliation { Other, Friendly, Hostile }
+
 internal static class HudPresentationMath
 {
+    // Apply to native aircraft name/type/range text only. Unknown/non-aircraft
+    // targets retain the normal label scale, and flat-screen text is untouched.
+    internal static float AircraftLabelScale(float userScale, AircraftLabelAffiliation affiliation, bool vr) =>
+        !vr ? 1 : userScale * (affiliation switch
+        {
+            AircraftLabelAffiliation.Friendly => .65f,
+            AircraftLabelAffiliation.Hostile => .8f,
+            _ => 1f
+        });
     internal static float ScaleCoordinate(float coordinate, float anchor, float scale) => anchor + (coordinate - anchor) * scale;
     internal static float Project(float coordinate, float depth, float distance, float magnification) =>
         coordinate / Math.Max(.1f, depth) * distance * 1000 * magnification;

@@ -5,6 +5,33 @@ internal static class HudPresentationChecks
     internal static void Run(Action<string, Action> check, Action<bool> yes)
     {
         void near(float a, float b) => yes(Math.Abs(a - b) < .002f);
+        check("Aircraft target labels shrink by affiliation while preserving user scale and flat mode", () =>
+        {
+            foreach (var userScale in new[] { .2f, .55f, 1f })
+            {
+                near(HudPresentationMath.AircraftLabelScale(userScale, AircraftLabelAffiliation.Friendly, true), userScale * .65f);
+                near(HudPresentationMath.AircraftLabelScale(userScale, AircraftLabelAffiliation.Hostile, true), userScale * .8f);
+                near(HudPresentationMath.AircraftLabelScale(userScale, AircraftLabelAffiliation.Other, true), userScale);
+                foreach (var affiliation in Enum.GetValues<AircraftLabelAffiliation>())
+                    near(HudPresentationMath.AircraftLabelScale(userScale, affiliation, false), 1);
+            }
+        });
+        check("Aircraft label faction changes reset their factor and retain normal size in the zoom copy", () =>
+        {
+            foreach (var affiliation in new[] { AircraftLabelAffiliation.Friendly, AircraftLabelAffiliation.Hostile,
+                         AircraftLabelAffiliation.Other, AircraftLabelAffiliation.Friendly })
+            {
+                var scale = HudPresentationMath.AircraftLabelScale(.55f, affiliation, true);
+                foreach (var zoom in new[] { 1f, 2f, 8f })
+                {
+                    var anchor = HudPresentationMath.Project(50, 1000, 3, zoom);
+                    var a = HudPresentationMath.Symbol(HudPresentationMath.Project(50 - 5 * scale, 1000, 3, zoom), anchor, zoom);
+                    var b = HudPresentationMath.Symbol(HudPresentationMath.Project(50 + 5 * scale, 1000, 3, zoom), anchor, zoom);
+                    near((a + b) / 2, anchor);
+                    near(b - a, 30 * scale);
+                }
+            }
+        });
         check("Symbol resizing preserves a nonzero aim anchor without cumulative shrink", () =>
         {
             foreach (var anchor in new[] { -180f, 0, 320f })

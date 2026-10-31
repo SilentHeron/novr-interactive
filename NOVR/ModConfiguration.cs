@@ -45,8 +45,16 @@ public class ModConfiguration
         OpticalHud = new MotionControls.OpticalHudSettings(config);
         InspectionZoom = new MotionControls.InspectionZoomSettings(config);
         CockpitAlerts = new VrUi.SpecialBehavior.CockpitAlertSettings(config);
-        TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
-            "Context shows a translucent HUD-colored hollow gaze circle only near a selectable target or while selecting. Always keeps the circle visible and brightens it during acquisition. Its brightness follows the HUD instruments. Off hides the aim cue. Target diamonds and weapon sights are unchanged.");
+        TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Always,
+            "Always keeps a readable HUD-colored hollow gaze circle visible during cockpit flight, brightening near a selectable target or while selecting. Context shows it only during acquisition. Brightness follows the HUD instruments. Off hides the aim cue. Target diamonds and weapon sights are unchanged.");
+        var persistentAimCue = config.Bind("VR HUD", "Persistent Aim Cue Applied", false,
+            "One-time upgrade from the former contextual default to a persistent cockpit cue. An explicitly disabled cue stays off; later changes to Context are retained.");
+        if (!persistentAimCue.Value)
+        {
+            if (TargetCue.Value == global::NOVR.MotionControls.TargetCueMode.Context)
+                TargetCue.Value = global::NOVR.MotionControls.TargetCueMode.Always;
+            persistentAimCue.Value = true;
+        }
         Fs20NativeCockpitEnabled = config.Bind("FS-20 Native Cockpit", "Interactive Controls", true, "Operate the FS-20 original cockpit controls in VR. Its native cluster is fixed to the aircraft and always replaces the universal movable panel. Disabling this leaves the original cockpit visible.");
         CockpitPanelEnabled = config.Bind("Universal Cockpit Panel", "Enabled", true, "Show the shared 3D control panel and dock weapon status and minimap to its displays.");
         CockpitPanelPosition = config.Bind("Universal Cockpit Panel", "Position", new Vector3(0, -0.32f, 0.65f), "Fallback cockpit position if a native dashboard surface is unavailable. Automatic dashboard fit and per-aircraft saved placements take precedence. Independent of seat adjustment.");

@@ -29,6 +29,9 @@ internal sealed class OpticalTargetingHud : MonoBehaviour
     private const float Depth = 3;
     internal static string ModeLabel => Instance?._tracking == true ? "TRACK" : "HEAD";
     internal static bool HeadAimActive => Instance != null && Instance.HeadAvailable();
+    internal static bool AimCueVisible => Instance != null && Instance.isActiveAndEnabled &&
+        Instance._crosshair != null && Instance._crosshair.activeInHierarchy &&
+        Instance._picture != null && Instance._picture.enabled;
     private OpticalHudSettings Settings => ModConfiguration.Instance.OpticalHud;
 
     private void Awake() => Instance = this;

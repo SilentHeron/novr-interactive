@@ -57,6 +57,11 @@ internal static class PatchCompatibility
         foreach (var contract in new[] {
             (owner: "CombatHUD", field: "weaponState", type: "HUDWeaponState"),
             (owner: "CombatHUD", field: "markers", type: "System.Collections.Generic.List`1<HUDUnitMarker>"),
+            (owner: "CombatHUD", field: "targetText", type: "TMPro.TextMeshProUGUI"),
+            (owner: "CombatHUD", field: "targetInfo", type: "TMPro.TextMeshProUGUI"),
+            (owner: "CombatHUD", field: "targetArrow", type: "UnityEngine.UI.Image"),
+            (owner: "AllyInfo", field: "hoveredAllyInfo", type: "TMPro.TextMeshProUGUI"),
+            (owner: "AllyInfo", field: "hoveredAlly", type: "Aircraft"),
             (owner: "TacScreen", field: "displaySize", type: "System.Single"),
             (owner: "TacScreen", field: "metersPerPixel", type: "System.Single"),
             (owner: "TacScreen", field: "iconLayer", type: "UnityEngine.Transform"),
