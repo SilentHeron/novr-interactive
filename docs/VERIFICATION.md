@@ -81,11 +81,15 @@ part of the SDK 8 portable workflow.
 HUD layout persistence can also be checked independently with
 `dotnet run --project validation/HudWidgets/NOVR.HudWidgets.Tests.csproj -c Release`.
 This uses the production profile model and real temporary BepInEx config files
-to check save/cancel isolation, shared defaults, aircraft overrides and invalid values.
+to check save/cancel isolation, shared defaults, aircraft overrides, stock-layout migration,
+corner resizing, invalid inputs and default corner reach.
 Native status borrowing/restoration is checked with
 `dotnet run --project tools/CockpitStatusSourceChecks/CockpitStatusSourceChecks.csproj -c Release`,
 using the production adapter with Unity boundary doubles, including inactive
 capacitors, sibling order, missing owners and attachment rollback.
+Minimap borrowing, terrain tint and restoration are checked with
+`dotnet run --project tools/CockpitMapChecks/CockpitMapChecks.csproj -c Release`,
+using the production adapter with Unity boundary doubles. This does not verify rendered terrain.
 
 The [FS-20 interaction test matrix](FS20_INTERACTION_TEST_MATRIX.md) lists button,
 MFD and switch acceptance cases, existing source/private-probe coverage and the

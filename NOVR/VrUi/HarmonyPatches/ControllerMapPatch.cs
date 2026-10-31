@@ -1,5 +1,6 @@
 using HarmonyLib;
 using NOVR.MotionControls;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 
 namespace NOVR.VrUi.HarmonyPatches;
@@ -37,9 +38,9 @@ internal static class ControllerMapPatch
         [HarmonyPrefix]
         private static bool Prefix(DynamicMap __instance, float __0, ref Vector2 ___positionOffset, Vector2 ___stationaryOffset, System.Action? ___onMapChanged)
         {
-            // A console zoom is centered on the aircraft by CenterMinimizedMap;
+            // A cockpit map zoom is centered on the aircraft by CenterMinimizedMap;
             // desktop mouse coordinates must never become a world-space pivot.
-            if (!DynamicMap.mapMaximized && UniversalCockpitPanel.IsDocked(__instance.transform))
+            if (!DynamicMap.mapMaximized && (UniversalCockpitPanel.IsDocked(__instance.transform) || CockpitMapWidget.Owns(__instance.transform)))
             {
                 var previous = __instance.GetZoomLevel();
                 if (previous <= 0 || !FlightControlMath.IsFinite(__0)) return false;

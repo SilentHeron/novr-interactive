@@ -67,10 +67,10 @@ public sealed class MotionFlightController : MonoBehaviour
     internal bool TryGetHeldHandPose(bool left, out Pose pose, out bool stick, out bool collective)
     {
         pose = default; stick = left == Settings.LeftHanded.Value; collective = !stick && LiftCollective;
-        if (CockpitHudWidgets.Editing) return false;
         var editing = CockpitLayout.HeldByHand(left);
         if (_visuals != null && editing is CockpitLayout.Element.Stick or CockpitLayout.Element.Throttle)
         { stick = editing == CockpitLayout.Element.Stick; collective = !stick && LiftCollective; pose = _visuals.GripPose(stick); return true; }
+        if (CockpitHudWidgets.Editing) return false;
         if (!FlightActive || _visuals == null || !(stick ? StickHeld : ThrottleHeld)) return false;
         pose = _visuals.GripPose(stick);
         return true;

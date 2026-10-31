@@ -18,8 +18,9 @@ internal sealed class CockpitLayout : MonoBehaviour
     }
     internal static CockpitLayout? Instance { get; private set; }
     internal static bool Active => Instance?._active == true;
-    private bool _active, _leftHanded;
+    private bool _active, _leftHanded, _unified;
     private Element _onlyElement;
+    internal static bool Unified => Active && Instance!._unified;
     internal static bool PhysicalHandleEdit => Active && Instance!._onlyElement != Element.None;
     internal static bool Unlocked(Element element) => Active && (Instance!._onlyElement == Element.None || Instance._onlyElement == element);
     internal void ToggleHandle(Element element)
@@ -28,7 +29,8 @@ internal sealed class CockpitLayout : MonoBehaviour
         var close = Unlocked(element);
         if (_active) Finish(true);
         if (close) return;
-        Begin(); if (_active) _onlyElement = element;
+        CockpitHudWidgets.Instance?.Finish(false);
+        BeginCore(false, element, true);
     }
     private Aircraft? _aircraft;
     private Vector3 _stick, _throttle, _calibration, _anchor, _seatOffset;
@@ -41,7 +43,9 @@ internal sealed class CockpitLayout : MonoBehaviour
     internal static Vector3 PanelPosition => CockpitPanelPlacement.Position;
     internal static Quaternion PanelRotation => CockpitPanelPlacement.Rotation;
     internal static float PanelScale => CockpitPanelPlacement.Scale;
-    internal static string Hint => "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
+    internal static string Hint => Unified
+        ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
+        : "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
     internal static bool Held(Element element) => Active && (Instance!._hands[0].Element == element || Instance._hands[1].Element == element);
     internal static bool Hovered(Element element) => Active && (Instance!._hands[0].Hover == element || Instance._hands[1].Hover == element);
     internal static Element HeldByHand(bool left) => Active ? Instance!._hands[left ? 0 : 1].Element : Element.None;
@@ -50,8 +54,27 @@ internal sealed class CockpitLayout : MonoBehaviour
 
     internal void Begin()
     {
+        if (CockpitHudWidgets.Instance != null) { CockpitHudWidgets.Instance.Begin(); return; }
+        BeginCore(false, Element.None, true);
+    }
+
+    // The HUD manager owns the combined transaction. These entry points never
+    // call back into it, so aircraft changes and Save/Cancel cannot recurse.
+    internal bool BeginUnified()
+    {
+        if (_active && _unified) return true;
+        if (_active) FinishCore(false);
+        BeginCore(true, Element.None, false);
+        return _active && _unified;
+    }
+    internal bool CanSaveUnified => _active && _unified && SameContext;
+    internal void FinishUnified(bool save) { if (_unified) FinishCore(save); }
+    private bool SameContext => GameManager.GetLocalAircraft(out var aircraft) && aircraft == _aircraft &&
+        _leftHanded == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
+
+    private void BeginCore(bool unified, Element onlyElement, bool closeMenu)
+    {
         if (_active || !GameManager.GetLocalAircraft(out var aircraft) || CameraStateManager.cameraMode != CameraMode.cockpit) return;
-        CockpitHudWidgets.Instance?.Finish(false);
         CockpitProfiles.Instance?.Refresh();
         _stick = CockpitProfiles.StickPosition; _throttle = CockpitProfiles.ThrottlePosition;
         _aircraft = aircraft; _leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
@@ -61,15 +84,20 @@ internal sealed class CockpitLayout : MonoBehaviour
         ModConfiguration.Instance.MotionControls.Enabled.Value = true;
         MotionFlightController.Instance?.CancelPlacement();
         ControllerActions.Instance?.ResetButtons();
-        _onlyElement = Element.None; _active = true; Release(); WristMenu.Close();
+        _onlyElement = onlyElement; _unified = unified; _active = true; Release();
+        if (closeMenu) WristMenu.Close();
     }
 
     internal void Finish(bool save)
     {
+        if (_unified && CockpitHudWidgets.Editing) { CockpitHudWidgets.Instance!.Finish(save); return; }
+        FinishCore(save);
+    }
+    private void FinishCore(bool save)
+    {
         if (!_active) return;
-        var sameAircraft = GameManager.GetLocalAircraft(out var aircraft) && aircraft == _aircraft &&
-            _leftHanded == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
-        _active = false; _onlyElement = Element.None; Release();
+        var sameAircraft = SameContext;
+        _active = _unified = false; _onlyElement = Element.None; Release();
         if (save && sameAircraft)
         {
             CockpitProfiles.Instance?.SaveHandles(_stick, _throttle);
@@ -77,6 +105,37 @@ internal sealed class CockpitLayout : MonoBehaviour
         }
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons();
     }
+
+    internal void EnsureWithinReach() => RepairReach(false);
+    internal void BringWithinReach() => RepairReach(true);
+    private void RepairReach(bool force)
+    {
+        if (!_active || !SameContext) return;
+        var seat = CockpitProfiles.SeatOffset;
+        var stick = seat + Mirror(new Vector3(.22f, -.35f, .30f));
+        var throttle = seat + Mirror(new Vector3(-.22f,
+            MotionFlightController.UsesLiftCollective(_aircraft) ? -.55f : -.40f, .30f));
+        var moved = false;
+        if (force || Vector3.Distance(GripPosition(Element.Stick), stick) > .6f)
+        { _stick = Mirror(BoundHandle(stick)); moved = true; }
+        if (force || Vector3.Distance(GripPosition(Element.Throttle), throttle) > .6f)
+        {
+            var offset = GripPosition(Element.Throttle) - Mirror(_throttle);
+            _throttle = Mirror(BoundHandle(throttle - offset)); moved = true;
+        }
+        if (moved) Release();
+    }
+
+    // Compare direct contact distances before choosing a handle or widget.
+    // A handle already owned by the opposite hand is never a candidate.
+    internal static float GrabDistance(bool left, ControllerSample hand)
+    {
+        var self = Instance;
+        if (self?._active != true || !self.SameContext || !hand.Valid || !TrackedControllers.Finite(hand.Position)) return float.PositiveInfinity;
+        return self.SelectNearby(hand.Position, left ? 0 : 1, out var distance) != Element.None
+            ? distance : float.PositiveInfinity;
+    }
+    internal static bool CanGrabHand(bool left, ControllerSample hand) => !float.IsPositiveInfinity(GrabDistance(left, hand));
 
     private void Update()
     {
@@ -112,6 +171,12 @@ internal sealed class CockpitLayout : MonoBehaviour
     private void MoveHand(int index, ControllerSample hand)
     {
         var drag = _hands[index];
+        if (_unified && CockpitHudWidgets.IsHandBusy(index == 0))
+        {
+            drag.Gate.Reset(); drag.Element = drag.Hover = Element.None;
+            if (_rays[index] != null) _rays[index]!.enabled = false;
+            return;
+        }
         drag.Gate.Update(hand.Valid, hand.Grip);
         if (!drag.Gate.Held)
         {
@@ -138,17 +203,8 @@ internal sealed class CockpitLayout : MonoBehaviour
 
     private Element Select(Vector3 hand, Ray ray, int index, out float distance)
     {
-        var best = Element.None; distance = 2.5f;
-        // Reach takes precedence over pointing. Either hand may move any item.
-        foreach (var element in new[] { Element.Stick, Element.Throttle })
-        {
-            if (_onlyElement != Element.None && element != _onlyElement) continue;
-            if (_hands[1 - index].Element == element) continue;
-            var d = Vector3.Distance(hand, GripPosition(element));
-            if (d < ModConfiguration.Instance.MotionControls.GrabRadius.Value && d < distance)
-            { best = element; distance = d; }
-        }
-        if (best != Element.None || Fs20NativeCockpit.Selected) return best;
+        var best = SelectNearby(hand, index, out distance);
+        if (best != Element.None || _unified || Fs20NativeCockpit.Selected) return best;
         foreach (var element in new[] { Element.Stick, Element.Throttle })
         {
             if (_hands[1 - index].Element == element) continue;
@@ -161,12 +217,27 @@ internal sealed class CockpitLayout : MonoBehaviour
         return best;
     }
 
+    private Element SelectNearby(Vector3 hand, int index, out float distance)
+    {
+        var best = Element.None; distance = 2.5f;
+        // Reach takes precedence over pointing. Either hand may move any item.
+        foreach (var element in new[] { Element.Stick, Element.Throttle })
+        {
+            if (_onlyElement != Element.None && element != _onlyElement) continue;
+            if (_hands[1 - index].Element == element) continue;
+            var d = Vector3.Distance(hand, GripPosition(element));
+            if (d < ModConfiguration.Instance.MotionControls.GrabRadius.Value && d < distance)
+            { best = element; distance = d; }
+        }
+        return best;
+    }
+
     internal static Vector3 BoundPanel(Vector3 p) => !TrackedControllers.Finite(p) ? new Vector3(0, -.32f, .65f) :
         new Vector3(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.2f, .65f), Mathf.Clamp(p.z, .15f, 1.5f));
     private static Vector3 BoundHandle(Vector3 p) => new(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.25f, .7f), Mathf.Clamp(p.z, -.35f, 1.5f));
     private void DrawRay(int index, ControllerSample hand, Element element)
     {
-        if (Fs20NativeCockpit.Selected || !hand.Valid || element == Element.None) { if (_rays[index] != null) _rays[index]!.enabled = false; return; }
+        if (_unified || Fs20NativeCockpit.Selected || !hand.Valid || element == Element.None) { if (_rays[index] != null) _rays[index]!.enabled = false; return; }
         var root = APIBus.CockpitHudCamera?.transform.parent;
         if (root == null) return;
         if (_rays[index] == null)

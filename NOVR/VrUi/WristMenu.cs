@@ -156,8 +156,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         {
             var status = _pageTitle + "\n" + (CockpitProfiles.Instance?.AircraftName ?? "Cockpit") +
                 " · Motion " + (config.MotionControls.Enabled.Value ? "ON" : "OFF") + "\n" +
-                (CockpitHudWidgets.Editing ? "HUD preview · Save or cancel when finished" :
-                    CockpitLayout.Active ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
+                (CockpitHudWidgets.Editing ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
             if (_status.text != status) _status.text = status;
         }
     }
@@ -168,7 +167,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         if (!GameManager.GetLocalAircraft(out _openAircraft)) return;
         EnsurePanel();
         Home();
-        if (CockpitHudWidgets.Editing) OpenHudLayout();
+        if (CockpitHudWidgets.Editing) ShowLayoutControls();
         _panel!.SetActive(true);
         _anchored = false;
         CursorManager.SetFlag(WristCursorFlag, true);
@@ -203,7 +202,7 @@ internal sealed partial class WristMenu : MonoBehaviour
     private void ShowSetupPage() { Home(); ShowPage(_setupPage!); }
     private void AskReset()
     {
-        CockpitLayout.Instance?.Finish(false);
+        CockpitHudWidgets.Instance?.Finish(false);
         if (!GameManager.GetLocalAircraft(out _resetAircraft)) return;
         _resetLeftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         ShowPage(_resetPage!);
@@ -249,37 +248,24 @@ internal sealed partial class WristMenu : MonoBehaviour
         var motion = config.MotionControls;
         _homePage = Page("VIEW");
         AddButton("Flight actions", 0, 0, () => ShowPage(_flightPage!));
-        AddButton("Cockpit setup", 1, 0, () => ShowPage(_setupPage!));
+        AddButton("Edit layout", 1, 0, StartOrResumeLayout);
         AddButton("Flight controls", 0, 1, () => ShowPage(_controlsPage!));
         AddButton("Comfort & display", 1, 1, () => ShowPage(_comfortPage!));
         AddButton("Controller bindings", 0, 2, () => ShowPage(_bindingsPage!));
         AddButton("Recenter view", 1, 2, () => { NOVRHeadsetData.CalibrateTranslation(); NOVRHeadsetData.CalibrateRotation(); Close(); });
         AddLiveButton(() => "EOTS HUD: " + (config.OpticalHud.Enabled.Value ? "ON" : "OFF"), 0, 3, () => { OpticalTargetingHud.Toggle(); Close(); });
         AddButton("EOTS setup", 1, 3, () => ShowPage(_opticalPage!));
-        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : "Edit handle layout", 0, 4, ToggleLayout);
-        AddLiveButton(() => CockpitLayout.Active ? "Cancel layout" : "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 4, () =>
-        {
-            if (CockpitLayout.Active) { CockpitLayout.Instance?.Finish(false); Close(); }
-            else motion.Enabled.Value = !motion.Enabled.Value;
-        });
-        AddButton("HUD layout", 0, 5, OpenHudLayout);
-        AddButton("Threats & feed", 1, 5, () => ShowPage(_alertsPage!));
-        Label(_homePage.transform, "FLY · weapons, gear, radar and hover\nSET UP · seat, handles and HUD widgets\nTUNE · response, hands and feedback", new Vector2(0,-198), new Vector2(510,82), 18);
+        AddButton("Cockpit setup", 0, 4, () => ShowPage(_setupPage!));
+        AddLiveButton(() => "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 4, () => motion.Enabled.Value = !motion.Enabled.Value);
+        Label(_homePage.transform, "EDIT LAYOUT · move the HUD, stick and throttle\nSET UP · seat and cockpit interactions\nTUNE · response, hands and feedback", new Vector2(0,-184), new Vector2(510,108), 19);
 
         _setupPage = Page("COCKPIT");
         AddButton("Seat position", 0, 0, () => ShowPage(_seatPage!));
         AddButton("Cockpit interactions", 1, 0, () => ShowPage(_nativeCockpitPage!));
-        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : "Edit handle layout", 0, 1, ToggleLayout);
-        AddLiveButton(() => CockpitLayout.Active ? "Cancel layout" : "Place handles (3s)", 1, 1, () =>
-        {
-            if (CockpitLayout.Active) CockpitLayout.Instance?.Finish(false);
-            else { motion.Enabled.Value = true; MotionFlightController.Instance?.SchedulePlacement(); }
-            Close();
-        });
-        AddLiveButton(() => "Stick hand: " + (motion.LeftHanded.Value ? "LEFT" : "RIGHT"), 0, 2,
-            () => { CockpitLayout.Instance?.Finish(false); motion.LeftHanded.Value = !motion.LeftHanded.Value; Close(); });
-        AddButton("Reset seat & handles…", 1, 2, AskReset);
-        Label(_setupPage.transform, "Edit layout: grip each item to move it.\nReopen View to save or cancel.\n\nSeat movement leaves the handles in place.\nPlacements are saved for this aircraft.", new Vector2(0,-115), new Vector2(510,220), 20);
+        AddLiveButton(() => "Stick hand: " + (motion.LeftHanded.Value ? "LEFT" : "RIGHT"), 0, 1,
+            () => { CockpitHudWidgets.Instance?.Finish(false); motion.LeftHanded.Value = !motion.LeftHanded.Value; Close(); });
+        AddButton("Reset seat & handles…", 1, 1, AskReset);
+        Label(_setupPage.transform, "To move the HUD, stick and throttle together,\nchoose Edit layout on the View home page.\n\nSeat movement leaves the layout in place.\nPlacements are saved for this aircraft.", new Vector2(0,-85), new Vector2(510,220), 20);
 
         _seatPage = Page("SEAT");
         AddButton("Seat up", 0, 0, () => CockpitProfiles.Instance?.MoveSeat(Vector3.up * .02f));
@@ -414,7 +400,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         _displayPage = Page("DISPLAY");
         AddButton("Flight HUD smaller", 0, 0, () => ResizeHud(-.04f));
         AddButton("Flight HUD larger", 1, 0, () => ResizeHud(.04f));
-        AddButton("HUD layout", 0, 1, OpenHudLayout);
+        AddButton("Widget appearance", 0, 1, OpenWidgetAppearance);
         AddButton("Threats & feed", 1, 1, () => ShowPage(_alertsPage!));
         AddLiveButton(() => "Backplates: " + (config.HudContrast.Value ? "ON" : "OFF"), 0, 2, () => config.HudContrast.Value = !config.HudContrast.Value);
         AddLiveButton(() => "Declutter: " + (config.HudDeclutter.Value ? "ON" : "OFF"), 1, 2, () => config.HudDeclutter.Value = !config.HudDeclutter.Value);
@@ -424,7 +410,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddButton("Reset HUD", 0, 4, () => { config.FocusedFlightHud.Value = true; config.FlightHudScale.Value = .38f; config.MarkerScale.Value = .45f; config.MarkerLabelScale.Value = .55f; config.ReticleScale.Value = .45f; config.WeaponHudScale.Value = .5f; config.HudPanelScale.Value = 1.15f; config.HudPanelDistance.Value = 4; config.HudContrast.Value = true; config.HudDeclutter.Value = false; });
         AddButton("Inspection zoom", 1, 5, () => ShowPage(_zoomPage!));
         var displayInfo = Label(_displayPage.transform, "", new Vector2(0,-210), new Vector2(510,76), 18);
-        _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nWidget position and size: HUD layout.\nWorld aim points stay aligned."));
+        _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nMove things: Edit layout on View home.\nWorld aim points stay aligned."));
 
         _zoomPage = Page("INSPECTION ZOOM");
         var zoom = config.InspectionZoom;
@@ -444,9 +430,9 @@ internal sealed partial class WristMenu : MonoBehaviour
         var alerts = config.CockpitAlerts;
         AddLiveButton(() => "Compact: " + (alerts.Enabled.Value ? "ON" : "OFF"), 0, 0, () => alerts.Enabled.Value = !alerts.Enabled.Value);
         AddLiveButton(() => "Kill feed: " + (alerts.Feed.Value ? "ON" : "OFF"), 1, 0, () => alerts.Feed.Value = !alerts.Feed.Value);
-        AddButton("HUD layout", 0, 1, OpenHudLayout);
+        AddButton("Widget appearance", 0, 1, OpenWidgetAppearance);
         AddLiveButton(() => "World notch: " + (alerts.WorldNotch.Value ? "ON" : "OFF"), 1, 1, () => alerts.WorldNotch.Value = !alerts.WorldNotch.Value);
-        Label(_alertsPage.transform, "Move, resize and fade each alert in HUD layout.\n\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nWidget visibility also applies.", new Vector2(0, -100), new Vector2(510, 250), 18);
+        Label(_alertsPage.transform, "Move things: Edit layout on View home.\nChange size and transparency: Widget appearance.\n\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nWidget visibility also applies.", new Vector2(0, -100), new Vector2(510, 250), 18);
 
         CreateHudLayoutPages();
 
@@ -508,13 +494,6 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddButton("Close", 2, 8, Close, 3);
         Home();
         LayerHelper.SetLayerRecursive(_panel.transform, LayerHelper.GetVrUiLayer());
-    }
-
-    private static void ToggleLayout()
-    {
-        CockpitHudWidgets.Instance?.Finish(false);
-        if (CockpitLayout.Active) { CockpitLayout.Instance?.Finish(true); Close(); }
-        else CockpitLayout.Instance?.Begin();
     }
 
     private GameObject Page(string title)

@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
     <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
   </ItemGroup>
 </Project>

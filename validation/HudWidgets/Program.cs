@@ -14,15 +14,21 @@ try
     var profiles = new HudWidgetProfiles(config);
     var factory = HudWidgetProfiles.FactoryDefaults;
     var defaults = profiles.Load(null);
-    Equal(defaults.Count, 6, "Six independent widget types");
+    Equal(defaults.Count, 7, "Seven independent widget types including map");
+    True(!profiles.HasOverride(null) && !profiles.HasOverride("FS-20"), "New aircraft inherits defaults");
     foreach (var id in HudWidgetProfiles.Ids)
     {
         Same(defaults[id], factory[id], "Factory " + id);
         Same(profiles.Load("FS-20")[id], factory[id], "Uncustomized aircraft inherits factory " + id);
-        Equal(defaults[id].Scale, 1f, "Factory scale " + id);
+        Equal(defaults[id].Scale, id == "feed" ? .60f : .65f, "Compact factory scale " + id);
         Equal(defaults[id].Opacity, 1f, "Factory opacity " + id);
         Equal(defaults[id].Background, 0f, "Factory has no backplate " + id);
         True(defaults[id].Visible, "Factory widget visible " + id);
+        var p = defaults[id].Position;
+        True(Math.Sqrt(p.x * p.x + (p.y + .18f) * (p.y + .18f) + p.z * p.z) <= .55,
+            "Default center within 55 cm of nominal shoulder " + id);
+        True(defaults[id].Euler.x == 0 && defaults[id].Euler.y == 0 && defaults[id].Euler.z == 0,
+            "Default faces straight forward " + id);
     }
     var detached = profiles.Load("FS-20");
     detached["weapons"] = Pose(.15f, .7f, .4f, false);
@@ -38,6 +44,7 @@ try
     var customized = profiles.Load("FS-20");
     customized["weapons"] = Pose(.45f, .6f, .4f, false);
     profiles.Save("FS-20", customized);
+    True(profiles.HasOverride("FS-20"), "Saving creates an aircraft override");
     var changedShared = profiles.Load(null);
     changedShared["weapons"] = Pose(.9f, .5f, .8f, true);
     changedShared["threats"] = Pose(-.3f, .8f, .2f, true);
@@ -50,13 +57,14 @@ try
     var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 179.99f), 1.37f, .59f, .31f, false);
     profiles.Save("FS-20", new Dictionary<string, HudWidgetPose> { ["weapons"] = precise, ["unknown widget"] = precise });
     Same(profiles.Load("FS-20")["threats"], customized["threats"], "Partial save preserves other widgets");
-    Equal(profiles.Load("FS-20").Count, 6, "Unknown widgets do not create new slots");
+    Equal(profiles.Load("FS-20").Count, 7, "Unknown widgets do not create new slots");
     CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
     var reloadedConfig = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var reloaded = new HudWidgetProfiles(reloadedConfig);
     Same(reloaded.Load("FS-20")["weapons"], precise, "Positions/rotation/appearance persist across locales and process reload");
     Same(reloaded.Load("VT-7")["weapons"], changedShared["weapons"], "Shared defaults persist across reload");
     reloaded.ResetAircraft("FS-20");
+    True(!reloaded.HasOverride("FS-20"), "Reset removes aircraft override");
     Same(reloaded.Load("FS-20")["weapons"], changedShared["weapons"], "Reset aircraft rejoins shared defaults");
     var resetReload = new HudWidgetProfiles(new ConfigFile(path, false) { SaveOnConfigSet = false });
     Same(resetReload.Load("FS-20")["weapons"], changedShared["weapons"], "Reset override flag persists");
@@ -100,7 +108,53 @@ try
     Same(malformedProfiles.Load("FS-20")["weapons"], HudWidgetProfiles.FactoryDefaults["weapons"], "Distinct case-sensitive aircraft IDs remain separate");
     malformedProfiles.Save("", new Dictionary<string, HudWidgetPose> { ["weapons"] = precise });
     Same(malformedProfiles.Load(null)["weapons"], HudWidgetProfiles.FactoryDefaults["weapons"], "Empty aircraft key cannot accidentally replace defaults");
-    Console.WriteLine($"HUD widget persistence checks passed: {count} assertions (real config files and actual source).");
+
+    var old = new Dictionary<string, HudWidgetPose>
+    {
+        ["weapons"] = new(new Vector3(.34f, -.34f, .75f), new Vector3(0, 12, 0)),
+        ["countermeasures"] = new(new Vector3(-.34f, -.32f, .75f), new Vector3(0, -12, 0)),
+        ["power"] = new(new Vector3(-.34f, -.43f, .75f), new Vector3(0, -12, 0)),
+        ["threats"] = new(new Vector3(-.27f, -.12f, .85f), new Vector3(0, -12, 0)),
+        ["ew"] = new(new Vector3(-.54f, -.31f, .85f), new Vector3(0, -20, 0)),
+        ["feed"] = new(new Vector3(.27f, -.12f, .85f), new Vector3(0, 12, 0))
+    };
+    var legacyPath = Path.Combine(directory, "legacy.cfg");
+    var legacy = new ConfigFile(legacyPath, false) { SaveOnConfigSet = false };
+    var aircraftSection = "VR HUD Widgets " + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("legacy-aircraft"))).Substring(0, 32);
+    foreach (var pair in old)
+    {
+        legacy.Bind(section, pair.Key, Encode(pair.Value));
+        legacy.Bind(aircraftSection, pair.Key, Encode(pair.Value));
+    }
+    legacy.Bind(aircraftSection, "Use aircraft layout", true);
+    var customDefault = old["feed"]; customDefault.Position.x += .015f;
+    legacy.Bind(section, "feed", "").Value = Encode(customDefault);
+    var customAircraft = old["ew"]; customAircraft.Opacity = .45f;
+    legacy.Bind(aircraftSection, "ew", "").Value = Encode(customAircraft);
+    legacy.Save();
+    // Reload so aircraft entries begin as unbound/orphan config values. Saving
+    // the shared-default migration must not discard those pending overrides.
+    var upgraded = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
+    var upgradedAircraft = upgraded.Load("legacy-aircraft");
+    foreach (var pair in old)
+    {
+        Same(upgraded.Load(null)[pair.Key], pair.Key == "feed" ? customDefault : HudWidgetProfiles.FactoryDefaults[pair.Key],
+            "Only exact legacy shared defaults migrate " + pair.Key);
+        Same(upgradedAircraft[pair.Key], pair.Key == "ew" ? customAircraft : HudWidgetProfiles.FactoryDefaults[pair.Key],
+            "Only exact legacy aircraft defaults migrate " + pair.Key);
+    }
+    Same(upgradedAircraft["map"], HudWidgetProfiles.FactoryDefaults["map"], "Old override gets missing map with reachable visible default");
+    True(upgraded.HasOverride("legacy-aircraft"), "Migration preserves override selection");
+    var migratedReload = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
+    Same(migratedReload.Load("legacy-aircraft")["weapons"], HudWidgetProfiles.FactoryDefaults["weapons"], "Migrated positions persist without explicit user save");
+    Same(migratedReload.Load(null)["feed"], customDefault, "Custom shared placement remains untouched on reload");
+    migratedReload.SaveDefault(new Dictionary<string, HudWidgetPose> { ["weapons"] = old["weapons"] });
+    migratedReload.Save("legacy-aircraft", new Dictionary<string, HudWidgetPose> { ["power"] = old["power"] });
+    var intentionalRestore = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
+    Same(intentionalRestore.Load(null)["weapons"], old["weapons"], "Migration runs once; later intentional old default placement is preserved");
+    Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
+    HudWidgetGestureChecks.Run(True);
+    Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence and actual gesture math).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }
 
@@ -109,3 +163,5 @@ void Same(HudWidgetPose a, HudWidgetPose b, string label) => True(a.Position.x =
     a.Euler.x == b.Euler.x && a.Euler.y == b.Euler.y && a.Euler.z == b.Euler.z && a.Scale == b.Scale && a.Opacity == b.Opacity && a.Background == b.Background && a.Visible == b.Visible, label);
 void Equal<T>(T a, T b, string label) => True(EqualityComparer<T>.Default.Equals(a, b), label);
 void True(bool value, string label) { if (!value) throw new Exception(label); count++; }
+string Encode(HudWidgetPose p) => string.Join("|", new[] { p.Position.x, p.Position.y, p.Position.z,
+    p.Euler.x, p.Euler.y, p.Euler.z, p.Scale, p.Opacity, p.Background }.Select(v => v.ToString("R", CultureInfo.InvariantCulture)).Append(p.Visible ? "1" : "0"));

@@ -22,7 +22,7 @@ internal struct HudWidgetPose
 internal sealed class HudWidgetProfiles
 {
     internal const float MinScale = .35f, MaxScale = 3f, MinOpacity = .25f;
-    internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed" };
+    internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map" };
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
     private readonly Dictionary<string, ConfigEntry<string>> _defaults;
@@ -40,6 +40,16 @@ internal sealed class HudWidgetProfiles
     }
     private static readonly Dictionary<string, HudWidgetPose> Factory = new(StringComparer.Ordinal)
     {
+        ["weapons"] = new(new Vector3(.28f, -.40f, .28f), Vector3.zero, .65f),
+        ["countermeasures"] = new(new Vector3(-.34f, -.21f, .38f), Vector3.zero, .65f),
+        ["power"] = new(new Vector3(0, -.43f, .28f), Vector3.zero, .65f),
+        ["threats"] = new(new Vector3(-.17f, -.06f, .44f), Vector3.zero, .65f),
+        ["ew"] = new(new Vector3(-.28f, -.40f, .28f), Vector3.zero, .65f),
+        ["feed"] = new(new Vector3(.17f, -.06f, .44f), Vector3.zero, .60f),
+        ["map"] = new(new Vector3(.34f, -.21f, .38f), Vector3.zero, .65f)
+    };
+    private static readonly Dictionary<string, HudWidgetPose> LegacyFactory = new(StringComparer.Ordinal)
+    {
         ["weapons"] = new(new Vector3(.34f, -.34f, .75f), new Vector3(0, 12, 0)),
         ["countermeasures"] = new(new Vector3(-.34f, -.32f, .75f), new Vector3(0, -12, 0)),
         ["power"] = new(new Vector3(-.34f, -.43f, .75f), new Vector3(0, -12, 0)),
@@ -51,7 +61,7 @@ internal sealed class HudWidgetProfiles
     internal static string Label(string id) => id switch
     {
         "weapons" => "Weapons", "countermeasures" => "Countermeasures", "power" => "Capacitor",
-        "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", _ => "HUD widget"
+        "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", "map" => "Map", _ => "HUD widget"
     };
     internal Dictionary<string, HudWidgetPose> Load(string? aircraftKey)
     {
@@ -60,6 +70,7 @@ internal sealed class HudWidgetProfiles
         var aircraft = Aircraft(aircraftKey!);
         return aircraft.Override.Value ? Read(aircraft.Poses, shared) : shared;
     }
+    internal bool HasOverride(string? aircraftKey) => !string.IsNullOrEmpty(aircraftKey) && Aircraft(aircraftKey!).Override.Value;
     internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses)
     {
         if (string.IsNullOrEmpty(aircraftKey)) return;
@@ -99,8 +110,27 @@ internal sealed class HudWidgetProfiles
         var factory = FactoryDefaults;
         foreach (var id in Ids)
             entries.Add(id, _config.Bind(section, id, Encode(factory[id]),
-                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible. Managed by View > HUD layout."));
+                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible. Managed by View > Edit layout."));
+        MigrateUntouchedDefaults(section, entries);
         return entries;
+    }
+    private void MigrateUntouchedDefaults(string section, Dictionary<string, ConfigEntry<string>> entries)
+    {
+        var applied = _config.Bind(section, "Compact reachable defaults applied", false,
+            "One-time update of untouched 0.4.7.11 widgets to smaller, closer, forward-facing positions. Custom values are preserved.");
+        if (applied.Value) return;
+        var changed = false;
+        foreach (var legacy in LegacyFactory)
+        {
+            // Exact stored stock values only. Even appearance-only customizations
+            // retain their complete pose; later intentional stock restores are
+            // protected by the per-section migration flag.
+            if (entries[legacy.Key].Value != Encode(legacy.Value)) continue;
+            entries[legacy.Key].Value = Encode(Factory[legacy.Key]);
+            changed = true;
+        }
+        applied.Value = true;
+        if (changed) _config.Save();
     }
     private static Dictionary<string, HudWidgetPose> Read(Dictionary<string, ConfigEntry<string>> entries, Dictionary<string, HudWidgetPose> fallback)
     {
