@@ -69,12 +69,12 @@ custom bindings are retained. Held or tap-latched handles both enable their butt
 | --- | --- | --- |
 | Guns only | Right trigger | Stick held |
 | Selected non-gun weapon release | Right A | Stick held |
-| Next weapon | Right B, release | Stick held |
+| Next weapon | Right Y, release | Stick held |
 | Wheel/air brakes | Left trigger, hold | Throttle held |
 | Countermeasures | Left D-pad down, hold | Throttle held |
 | Select target under head-directed cue | Right thumbstick click, release | Stick held |
-| Remove latest selected target | Right X, release | Stick held |
-| Clear all selected targets | Right Y, release | Stick held |
+| Remove latest selected target | Right B, release | Stick held |
+| Clear all selected targets | Wrist Flight actions / MFD CLEAR | Cockpit |
 | Next countermeasure type | Left D-pad right, release | Throttle held |
 | Inspection magnifier | Physical right bumper, hold | Cockpit, with either grip held or released |
 | Map / wrist menu | Right B / left View | B opens the map with the live stick released; after a crash, B or View opens the recovery map |
@@ -84,8 +84,8 @@ Left View (or F9 with tracking) also opens the recovery map outside a usable coc
 inside a live cockpit it still opens the wrist menu. Keyboard M remains the native map shortcut.
 
 Target selection does not force a weapon lock: seeker, range, radar and weapon
-restrictions still apply. X removes the most recently selected target; Y clears
-all selected targets. Both actions are also on the wrist Flight actions page.
+restrictions still apply. B removes the most recently selected target; Y cycles
+weapons. Clear all remains on the wrist Flight actions page and the MFD CLEAR key.
 For Touch fallback: A releases non-gun weapons, B cycles while gripping, X deploys CMs, right thumbstick click selects,
 and Y changes CM type; use wrist actions for unlock/clear. A controller without a
 shoulder button has no default inspection binding.

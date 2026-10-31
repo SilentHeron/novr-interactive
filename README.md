@@ -6,7 +6,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.7.6**. Targets Nuclear Option **0.34.3** and Steam Frame PC streaming through SteamVR. Other aircraft use a shared cockpit panel.
+Experimental version **0.4.7.7**. Targets Nuclear Option **0.34.6** and Steam Frame PC streaming through SteamVR. Other aircraft use a shared cockpit panel.
 
 ## Install
 
@@ -20,7 +20,7 @@ This replaces upstream NOVR; do not install both. On Proton, BepInEx needs the `
 
 **F7:** motion controls. **F8:** place handles. **View / F9:** VR settings. With the stick held, **trigger** fires guns, **A** releases the selected weapon and **B** cycles weapons. **Right bumper:** zoom.
 
-[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/STEAM_FRAME.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.6.md)
+[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/STEAM_FRAME.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.7.md)
 
 ## Build
 

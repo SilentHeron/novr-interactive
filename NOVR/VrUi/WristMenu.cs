@@ -461,7 +461,7 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Alerts lower", 0, 2, () => alerts.Height.Value -= .025f);
         AddButton("Alerts higher", 1, 2, () => alerts.Height.Value += .025f);
         AddLiveButton(() => "World notch: " + (alerts.WorldNotch.Value ? "ON" : "OFF"), 0, 3, () => alerts.WorldNotch.Value = !alerts.WorldNotch.Value);
-        AddButton("Reset alerts", 1, 3, () => { alerts.Enabled.Value = true; alerts.Feed.Value = true; alerts.Scale.Value = 1; alerts.Height.Value = -.30f; alerts.WorldNotch.Value = false; });
+        AddButton("Reset alerts", 1, 3, () => { alerts.Enabled.Value = true; alerts.Feed.Value = true; alerts.Scale.Value = 1; alerts.Height.Value = -.30f; alerts.WorldNotch.Value = true; });
         var alertInfo = Label(_alertsPage.transform, "", new Vector2(0, -150), new Vector2(510, 190), 18);
         _liveLabels.Add((alertInfo, () => $"Size {alerts.Scale.Value*100:0}% · Height {alerts.Height.Value:0.00} m\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nClose View to inspect placement."));
 

@@ -16,8 +16,9 @@ a stereo surface 3 m away. Neither eye projection nor headset FOV is changed.
 - **TRACK:** the helmet image follows your head while the aircraft's native camera
   tracks and automatically frames the selected target or group of targets.
   Selection does not guarantee weapon lock or launch permission.
-- **Unlock:** X on the default stick hand removes the latest target and returns to
-  HEAD; Y clears the list and returns to HEAD. Custom bindings remain in effect.
+- **Unlock:** Frame B on the default stick hand removes the latest target and returns to
+  HEAD; **Wrist → Flight actions → Clear targets** or the MFD CLEAR key clears the list.
+  Frame Y cycles weapons. Custom bindings remain in effect.
   **EOTS setup → Look to aim** resumes HEAD without clearing existing selections.
 - **Right bumper:** temporarily replaces the EOTS image with the existing forward
   magnifier. Release restores the EOTS view. These remain separate features.

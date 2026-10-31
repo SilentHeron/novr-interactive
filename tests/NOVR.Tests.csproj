@@ -23,6 +23,7 @@
     <Compile Include="../NOVR/MotionControls/ThrottleDetent.cs" Link="ThrottleDetent.cs" />
     <Compile Include="../NOVR/MotionControls/FlightGrip.cs" Link="FlightGrip.cs" />
     <Compile Include="../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../NOVR/MotionControls/StickLimitFeedback.cs" Link="StickLimitFeedback.cs" />
     <Compile Include="../NOVR/MotionControls/GuardedEjection.cs" Link="GuardedEjection.cs" />
     <Compile Include="../NOVR/MotionControls/EjectionRequest.cs" Link="EjectionRequest.cs" />
     <Compile Include="../NOVR/MotionControls/CockpitPanelAsset.cs" Link="CockpitPanelAsset.cs" />

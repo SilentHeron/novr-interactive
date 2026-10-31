@@ -13,6 +13,7 @@ public sealed class MotionFlightController : MonoBehaviour
     internal static MotionFlightController? Instance { get; private set; }
     private readonly FlightGrip _stickGrip = new();
     private readonly FlightGrip _throttleGrip = new();
+    private readonly StickLimitFeedback _stickLimitFeedback = new();
     private MotionControlVisuals? _visuals;
     private bool _visualsFailed;
     private Aircraft? _aircraft;
@@ -280,6 +281,7 @@ public sealed class MotionFlightController : MonoBehaviour
         if (stickWasHeld && !_stickGrip.Held && _stickHand.Valid) InteractionHaptics.Pulse(_stickHand.Device, .12f, .02f, InteractionCue.Release);
 
         Pitch = Roll = Yaw = 0f;
+        var stickTwist = 0f;
         if (_stickGrip.Held)
         {
             // Relative rotation in cockpit axes, independent of the controller's grip orientation.
@@ -287,12 +289,16 @@ public sealed class MotionFlightController : MonoBehaviour
             var tilt = relative * Vector3.up;
             (Pitch, Roll) = FlightControlMath.Stick(tilt.x, tilt.y, tilt.z, Settings.StickAngle.Value,
                 Settings.Deadzone.Value, Settings.ResponseExponent.Value);
-            var twist = Settings.TwistYaw.Value ? FlightControlMath.StickTwist(relative.y, relative.w,
+            stickTwist = Settings.TwistYaw.Value ? FlightControlMath.StickTwist(relative.y, relative.w,
                 Settings.YawAngle.Value, Settings.Deadzone.Value, Settings.ResponseExponent.Value) : 0f;
             var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis && !(Settings.LeftHanded.Value && UniversalCockpitPanel.LeftStickSlaved)
                 ? FlightControlMath.Axis(_stickHand.Axis.x, 0.12f, 1f) : 0f;
-            Yaw = Mathf.Clamp(twist + thumb, -1f, 1f);
+            Yaw = Mathf.Clamp(stickTwist + thumb, -1f, 1f);
         }
+        var limitPulse = _stickLimitFeedback.Update(_stickGrip.Held && _stickHand.Valid,
+            Pitch, Roll, stickTwist, Time.unscaledTime, Time.frameCount);
+        if (limitPulse.strength > 0f)
+            InteractionHaptics.PulseOnly(_stickHand.Device, limitPulse.strength, limitPulse.seconds);
 
         var throttleWasHeld = _throttleGrip.Held;
         _throttleGrip.Update(_throttleHand.Valid && !Fs20NativeCockpit.OwnsHand(!Settings.LeftHanded.Value), _throttleHand.Grip,
@@ -410,6 +416,7 @@ public sealed class MotionFlightController : MonoBehaviour
     {
         _stickGrip.Reset();
         _throttleGrip.Reset();
+        _stickLimitFeedback.Reset();
         Pitch = Roll = Yaw = 0f;
     }
 

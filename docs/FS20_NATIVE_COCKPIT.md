@@ -154,8 +154,10 @@ hand tracking. Other aircraft retain their existing grip poses.
 
 - Trigger: guns, including when a missile/bomb is selected.
 - A: selected non-gun weapon release. It cannot fire a selected gun.
-- B: next weapon on release while holding the stick; map when the stick is free.
-- Right stick click: target selection; X: unlock latest; Y: clear all.
+- Frame B: unselect latest target on release while holding the stick; map when the stick is free.
+- Frame Y: next weapon on release while holding the stick.
+- Right stick click: target selection; clear all through wrist Flight actions or MFD CLEAR.
+- Touch-compatible controllers retain B for weapon cycling and wrist actions for unselect.
 - Right bumper: magnifier, regardless of grip.
 
 Native pilot/menu/cockpit checks, station safety, reloads and launch/lock/salvo

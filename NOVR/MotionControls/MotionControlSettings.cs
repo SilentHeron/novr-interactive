@@ -46,7 +46,7 @@ public sealed class MotionControlSettings
         HelmetNightVision = config.Bind(section, "Helmet Night Vision Gesture", true, "Raise either free hand to the forehead/brow and make a fresh trigger press to toggle native night vision. A short pulse marks the gesture area. Disabled in menus, map and layout editing.");
         MilDetent = config.Bind(section, "MIL Throttle Detent", true, "Afterburning jets only: a 1.6 cm shelf at the installed engine's military-power boundary. Push through for afterburner; no timer or extra button.");
         InteractionVolume = Float(config, "Interaction Sound Volume", .4f, 0f, 1f, "Volume of spatial button, grip, detent, guard and helmet cues. Zero mutes them without disabling haptics. Uses the aircraft audio mixer when available.");
-        HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief grab, release, button, lever and detent feedback. Zero disables these cues.");
+        HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief grab, release, button, lever, detent and stick-limit feedback. Zero disables these cues.");
         var hapticsUpgrade = config.Bind(section, "Stronger Haptics Applied", false, "Migrates the former stock strength once; preserves custom levels and disabled haptics.");
         if (!hapticsUpgrade.Value)
         {

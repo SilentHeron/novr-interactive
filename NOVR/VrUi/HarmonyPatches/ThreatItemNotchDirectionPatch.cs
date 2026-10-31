@@ -1,4 +1,5 @@
 using HarmonyLib;
+using NOVR.VrUi.SpecialBehavior;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -8,7 +9,6 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class ThreatItemNotchDirectionPatch
 {
-    private const float HudDistance = 1000.0f;
     private const float NotchIndicatorDistance = 1000.0f;
     private const float NotchIndicatorLineWidth = 1.0f;
     private const float NotchIndicatorLineHeight = 4096.0f;
@@ -28,6 +28,21 @@ internal static class ThreatItemNotchDirectionPatch
     private static readonly HashSet<GameObject> CompactHiddenIndicators = new();
     private static int _slotFrame = -1;
     private static int _nextSlot;
+
+    [HarmonyPatch(typeof(global::CombatHUD), nameof(global::CombatHUD.ShowNotchIndicator))]
+    private static class PrepareNotchIndicator
+    {
+        [HarmonyPostfix]
+        private static void Postfix(GameObject __result)
+        {
+            if (__result == null) return;
+            // These are instantiated after the flight canvas is converted to VR.
+            // Parenting alone retains the prefab's original HUD layer, which the
+            // VR HUD camera does not render.
+            LayerHelper.SetLayerRecursive(__result.transform, LayerHelper.GetVrUiLayer());
+            HudElementStyle.Add(__result.GetComponentInChildren<Text>(), HudElementKind.Label);
+        }
+    }
 
     [HarmonyPatch(typeof(global::ThreatItem), "AlignNotchLine")]
     private static class AlignNotchLinePatch
@@ -74,12 +89,15 @@ internal static class ThreatItemNotchDirectionPatch
             var worldPosition = aircraft.GlobalPosition().ToLocalPosition() + notchDirection * NotchIndicatorDistance;
             var mainCamera = APIBus.MainCamera;
             var cockpitHudCamera = APIBus.CockpitHudCamera;
-            var mainCameraLocal = mainCamera.transform.InverseTransformPoint(worldPosition);
-            var hudWorldPosition = cockpitHudCamera.transform.TransformPoint(mainCameraLocal);
+            if (mainCamera == null || cockpitHudCamera == null ||
+                !VrHudProjection.TryProjectDirectionToCockpitHud(worldPosition, out var hudWorldPosition))
+                return false;
             var mainCameraLocalNotchDirection = mainCamera.transform.InverseTransformDirection(notchDirection);
             var hudNotchDirection = cockpitHudCamera.transform.TransformDirection(mainCameraLocalNotchDirection);
 
-            notchIndicator.transform.position = hudWorldPosition.normalized * HudDistance;
+            // Keep the evasion bearing relative to the HUD camera, including
+            // head translation / recentering, rather than the UI world's origin.
+            notchIndicator.transform.position = hudWorldPosition;
             var indicatorUp = Vector3.ProjectOnPlane(hudNotchDirection, cockpitHudCamera.transform.forward);
             if (indicatorUp.sqrMagnitude <= Mathf.Epsilon)
                 indicatorUp = cockpitHudCamera.transform.up;
@@ -249,6 +267,7 @@ internal static class ThreatItemNotchDirectionPatch
         
         var go = new GameObject(name)
         {
+            layer = parent.gameObject.layer,
             transform =
             {
                 parent = parent,

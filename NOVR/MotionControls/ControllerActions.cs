@@ -71,11 +71,13 @@ internal sealed class ControllerActions : MonoBehaviour
 
         // The tactical map is also the aircraft selection/respawn UI. A crash,
         // dismounted pilot or spectator camera must not remove its shortcut.
-        var mapSharesWeapon = ControllerButtonNames.Resolve(bindings.Map.Value, stick.NativeFrame) == ControllerButtonNames.Resolve(bindings.NextWeapon.Value, stick.NativeFrame);
+        var mapSharesCombat = ControllerButtonNames.SamePhysicalButton(bindings.Map.Value, bindings.NextWeapon.Value, stick.NativeFrame) ||
+            ControllerButtonNames.SamePhysicalButton(bindings.Map.Value, bindings.UnlockTarget.Value, stick.NativeFrame) ||
+            ControllerButtonNames.SamePhysicalButton(bindings.Map.Value, bindings.ClearTargets.Value, stick.NativeFrame);
         var liveStickHeld = flightControls && controls!.StickHeld &&
             GameManager.GetLocalAircraft(out var mapAircraft) && !mapAircraft.disabled;
         _map.Update(bindings.PointerEnabled.Value && stick.Valid && MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active &&
-            !(mapSharesWeapon && liveStickHeld), bindings.ReadFlight(stick, config.MotionControls.LeftHanded.Value, bindings.Map.Value));
+            !(mapSharesCombat && liveStickHeld), bindings.ReadFlight(stick, config.MotionControls.LeftHanded.Value, bindings.Map.Value));
         if (_map.Pressed) ToggleMap();
     }
 

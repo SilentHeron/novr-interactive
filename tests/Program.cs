@@ -7,6 +7,7 @@ OpticalHudChecks.Run(Check, True);
 CockpitAlertChecks.Run(Check, True);
 ButtonContactGuideChecks.Run(Check, True);
 SwitchGrabChecks.Run(Check, True);
+StickLimitFeedbackChecks.Run(Check, True);
 Check("MFD page keys skip unfitted instruments in both directions and preserve a single widget owner", () =>
 {
     var available = (1 << (int)MfdPage.Weapons) | (1 << (int)MfdPage.Map) | (1 << (int)MfdPage.Sensor);
@@ -244,10 +245,35 @@ Check("VTOL-style throttle leaves target selection to the stick hand", () =>
     True(layout.Target == ControllerButton.None && layout.NextCountermeasure == ControllerButton.Secondary);
     True(!ThrottleBindingProfiles.Conflicts(layout, true) && !ThrottleBindingProfiles.Conflicts(layout, false));
 });
-Check("Frame unlock button does not steal the Touch map button", () =>
+Check("Frame B unselects and Y cycles without changing Touch B weapon cycling", () =>
 {
-    True(ControllerButtonNames.Resolve(ControllerButton.SecondaryOrNone, true) == ControllerButton.Secondary);
-    True(ControllerButtonNames.Resolve(ControllerButton.SecondaryOrNone, false) == ControllerButton.None);
+    True(ControllerButtonNames.Describe(ControllerButton.OutsideOrNone, false, true) == "B");
+    True(ControllerButtonNames.Describe(ControllerButton.TopOrSecondary, false, true) == "Y");
+    True(!ControllerButtonNames.SamePhysicalButton(ControllerButton.OutsideOrNone, ControllerButton.TopOrSecondary, true));
+    True(ControllerButtonNames.Describe(ControllerButton.TopOrSecondary, false, false) == "B");
+    True(ControllerButtonNames.Resolve(ControllerButton.OutsideOrNone, false) == ControllerButton.None);
+    True(!ControllerButtonNames.SamePhysicalButton(ControllerButton.None, ControllerButton.OutsideOrNone, false));
+    foreach (var frame in new[] { true, false })
+    {
+        True(!ControllerButtonNames.SamePhysicalButton(ControllerButton.TopOrSecondary, ControllerButton.Trigger, frame));
+        True(!ControllerButtonNames.SamePhysicalButton(ControllerButton.TopOrSecondary, ControllerButton.Primary, frame));
+    }
+});
+Check("Shared B cannot open the map while unselecting or carry a held press across grip release", () =>
+{
+    var map = new ControllerButtonGate();
+    var unselect = new ControllerButtonGate();
+    True(ControllerButtonNames.SamePhysicalButton(ControllerButton.OutsideOrSecondary, ControllerButton.OutsideOrNone, true));
+    unselect.Update(true, 0); map.Update(false, 0);
+    unselect.Update(true, 1); map.Update(false, 1);
+    True(unselect.Pressed && !map.Pressed);
+    unselect.Update(true, 0); map.Update(false, 0);
+    True(unselect.Released && !map.Pressed);
+    unselect.Update(true, 1); map.Update(false, 1);
+    unselect.Update(false, 1); map.Update(true, 1);
+    True(!unselect.Released && !map.Pressed);
+    unselect.Update(false, 0); map.Update(true, 0);
+    map.Update(true, 1); True(map.Pressed);
 });
 var payloadTestDir = Path.Combine(Path.GetTempPath(), "novr-payload-" + Guid.NewGuid());
 Directory.CreateDirectory(payloadTestDir);

@@ -139,4 +139,14 @@ Check("The four samples have distinct nonempty synthesized waveforms", () =>
     for (var a = 0; a < samples.Length; a++) for (var b = a + 1; b < samples.Length; b++)
         Assert(!samples[a].SequenceEqual(samples[b]));
 });
+Check("Stick movement pulses use the strength setting without producing interaction audio", () =>
+{
+    Reset(); InteractionHaptics.PulseOnly(right, .12f, .02f);
+    Near(rightOutput.Pulses.Single().amplitude, .18f);
+    Near(rightOutput.Pulses.Single().duration, .02f);
+    Assert(leftOutput.Pulses.Count == 0 && InteractionAudio.Requests.Count == 0);
+    Reset(); ModConfiguration.Instance.MotionControls.HapticStrength.Value = 0;
+    InteractionHaptics.PulseOnly(right, .42f, .06f);
+    Assert(rightOutput.Pulses.Count == 0 && InteractionAudio.Requests.Count == 0);
+});
 Console.WriteLine($"{passed} feedback preview checks passed (device/audio doubles; no real controller or game actions).");
