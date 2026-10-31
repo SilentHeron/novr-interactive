@@ -3,6 +3,7 @@ using NuclearOption.UI;
 using NuclearOption.MissionEditorScripts;
 using UnityEngine;
 using NOVR.VrUi;
+using NOVR.VrUi.SpecialBehavior;
 
 namespace NOVR.MotionControls;
 
@@ -11,7 +12,7 @@ internal sealed class ControllerActions : MonoBehaviour
 {
     internal static ControllerActions? Instance { get; private set; }
     private static readonly ControllerActionId[] ActionIds = (ControllerActionId[])System.Enum.GetValues(typeof(ControllerActionId));
-    internal bool TargetSelecting => _target.Held;
+    internal bool TargetSelecting => !CockpitHudWidgets.Editing && _target.Held;
     private readonly ControllerButtonGate _fire = new(), _release = new(), _countermeasures = new(), _weapon = new(), _target = new(), _nextCountermeasure = new(), _map = new(), _clear = new(), _brake = new(), _unlock = new();
     internal bool GunsHeld => Held("Guns");
     internal bool WeaponReleaseHeld => Held("Weapon Release");
@@ -30,6 +31,7 @@ internal sealed class ControllerActions : MonoBehaviour
 
     internal void QueuePanelAction(string action)
     {
+        if (CockpitHudWidgets.Editing) return;
         if (action != "Gear" && action != "Radar" && action != "Toggle Engine" && action != "Flight Assist" &&
             action != "Next Weapon" && action != "Previous Weapon" && action != "Next Countermeasure" && action != "Eject" && action != "Auto Hover" &&
             action != "Nav Lights" && action != "Link Guns") return;
@@ -39,13 +41,16 @@ internal sealed class ControllerActions : MonoBehaviour
 
     internal bool Queued(string action) => TrackedControllers.Available && Time.timeScale > 0 && GameManager.flightControlsEnabled &&
         !CursorManager.GetFlag(CursorFlags.GameMenu) && (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
-        !DynamicMap.mapMaximized && !WristMenu.IsOpen && !CockpitLayout.Active &&
+        !DynamicMap.mapMaximized && !WristMenu.IsOpen && !CockpitLayout.Active && !CockpitHudWidgets.Editing &&
         (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
         CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.GetLocalAircraft(out var aircraft) &&
         _queuedActions.Contains(action, aircraft, Time.frameCount);
 
     private void Update()
     {
+        // Cancel rather than release: ending a HUD drag must not fire a weapon,
+        // replay an eject request, or inherit the grip used to move a widget.
+        if (CockpitHudWidgets.Editing) { ResetButtons(); return; }
         var config = ModConfiguration.Instance;
         var bindings = config.ControllerBindings;
         var leftHanded = config.MotionControls.LeftHanded.Value;
@@ -111,7 +116,7 @@ internal sealed class ControllerActions : MonoBehaviour
     }
 
     internal static bool MapAccessAvailable =>
-        (GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer) &&
+        !CockpitHudWidgets.Editing && (GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer) &&
         GameManager.GetLocalPlayer<NuclearOption.Networking.Player>(out _) &&
         SceneSingleton<DynamicMap>.i != null && SceneSingleton<CameraStateManager>.i != null &&
         SceneSingleton<GameplayUI>.i != null && SceneSingleton<MapOptions>.i != null && SceneSingleton<CombatHUD>.i != null &&
@@ -130,7 +135,7 @@ internal sealed class ControllerActions : MonoBehaviour
         if (DynamicMap.mapMaximized) map.Minimize(); else map.Maximize();
     }
 
-    internal bool Held(string action) => TrackedControllers.Available && !WristMenu.IsOpen && !Cursor.visible && action switch
+    internal bool Held(string action) => TrackedControllers.Available && !WristMenu.IsOpen && !CockpitHudWidgets.Editing && !Cursor.visible && action switch
     {
         "Brake" => _brake.Held || Fs20NativeCockpit.BrakeHeld,
         "Fire" => _fire.Held || _release.Held,
@@ -140,7 +145,7 @@ internal sealed class ControllerActions : MonoBehaviour
         _ => false
     };
 
-    internal bool Released(string action) => TrackedControllers.Available && !WristMenu.IsOpen && !Cursor.visible && action switch
+    internal bool Released(string action) => TrackedControllers.Available && !WristMenu.IsOpen && !CockpitHudWidgets.Editing && !Cursor.visible && action switch
     {
         "Next Weapon" => _weapon.Released,
         "Select" => _target.Released,

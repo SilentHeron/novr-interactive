@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NOVR.VrCamera;
 using NOVR.VrUi;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.InputSystem;
@@ -17,22 +18,22 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     internal static bool Selected => GameManager.GetLocalAircraft(out var aircraft) && IsAircraft(aircraft);
     internal static bool Active => Instance?._ready == true;
     internal static Vector2 MapPan => Vector2.zero;
-    internal static bool OwnsHand(bool left) => Active && Instance!._owner == (left ? 0 : 1) && Instance._active != null;
+    internal static bool OwnsHand(bool left) => !CockpitHudWidgets.Editing && Active && Instance!._owner == (left ? 0 : 1) && Instance._active != null;
     internal static bool SwitchWithinReach(bool left, ControllerSample hand, Transform tracking)
     {
         var self = Instance;
-        if (self?._ready != true || !hand.Valid || CockpitLayout.Active || WristMenu.IsOpen || self._request.BlocksInput || self._owner >= 0) return false;
+        if (self?._ready != true || !hand.Valid || CockpitLayout.Active || CockpitHudWidgets.Editing || WristMenu.IsOpen || self._request.BlocksInput || self._owner >= 0) return false;
         var tip = PilotHandVisuals.TouchPoint(left, hand, tracking, true);
         foreach (var control in Fs20PanelLayout.Controls)
             if (control.Type == Fs20PanelLayout.Kind.Switch && self.WithinSwitch(control, tip, out _)) return true;
         return false;
     }
-    internal static bool BrakeHeld => Active && Instance!._active == "brake";
+    internal static bool BrakeHeld => !CockpitHudWidgets.Editing && Active && Instance!._active == "brake";
     internal static bool IsDocked(Transform widget) => false;
     internal static Transform? Cockpit => Active ? Instance?._root : null;
     internal static void ReleaseMap() { }
     internal static bool LeftStickSlaved => false;
-    internal static bool Pinching(bool left) => Active && Instance!._owner == (left ? 0 : 1) && Instance._active is "gear" or "radar" or "aots";
+    internal static bool Pinching(bool left) => OwnsHand(left) && Instance!._active is "gear" or "radar" or "aots";
     private static CockpitLayout.Element SideHandle(bool left) => left == ModConfiguration.Instance.MotionControls.LeftHanded.Value ? CockpitLayout.Element.Stick : CockpitLayout.Element.Throttle;
     private Aircraft? _aircraft;
     private Transform? _root, _seat;
@@ -70,7 +71,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     internal static Pose? HandPose(bool left, out bool pointing)
     {
         pointing = false; var self = Instance; var side = left ? 0 : 1;
-        if (self?._ready != true) return null;
+        if (self?._ready != true || CockpitHudWidgets.Editing) return null;
         // A held switch/handle owns the hand pose even when the tracked finger
         // moves near another button. Hover and a stale guide must not recurl it.
         if (self._owner == side && self._active != null)
@@ -158,7 +159,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         _ready = true; _root!.gameObject.SetActive(true);
         // Presentation remains fixed and visible while positioning or using
         // setup menus. Only interaction pauses; native floating HUD stays hidden.
-        if (!TrackedControllers.Available || !GameManager.flightControlsEnabled || Time.timeScale <= 0 || WristMenu.IsOpen ||
+        if (!TrackedControllers.Available || !GameManager.flightControlsEnabled || Time.timeScale <= 0 || WristMenu.IsOpen || CockpitHudWidgets.Editing ||
             DynamicMap.mapMaximized || CursorManager.GetFlag(CursorFlags.GameMenu) ||
             (GameManager.controlMapper != null && GameManager.controlMapper.isOpen) ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()))

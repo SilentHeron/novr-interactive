@@ -1,5 +1,6 @@
 using UnityEngine;
 using NOVR.VrUi;
+using NOVR.VrUi.SpecialBehavior;
 
 namespace NOVR.MotionControls;
 
@@ -10,14 +11,14 @@ internal sealed class HelmetNightVision : MonoBehaviour
     private readonly ControllerButtonGate[] _triggers = { new(), new() };
     private readonly bool[] _near = new bool[2];
     private float _nextToggle;
-    internal static bool OwnsHand(bool left) => _instance != null && _instance._near[left ? 0 : 1];
+    internal static bool OwnsHand(bool left) => !CockpitHudWidgets.Editing && _instance != null && _instance._near[left ? 0 : 1];
     private void Awake() => _instance = this;
     private void Update()
     {
         var config = ModConfiguration.Instance;
         if (!config.MotionControls.HelmetNightVision.Value || !TrackedControllers.Available || NightVision.i == null ||
             CameraStateManager.cameraMode != CameraMode.cockpit || Time.timeScale <= 0 || !GameManager.flightControlsEnabled ||
-            WristMenu.IsOpen || CockpitLayout.Active || DynamicMap.mapMaximized || CursorManager.GetFlags() != CursorFlags.None ||
+            WristMenu.IsOpen || CockpitLayout.Active || CockpitHudWidgets.Editing || DynamicMap.mapMaximized || CursorManager.GetFlags() != CursorFlags.None ||
             !GameManager.GetLocalAircraft(out var aircraft) || aircraft.cockpit == null || aircraft.cockpit.IsDetached() ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()))
         { Reset(); return; }

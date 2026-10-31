@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.XR;
 using UnityEngine.XR.OpenXR;
 using NOVR.VrCamera;
+using NOVR.VrUi.SpecialBehavior;
 using CommonUsages = UnityEngine.XR.CommonUsages;
 
 namespace NOVR.MotionControls;
@@ -49,6 +50,7 @@ public sealed class MotionFlightController : MonoBehaviour
     internal string Status { get; private set; } = "Waiting for cockpit";
     internal void SchedulePlacement()
     {
+        if (CockpitHudWidgets.Editing) return;
         _placementTime = Time.unscaledTime + 3f;
         Status = "Place your hands; waiting 3 seconds";
         Debug.Log("[NOVR] Handle placement scheduled for three seconds from now.");
@@ -57,7 +59,7 @@ public sealed class MotionFlightController : MonoBehaviour
     private ControllerSample _throttleHand;
     private MotionControlSettings Settings => ModConfiguration.Instance.MotionControls;
 
-    internal bool FlightActive => _ready && !CockpitLayout.Active && !VrUi.WristMenu.IsOpen;
+    internal bool FlightActive => _ready && !CockpitLayout.Active && !CockpitHudWidgets.Editing && !VrUi.WristMenu.IsOpen;
     internal void CancelPlacement() { _placementTime = -1; ResetGrips(); }
     internal bool StickHeld => _ready && _stickGrip.Held;
     internal bool ThrottleHeld => _ready && _throttleGrip.Held;
@@ -65,6 +67,7 @@ public sealed class MotionFlightController : MonoBehaviour
     internal bool TryGetHeldHandPose(bool left, out Pose pose, out bool stick, out bool collective)
     {
         pose = default; stick = left == Settings.LeftHanded.Value; collective = !stick && LiftCollective;
+        if (CockpitHudWidgets.Editing) return false;
         var editing = CockpitLayout.HeldByHand(left);
         if (_visuals != null && editing is CockpitLayout.Element.Stick or CockpitLayout.Element.Throttle)
         { stick = editing == CockpitLayout.Element.Stick; collective = !stick && LiftCollective; pose = _visuals.GripPose(stick); return true; }
@@ -108,7 +111,7 @@ public sealed class MotionFlightController : MonoBehaviour
 
     private void Update()
     {
-        if (Keyboard.current?.f7Key.wasPressedThisFrame == true)
+        if (!CockpitHudWidgets.Editing && Keyboard.current?.f7Key.wasPressedThisFrame == true)
         {
             CockpitLayout.Instance?.Finish(false);
             Settings.Enabled.Value = !Settings.Enabled.Value;
@@ -116,7 +119,7 @@ public sealed class MotionFlightController : MonoBehaviour
             ResetGrips();
             Debug.Log($"[NOVR] Motion flight controls {(Settings.Enabled.Value ? "enabled" : "disabled")}.");
         }
-        if (Keyboard.current?.f8Key.wasPressedThisFrame == true)
+        if (!CockpitHudWidgets.Editing && Keyboard.current?.f8Key.wasPressedThisFrame == true)
         {
             Settings.Enabled.Value = true;
             VrUi.WristMenu.Close();
@@ -132,7 +135,7 @@ public sealed class MotionFlightController : MonoBehaviour
             _placementConfirmationUntil = Time.unscaledTime + 6f;
             Debug.LogWarning($"[NOVR] Handle placement timed out: {Status}. Try Place handles again after resolving this state.");
         }
-        if (!_ready || CockpitLayout.Active || VrUi.WristMenu.IsOpen) return;
+        if (!_ready || CockpitLayout.Active || CockpitHudWidgets.Editing || VrUi.WristMenu.IsOpen) return;
         if (_placementTime >= 0f && Time.unscaledTime >= _placementTime && _stickHand.Valid && _throttleHand.Valid)
         {
             _placementTime = -1f;
@@ -263,6 +266,12 @@ public sealed class MotionFlightController : MonoBehaviour
         if (!_throttleGrip.Held) Throttle = _throttleCommandAircraft == aircraft
             ? _throttleCommand : Mathf.Clamp01(aircraft.GetInputs().throttle);
 
+        if (CockpitHudWidgets.Editing)
+        {
+            CancelPlacement(); _calibrationHold = 0f; _calibrationLatched = false;
+            ReportStatus("Handle input paused while editing HUD layout");
+            return;
+        }
         if (CockpitLayout.Active || VrUi.WristMenu.IsOpen) { ResetGrips(); ReportStatus(CockpitLayout.Active ? CockpitLayout.Hint : "Handle input paused while wrist menu is open"); return; }
 
         var stickWasHeld = _stickGrip.Held;

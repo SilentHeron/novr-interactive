@@ -32,6 +32,8 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<VrCameraManager>();
         gameObject.AddComponent<APIBus>();
         gameObject.AddComponent<MotionControls.CockpitProfiles>();
+        gameObject.AddComponent<VrUi.SpecialBehavior.CockpitHudWidgets>();
+        gameObject.AddComponent<VrUi.SpecialBehavior.CockpitStatusSources>();
         gameObject.AddComponent<MotionControls.CockpitLayout>();
         gameObject.AddComponent<MotionControls.MotionFlightController>();
         gameObject.AddComponent<MotionControls.HelmetNightVision>();

@@ -56,7 +56,7 @@ internal sealed class CockpitViewZoom : MonoBehaviour
         var available = settings.ZoomEnabled.Value && XRSettings.enabled && TrackedControllers.Available && hand.Valid &&
             aircraft != null && aircraft.cockpit != null && !aircraft.cockpit.IsDetached() &&
             CameraStateManager.cameraMode == CameraMode.cockpit && Time.timeScale > 0 && GameManager.flightControlsEnabled &&
-            !WristMenu.IsOpen && !CockpitLayout.Active && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) &&
+            !WristMenu.IsOpen && !CockpitLayout.Active && !CockpitHudWidgets.Editing && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
             (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse());
         _button.Update(available, ControllerBindings.Read(hand, binding.Button));

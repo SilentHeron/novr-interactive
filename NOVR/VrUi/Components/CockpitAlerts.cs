@@ -17,6 +17,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
     private static readonly AccessTools.FieldRef<ThreatList, Dictionary<PersistentID, ThreatItem>> Items = AccessTools.FieldRefAccess<ThreatList, Dictionary<PersistentID, ThreatItem>>("itemLookup");
     private static readonly AccessTools.FieldRef<ThreatItem, Missile> MissileOf = AccessTools.FieldRefAccess<ThreatItem, Missile>("missile");
     private static readonly AccessTools.FieldRef<MessageUI, TextMeshProUGUI> FeedOf = AccessTools.FieldRefAccess<MessageUI, TextMeshProUGUI>("killFeedText");
+    private static readonly AccessTools.FieldRef<MessageUI, TextMeshProUGUI> MissionOf = AccessTools.FieldRefAccess<MessageUI, TextMeshProUGUI>("messageText");
     private static readonly AccessTools.FieldRef<MessageUI, MessageFeed> MessagesOf = AccessTools.FieldRefAccess<MessageUI, MessageFeed>("messageFeed");
     private static readonly AccessTools.FieldRef<MessageUI, ChatBox> ChatOf = AccessTools.FieldRefAccess<MessageUI, ChatBox>("chat");
     private static readonly AccessTools.FieldRef<MessageUI, Image> BackgroundOf = AccessTools.FieldRefAccess<MessageUI, Image>("backgroundImage");
@@ -52,6 +53,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
                 copy.text = ""; copy.fontSize = fontSize; copy.richText = false; copy.raycastTarget = false;
                 copy.alignment = TextAlignmentOptions.TopLeft; copy.enableWordWrapping = !feed;
                 copy.overflowMode = TextOverflowModes.Ellipsis;
+                copy.maxVisibleLines = feed ? 1 : 2;
                 var height = size.y / _copies.Length;
                 copy.rectTransform.sizeDelta = new Vector2(size.x, height);
                 copy.rectTransform.anchoredPosition = position + new Vector2(0, size.y * .5f - height * (i + .5f));
@@ -59,8 +61,8 @@ internal sealed class CockpitAlerts : MonoBehaviour
         }
         internal void Refresh(bool active, bool show, bool feed)
         {
-            if (_hide != null) _hide.alpha = active ? 0 : 1;
             var visible = active && show && Source != null && Source.isActiveAndEnabled && !string.IsNullOrWhiteSpace(Source.text);
+            if (_hide != null) _hide.alpha = visible ? 0 : 1;
             Visible = visible;
             foreach (var copy in _copies) copy.enabled = visible;
             if (!visible) return;
@@ -82,21 +84,24 @@ internal sealed class CockpitAlerts : MonoBehaviour
     }
 
     internal static CockpitAlerts? Instance { get; private set; }
-    internal static bool Active => Instance?._active == true;
+    // Existing notch/backplate callers need to know whether the missile list
+    // was actually replaced, not merely whether some other widget is running.
+    internal static bool Active => Instance is { } self && self.Replaces("threats", self._missileRoot);
+    internal static bool ReplacesEw => Instance is { } self && self.Replaces("ew", self._root);
     private Aircraft? _aircraft;
     private ThreatList? _list;
     private CanvasGroup? _listHide, _rankHide;
     private Image? _rankBackground;
     private MessageUI? _messages;
     private CanvasGroup? _messageBackgroundHide;
-    private TextMirror? _feed, _reward, _rank;
+    private TextMirror? _feed, _mission, _reward, _rank;
     private readonly List<Signal> _signals = new();
     private readonly List<ThreatItem> _missiles = new();
     private readonly List<Text> _pins = new();
     private readonly List<Text> _rows = new();
     private GameObject? _root, _threatRoot, _missileRoot;
     private Transform? _feedRoot;
-    private Image? _feedBackplate;
+    private Image? _feedBackplate, _missileBackplate;
     private Text? _heading, _missileHeading;
     private bool _active;
     private float _nextRead, _nextFind;
@@ -157,18 +162,35 @@ internal sealed class CockpitAlerts : MonoBehaviour
             if (Time.unscaledTime >= _nextRead) { _nextRead = Time.unscaledTime + .1f; RefreshThreats(); }
             Place();
         }
-        if (_root != null) _root.SetActive(_active);
-        if (_missileRoot != null) _missileRoot.SetActive(_active && _missiles.Count > 0);
-        if (_feedRoot != null) _feedRoot.gameObject.SetActive(_active);
-        if (_listHide != null) _listHide.alpha = _active ? 0 : 1;
-        if (_rankHide != null) _rankHide.alpha = _active ? 0 : 1;
+        var hasThreats = _missiles.Count > 0;
+        var hasEw = hasThreats || _signals.Count > 0;
+        var feedVisible = WidgetVisible("feed");
+        if (_root != null) _root.SetActive(WidgetVisible("ew") && hasEw);
+        if (_missileRoot != null) _missileRoot.SetActive(WidgetVisible("threats") && hasThreats);
+        if (_feedRoot != null) _feedRoot.gameObject.SetActive(feedVisible);
+        if (_listHide != null) _listHide.alpha = Active ? 0 : 1;
+        var chatOpen = _messages != null && ChatOf(_messages).gameObject.activeSelf;
+        _feed?.Refresh(feedVisible, Settings.Feed.Value, true);
+        // Typing/expanded chat keeps its native history and input presentation.
+        // Outside chat, mirror only the latest two live mission-message lines.
+        _mission?.Refresh(feedVisible && !chatOpen, true, false);
+        _reward?.Refresh(feedVisible, true, false); _rank?.Refresh(feedVisible, true, false);
+        var hasFeed = _feed?.Visible == true || _mission?.Visible == true || _reward?.Visible == true || _rank?.Visible == true;
+        if (_rankHide != null) _rankHide.alpha = _rank?.Visible == true ? 0 : 1;
         if (_messageBackgroundHide != null && _messages != null)
-            _messageBackgroundHide.alpha = _active && MessagesOf(_messages).NoText && !ChatOf(_messages).gameObject.activeSelf ? 0 : 1;
-        _feed?.Refresh(_active, Settings.Feed.Value, true);
-        _reward?.Refresh(_active, true, false); _rank?.Refresh(_active, true, false);
-        if (_feedBackplate != null) _feedBackplate.enabled = _active &&
-            (_feed?.Visible == true || _reward?.Visible == true || _rank?.Visible == true);
+            _messageBackgroundHide.alpha = feedVisible && hasFeed && !chatOpen &&
+                (MessagesOf(_messages).NoText || _mission?.Visible == true) ? 0 : 1;
+        if (_feedBackplate != null) _feedBackplate.enabled = feedVisible && hasFeed && !CockpitHudWidgets.Owns("feed");
+        if (_missileBackplate != null) _missileBackplate.enabled = !CockpitHudWidgets.Owns("threats");
+        CockpitHudWidgets.SetHasContent("threats", _active && hasThreats);
+        CockpitHudWidgets.SetHasContent("ew", _active && hasEw);
+        CockpitHudWidgets.SetHasContent("feed", _active && hasFeed);
     }
+
+    private bool WidgetVisible(string id) => _active &&
+        (!CockpitHudWidgets.Owns(id) || CockpitHudWidgets.CurrentAircraft == _aircraft && CockpitHudWidgets.IsVisible(id));
+
+    private bool Replaces(string id, GameObject? root) => WidgetVisible(id) && root != null && root.activeInHierarchy;
 
     private void FindSources()
     {
@@ -192,18 +214,23 @@ internal sealed class CockpitAlerts : MonoBehaviour
         var source = messages != null ? FeedOf(messages) : null;
         if (_feed?.Source != source)
         {
-            _feed?.Release(); _feed = source == null ? null : new TextMirror(source, _feedRoot!, Vector2.zero, new Vector2(480, 84), 20, true);
+            _feed?.Release(); _feed = source == null ? null : new TextMirror(source, _feedRoot!, new Vector2(0, 53), new Vector2(480, 84), 20, true);
+        }
+        var mission = messages != null ? MissionOf(messages) : null;
+        if (_mission?.Source != mission)
+        {
+            _mission?.Release(); _mission = mission == null ? null : new TextMirror(mission, _feedRoot!, new Vector2(0, -54), new Vector2(480, 72), 18);
         }
         var kills = SceneSingleton<KillDisplay>.i;
         var reward = kills != null ? RewardOf(kills) : null;
         if (_reward?.Source != reward)
         {
-            _reward?.Release(); _reward = reward == null ? null : new TextMirror(reward, _feedRoot!, new Vector2(0, 66), new Vector2(480, 28), 20);
+            _reward?.Release(); _reward = reward == null ? null : new TextMirror(reward, _feedRoot!, new Vector2(0, 126), new Vector2(480, 28), 20);
         }
         var rank = kills != null ? RankOf(kills) : null;
         if (_rank?.Source != rank)
         {
-            _rank?.Release(); _rank = rank == null ? null : new TextMirror(rank, _feedRoot!, new Vector2(0, -66), new Vector2(480, 28), 18);
+            _rank?.Release(); _rank = rank == null ? null : new TextMirror(rank, _feedRoot!, new Vector2(0, -126), new Vector2(480, 28), 18);
         }
         var background = kills != null ? RankBackground(kills) : null;
         if (_rankBackground != background)
@@ -221,36 +248,76 @@ internal sealed class CockpitAlerts : MonoBehaviour
         var gameRoot = APIBus.MainCamera?.transform.parent;
         var uiRoot = APIBus.CockpitHudCamera.transform.parent;
         if (gameRoot == null || uiRoot == null) return;
+        var ewOwned = AttachWidget("ew", _root.transform, new Vector2(260, 260));
+        var threatsOwned = AttachWidget("threats", _missileRoot!.transform, new Vector2(520, 200));
+        var feedOwned = AttachWidget("feed", _feedRoot!, new Vector2(520, 300));
         var fs20 = Fs20NativeCockpit.Cockpit;
         if (fs20 != null)
         {
             var right = fs20.TransformPoint(new Vector3(.39f,.29f,.43f));
-            _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(right)),
-                uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * fs20.rotation * Quaternion.Euler(12,-12,0));
-            _root.transform.localScale = Vector3.one * (.0004f * Settings.Scale.Value);
-            _threatRoot!.transform.localPosition = new Vector3(-55,80,0);
+            if (!ewOwned)
+            {
+                _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(right)),
+                    uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * fs20.rotation * Quaternion.Euler(12,-12,0));
+                _root.transform.localScale = Vector3.one * (.0007f * Settings.Scale.Value);
+            }
             // Above the upper coaming, beside the forward sightline. These
             // authored cockpit anchors do not follow head turns or seat shifts.
-            PlaceWindow(_missileRoot!.transform, fs20.TransformPoint(new Vector3(-.18f,.645f,.585f)),
+            if (!threatsOwned) PlaceWindow(_missileRoot!.transform, fs20.TransformPoint(new Vector3(-.18f,.645f,.585f)),
                 fs20.rotation * Quaternion.Euler(6,-12.5f,0), .0004f, gameRoot, uiRoot);
-            PlaceWindow(_feedRoot!, fs20.TransformPoint(new Vector3(.18f,.645f,.585f)),
+            if (!feedOwned) PlaceWindow(_feedRoot!, fs20.TransformPoint(new Vector3(.18f,.645f,.585f)),
                 fs20.rotation * Quaternion.Euler(6,12.5f,0), .0004f, gameRoot, uiRoot);
             return;
         }
-        _threatRoot!.transform.localPosition = new Vector3(-390,0,0);
         var eye = _aircraft.cockpitViewPoint;
         // Same cockpit-to-UI-space conversion as the dashboard. Physical leaning,
         // head turns and saved seat shifts do not drag the overlay around.
-        var position = eye.TransformPoint(new Vector3(0, Settings.Height.Value, 1.4f));
-        _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(position)),
-            uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation);
-        _root.transform.localScale = Vector3.one * (.00085f * Settings.Scale.Value);
+        if (!ewOwned)
+        {
+            var position = eye.TransformPoint(new Vector3(-.30f, Settings.Height.Value, 1.4f));
+            _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(position)),
+                uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation);
+            _root.transform.localScale = Vector3.one * (.00085f * Settings.Scale.Value);
+        }
         // Other aircraft retain the factory-seat reference; without a fitted
         // coaming profile, place the two feeds below the forward eye line.
-        PlaceWindow(_missileRoot!.transform, eye.TransformPoint(new Vector3(-.30f, Settings.Height.Value + .18f, 1.4f)),
+        if (!threatsOwned) PlaceWindow(_missileRoot!.transform, eye.TransformPoint(new Vector3(-.30f, Settings.Height.Value + .18f, 1.4f)),
             eye.rotation * Quaternion.Euler(5,-12,0), .0007f, gameRoot, uiRoot);
-        PlaceWindow(_feedRoot!, eye.TransformPoint(new Vector3(.30f, Settings.Height.Value + .18f, 1.4f)),
+        if (!feedOwned) PlaceWindow(_feedRoot!, eye.TransformPoint(new Vector3(.30f, Settings.Height.Value + .18f, 1.4f)),
             eye.rotation * Quaternion.Euler(5,12,0), .0007f, gameRoot, uiRoot);
+    }
+
+    private bool AttachWidget(string id, Transform window, Vector2 dimensions)
+    {
+        if (CockpitHudWidgets.CurrentAircraft == _aircraft && CockpitHudWidgets.TryGetContent(id, out var content))
+        {
+            if (window.parent != content) window.SetParent(content, false);
+            var rect = (RectTransform)window;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, .5f);
+            rect.sizeDelta = dimensions;
+            var scale = Mathf.Min(content.rect.width / dimensions.x, content.rect.height / dimensions.y);
+            window.localPosition = Vector3.zero; window.localRotation = Quaternion.identity;
+            window.localScale = Vector3.one * scale;
+            return true;
+        }
+        if (window.parent != transform) window.SetParent(transform, false);
+        return false;
+    }
+
+    // Called by the widget manager before destroying its content slots. Alert
+    // views belong to this component and must not be destroyed with a layout.
+    internal static void ReleaseWidgetParents()
+    {
+        var self = Instance; if (self == null) return;
+        foreach (var root in new[] { self._root?.transform, self._missileRoot?.transform, self._feedRoot })
+            if (root != null) { root.SetParent(self.transform, false); root.gameObject.SetActive(false); }
+        self._active = false;
+        if (self._listHide != null) self._listHide.alpha = 1;
+        if (self._rankHide != null) self._rankHide.alpha = 1;
+        if (self._messageBackgroundHide != null) self._messageBackgroundHide.alpha = 1;
+        self._feed?.Refresh(false, false, true); self._mission?.Refresh(false, false, false);
+        self._reward?.Refresh(false, false, false); self._rank?.Refresh(false, false, false);
+        ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
     }
 
     private void PlaceWindow(Transform window, Vector3 position, Quaternion rotation, float scale, Transform gameRoot, Transform uiRoot)
@@ -316,7 +383,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
     {
         if (index >= _pins.Count) return;
         var pin = _pins[index++]; var p = CockpitAlertMath.Scope(direction.x, direction.z, radius);
-        pin.rectTransform.anchoredPosition = new Vector2(-100 + p.x, p.y);
+        pin.rectTransform.anchoredPosition = new Vector2(p.x, p.y) * .7f;
         pin.text = symbol; pin.color = color; pin.enabled = true;
     }
 
@@ -325,13 +392,14 @@ internal sealed class CockpitAlerts : MonoBehaviour
         if (_root != null) return;
         _root = new GameObject("NOVR frameless cockpit alerts", typeof(RectTransform), typeof(Canvas));
         _root.transform.SetParent(transform, false);
+        ((RectTransform)_root.transform).sizeDelta = new Vector2(260, 260);
         var canvas = _root.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = APIBus.CockpitHudCamera;
         var group = _root.AddComponent<CanvasGroup>(); group.interactable = false; group.blocksRaycasts = false;
         _threatRoot = new GameObject("Threat scope", typeof(RectTransform));
-        _threatRoot.transform.SetParent(_root.transform, false); _threatRoot.transform.localPosition = new Vector3(-390, 0, 0);
-        _missileRoot = CreateWindow("NOVR incoming missile window", out _);
-        _feedRoot = CreateWindow("NOVR kill feed window", out _feedBackplate).transform;
+        _threatRoot.transform.SetParent(_root.transform, false);
+        _missileRoot = CreateWindow("NOVR incoming missile window", out _missileBackplate);
+        _feedRoot = CreateWindow("NOVR notifications window", out _feedBackplate, 300).transform;
         _missileHeading = Label(_missileRoot.transform, "", new Vector2(0, 69), new Vector2(480, 28), 20);
         _missileHeading.alignment = TextAnchor.MiddleLeft;
         for (var i = 0; i < 36; i++)
@@ -340,41 +408,40 @@ internal sealed class CockpitAlerts : MonoBehaviour
             var tick = new GameObject("Bearing tick", typeof(RectTransform), typeof(Image));
             tick.transform.SetParent(_threatRoot.transform, false);
             var rect = (RectTransform)tick.transform;
-            rect.anchoredPosition = new Vector2(-100 + Mathf.Sin(angle) * 70, Mathf.Cos(angle) * 70);
+            rect.anchoredPosition = new Vector2(Mathf.Sin(angle) * 58, Mathf.Cos(angle) * 58);
             rect.sizeDelta = new Vector2(1, i % 9 == 0 ? 9 : 3);
             rect.localRotation = Quaternion.Euler(0, 0, -angle * Mathf.Rad2Deg);
             var image = tick.GetComponent<Image>(); image.raycastTarget = false; image.color = new Color(.55f, .7f, .72f, .45f);
         }
-        Label(_threatRoot.transform, "12", new Vector2(-100, 111), new Vector2(40, 25), 16);
-        Label(_threatRoot.transform, "6", new Vector2(-100, -111), new Vector2(40, 25), 16);
-        Label(_threatRoot.transform, "9", new Vector2(-212, 0), new Vector2(30, 25), 16);
-        Label(_threatRoot.transform, "3", new Vector2(12, 0), new Vector2(30, 25), 16);
-        Label(_threatRoot.transform, "▲", new Vector2(-100, 0), new Vector2(30, 30), 20);
-        _heading = Label(_threatRoot.transform, "", new Vector2(200, 106), new Vector2(290, 28), 22);
-        _heading.alignment = TextAnchor.MiddleLeft;
+        Label(_threatRoot.transform, "12", new Vector2(0, 85), new Vector2(40, 25), 16);
+        Label(_threatRoot.transform, "6", new Vector2(0, -85), new Vector2(40, 25), 16);
+        Label(_threatRoot.transform, "9", new Vector2(-94, 0), new Vector2(30, 25), 16);
+        Label(_threatRoot.transform, "3", new Vector2(94, 0), new Vector2(30, 25), 16);
+        Label(_threatRoot.transform, "▲", Vector2.zero, new Vector2(30, 30), 20);
+        _heading = Label(_threatRoot.transform, "", new Vector2(0, 116), new Vector2(240, 24), 17);
         for (var i = 0; i < 4; i++)
         {
             var row = i < 3
                 ? Label(_missileRoot.transform, "", new Vector2(0, 29 - i * 51), new Vector2(480, 48), 20)
-                : Label(_threatRoot.transform, "", new Vector2(200, 59), new Vector2(290, 46), 16);
-            row.alignment = TextAnchor.MiddleLeft; _rows.Add(row);
+                : Label(_threatRoot.transform, "", new Vector2(0, -116), new Vector2(240, 24), 15);
+            row.alignment = i < 3 ? TextAnchor.MiddleLeft : TextAnchor.MiddleCenter; _rows.Add(row);
         }
         for (var i = 0; i < 40; i++) _pins.Add(Label(_threatRoot.transform, "", Vector2.zero, new Vector2(24, 24), 20));
         LayerHelper.SetLayerRecursive(_root.transform, LayerHelper.GetVrUiLayer());
         LayerHelper.SetLayerRecursive(_missileRoot.transform, LayerHelper.GetVrUiLayer());
     }
-    private GameObject CreateWindow(string name, out Image backplate)
+    private GameObject CreateWindow(string name, out Image backplate, float height = 200)
     {
         var window = new GameObject(name, typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup));
         window.transform.SetParent(transform, false);
-        ((RectTransform)window.transform).sizeDelta = new Vector2(520, 200);
+        ((RectTransform)window.transform).sizeDelta = new Vector2(520, height);
         var canvas = window.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = APIBus.CockpitHudCamera;
         var group = window.GetComponent<CanvasGroup>(); group.interactable = false; group.blocksRaycasts = false;
         // A faint glass-like tint and text shadow retain contrast over sky and
         // terrain, without an opaque panel, border, or controller hit target.
         var background = new GameObject("Transparent backing", typeof(RectTransform), typeof(Image));
         background.transform.SetParent(window.transform, false);
-        ((RectTransform)background.transform).sizeDelta = new Vector2(520, 200);
+        ((RectTransform)background.transform).sizeDelta = new Vector2(520, height);
         backplate = background.GetComponent<Image>(); backplate.color = new Color(.015f,.025f,.03f,.12f); backplate.raycastTarget = false;
         LayerHelper.SetLayerRecursive(window.transform, LayerHelper.GetVrUiLayer());
         return window;
@@ -396,8 +463,8 @@ internal sealed class CockpitAlerts : MonoBehaviour
         if (_listHide != null) { _listHide.alpha = 1; Destroy(_listHide); }
         if (_rankHide != null) { _rankHide.alpha = 1; Destroy(_rankHide); }
         if (_messageBackgroundHide != null) { _messageBackgroundHide.alpha = 1; Destroy(_messageBackgroundHide); }
-        _feed?.Release(); _reward?.Release(); _rank?.Release();
-        _feed = _reward = _rank = null; _list = null; _listHide = _rankHide = null; _rankBackground = null;
+        _feed?.Release(); _mission?.Release(); _reward?.Release(); _rank?.Release();
+        _feed = _mission = _reward = _rank = null; _list = null; _listHide = _rankHide = null; _rankBackground = null;
         _messageBackgroundHide = null; _messages = null;
     }
     private void OnDisable()

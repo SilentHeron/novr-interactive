@@ -1,5 +1,6 @@
 using UnityEngine;
 using NOVR.VrUi;
+using NOVR.VrUi.SpecialBehavior;
 
 namespace NOVR.MotionControls;
 
@@ -50,6 +51,7 @@ internal sealed class CockpitLayout : MonoBehaviour
     internal void Begin()
     {
         if (_active || !GameManager.GetLocalAircraft(out var aircraft) || CameraStateManager.cameraMode != CameraMode.cockpit) return;
+        CockpitHudWidgets.Instance?.Finish(false);
         CockpitProfiles.Instance?.Refresh();
         _stick = CockpitProfiles.StickPosition; _throttle = CockpitProfiles.ThrottlePosition;
         _aircraft = aircraft; _leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;

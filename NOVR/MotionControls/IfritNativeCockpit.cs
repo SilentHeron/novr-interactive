@@ -1,5 +1,6 @@
 using NOVR.VrCamera;
 using NOVR.VrUi;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -31,13 +32,13 @@ internal sealed class IfritNativeCockpit : MonoBehaviour
     private Quaternion _handRotation, _recenter;
     private float _gearReadyAt, _seatLift;
 
-    internal static bool OwnsHand(bool left) => Instance?._ready == true && Instance._owner == (left ? 0 : 1);
+    internal static bool OwnsHand(bool left) => !CockpitHudWidgets.Editing && Instance?._ready == true && Instance._owner == (left ? 0 : 1);
     internal static bool Pinching(bool left) => OwnsHand(left) && Instance!._active == Control.Gear;
     internal static bool ControlWithinReach(bool left, ControllerSample hand, Transform tracking)
     {
         var self = Instance;
         return self?._ready == true && self._owner < 0 && !self._request.BlocksInput && hand.Valid &&
-            !CockpitLayout.Active && !WristMenu.IsOpen && self.Near(left, hand, tracking, out _) != Control.None;
+            !CockpitLayout.Active && !CockpitHudWidgets.Editing && !WristMenu.IsOpen && self.Near(left, hand, tracking, out _) != Control.None;
     }
     internal static Pose? HandPose(bool left)
     {
@@ -115,7 +116,7 @@ internal sealed class IfritNativeCockpit : MonoBehaviour
             _anchor = NOVRHeadsetData.TranslationAnchor; _recenter = NOVRHeadsetData.RotationCalibrationOffset;
         }
         if (!TrackedControllers.Available || !GameManager.flightControlsEnabled || Time.timeScale <= 0 ||
-            WristMenu.IsOpen || CockpitLayout.Active || DynamicMap.mapMaximized || CursorManager.GetFlag(CursorFlags.GameMenu) ||
+            WristMenu.IsOpen || CockpitLayout.Active || CockpitHudWidgets.Editing || DynamicMap.mapMaximized || CursorManager.GetFlag(CursorFlags.GameMenu) ||
             (GameManager.controlMapper != null && GameManager.controlMapper.isOpen) ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse())) { Cancel(); return; }
         _request.Update(aircraft.HasEjected(), Time.unscaledTime, Time.frameCount);

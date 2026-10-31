@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NOVR.MotionControls;
 using NOVR.VrUi.Native;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -51,7 +52,6 @@ internal sealed partial class WristMenu : MonoBehaviour
         var c = ModConfiguration.Instance; c.FocusedFlightHud.Value = true;
         c.FlightHudScale.Value += amount; c.MarkerScale.Value += amount;
         c.MarkerLabelScale.Value += amount; c.ReticleScale.Value += amount; c.WeaponHudScale.Value += amount;
-        c.CockpitAlerts.Scale.Value += amount;
     }
 
     private void Update()
@@ -105,6 +105,7 @@ internal sealed partial class WristMenu : MonoBehaviour
                     "\nZoom (hold, any grip): " + DescribeBinding(Bindings.Get(ControllerActionId.Zoom));
             }
             RefreshBindingEditor();
+            RefreshHudLayoutEditor();
             _nextHelpRefresh = Time.unscaledTime + .25f;
         }
         if (_ejectPage?.activeSelf == true &&
@@ -155,7 +156,8 @@ internal sealed partial class WristMenu : MonoBehaviour
         {
             var status = _pageTitle + "\n" + (CockpitProfiles.Instance?.AircraftName ?? "Cockpit") +
                 " · Motion " + (config.MotionControls.Enabled.Value ? "ON" : "OFF") + "\n" +
-                (CockpitLayout.Active ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
+                (CockpitHudWidgets.Editing ? "HUD preview · Save or cancel when finished" :
+                    CockpitLayout.Active ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
             if (_status.text != status) _status.text = status;
         }
     }
@@ -166,6 +168,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         if (!GameManager.GetLocalAircraft(out _openAircraft)) return;
         EnsurePanel();
         Home();
+        if (CockpitHudWidgets.Editing) OpenHudLayout();
         _panel!.SetActive(true);
         _anchored = false;
         CursorManager.SetFlag(WristCursorFlag, true);
@@ -259,7 +262,9 @@ internal sealed partial class WristMenu : MonoBehaviour
             if (CockpitLayout.Active) { CockpitLayout.Instance?.Finish(false); Close(); }
             else motion.Enabled.Value = !motion.Enabled.Value;
         });
-        Label(_homePage.transform, "FLY · weapons, gear, radar and hover\nSET UP · seat, panel and handle placement\nTUNE · response, hands, HUD and feedback", new Vector2(0,-184), new Vector2(510,108), 19);
+        AddButton("HUD layout", 0, 5, OpenHudLayout);
+        AddButton("Threats & feed", 1, 5, () => ShowPage(_alertsPage!));
+        Label(_homePage.transform, "FLY · weapons, gear, radar and hover\nSET UP · seat, handles and HUD widgets\nTUNE · response, hands and feedback", new Vector2(0,-198), new Vector2(510,82), 18);
 
         _setupPage = Page("COCKPIT");
         AddButton("Seat position", 0, 0, () => ShowPage(_seatPage!));
@@ -407,20 +412,19 @@ internal sealed partial class WristMenu : MonoBehaviour
         }));
 
         _displayPage = Page("DISPLAY");
-        AddButton("All HUD smaller", 0, 0, () => ResizeHud(-.04f));
-        AddButton("All HUD larger", 1, 0, () => ResizeHud(.04f));
-        AddButton("HUD nearer", 0, 1, () => config.HudPanelDistance.Value -= .5f);
-        AddButton("HUD farther", 1, 1, () => config.HudPanelDistance.Value += .5f);
+        AddButton("Flight HUD smaller", 0, 0, () => ResizeHud(-.04f));
+        AddButton("Flight HUD larger", 1, 0, () => ResizeHud(.04f));
+        AddButton("HUD layout", 0, 1, OpenHudLayout);
+        AddButton("Threats & feed", 1, 1, () => ShowPage(_alertsPage!));
         AddLiveButton(() => "Backplates: " + (config.HudContrast.Value ? "ON" : "OFF"), 0, 2, () => config.HudContrast.Value = !config.HudContrast.Value);
         AddLiveButton(() => "Declutter: " + (config.HudDeclutter.Value ? "ON" : "OFF"), 1, 2, () => config.HudDeclutter.Value = !config.HudDeclutter.Value);
         AddButton("Brightness", 0, 3, () => ShowPage(_brightnessPage!));
         AddButton("Aiming & markers", 1, 3, () => ShowPage(_aimingPage!));
         AddButton("EOTS helmet view", 1, 4, () => ShowPage(_opticalPage!));
         AddButton("Reset HUD", 0, 4, () => { config.FocusedFlightHud.Value = true; config.FlightHudScale.Value = .38f; config.MarkerScale.Value = .45f; config.MarkerLabelScale.Value = .55f; config.ReticleScale.Value = .45f; config.WeaponHudScale.Value = .5f; config.HudPanelScale.Value = 1.15f; config.HudPanelDistance.Value = 4; config.HudContrast.Value = true; config.HudDeclutter.Value = false; });
-        AddButton("Threats & feed", 0, 5, () => ShowPage(_alertsPage!));
         AddButton("Inspection zoom", 1, 5, () => ShowPage(_zoomPage!));
         var displayInfo = Label(_displayPage.transform, "", new Vector2(0,-210), new Vector2(510,76), 18);
-        _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nStatus-panel depth {config.HudPanelDistance.Value:0.0} m\nDepth changes preserve apparent size."));
+        _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nWidget position and size: HUD layout.\nWorld aim points stay aligned."));
 
         _zoomPage = Page("INSPECTION ZOOM");
         var zoom = config.InspectionZoom;
@@ -440,14 +444,11 @@ internal sealed partial class WristMenu : MonoBehaviour
         var alerts = config.CockpitAlerts;
         AddLiveButton(() => "Compact: " + (alerts.Enabled.Value ? "ON" : "OFF"), 0, 0, () => alerts.Enabled.Value = !alerts.Enabled.Value);
         AddLiveButton(() => "Kill feed: " + (alerts.Feed.Value ? "ON" : "OFF"), 1, 0, () => alerts.Feed.Value = !alerts.Feed.Value);
-        AddButton("Smaller alerts", 0, 1, () => alerts.Scale.Value -= .05f);
-        AddButton("Larger alerts", 1, 1, () => alerts.Scale.Value += .05f);
-        AddButton("Alerts lower", 0, 2, () => alerts.Height.Value -= .025f);
-        AddButton("Alerts higher", 1, 2, () => alerts.Height.Value += .025f);
-        AddLiveButton(() => "World notch: " + (alerts.WorldNotch.Value ? "ON" : "OFF"), 0, 3, () => alerts.WorldNotch.Value = !alerts.WorldNotch.Value);
-        AddButton("Reset alerts", 1, 3, () => { alerts.Enabled.Value = true; alerts.Feed.Value = true; alerts.Scale.Value = 1; alerts.Height.Value = -.30f; alerts.WorldNotch.Value = true; });
-        var alertInfo = Label(_alertsPage.transform, "", new Vector2(0, -150), new Vector2(510, 190), 18);
-        _liveLabels.Add((alertInfo, () => $"Size {alerts.Scale.Value*100:0}% · Height {alerts.Height.Value:0.00} m\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nClose View to inspect placement."));
+        AddButton("HUD layout", 0, 1, OpenHudLayout);
+        AddLiveButton(() => "World notch: " + (alerts.WorldNotch.Value ? "ON" : "OFF"), 1, 1, () => alerts.WorldNotch.Value = !alerts.WorldNotch.Value);
+        Label(_alertsPage.transform, "Move, resize and fade each alert in HUD layout.\n\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nWidget visibility also applies.", new Vector2(0, -100), new Vector2(510, 250), 18);
+
+        CreateHudLayoutPages();
 
         _opticalPage = Page("EOTS HELMET VIEW");
         AddLiveButton(() => "EOTS HUD: " + (config.OpticalHud.Enabled.Value ? "ON" : "OFF"), 0, 0, OpticalTargetingHud.Toggle);
@@ -511,6 +512,7 @@ internal sealed partial class WristMenu : MonoBehaviour
 
     private static void ToggleLayout()
     {
+        CockpitHudWidgets.Instance?.Finish(false);
         if (CockpitLayout.Active) { CockpitLayout.Instance?.Finish(true); Close(); }
         else CockpitLayout.Instance?.Begin();
     }
