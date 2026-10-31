@@ -33,6 +33,7 @@ jobs:
             /tests/
             /tools/verify.py
             /tools/verification/
+            /tools/CockpitProfileChecks/
             /tools/HandComfortChecks/
             /tools/ArmPoseChecks/
             /tools/HandPoseChecks/

@@ -20,6 +20,7 @@ internal sealed class NativeControlModel : IDisposable
     private int _lastHighlight = -1;
     private bool _visible;
     private NativeHandleFade? _fade;
+    private MirroredControlGeometry? _mirror;
 
     private NativeControlModel(Transform parent)
     {
@@ -88,6 +89,9 @@ internal sealed class NativeControlModel : IDisposable
                 try { model._fade = new NativeHandleFade(model._root,model._copies); }
                 catch(Exception e) { Debug.LogWarning("[NOVR] Shaft fade unavailable; opaque native handle retained: " + e.Message); }
             }
+            // Include the ghost shaft meshes as well as the opaque grip. Their
+            // positions, winding and tangent handedness must reflect together.
+            model._mirror = new MirroredControlGeometry(model._root, model._root.GetComponentsInChildren<MeshFilter>(true));
             foreach (var source in sources)
                 foreach (var renderer in source.GetComponentsInChildren<MeshRenderer>(true))
                     if (renderer.GetComponent<MeshFilter>()?.sharedMesh != null)
@@ -142,6 +146,7 @@ internal sealed class NativeControlModel : IDisposable
         foreach (var original in _originals)
             if (original.renderer != null) original.renderer.forceRenderingOff = visible || original.hidden;
     }
+    internal void SetMirrored(bool mirrored) => _mirror?.SetMirrored(mirrored);
     internal void Highlight(int state)
     {
         if (_lastHighlight == state) return;
@@ -162,6 +167,7 @@ internal sealed class NativeControlModel : IDisposable
     public void Dispose()
     {
         if (_visible) SetVisible(false);
+        _mirror?.Dispose(); _mirror = null;
         _fade?.Dispose(); _fade = null;
         if (_root != null) Object.Destroy(_root.gameObject);
     }

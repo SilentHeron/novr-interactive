@@ -27,7 +27,7 @@ public sealed class MotionControlSettings
         const string section = "Motion Controls";
         Enabled = config.Bind(section, "Enabled", false, "Experimental virtual stick and throttle. F7 toggles in flight. Requires tracked OpenXR controllers.");
         ViewMenuFollowsHand = config.Bind(section, "View Menu Follows Hand", false, "Keep the View menu steady in front of the pilot while open. Enable to follow the throttle hand instead. Either controller can point at the menu.");
-        LeftHanded = config.Bind(section, "Left Handed", false, "Use the left hand for the stick and the right for the throttle. Default positions are mirrored.");
+        LeftHanded = config.Bind(section, "Left Handed", false, "Use the left hand for the stick and the right for the throttle. Mirror both control models and their saved positions; keep the seat in place.");
         StickPosition = config.Bind(section, "Stick Position", new Vector3(0.22f, -0.36f, 0.32f), "Neutral grip position in cockpit meters, relative to the recentered eye position. F8 places controls at your hands.");
         ThrottlePosition = config.Bind(section, "Throttle Position", new Vector3(-0.24f, -0.36f, 0.32f), "Center of throttle travel in cockpit meters. F8 or holding both thumbstick clicks places controls at your hands.");
         StickAngle = Float(config, "Stick Angle", DefaultStickAngle, MinimumStickAngle, MaximumStickAngle, "Degrees of wrist tilt for full pitch or roll. Lower angles increase motion-stick sensitivity; yaw is unchanged. Adjust the slider in View > Flight controls or Settings > Controls.");

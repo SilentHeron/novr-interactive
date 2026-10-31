@@ -46,7 +46,9 @@ turn your wrist while holding the panel to rotate it. The panel becomes an outli
 so handles behind it remain visible. Flight and console actions are suspended
 while editing. Open View again and choose **Save layout** or **Cancel layout**.
 
-Handle positions save per aircraft and handedness; the panel pose is shared across
+Handle positions save per aircraft. Switching handedness mirrors both controls
+and their saved positions, while the seat stays in place. The existing layout for
+your selected hand is retained when upgrading. The panel pose is shared across
 aircraft. Tracking loss or menus release a drag; a new grip press is required.
 Leaving the cockpit cancels an unfinished edit. The older **Place handles (3s)**
 option is under **View → Flight controls**; F8 remains available.
@@ -165,7 +167,7 @@ The motion direction does not change when hover assist is toggled.
 with **Shorter lift / Longer lift** buttons. The default full range is 12 cm.
 Saved positions remain the middle of the range. **Place handles** aligns the
 visible grips with your hands at the current command, including a fully raised
-or lowered collective, and saves separately for each aircraft and handedness.
+or lowered collective, and saves separately for each aircraft.
 Existing helicopter positions are retained; use placement again if the new lift
 range needs more clearance around your chair.
 
@@ -271,9 +273,8 @@ foreground text occlusion and the handles alongside the shared console. These us
 temporary simulated input; physical headset reach and comfort remain unverified.
 
 Place the controllers where your hands can rest comfortably before calibrating. The
-controls stay in cockpit space as you look around. Placement and seat offsets are now saved per aircraft and handedness. See the
-[Steam Frame guide](STEAM_FRAME.md) for the wrist panel and additional controls. `Left Handed` swaps hands and mirrors placement. After
-changing handedness, calibrate again if needed. Controllers without thumbstick
+controls stay in cockpit space as you look around. Placement and seat offsets save per aircraft. See the
+[Steam Frame guide](STEAM_FRAME.md) for the wrist panel and additional controls. `Left Handed` swaps hands and mirrors both control models and placement, preserving the grip fit and seat position. Controllers without thumbstick
 clicks can use F8.
 
 ## Configuration
@@ -532,7 +533,7 @@ and **Controls help** separates stick-hand and throttle-hand bindings into two
 columns. **View → Comfort & display → Hands & arms** holds hand and sleeve settings.
 Resetting the seat and handles requires **Reset seat & handles… → Reset seat &
 handles**; **Keep my setup** returns without changing saved placement. This reset
-applies only to the current aircraft and handedness; panel placement is retained.
+applies only to the current aircraft; panel placement is retained.
 
 Touch or point at the **PAGES** title above either MFD, then trigger/grip a page.
 The picker highlights the current page and marks unavailable aircraft instruments

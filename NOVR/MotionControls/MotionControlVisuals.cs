@@ -20,6 +20,8 @@ internal sealed class MotionControlVisuals : IDisposable
     private readonly Material _baseMaterial, _idleMaterial, _hoverMaterial, _heldMaterial, _handMaterial, _textMaterial;
     private readonly Font _font;
     private NativeControlModel? _nativeStick, _nativeThrottle;
+    private MirroredControlGeometry? _fallbackStickMirror, _fallbackThrottleMirror;
+    private bool _mirrored;
     private readonly List<Renderer> _fallbackStick = new(), _fallbackThrottle = new();
     private float _lastTravel = -1;
     private bool? _lastCollective;
@@ -81,6 +83,8 @@ internal sealed class MotionControlVisuals : IDisposable
             milLabel.characterSize = .0011f; milLabel.transform.localRotation = Quaternion.Euler(90,0,0);
             _stickHand = Shape("Stick Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
             _throttleHand = Shape("Throttle Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
+            _fallbackStickMirror = new MirroredControlGeometry(_stickBase, _stickBase.GetComponentsInChildren<MeshFilter>(true));
+            _fallbackThrottleMirror = new MirroredControlGeometry(_throttleBase, _throttleBase.GetComponentsInChildren<MeshFilter>(true));
         }
         catch { Dispose(); throw; }
     }
@@ -95,6 +99,7 @@ internal sealed class MotionControlVisuals : IDisposable
         _nativeThrottle = NativeControlModel.TryCreate(aircraft, false, _throttleHandle);
         if (_nativeStick != null) foreach (var renderer in _fallbackStick) renderer.enabled = false;
         if (_nativeThrottle != null) foreach (var renderer in _fallbackThrottle) renderer.enabled = false;
+        SetMirrored(ModConfiguration.Instance.MotionControls.LeftHanded.Value);
         CockpitForeground.Register(Root);
     }
     internal void SetVisible(bool visible)
@@ -107,12 +112,21 @@ internal sealed class MotionControlVisuals : IDisposable
         ? new Pose(_stickPivot.TransformPoint(Vector3.up * .108f), _stickPivot.rotation)
         : new Pose(_throttleHandle.position, _throttleHandle.rotation);
 
+    private void SetMirrored(bool mirrored)
+    {
+        if (_mirrored == mirrored) return;
+        _mirrored = mirrored;
+        _fallbackStickMirror?.SetMirrored(mirrored); _fallbackThrottleMirror?.SetMirrored(mirrored);
+        _nativeStick?.SetMirrored(mirrored); _nativeThrottle?.SetMirrored(mirrored);
+    }
+
     public void Update(Vector3 stick, Vector3 throttle, float travel, float angle, float pitch, float roll,
         float thrust, bool stickHeld, bool throttleHeld, bool stickNear, bool throttleNear,
         bool stickTracked, Vector3 stickHand, bool throttleTracked, Vector3 throttleHand,
         bool stickLatched = false, bool throttleLatched = false, bool stickTapMode = false, bool throttleTapMode = false,
         bool brakesApplied = false, string throttleTitle = "THROTTLE", bool collective = false, float yawDegrees = 0f, float milPower = -1f)
     {
+        SetMirrored(ModConfiguration.Instance.MotionControls.LeftHanded.Value);
         _stickBase.localPosition = stick - Vector3.up * 0.12f;
         _stickPivot.localRotation = Quaternion.Euler(pitch * angle, 0f, -roll * angle) * Quaternion.Euler(0f, yawDegrees, 0f);
         _throttleBase.localPosition = throttle;
@@ -241,6 +255,7 @@ internal sealed class MotionControlVisuals : IDisposable
     public void Dispose()
     {
         if (Root != null) CockpitForeground.Unregister(Root);
+        _fallbackStickMirror?.Dispose(); _fallbackThrottleMirror?.Dispose();
         _nativeStick?.Dispose(); _nativeThrottle?.Dispose();
         Font.textureRebuilt -= RefreshFontTexture;
         if (Root != null) Object.Destroy(Root.gameObject);

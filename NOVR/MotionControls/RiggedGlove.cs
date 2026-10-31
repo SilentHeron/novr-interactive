@@ -172,7 +172,7 @@ internal sealed class RiggedGlove : IDisposable
                 : collective ? Quaternion.Euler(0, 0, _left ? 60 : -60) * Quaternion.Euler(0, _left ? -90 : 90, 0) : Quaternion.Euler(8, 0, 0));
             if (fitted)
                 Root.SetPositionAndRotation(grip.position + grip.rotation * Fs20HandPoses.Wrist(stick, _left),
-                    grip.rotation * (stick ? Quaternion.Euler(0, 0, _left ? 90 : -90) : Quaternion.identity));
+                    grip.rotation * (stick ? Fs20HandPoses.StickRotation(_left) : Quaternion.identity));
             else Root.SetPositionAndRotation(grip.position - rotation * new Vector3(0, -.019f, .043f), rotation);
         }
         else
@@ -220,7 +220,7 @@ internal sealed class RiggedGlove : IDisposable
                 pose = Quaternion.AngleAxis(-10*Mathf.Sin(Mathf.PI*_thumbContact), Vector3.right) * pose;
             if (fitted && stick && i >= 7 && i <= 9)
                 pose = Quaternion.Slerp(pose, _stickTrigger[i], _triggerPressure);
-            if (fitted && i == 7) pose = Quaternion.AngleAxis(-5*(1-_indexContact), Vector3.right) * pose;
+            if (fitted && i == 7) pose = Quaternion.AngleAxis(-(stick ? 1f : 5f)*(1-_indexContact), Vector3.right) * pose;
             _bones[i].localRotation = pose;
         }
         _wasFittedStick = fitted && stick;

@@ -139,9 +139,13 @@ original cockpit meshes and shared materials are untouched.
 
 The FS-20 has separate authored joint poses for its throttle and stick. The
 throttle palm rests above the handle, fingers curl independently around its front,
-and the thumb can reach the side hat. The stick hand wraps below the head with
-its heel clear of the palm shelf. The cuff and sleeve align toward the forearm.
+and the thumb can reach the side hat. The stick hand approaches the handle at
+an upward angle, with the pad below the thumb seated against the grip and a
+relaxed, extended thumb. The lower fingers wrap individually below the head;
+finger lengths are unchanged. The cuff and sleeve align toward the forearm.
 Gloves stay attached to the control while held; free hands follow tracking.
+Changing handedness mirrors both handle models and their saved positions, so
+the same fitted grip works on the opposite side. Seat position stays unchanged.
 
 Steam Frame capacitive thumbstick, face-button, trigger and grip presence drive
 visual finger motion. On the stick, touching A rests the thumb on the red release
@@ -169,14 +173,13 @@ Reapply the preset under View → Flight controls → Button bindings if needed.
 ## Scope and validation
 
 The installed game's FS-20 definition is `SmallFighter1` (not `Multirole1`).
-The implementation targets Nuclear Option 0.34.3 and Steam Frame PC streaming.
+The current build targets Nuclear Option 0.34.6 and Steam Frame PC streaming.
 No proprietary game meshes, textures or assemblies are distributed. Handle meshes
 and pilot sleeves are reused from the local installation; authored poses are only
 joint rotations and offsets. No per-frame mesh collision solver is added.
 
-Final 0.4.7.5 runtime and package evidence is pending. The validation plan covers
-release compilation, input/asset contracts, UI lifecycle, physical softkey
-interaction, guided fingertip press/release, native action delivery and menu layout. Private geometry checks
-sample vertices, triangle centers and edge midpoints against the installed control meshes, including thumb
-transitions. Offline mission checks use synthetic tracked inputs and inspection
-cameras; physical reach, haptic feel and stereo comfort still require headset use.
+The grip is inspected against the installed control mesh from multiple angles.
+Focused checks cover attachment transitions, independent thumb/trigger motion,
+mirrored geometry and saved-layout migration. Release compilation and native
+patch contracts are checked before installation. Physical reach, haptic feel and
+stereo comfort still require headset use.

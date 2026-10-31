@@ -8,6 +8,7 @@ CockpitAlertChecks.Run(Check, True);
 ButtonContactGuideChecks.Run(Check, True);
 SwitchGrabChecks.Run(Check, True);
 StickLimitFeedbackChecks.Run(Check, True);
+ControlMirrorChecks.Run(Check, True);
 Check("MFD page keys skip unfitted instruments in both directions and preserve a single widget owner", () =>
 {
     var available = (1 << (int)MfdPage.Weapons) | (1 << (int)MfdPage.Map) | (1 << (int)MfdPage.Sensor);

@@ -19,6 +19,7 @@ RUN_DIRECTORY = ROOT / "tools" / "verification"
 PORTABLE = (
     ("core", "tests/NOVR.Tests.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
+    ("cockpit-profiles", "tools/CockpitProfileChecks/CockpitProfileChecks.csproj"),
     ("hand-comfort", "tools/HandComfortChecks/HandComfortChecks.csproj"),
     ("arm-pose", "tools/ArmPoseChecks/ArmPoseChecks.csproj"),
     ("hand-pose", "tools/HandPoseChecks/HandPoseChecks.csproj"),

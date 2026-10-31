@@ -19,6 +19,7 @@ internal sealed class CockpitProfiles : MonoBehaviour
     private readonly Dictionary<string, Profile> _profiles = new();
     private Profile? _current;
     private string? _key;
+    private bool _leftHanded;
     internal static CockpitProfiles? Instance { get; private set; }
     internal static Vector3 SeatOffset => Instance?._current?.Seat.Value ?? Vector3.zero;
     internal static Vector3 StickPosition => CockpitLayout.StickPreview ?? Instance?._current?.Stick.Value ?? ModConfiguration.Instance.MotionControls.StickPosition.Value;
@@ -38,17 +39,26 @@ internal sealed class CockpitProfiles : MonoBehaviour
         }
         var identity = aircraft.definition.jsonKey;
         if (string.IsNullOrEmpty(identity)) identity = aircraft.definition.name;
-        // Separate mirrored layouts so changing handedness does not overwrite the other setup.
-        identity += ModConfiguration.Instance.MotionControls.LeftHanded.Value ? ":left" : ":right";
-        if (_key == identity) return;
+        var settings = ModConfiguration.Instance.MotionControls;
+        var leftHanded = settings.LeftHanded.Value;
+        // One cockpit layout in right-stick coordinates. HandedPosition mirrors
+        // the handles when used; the seat remains in aircraft coordinates.
+        if (_key == identity)
+        {
+            if (_leftHanded != leftHanded)
+            {
+                _leftHanded = leftHanded;
+                MotionFlightController.Instance?.ResetGrips();
+            }
+            return;
+        }
         _key = identity;
+        _leftHanded = leftHanded;
         AircraftName = aircraft.definition.unitName;
         if (!_profiles.TryGetValue(identity, out _current))
         {
-            using var hash = SHA256.Create();
-            var section = "Cockpit " + System.BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-", "").Substring(0, 16);
+            var section = Section(identity);
             var config = ModConfiguration.Instance.Config;
-            var settings = ModConfiguration.Instance.MotionControls;
             var collective = MotionFlightController.UsesLiftCollective(aircraft);
             var defaultThrottle = settings.ThrottlePosition.Value;
             if (collective) defaultThrottle.y = Mathf.Min(defaultThrottle.y, settings.StickPosition.Value.y - .15f);
@@ -59,10 +69,28 @@ internal sealed class CockpitProfiles : MonoBehaviour
                 Throttle = config.Bind(section, "Throttle Position", defaultThrottle, "Saved throttle/collective travel center for " + identity),
                 DefaultThrottle = defaultThrottle
             };
+            var cockpitAnchored = config.Bind(section, "Cockpit Anchored Handles Applied", false,
+                "One-time conversion of saved seat-relative handles to fixed cockpit positions. Seat adjustment no longer moves the handles.");
+            var lowered = collective ? config.Bind(section, "Lower Collective Default Applied", false,
+                "One-time migration of untouched helicopter handle defaults. Custom placements are retained.") : null;
+            var shared = config.Bind(section, "Shared Handedness Layout Applied", false,
+                "Uses one saved seat and handle layout for both hands. The selected legacy layout is copied once; changing stick hand only mirrors the handles.");
+            if (!shared.Value)
+            {
+                // Preserve whichever layout the pilot is using at upgrade time,
+                // including its migration state. Keep both legacy sections for
+                // recovery instead of modifying or deleting their saved values.
+                var legacy = Section(identity + (leftHanded ? ":left" : ":right"));
+                _current.Seat.Value = config.Bind(legacy, "Seat Offset", Vector3.zero, "Legacy seat translation for " + identity).Value;
+                _current.Stick.Value = config.Bind(legacy, "Stick Position", settings.StickPosition.Value, "Legacy stick placement for " + identity).Value;
+                _current.Throttle.Value = config.Bind(legacy, "Throttle Position", defaultThrottle, "Legacy throttle placement for " + identity).Value;
+                cockpitAnchored.Value = config.Bind(legacy, "Cockpit Anchored Handles Applied", false, "Legacy cockpit anchoring migration state.").Value;
+                if (lowered != null)
+                    lowered.Value = config.Bind(legacy, "Lower Collective Default Applied", false, "Legacy collective default migration state.").Value;
+            }
             if (collective)
             {
-                var lowered = config.Bind(section, "Lower Collective Default Applied", false, "One-time migration of untouched helicopter handle defaults. Custom placements are retained.");
-                if (!lowered.Value)
+                if (!lowered!.Value)
                 {
                     if (_current.Stick.Value == settings.StickPosition.Value && _current.Throttle.Value == settings.ThrottlePosition.Value)
                         _current.Throttle.Value = defaultThrottle;
@@ -72,15 +100,16 @@ internal sealed class CockpitProfiles : MonoBehaviour
             _current.Seat.Value = BoundSeat(_current.Seat.Value);
             if (!TrackedControllers.Finite(_current.Stick.Value)) _current.Stick.Value = (Vector3)settings.StickPosition.DefaultValue;
             if (!TrackedControllers.Finite(_current.Throttle.Value)) _current.Throttle.Value = defaultThrottle;
-            var cockpitAnchored = config.Bind(section, "Cockpit Anchored Handles Applied", false,
-                "One-time conversion of saved seat-relative handles to fixed cockpit positions. Seat adjustment no longer moves the handles.");
             if (!cockpitAnchored.Value)
             {
                 var offset = _current.Seat.Value;
-                if (settings.LeftHanded.Value) offset.x = -offset.x;
+                // A legacy left-hand layout stored unmirrored handle positions,
+                // but its seat offset was always in aircraft coordinates.
+                if (leftHanded) offset.x = -offset.x;
                 _current.Stick.Value += offset; _current.Throttle.Value += offset;
                 cockpitAnchored.Value = true;
             }
+            shared.Value = true;
             _profiles.Add(identity, _current);
         }
         MotionFlightController.Instance?.ResetGrips();
@@ -114,5 +143,10 @@ internal sealed class CockpitProfiles : MonoBehaviour
 
     private static Vector3 BoundSeat(Vector3 value) => !TrackedControllers.Finite(value) ? Vector3.zero :
         new Vector3(Mathf.Clamp(value.x, -0.5f, 0.5f), Mathf.Clamp(value.y, -0.5f, 0.5f), Mathf.Clamp(value.z, -0.5f, 0.5f));
+    private static string Section(string identity)
+    {
+        using var hash = SHA256.Create();
+        return "Cockpit " + System.BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-", "").Substring(0, 16);
+    }
     private void OnDestroy() { if (Instance == this) Instance = null; }
 }

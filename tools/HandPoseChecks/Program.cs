@@ -36,7 +36,7 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     Near(glove.Root.localPosition, previous, "Acquiring stick snapped wrist"); SameRotation(glove.Root.localRotation, previousRotation, "Acquiring stick snapped rotation");
     Settle(grip, true);
     Near(glove.Root.position, grip.position + grip.rotation * Fs20HandPoses.Wrist(true, left), "Stick anchor changed");
-    SameRotation(glove.Root.rotation, grip.rotation * Quaternion.Euler(0, 0, left ? 90 : -90), "Stick wrist orientation changed");
+    SameRotation(glove.Root.rotation, grip.rotation * Fs20HandPoses.StickRotation(left), "Stick wrist orientation changed");
     Near(glove.FreeTouchPoint(sample, true), rawTip, "Held visual attachment fed back into raw fingertip");
     Near(glove.FreeTouchPoint(sample, false), rawPalm, "Held visual attachment fed back into raw palm");
     Check(!glove.IsTransitioning, "Held transition never settled");
@@ -103,6 +103,64 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
             else Near(mesh.normals[i], original.normals[i], "Hard edge or different skin weights were welded");
     }
     Check(welded > 900, "Shading repair did not cover the known UV seams");
+}
+// The native controls and gloves must reflect together. A separate left-hand
+// fit can look plausible yet drift off the mirrored handle during button motion.
+{
+    Time.unscaledTime = 0; Time.unscaledDeltaTime = 1f / 90;
+    var tracking = new GameObject("mirror check").transform;
+    using var right = new RiggedGlove(false, tracking, new Material(), default);
+    using var left = new RiggedGlove(true, tracking, new Material(), default);
+    var grip = new Pose(Vector3.zero, Quaternion.identity);
+    var asset = RiggedGlove.Load(false);
+    var bind = new Vector3[asset.bones.Length];
+    for (var i = 0; i < bind.Length; i++)
+    {
+        var b = asset.bones[i]; bind[i] = new Vector3(b.position[0], b.position[1], b.position[2]);
+        if (b.parent >= 0) bind[i] += bind[b.parent];
+    }
+    Vector3 Surface(int vertex)
+    {
+        var point = new Vector3(asset.vertices[vertex * 3], asset.vertices[vertex * 3 + 1], asset.vertices[vertex * 3 + 2]);
+        var result = Vector3.zero;
+        for (var j = 0; j < 4; j++)
+        {
+            var offset = vertex * 4 + j; var bone = asset.indices[offset];
+            result += right.Renderer.bones[bone].TransformPoint(point - bind[bone]) * asset.weights[offset];
+        }
+        return result;
+    }
+    Vector3 Reflect(Vector3 v) => new(-v.x, v.y, v.z);
+    int[] thenar = [1132, 1262, 1309, 1319, 2145];
+    Vector3[] contact = []; Quaternion baseThumb = default; Quaternion upperThumb = default;
+    foreach (var mode in new[] { "rest", "hat", "hat press", "release touch", "release press", "trigger", "rest again" })
+    {
+        var sample = new ControllerSample { Valid = true, Rotation = Quaternion.identity,
+            ThumbstickTouched = mode == "hat", StickClick = mode == "hat press",
+            PrimaryTouched = mode == "release touch", Primary = mode == "release press",
+            Trigger = mode == "trigger" ? 1 : 0 };
+        for (var frame = 0; frame < 90; frame++)
+        {
+            Time.unscaledTime += Time.unscaledDeltaTime;
+            right.Pose(sample, grip, true, false); left.Pose(sample, grip, true, false);
+        }
+        Near(left.Root.position, Reflect(right.Root.position), "Mirrored grip moved wrist off reflected handle");
+        for (var i = 0; i < right.Renderer.bones.Length; i++)
+        {
+            var rb = right.Renderer.bones[i]; var lb = left.Renderer.bones[i];
+            Near(lb.position, Reflect(rb.position), "Left finger did not exactly mirror canonical right grip");
+            Near(lb.rotation * Vector3.up, Reflect(rb.rotation * Vector3.up), "Mirrored joint orientation diverged", .0001f);
+        }
+        if (mode == "rest")
+        { contact = thenar.Select(Surface).ToArray(); baseThumb = right.Renderer.bones[2].localRotation; upperThumb = right.Renderer.bones[3].localRotation; }
+        else
+        {
+            SameRotation(right.Renderer.bones[2].localRotation, baseThumb, "Thumb control pulled its supporting metacarpal away from grip");
+            for (var i = 0; i < thenar.Length; i++) Near(Surface(thenar[i]), contact[i], "Thumb animation moved the supporting thenar surface", .00005f);
+            if (mode != "trigger" && mode != "rest again")
+                Check(Quaternion.Angle(right.Renderer.bones[3].localRotation, upperThumb) > .05f, "Thumb actuator did not articulate above the fixed contact patch");
+        }
+    }
 }
 Console.WriteLine($"{checks} hand pose checks passed at 45/72/90/120 Hz on both glove rigs.");
 Console.WriteLine("Standalone transform/math checks only: Unity rendering and headset comfort remain unverified.");
