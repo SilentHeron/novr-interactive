@@ -5,5 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/WristMenuHudLayout.cs" Link="WristMenuHudLayout.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/CockpitWidgetAppearanceEditor.cs" Link="CockpitWidgetAppearanceEditor.cs" />
+    <Compile Include="../../NOVR/MotionControls/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
   </ItemGroup>
 </Project>

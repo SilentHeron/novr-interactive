@@ -19,6 +19,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         internal Canvas Canvas = null!;
         internal CanvasGroup Group = null!;
         internal Image Background = null!;
+        internal CockpitWidgetAppearanceEditor Appearance = null!;
         internal readonly Image[] Corners = new Image[4];
         internal readonly Image[] Outline = new Image[4];
         internal Text Caption = null!, Placeholder = null!;
@@ -28,7 +29,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         internal readonly ControllerButtonGate Gate = new();
         internal string? Id;
-        internal Vector3 Offset;
+        internal Vector3 LocalAnchor;
+        internal Vector2 StartAngles, GripAngles;
+        internal Quaternion CornerRotation;
         internal int Corner = -1;
     }
     private readonly Dictionary<string, Widget> _widgets = new();
@@ -37,6 +40,10 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private readonly Drag[] _hands = { new(), new() };
     private readonly ControllerSample[] _samples = new ControllerSample[2];
     private readonly Vector3[] _points = new Vector3[2];
+    private readonly Vector2[] _handAngles = new Vector2[2];
+    private readonly bool[] _angleValid = new bool[2];
+    private readonly bool[] _appearanceBusy = new bool[2];
+    private string? _menuAppearanceFocus;
     private readonly string?[] _hover = new string?[2];
     private string? _resizing;
     private Vector3 _resizeOffset, _resizeSpan;
@@ -51,7 +58,23 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private Font? _font;
     internal static CockpitHudWidgets? Instance { get; private set; }
     internal static bool Editing => Instance?._editing == true;
-    internal static bool IsHandBusy(bool left) => Editing && Instance!._hands[left ? 0 : 1].Id != null;
+    internal static bool IsHandBusy(bool left) => Editing &&
+        (Instance!._hands[left ? 0 : 1].Id != null || Instance._appearanceBusy[left ? 0 : 1]);
+    internal static bool AppearancePointing(bool left) => Editing && Instance!._appearanceBusy[left ? 0 : 1];
+    internal static bool TryGetCornerHandPose(bool left, out Vector3 worldPosition, out Quaternion worldRotation)
+    {
+        worldPosition = default; worldRotation = Quaternion.identity;
+        var self = Instance;
+        if (self == null || !self._editing || !self.Ready() || !self.Space(out _, out _, out var eye)) return false;
+        var drag = self._hands[left ? 0 : 1];
+        if (drag.Id == null || drag.Corner < 0 || !drag.Gate.Held || !self._poses.TryGetValue(drag.Id, out var pose)) return false;
+        var half = Size(drag.Id) * (PixelSize * pose.Scale * .5f);
+        var corner = new Vector3((drag.Corner & 1) == 0 ? -half.x : half.x, (drag.Corner & 2) == 0 ? -half.y : half.y, 0);
+        var rotation = Quaternion.Euler(pose.Euler);
+        worldPosition = CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, pose.Position + rotation * corner);
+        worldRotation = eye.rotation * rotation * drag.CornerRotation;
+        return true;
+    }
     internal static Aircraft? CurrentAircraft => Instance?._aircraft;
     internal string SelectedId { get; private set; } = "weapons";
     internal string AircraftName => _aircraft?.definition?.unitName ?? "No aircraft";
@@ -153,6 +176,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         for (var i = 0; i < 2; i++)
         {
             _samples[i] = TrackedControllers.Read(i == 0);
+            UpdateAppearance(i, _samples[i]);
             UpdateHand(i, _samples[i]);
         }
         MoveHeldWidgets();
@@ -212,6 +236,13 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         _poses[id] = HudWidgetProfiles.Sanitize(id, pose); _resetToDefault = false; Place();
     }
     internal void Select(string id) { if (_widgets.ContainsKey(id)) SelectedId = id; }
+    internal void FocusAppearance(string? id) => _menuAppearanceFocus = id != null && _poses.ContainsKey(id) ? id : null;
+    internal void SetAngles(string id, Vector2 angles)
+    {
+        if (!_editing || !_poses.ContainsKey(id)) return;
+        var pose = _poses[id]; pose.Euler = new Vector3(angles.x, angles.y, 0);
+        ReleaseHands(); SetPose(id, pose);
+    }
 
     internal void SetAppearance(string id, HudWidgetPose value)
     {
@@ -262,17 +293,24 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         _seat = CockpitProfiles.SeatOffset; _anchor = NOVRHeadsetData.TranslationAnchor;
         _calibration = NOVRHeadsetData.TranslationCalibrationOffset; _recenter = NOVRHeadsetData.RotationCalibrationOffset;
     }
-    private bool HandPosition(ControllerSample hand, out Vector3 position)
+    private bool HandPosition(ControllerSample hand, int index, out Vector3 position)
     {
         position = default;
-        if (!hand.Valid || !Space(out var gameRoot, out _, out var eye)) return false;
+        if (!hand.Valid || !Space(out var gameRoot, out _, out var eye)) { _angleValid[index] = false; return false; }
         position = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation, gameRoot.TransformPoint(hand.Position));
+        var rotation = Quaternion.Inverse(eye.rotation) * gameRoot.rotation * hand.Rotation;
+        var forward = rotation * Vector3.forward;
+        var previous = _handAngles[index];
+        var angles = HudWidgetAngleMath.Direction(forward.x, forward.y, forward.z, previous.x, previous.y, _angleValid[index]);
+        _handAngles[index] = new Vector2(angles.pitch, angles.yaw);
+        _angleValid[index] = true;
         return TrackedControllers.Finite(position);
     }
     private void UpdateHand(int index, ControllerSample hand)
     {
         var drag = _hands[index];
-        var valid = HandPosition(hand, out var point);
+        if (_appearanceBusy[index]) { drag.Gate.Reset(); _hover[index] = null; return; }
+        var valid = HandPosition(hand, index, out var point);
         _points[index] = point;
         drag.Gate.Update(valid, hand.Grip);
         var hover = valid && CockpitLayout.HeldByHand(index == 0) == CockpitLayout.Element.None
@@ -297,12 +335,48 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             if (id != null)
             {
                 drag.Id = id; SelectedId = id;
-                var pose = _poses[id];
-                drag.Offset = pose.Position - point;
                 drag.Corner = corner;
+                RebaseDrag(index);
+                if (corner >= 0 && Space(out var gameRoot, out _, out var eye))
+                    drag.CornerRotation = Quaternion.Inverse(eye.rotation * Quaternion.Euler(_poses[id].Euler)) *
+                        PilotHandVisuals.FreeHandRotation(index == 0, hand, gameRoot);
                 InteractionHaptics.Pulse(hand.Device, InteractionCue.Grab);
             }
         }
+    }
+    private void UpdateAppearance(int index, ControllerSample hand)
+    {
+        _appearanceBusy[index] = false;
+        var available = hand.Valid && _hands[index].Id == null && CockpitLayout.HeldByHand(index == 0) == CockpitLayout.Element.None;
+        var tip = Vector3.zero;
+        if (available && Space(out var gameRoot, out _, out var eye))
+            tip = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation, PilotHandVisuals.TouchPoint(index == 0, hand, gameRoot, true));
+        else available = false;
+        Widget? selected = null; var nearest = float.PositiveInfinity;
+        foreach (var pair in _widgets)
+        {
+            var editor = pair.Value.Appearance;
+            if (!available) continue;
+            if (editor.IsHandBusy(index)) { selected = pair.Value; break; }
+            var pose = _poses[pair.Key]; var metres = PixelSize * pose.Scale;
+            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (tip - pose.Position) / metres;
+            var distance = Mathf.Abs(local.z) * metres;
+            if (editor.HitTest(local, metres) && distance < nearest) { selected = pair.Value; nearest = distance; }
+        }
+        foreach (var pair in _widgets)
+        {
+            var pose = _poses[pair.Key]; var metres = PixelSize * pose.Scale;
+            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (tip - pose.Position) / metres;
+            _appearanceBusy[index] |= pair.Value.Appearance.UpdateHand(index, local, available && pair.Value == selected, metres, hand.Device);
+        }
+    }
+    private void RebaseDrag(int index)
+    {
+        var drag = _hands[index]; if (drag.Id == null) return;
+        var pose = _poses[drag.Id];
+        drag.LocalAnchor = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (_points[index] - pose.Position);
+        drag.StartAngles = new Vector2(pose.Euler.x, pose.Euler.y);
+        drag.GripAngles = _handAngles[index];
     }
     private float WidgetDistance(Vector3 point, string id)
     {
@@ -330,13 +404,18 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         if (_resizing != null)
         {
             for (var i = 0; i < 2; i++)
-                if (_hands[i].Id == _resizing) _hands[i].Offset = _poses[_resizing].Position - _points[i];
+                if (_hands[i].Id == _resizing) RebaseDrag(i);
             _resizing = null;
         }
         for (var i = 0; i < 2; i++)
         {
             var drag = _hands[i]; if (drag.Id == null || !drag.Gate.Held) continue;
-            var pose = _poses[drag.Id]; pose.Position = _points[i] + drag.Offset; SetPose(drag.Id, pose);
+            var pose = _poses[drag.Id];
+            var angles = HudWidgetAngleMath.Drag(drag.StartAngles.x, drag.StartAngles.y, drag.GripAngles.x, drag.GripAngles.y,
+                _handAngles[i].x, _handAngles[i].y);
+            pose.Euler = new Vector3(angles.pitch, angles.yaw, 0);
+            pose.Position = _points[i] - Quaternion.Euler(pose.Euler) * drag.LocalAnchor;
+            SetPose(drag.Id, pose);
         }
     }
     private string? SelectAt(Vector3 point, int hand, out int corner)
@@ -410,6 +489,11 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         }
         widget.Caption = Label(widget.Root, HudWidgetProfiles.Label(id), new Vector2(0, Size(id).y * .5f + 18), new Vector2(Size(id).x + 50, 32), 20);
         widget.Placeholder = Label(widget.Root, Preview(id), Vector2.zero, Size(id) - new Vector2(12, 12), 20);
+        widget.Appearance = new CockpitWidgetAppearanceEditor(widget.Root, Size(id), value =>
+        {
+            if (!_editing) return;
+            var pose = GetPose(id); pose.Background = value; Select(id); SetAppearance(id, pose);
+        });
         LayerHelper.SetLayerRecursive(root.transform, LayerHelper.GetVrUiLayer());
         _widgets.Add(id, widget);
     }
@@ -446,21 +530,25 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         "weapons" => "WEAPONS\nNo selection",
         "countermeasures" => "COUNTERMEASURES\nNo readout",
         "power" => "CAPACITOR · IDLE",
-        "threats" => "MISSILE WARNINGS · STANDBY",
-        "ew" => "RADAR / EW · STANDBY",
         "map" => "MAP\nWaiting for terrain",
-        _ => "NO RECENT NOTIFICATIONS"
+        _ => ""
     };
     private void Place()
     {
         var hasSpace = Space(out var gameRoot, out var uiRoot, out var eye);
         var ready = hasSpace && Ready();
+        string? focused = WristMenu.IsOpen ? _menuAppearanceFocus : null;
+        if (focused == null)
+            foreach (var pair in _widgets)
+                if (_editing && pair.Value.Appearance.IsOpen) { focused = pair.Key; break; }
         foreach (var pair in _widgets)
         {
             var widget = pair.Value;
             if (widget.Root == null) continue;
             var pose = _poses[pair.Key];
             var show = ready && (pose.Visible || _editing);
+            var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
+            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);
             widget.Root.gameObject.SetActive(show);
             if (!show || gameRoot == null || uiRoot == null || eye == null) continue;
             widget.Canvas.worldCamera = APIBus.CockpitHudCamera;
@@ -468,25 +556,28 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
                     CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, pose.Position))),
                 uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation * Quaternion.Euler(pose.Euler));
             widget.Root.localScale = Vector3.one * (PixelSize * pose.Scale);
-            widget.Group.alpha = pose.Visible ? pose.Opacity : 0;
-            widget.Background.color = new Color(.015f, .025f, .03f, pose.Visible ? pose.Background : 0);
+            widget.Group.alpha = pose.Visible ? pose.Opacity * emphasis : 0;
+            widget.Background.color = new Color(.015f, .025f, .03f, pose.Visible ? pose.Background * emphasis : 0);
             var held = _hands[0].Id == pair.Key || _hands[1].Id == pair.Key;
             var hovered = _hover[0] == pair.Key || _hover[1] == pair.Key;
             var color = held ? new Color(.3f, 1f, .8f, 1) : hovered ? new Color(.6f, 1f, 1f, .9f) : new Color(.65f, .85f, .9f, .55f);
+            color.a *= emphasis;
             foreach (var edge in widget.Outline) { edge.enabled = _editing; edge.color = color; }
             foreach (var corner in widget.Corners) { corner.enabled = _editing; corner.color = color; }
             widget.Caption.enabled = _editing;
+            widget.Caption.color = new Color(1, 1, 1, emphasis);
             if (_editing)
             {
                 var caption = HudWidgetProfiles.Label(pair.Key) + (pose.Visible ? "" : " · HIDDEN");
                 if (widget.Caption.text != caption) widget.Caption.text = caption;
             }
-            widget.Placeholder.enabled = (!widget.HasContent || !pose.Visible) && (_editing || pose.Visible);
+            var idle = Idle(pair.Key);
+            widget.Placeholder.enabled = (!widget.HasContent || !pose.Visible) && (_editing || pose.Visible && idle.Length > 0);
             if (widget.Placeholder.enabled)
             {
-                var text = _editing ? Preview(pair.Key) : Idle(pair.Key);
+                var text = _editing ? Preview(pair.Key) : idle;
                 if (widget.Placeholder.text != text) widget.Placeholder.text = text;
-                widget.Placeholder.color = _editing ? Color.white : new Color(.56f, .9f, .68f, pose.Opacity * .65f);
+                widget.Placeholder.color = _editing ? new Color(1, 1, 1, emphasis) : new Color(.56f, .9f, .68f, pose.Opacity * .65f * emphasis);
             }
         }
     }
@@ -494,14 +585,22 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         foreach (var hand in _hands) { hand.Id = null; hand.Corner = -1; hand.Gate.Reset(); }
         _hover[0] = _hover[1] = null; _resizing = null;
+        _angleValid[0] = _angleValid[1] = false;
+        _appearanceBusy[0] = _appearanceBusy[1] = false;
+        foreach (var widget in _widgets.Values) widget.Appearance.ReleaseHands();
     }
     private void ReleaseWidgets()
     {
         CockpitStatusSources.ReleaseAll();
         CockpitMapWidget.ReleaseAll();
         CockpitAlerts.ReleaseWidgetParents();
-        foreach (var widget in _widgets.Values) if (widget.Root != null) Destroy(widget.Root.gameObject);
+        foreach (var widget in _widgets.Values)
+        {
+            widget.Appearance.Dispose();
+            if (widget.Root != null) Destroy(widget.Root.gameObject);
+        }
         _widgets.Clear();
+        _menuAppearanceFocus = null;
     }
     private void OnDisable()
     {

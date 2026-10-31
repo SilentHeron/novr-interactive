@@ -62,6 +62,53 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     Settle(cockpit: button, pinching: true);
     Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, button.position, "Pinch midpoint contact changed");
     Near(glove.FreeTouchPoint(sample, true), rawTip, "Pinch fed back into raw fingertip");
+
+    // The layout editor uses the same visual contact contract: an exact
+    // thumb/index midpoint at the live corner, with the user's glove approach
+    // preserved relative to the widget. The corner can move during resizing.
+    Settle();
+    var corner = new Pose(new Vector3(3.31f, 1.20f, -3.46f),
+        tracking.rotation * sample.Rotation * Quaternion.Euler(ModConfiguration.Instance.MotionControls.FreeHandAngles(left)));
+    previous = glove.Root.localPosition; previousRotation = glove.Root.localRotation;
+    previousBones = glove.Renderer.bones.Select(b => b.localRotation).ToArray();
+    var untouchedSample = sample;
+    Frame(cockpit: corner, pinching: true);
+    Near(glove.Root.localPosition, previous, "Widget corner acquisition snapped the wrist");
+    SameRotation(glove.Root.localRotation, previousRotation, "Widget corner acquisition snapped wrist orientation");
+    for (var i = 0; i < previousBones.Length; i++)
+        SameRotation(glove.Renderer.bones[i].localRotation, previousBones[i], "Widget corner acquisition snapped a finger");
+    Settle(cockpit: corner, pinching: true);
+    Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, corner.position,
+        "Widget corner failed to attach at the thumb/index midpoint");
+    SameRotation(glove.Root.rotation, corner.rotation, "Widget corner changed the user's glove approach");
+    corner = new Pose(corner.position + new Vector3(.08f, .04f, -.05f),
+        Quaternion.Euler(13, -18, 0) * corner.rotation);
+    Frame(cockpit: corner, pinching: true);
+    Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, corner.position,
+        "Settled pinch lagged a resized or tilted widget corner");
+    SameRotation(glove.Root.rotation, corner.rotation, "Corner pinch did not follow the widget angle");
+    Near(glove.FreeTouchPoint(sample, true), rawTip, "Widget pinch changed raw fingertip hit testing");
+    Near(glove.FreeTouchPoint(sample, false), rawPalm, "Widget pinch changed raw palm hit testing");
+    Near(sample.Position, untouchedSample.Position, "Widget pinch changed controller input position");
+    SameRotation(sample.Rotation, untouchedSample.Rotation, "Widget pinch changed controller input rotation");
+    Check(sample.Grip == untouchedSample.Grip && sample.Trigger == untouchedSample.Trigger,
+        "Widget pinch changed controller input buttons");
+    previous = glove.Root.localPosition; previousRotation = glove.Root.localRotation;
+    Frame();
+    Near(glove.Root.localPosition, previous, "Widget corner release snapped the wrist");
+    SameRotation(glove.Root.localRotation, previousRotation, "Widget corner release snapped wrist orientation");
+    Settle(); CheckFree();
+
+    // Inline appearance controls use a pointing pose with no contact socket:
+    // only the fingers change, and the wrist remains freely tracked.
+    Settle(pointing: true); CheckFree();
+    Near(glove.FreeTouchPoint(sample, true), rawTip, "Inline pointing changed raw fingertip hit testing");
+    var beforeSliderReach = sample.Position;
+    sample.Position += new Vector3(.01f, .02f, .03f);
+    Frame(pointing: true); CheckFree();
+    sample.Position = beforeSliderReach;
+    Settle(); CheckFree();
+
     Settle(grip);
     Near(glove.Root.position, grip.position + grip.rotation * Fs20HandPoses.Wrist(false, left), "Throttle anchor changed");
     Settle(grip, collective: true);

@@ -163,7 +163,8 @@ internal sealed class HudWidgetProfiles
         var fallback = Factory.TryGetValue(id, out var factory) ? factory : new HudWidgetPose(new Vector3(0, -.2f, .8f), Vector3.zero);
         pose.Position = new Vector3(Bound(pose.Position.x, -3, 3, fallback.Position.x),
             Bound(pose.Position.y, -3, 3, fallback.Position.y), Bound(pose.Position.z, -.5f, 5, fallback.Position.z));
-        pose.Euler = new Vector3(Angle(pose.Euler.x, fallback.Euler.x), Angle(pose.Euler.y, fallback.Euler.y), Angle(pose.Euler.z, fallback.Euler.z));
+        pose.Euler = new Vector3(HudWidgetAngleMath.Pitch(Angle(pose.Euler.x, fallback.Euler.x)),
+            HudWidgetAngleMath.Yaw(pose.Euler.y, fallback.Euler.y), 0);
         pose.Scale = Bound(pose.Scale, MinScale, MaxScale, fallback.Scale);
         pose.Opacity = Bound(pose.Opacity, MinOpacity, 1, fallback.Opacity);
         pose.Background = Bound(pose.Background, 0, 1, fallback.Background);

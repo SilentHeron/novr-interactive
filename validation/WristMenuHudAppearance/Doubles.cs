@@ -1,9 +1,10 @@
 namespace UnityEngine
 {
-    public class Component { public GameObject gameObject = null!; public Transform transform => gameObject.transform; }
-    public class GameObject
+    public class Object { public bool destroyed; public static void Destroy(Object obj) => obj.destroyed = true; }
+    public class Component : Object { public GameObject gameObject = null!; public Transform transform => gameObject.transform; }
+    public class GameObject : Object
     {
-        public readonly string Name; public bool activeSelf; public readonly Transform transform;
+        public readonly string Name; public bool activeSelf; public int layer; public readonly Transform transform;
         private readonly Dictionary<Type, Component> _components = new();
         public GameObject(string name, params Type[] types)
         {
@@ -13,24 +14,37 @@ namespace UnityEngine
             { var component = (Component)Activator.CreateInstance(type)!; component.gameObject = this; _components[type] = component; }
         }
         public T GetComponent<T>() => (T)(object)_components[typeof(T)];
+        public T AddComponent<T>() where T : Component, new() { var item = new T { gameObject = this }; _components[typeof(T)] = item; return item; }
+        public void SetActive(bool value) => activeSelf = value;
     }
     public class Transform : Component
     {
         public Transform parent = null!;
+        public Quaternion localRotation;
         public void SetParent(Transform value, bool _) => parent = value;
         public T GetComponent<T>() => gameObject.GetComponent<T>();
     }
     public sealed class RectTransform : Transform { public Vector2 anchoredPosition, sizeDelta; }
     public sealed class CanvasRenderer : Component { }
-    public readonly record struct Vector2(float x, float y);
-    public readonly record struct Color(float r, float g, float b, float a = 1) { public static Color clear => new(0, 0, 0, 0); }
-    public static class Mathf { public static bool Approximately(float a, float b) => Math.Abs(a - b) < .000001f; }
+    public sealed class CanvasGroup : Component { public float alpha = 1; public bool interactable, blocksRaycasts; }
+    public readonly record struct Quaternion(float x, float y, float z) { public static Quaternion Euler(float x, float y, float z) => new(x, y, z); }
+    public readonly record struct Vector2(float x, float y)
+    { public static Vector2 zero => default; public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x+b.x,a.y+b.y); public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.x-b.x,a.y-b.y); }
+    public readonly record struct Vector3(float x, float y, float z) { public static Vector3 zero => default; }
+    public readonly record struct Color(float r, float g, float b, float a = 1) { public static Color clear => new(0, 0, 0, 0); public static Color white => new(1,1,1,1); }
+    public static class Mathf
+    { public static bool Approximately(float a, float b) => Math.Abs(a - b) < .000001f; public static float Abs(float value) => Math.Abs(value); public static float Clamp(float value,float min,float max) => Math.Clamp(value,min,max); public static float Clamp01(float value) => Clamp(value,0,1); public static int RoundToInt(float value) => (int)MathF.Round(value); }
+    public static class Time { public static float unscaledTime; }
+    public sealed class Font : Object { }
+    public static class Resources { public static T GetBuiltinResource<T>(string _) where T : new() => new(); }
+    public enum TextAnchor { MiddleCenter }
 }
+namespace UnityEngine.XR { public readonly record struct InputDevice(int Id); }
 namespace UnityEngine.UI
 {
     public sealed class Button : UnityEngine.Component { public bool interactable = true; }
-    public sealed class Text : UnityEngine.Component { public string text = ""; }
-    public sealed class Image : UnityEngine.Component { public UnityEngine.Color color; public bool raycastTarget; }
+    public sealed class Text : UnityEngine.Component { public string text = ""; public UnityEngine.Font font = null!; public int fontSize; public UnityEngine.TextAnchor alignment; public UnityEngine.Color color; public bool raycastTarget; }
+    public sealed class Image : UnityEngine.Component { public UnityEngine.Color color; public bool raycastTarget; public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform; }
     public struct Navigation { public Mode mode; public enum Mode { None } }
     public sealed class Slider : UnityEngine.Component
     {
@@ -47,9 +61,20 @@ namespace NOVR
 {
     internal static class LayerHelper { internal static int GetVrUiLayer() => 0; internal static void SetLayerRecursive(UnityEngine.Transform _, int __) { } }
 }
+namespace NOVR.MotionControls
+{
+    internal static class FlightControlMath { internal static bool IsFinite(float value) => float.IsFinite(value); internal static float Clamp(float value,float min,float max) => Math.Clamp(value,min,max); }
+    internal enum InteractionCue { Touch, Click, Grab }
+    internal static class InteractionHaptics
+    {
+        internal static readonly List<InteractionCue> Cues = new(); internal static int SilentPulses;
+        internal static void Pulse(UnityEngine.XR.InputDevice device, InteractionCue cue) => Cues.Add(cue);
+        internal static void PulseOnly(UnityEngine.XR.InputDevice device, float strength, float duration) => SilentPulses++;
+    }
+}
 namespace NOVR.VrUi.SpecialBehavior
 {
-    internal struct HudWidgetPose { internal float Scale, Opacity, Background; internal bool Visible; }
+    internal struct HudWidgetPose { internal float Scale, Opacity, Background; internal bool Visible; internal UnityEngine.Vector3 Position, Euler; }
     internal static class HudWidgetProfiles
     {
         internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map" };
@@ -61,17 +86,22 @@ namespace NOVR.VrUi.SpecialBehavior
         internal static CockpitHudWidgets? Instance;
         internal static bool Editing => Instance?.Preview == true;
         internal bool Preview, Available = true, SnapEnabled = true;
-        internal int Begins, AppearanceSaves;
+        internal int Begins, AppearanceSaves, AngleWrites;
         internal string SelectedId = "weapons";
-        private readonly Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new HudWidgetPose { Scale = 1, Opacity = 1, Visible = true });
-        internal void Begin() { Begins++; Preview = true; }
-        internal void Finish(bool _) => Preview = false;
+        internal string? AppearanceFocus;
+        internal void FocusAppearance(string? id) => AppearanceFocus = id;
+        private Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new HudWidgetPose { Position = new(.2f, -.3f, .4f), Scale = 1, Opacity = 1, Visible = true });
+        private Dictionary<string, HudWidgetPose>? _before;
+        internal void Begin() { Begins++; Preview = true; _before = new(_poses); }
+        internal void Finish(bool save) { if (!save && _before != null) _poses = _before; _before = null; Preview = false; }
         internal void BringWithinReach() { }
         internal void ResetPreview() { }
         internal void UseDefaultForAll() => Finish(true);
         internal void Select(string id) => SelectedId = id;
         internal HudWidgetPose GetPose(string id) => _poses[id];
         internal void SetAppearance(string id, HudWidgetPose pose) { AppearanceSaves++; _poses[id] = pose; }
+        internal void SetAngles(string id, UnityEngine.Vector2 angles)
+        { AngleWrites++; var pose = _poses[id]; pose.Euler = new(angles.x, angles.y, 0); _poses[id] = pose; }
     }
 }
 namespace NOVR.VrUi
@@ -86,6 +116,9 @@ namespace NOVR.VrUi
         private string _building = "";
         internal Slider Backplate => _hudBackplateSlider!;
         internal Text BackplateLabel => _hudBackplateLabel!;
+        internal Text AngleInfo => _hudAngleInfo!;
+        internal string ActivePage => _pages.Single(page => page.activeSelf).Name;
+        internal static int Closes;
         private GameObject Page(string title) { _building = title; var page = new GameObject(title); _pages.Add(page); return page; }
         private Text AddButton(string text, int column, int row, Action? action)
         {
@@ -96,11 +129,13 @@ namespace NOVR.VrUi
         { var go = new GameObject("Label", typeof(Text)); go.transform.SetParent(parent, false); var label = go.GetComponent<Text>(); label.text = text; return label; }
         private void ShowPage(GameObject page) { foreach (var other in _pages) other.activeSelf = other == page; }
         private void Back() { }
-        internal static void Close() { }
+        internal static void Close() => Closes++;
         internal void Build() => CreateHudLayoutPages();
         internal void Appearance() => OpenWidgetAppearance();
         internal void Refresh() => RefreshHudLayoutEditor();
         internal void Click(string page, string text)
         { var button = Buttons[(page, text)]; if (button.label.transform.parent.GetComponent<Button>().interactable) button.action?.Invoke(); }
+        internal bool Enabled(string page, string text) => Buttons[(page, text)].label.transform.parent.GetComponent<Button>().interactable;
+        internal void ForceCallback(string page, string text) => Buttons[(page, text)].action?.Invoke();
     }
 }

@@ -36,13 +36,12 @@ internal sealed class CockpitAlerts : MonoBehaviour
         internal readonly TMP_Text Source;
         internal bool Visible { get; private set; }
         private readonly TextMeshProUGUI[] _copies;
-        private readonly CanvasGroup _hide;
+        private readonly HudCanvasGroupLease _hide;
         private string? _last;
         internal TextMirror(TMP_Text source, Transform parent, Vector2 position, Vector2 size, int fontSize, bool feed = false)
         {
             Source = source;
-            _hide = source.gameObject.AddComponent<CanvasGroup>();
-            _hide.blocksRaycasts = false;
+            _hide = new HudCanvasGroupLease(source.gameObject);
             _copies = new TextMeshProUGUI[feed ? 3 : 1];
             for (var i = 0; i < _copies.Length; i++)
             {
@@ -59,10 +58,10 @@ internal sealed class CockpitAlerts : MonoBehaviour
                 copy.rectTransform.anchoredPosition = position + new Vector2(0, size.y * .5f - height * (i + .5f));
             }
         }
-        internal void Refresh(bool active, bool show, bool feed)
+        internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressHidden = false)
         {
             var visible = active && show && Source != null && Source.isActiveAndEnabled && !string.IsNullOrWhiteSpace(Source.text);
-            if (_hide != null) _hide.alpha = visible ? 0 : 1;
+            if (visible || suppressHidden) _hide.Apply(0); else _hide.Restore();
             Visible = visible;
             foreach (var copy in _copies) copy.enabled = visible;
             if (!visible) return;
@@ -74,11 +73,13 @@ internal sealed class CockpitAlerts : MonoBehaviour
                 var lines = feed ? compact.Split('\n') : new[] { compact };
                 for (var i = 0; i < _copies.Length; i++) _copies[i].text = i < lines.Length ? lines[i] : "";
             }
-            foreach (var copy in _copies) copy.color = feed ? new Color(.72f, .82f, .84f, .85f) : Source.color;
+            var color = feed ? new Color(.72f, .82f, .84f, .85f) : Source.color;
+            color.a *= opacity;
+            foreach (var copy in _copies) copy.color = color;
         }
         internal void Release()
         {
-            if (_hide != null) { _hide.alpha = 1; Destroy(_hide); }
+            _hide.Release();
             foreach (var copy in _copies) if (copy != null) Destroy(copy.gameObject);
         }
     }
@@ -90,10 +91,10 @@ internal sealed class CockpitAlerts : MonoBehaviour
     internal static bool ReplacesEw => Instance is { } self && self.Replaces("ew", self._root);
     private Aircraft? _aircraft;
     private ThreatList? _list;
-    private CanvasGroup? _listHide, _rankHide;
+    private HudCanvasGroupLease? _listHide, _rankHide;
     private Image? _rankBackground;
     private MessageUI? _messages;
-    private CanvasGroup? _messageBackgroundHide;
+    private HudCanvasGroupLease? _messageBackgroundHide;
     private TextMirror? _feed, _mission, _reward, _rank;
     private readonly List<Signal> _signals = new();
     private readonly List<ThreatItem> _missiles = new();
@@ -104,6 +105,9 @@ internal sealed class CockpitAlerts : MonoBehaviour
     private Image? _feedBackplate, _missileBackplate;
     private Text? _heading, _missileHeading;
     private bool _active;
+    private bool _hadCockpit;
+    private CockpitFeedMode _feedMode;
+    private HudWidgetPose _feedPose = HudWidgetProfiles.FactoryDefaults["feed"];
     private float _nextRead, _nextFind;
     private static readonly Color MissileColor = new(1f, .34f, .20f);
     private static readonly Color RadarColor = new(1f, .74f, .25f);
@@ -135,13 +139,15 @@ internal sealed class CockpitAlerts : MonoBehaviour
     private void SetAircraft(Aircraft? aircraft)
     {
         if (_aircraft == aircraft) return;
-        ReleaseSources(); _signals.Clear(); _missiles.Clear();
+        // MessageUI survives aircraft destruction and respawn. Keep its leases
+        // and copies alive so a crash cannot reveal the old flat feed for a frame.
+        _signals.Clear(); _missiles.Clear();
         if (_missileRoot != null) _missileRoot.SetActive(false);
         foreach (var row in _rows) row.text = "";
         _aircraft = aircraft; _nextRead = _nextFind = 0;
     }
 
-    private bool Ready() => Settings.Enabled.Value && XRSettings.enabled && _aircraft != null &&
+    private bool Ready() => Settings.Enabled.Value && XRSettings.enabled && _aircraft != null && !_aircraft.disabled &&
         _aircraft.cockpit != null && !_aircraft.cockpit.IsDetached() &&
         CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.flightControlsEnabled &&
         NOUIManager.I != null && APIBus.MainCamera != null &&
@@ -155,33 +161,58 @@ internal sealed class CockpitAlerts : MonoBehaviour
         GameManager.GetLocalAircraft(out var aircraft); SetAircraft(aircraft);
         var wasActive = _active; _active = Ready();
         if (wasActive && !_active) ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
-        if (_active)
+        var playing = GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer;
+        if (!playing) _hadCockpit = false;
+        else if (_active) _hadCockpit = true;
+        if (_active || _hadCockpit && playing && XRSettings.enabled && Settings.Enabled.Value && NOUIManager.I != null)
         {
             EnsureUi();
             if (Time.unscaledTime >= _nextFind) { _nextFind = Time.unscaledTime + 1; FindSources(); }
-            if (Time.unscaledTime >= _nextRead) { _nextRead = Time.unscaledTime + .1f; RefreshThreats(); }
-            Place();
+            if (_active && Time.unscaledTime >= _nextRead) { _nextRead = Time.unscaledTime + .1f; RefreshThreats(); }
         }
+        if (CockpitHudWidgets.CurrentAircraft == _aircraft && CockpitHudWidgets.Owns("feed") && CockpitHudWidgets.Instance != null)
+            _feedPose = CockpitHudWidgets.Instance.GetPose("feed");
+        var chat = _messages != null ? ChatOf(_messages) : null;
+        var chatOpen = chat != null && chat.gameObject.activeSelf;
+        var unobstructed = NOUIManager.I != null && APIBus.MainCamera != null &&
+            !PlayerSettings.cinematicMode && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) && !chatOpen &&
+            (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+            (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
+        var lostCockpit = _aircraft == null || _aircraft.disabled || _aircraft.cockpit == null || _aircraft.cockpit.IsDetached();
+        _feedMode = CockpitFeedPresentation.Choose(Settings.Enabled.Value && XRSettings.enabled, playing, unobstructed,
+            _active, _hadCockpit, lostCockpit);
+        Place();
         var hasThreats = _missiles.Count > 0;
         var hasEw = hasThreats || _signals.Count > 0;
-        var feedVisible = WidgetVisible("feed");
+        var recovery = _feedMode == CockpitFeedMode.Recovery;
+        var feedVisible = _feedMode == CockpitFeedMode.Cockpit ? WidgetVisible("feed") : recovery && _feedPose.Visible;
+        var hiddenRecovery = recovery && !_feedPose.Visible;
+        var feedOpacity = recovery ? _feedPose.Opacity : 1;
         if (_root != null) _root.SetActive(WidgetVisible("ew") && hasEw);
         if (_missileRoot != null) _missileRoot.SetActive(WidgetVisible("threats") && hasThreats);
         if (_feedRoot != null) _feedRoot.gameObject.SetActive(feedVisible);
-        if (_listHide != null) _listHide.alpha = Active ? 0 : 1;
-        var chatOpen = _messages != null && ChatOf(_messages).gameObject.activeSelf;
-        _feed?.Refresh(feedVisible, Settings.Feed.Value, true);
+        if (Active) _listHide?.Apply(0); else _listHide?.Restore();
+        _feed?.Refresh(feedVisible, Settings.Feed.Value, true, feedOpacity, hiddenRecovery && Settings.Feed.Value);
         // Typing/expanded chat keeps its native history and input presentation.
         // Outside chat, mirror only the latest two live mission-message lines.
-        _mission?.Refresh(feedVisible && !chatOpen, true, false);
-        _reward?.Refresh(feedVisible, true, false); _rank?.Refresh(feedVisible, true, false);
+        _mission?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery);
+        _reward?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery); _rank?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery);
         var hasFeed = _feed?.Visible == true || _mission?.Visible == true || _reward?.Visible == true || _rank?.Visible == true;
-        if (_rankHide != null) _rankHide.alpha = _rank?.Visible == true ? 0 : 1;
+        if (_rank?.Visible == true || hiddenRecovery) _rankHide?.Apply(0); else _rankHide?.Restore();
         if (_messageBackgroundHide != null && _messages != null)
-            _messageBackgroundHide.alpha = feedVisible && hasFeed && !chatOpen &&
-                (MessagesOf(_messages).NoText || _mission?.Visible == true) ? 0 : 1;
-        if (_feedBackplate != null) _feedBackplate.enabled = feedVisible && hasFeed && !CockpitHudWidgets.Owns("feed");
+        {
+            if ((feedVisible && hasFeed || hiddenRecovery) && !chatOpen &&
+                (MessagesOf(_messages).NoText || _mission?.Visible == true || hiddenRecovery)) _messageBackgroundHide.Apply(0);
+            else _messageBackgroundHide.Restore();
+        }
+        if (_feedBackplate != null)
+        {
+            _feedBackplate.enabled = feedVisible && hasFeed && (recovery || !CockpitHudWidgets.Owns("feed"));
+            _feedBackplate.color = new Color(.015f, .025f, .03f, recovery ? _feedPose.Background : .12f);
+        }
         if (_missileBackplate != null) _missileBackplate.enabled = !CockpitHudWidgets.Owns("threats");
+        if (_heading != null) _heading.enabled = CockpitHudWidgets.Editing;
+        if (_missileHeading != null) _missileHeading.enabled = CockpitHudWidgets.Editing;
         CockpitHudWidgets.SetHasContent("threats", _active && hasThreats);
         CockpitHudWidgets.SetHasContent("ew", _active && hasEw);
         CockpitHudWidgets.SetHasContent("feed", _active && hasFeed);
@@ -194,22 +225,20 @@ internal sealed class CockpitAlerts : MonoBehaviour
 
     private void FindSources()
     {
-        if (_list == null && SceneSingleton<FlightHud>.i != null)
+        var flightHud = SceneSingleton<FlightHud>.i;
+        var list = flightHud != null ? flightHud.GetComponentInChildren<ThreatList>(true) : null;
+        if (_list != list)
         {
-            _list = SceneSingleton<FlightHud>.i.GetComponentInChildren<ThreatList>(true);
-            if (_list != null)
-            {
-                _listHide = _list.gameObject.AddComponent<CanvasGroup>();
-                _listHide.blocksRaycasts = false;
-            }
+            _listHide?.Release(); _list = list;
+            _listHide = list != null ? new HudCanvasGroupLease(list.gameObject) : null;
         }
         var messages = SceneSingleton<MessageUI>.i;
         if (_messages != messages)
         {
-            if (_messageBackgroundHide != null) { _messageBackgroundHide.alpha = 1; Destroy(_messageBackgroundHide); }
+            _messageBackgroundHide?.Release();
             _messages = messages;
             var messageBackground = messages != null ? BackgroundOf(messages) : null;
-            _messageBackgroundHide = messageBackground != null ? messageBackground.gameObject.AddComponent<CanvasGroup>() : null;
+            _messageBackgroundHide = messageBackground != null ? new HudCanvasGroupLease(messageBackground.gameObject) : null;
         }
         var source = messages != null ? FeedOf(messages) : null;
         if (_feed?.Source != source)
@@ -235,17 +264,19 @@ internal sealed class CockpitAlerts : MonoBehaviour
         var background = kills != null ? RankBackground(kills) : null;
         if (_rankBackground != background)
         {
-            if (_rankHide != null) { _rankHide.alpha = 1; Destroy(_rankHide); }
+            _rankHide?.Release();
             _rankBackground = background;
-            _rankHide = background == null ? null : background.gameObject.AddComponent<CanvasGroup>();
-            if (_rankHide != null) _rankHide.blocksRaycasts = false;
+            _rankHide = background == null ? null : new HudCanvasGroupLease(background.gameObject);
         }
     }
 
     private void Place()
     {
+        if (_feedMode == CockpitFeedMode.Recovery) PlaceRecoveryFeed();
         if (!_active || _root == null || _aircraft == null || _aircraft.cockpitViewPoint == null) return;
-        var gameRoot = APIBus.MainCamera?.transform.parent;
+        var gameCamera = APIBus.MainCamera;
+        if (gameCamera == null || NOUIManager.I == null) return;
+        var gameRoot = gameCamera.transform.parent;
         var uiRoot = APIBus.CockpitHudCamera.transform.parent;
         if (gameRoot == null || uiRoot == null) return;
         var ewOwned = AttachWidget("ew", _root.transform, new Vector2(260, 260));
@@ -287,6 +318,20 @@ internal sealed class CockpitAlerts : MonoBehaviour
             eye.rotation * Quaternion.Euler(5,12,0), .0007f, gameRoot, uiRoot);
     }
 
+    private void PlaceRecoveryFeed()
+    {
+        if (_feedRoot == null || NOUIManager.I == null) return;
+        var camera = APIBus.CockpitHudCamera;
+        if (camera == null) return;
+        if (_feedRoot.parent != transform) _feedRoot.SetParent(transform, false);
+        // No surviving seat is required. Keep crash/respawn messages compact and
+        // below-right of the recovery view until a cockpit or full menu returns.
+        _feedRoot.SetPositionAndRotation(camera.transform.TransformPoint(new Vector3(.24f, -.18f, .85f)), camera.transform.rotation);
+        _feedRoot.localScale = Vector3.one * (.0007f * _feedPose.Scale * (460f / 520f));
+        var canvas = _feedRoot.GetComponent<Canvas>();
+        if (canvas != null) canvas.worldCamera = camera;
+    }
+
     private bool AttachWidget(string id, Transform window, Vector2 dimensions)
     {
         if (CockpitHudWidgets.CurrentAircraft == _aircraft && CockpitHudWidgets.TryGetContent(id, out var content))
@@ -312,11 +357,9 @@ internal sealed class CockpitAlerts : MonoBehaviour
         foreach (var root in new[] { self._root?.transform, self._missileRoot?.transform, self._feedRoot })
             if (root != null) { root.SetParent(self.transform, false); root.gameObject.SetActive(false); }
         self._active = false;
-        if (self._listHide != null) self._listHide.alpha = 1;
-        if (self._rankHide != null) self._rankHide.alpha = 1;
-        if (self._messageBackgroundHide != null) self._messageBackgroundHide.alpha = 1;
-        self._feed?.Refresh(false, false, true); self._mission?.Refresh(false, false, false);
-        self._reward?.Refresh(false, false, false); self._rank?.Refresh(false, false, false);
+        self._listHide?.Restore();
+        // LateUpdate chooses recovery or native presentation before rendering.
+        // Do not reveal native feed sources during the widget teardown itself.
         ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
     }
 
@@ -460,16 +503,14 @@ internal sealed class CockpitAlerts : MonoBehaviour
     }
     private void ReleaseSources()
     {
-        if (_listHide != null) { _listHide.alpha = 1; Destroy(_listHide); }
-        if (_rankHide != null) { _rankHide.alpha = 1; Destroy(_rankHide); }
-        if (_messageBackgroundHide != null) { _messageBackgroundHide.alpha = 1; Destroy(_messageBackgroundHide); }
+        _listHide?.Release(); _rankHide?.Release(); _messageBackgroundHide?.Release();
         _feed?.Release(); _mission?.Release(); _reward?.Release(); _rank?.Release();
         _feed = _mission = _reward = _rank = null; _list = null; _listHide = _rankHide = null; _rankBackground = null;
         _messageBackgroundHide = null; _messages = null;
     }
     private void OnDisable()
     {
-        Application.onBeforeRender -= Place; _active = false; ReleaseSources();
+        Application.onBeforeRender -= Place; _active = _hadCockpit = false; _feedMode = CockpitFeedMode.Native; ReleaseSources();
         ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
         if (_root != null) _root.SetActive(false);
         if (_missileRoot != null) _missileRoot.SetActive(false);

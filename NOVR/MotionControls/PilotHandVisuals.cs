@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -85,8 +86,23 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             Pose? attachment = null; var stick = false; var collective = false;
             if (controls != null && controls.TryGetHeldHandPose(left, out var gripPose, out stick, out collective)) attachment = gripPose;
             var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing) ?? IfritNativeCockpit.HandPose(left);
-            if (attachment.HasValue) { cockpitGrip = null; pointing = false; }
-            _gloves[side]?.Pose(sample, attachment, stick, collective, cockpitGrip, pointing, Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left));
+            var pinching = Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left);
+            if (CockpitHudWidgets.TryGetCornerHandPose(left, out var corner, out var cornerRotation))
+            {
+                // Corner targets are the midpoint of the posed thumb/index
+                // tips. The glove's existing attachment blend seats them at
+                // the live corner without changing raw tracking or hit tests.
+                attachment = null; stick = collective = pointing = false;
+                cockpitGrip = new Pose(corner, cornerRotation); pinching = true;
+            }
+            else if (attachment.HasValue) { cockpitGrip = null; pointing = pinching = false; }
+            else if (CockpitHudWidgets.AppearancePointing(left))
+            {
+                // Inline sliders use direct fingertip contact. Extend the
+                // index without anchoring or moving the tracked wrist.
+                cockpitGrip = null; pinching = false; pointing = true;
+            }
+            _gloves[side]?.Pose(sample, attachment, stick, collective, cockpitGrip, pointing, pinching);
             // Render only, after raw tracking has posed the glove. Contact and
             // grip sockets stay exact; input hit testing still uses the sample.
             if(_gloves[side]!=null)

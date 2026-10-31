@@ -8,8 +8,8 @@ namespace NOVR.VrUi;
 
 internal sealed partial class WristMenu
 {
-    private GameObject? _layoutPage, _hudAppearancePage, _hudWidgetPage, _hudDefaultPage;
-    private Text? _layoutInfo, _hudWidgetInfo, _hudDefaultInfo;
+    private GameObject? _layoutPage, _hudAppearancePage, _hudWidgetPage, _hudDefaultPage, _hudAnglePage;
+    private Text? _layoutInfo, _hudWidgetInfo, _hudDefaultInfo, _hudAngleInfo;
     private Slider? _hudBackplateSlider;
     private Text? _hudBackplateLabel;
     private readonly List<Button> _hudAvailableButtons = new(), _hudEditingButtons = new();
@@ -53,7 +53,22 @@ internal sealed partial class WristMenu
         AddHudButton("Brighter readouts", 1, 2, () => ChangeHudPose(p => { p.Opacity += .1f; return p; }));
         CreateHudBackplateSlider(_hudWidgetPage.transform);
         AddHudButton("Layout controls", 0, 4, ShowLayoutControls, true);
+        AddHudButton("Angle", 1, 4, () => { ShowPage(_hudAnglePage!); RefreshHudLayoutEditor(); }, true);
         _hudWidgetInfo = Label(_hudWidgetPage.transform, "", new Vector2(0, -163), new Vector2(510, 140), 18);
+
+        _hudAnglePage = Page("WIDGET ANGLE");
+        AddHudButton("Pitch −5°", 0, 0, () => ChangeHudAngles(-5, 0), true);
+        AddHudButton("Pitch +5°", 1, 0, () => ChangeHudAngles(5, 0), true);
+        AddHudButton("Yaw −5°", 0, 1, () => ChangeHudAngles(0, -5), true);
+        AddHudButton("Yaw +5°", 1, 1, () => ChangeHudAngles(0, 5), true);
+        AddHudButton("Face forward", 0, 2, () =>
+        {
+            if (HudWidgets?.Available == true && CockpitHudWidgets.Editing)
+                HudWidgets.SetAngles(SelectedHudId, Vector2.zero);
+            RefreshHudLayoutEditor();
+        }, true);
+        AddHudButton("Continue moving", 1, 2, StartOrResumeLayout, true);
+        _hudAngleInfo = Label(_hudAnglePage.transform, "", new Vector2(0, -92), new Vector2(510, 240), 19);
 
         _hudDefaultPage = Page("SAVE SHARED HUD LAYOUT");
         _hudDefaultInfo = Label(_hudDefaultPage.transform, "", new Vector2(0, 35), new Vector2(510, 270), 21);
@@ -81,6 +96,14 @@ internal sealed partial class WristMenu
     {
         if (HudWidgets?.Available == true)
             HudWidgets.SetAppearance(SelectedHudId, HudWidgetProfiles.Sanitize(SelectedHudId, change(HudWidgets.GetPose(SelectedHudId))));
+    }
+    private void ChangeHudAngles(float pitch, float yaw)
+    {
+        var manager = HudWidgets;
+        if (manager?.Available != true || !CockpitHudWidgets.Editing) return;
+        var angles = manager.GetPose(SelectedHudId).Euler;
+        manager.SetAngles(SelectedHudId, new Vector2(angles.x + pitch, angles.y + yaw));
+        RefreshHudLayoutEditor();
     }
     private void CreateHudBackplateSlider(Transform parent)
     {
@@ -126,13 +149,14 @@ internal sealed partial class WristMenu
     private void RefreshHudLayoutEditor()
     {
         var manager = HudWidgets;
+        manager?.FocusAppearance(_hudWidgetPage?.activeSelf == true ? SelectedHudId : null);
         var available = manager?.Available == true;
         foreach (var button in _hudAvailableButtons) if (button != null) button.interactable = available;
         foreach (var button in _hudEditingButtons) if (button != null) button.interactable = available && CockpitHudWidgets.Editing;
         if (_hudBackplateSlider != null) _hudBackplateSlider.interactable = available;
         if (_layoutInfo != null && _layoutPage?.activeSelf == true)
             _layoutInfo.text = !available ? "Enter a cockpit to arrange its layout." :
-                "Grip any HUD widget, stick or throttle to move it.\nWidget angles stay fixed.\nGrab opposite corners with both hands to resize.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
+                "Grip any HUD widget, stick or throttle to move it.\nTilt a held widget for pitch / yaw; roll stays level.\nGrab opposite corners with both hands to resize.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
         if (_hudWidgetInfo != null && _hudWidgetPage?.activeSelf == true && manager != null)
         {
             var pose = manager.GetPose(SelectedHudId);
@@ -141,7 +165,15 @@ internal sealed partial class WristMenu
             _hudWidgetInfo.text = HudWidgetProfiles.Label(SelectedHudId) +
                 $"\nSize {pose.Scale * 100:0}% · Readouts {pose.Opacity * 100:0}%\nBackplate opacity leaves readouts unchanged.\n\n" +
                 (CockpitHudWidgets.Editing ? "Preview only; save or cancel in Layout controls.\nEmpty / hidden widgets show while editing." :
-                    "Appearance changes save automatically.\nUse Edit layout on View home to move things.");
+                    "Appearance changes save automatically.\nUse Edit layout to move or angle this widget.");
+        }
+        if (_hudAngleInfo != null && _hudAnglePage?.activeSelf == true)
+        {
+            var angles = manager?.GetPose(SelectedHudId).Euler ?? Vector3.zero;
+            _hudAngleInfo.text = !available ? "Enter a cockpit to adjust a widget." :
+                HudWidgetProfiles.Label(SelectedHudId) + $"\nPitch {angles.x:0.#}° · Yaw {angles.y:0.#}°\nRoll stays level.\n\n" +
+                (CockpitHudWidgets.Editing ? "Use 5° steps for precise adjustment, or\ngrip the widget and tilt your controller.\n\nSave or cancel in Layout controls." :
+                    "Start Edit layout from View home first.\nAngles are saved with the layout.");
         }
         if (_hudDefaultInfo != null && _hudDefaultPage?.activeSelf == true)
             _hudDefaultInfo.text = "Use these widgets as the shared HUD layout?\n\nThis aircraft and uncustomized aircraft\nwill follow it. Other saved aircraft layouts\nstay unchanged.\n\nHandle positions save for this aircraft only.\nSaving ends the entire layout preview.";

@@ -33,5 +33,27 @@ internal static class CockpitAlertChecks
             yes(CockpitAlertMath.LatestFeed("") == "");
             yes(CockpitAlertMath.LatestFeed("one", 0) == "");
         });
+        check("Crash and lost-aircraft notifications remain compact until a cockpit returns", () =>
+        {
+            yes(CockpitFeedPresentation.Choose(true, true, true, true, true, false) == CockpitFeedMode.Cockpit);
+            // Disabled aircraft, detached cockpit, then a cleared local aircraft
+            // all use the same recovery mode; flight-controls readiness is false.
+            yes(CockpitFeedPresentation.Choose(true, true, true, false, true, true) == CockpitFeedMode.Recovery);
+            yes(CockpitFeedPresentation.Choose(true, true, true, true, true, false) == CockpitFeedMode.Cockpit);
+            yes(CockpitFeedPresentation.Choose(true, true, true, false, true, false) == CockpitFeedMode.Native);
+        });
+        check("Expanded recovery interfaces restore native history and resume compact notifications on close", () =>
+        {
+            yes(CockpitFeedPresentation.Choose(true, true, false, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, true, true, false, true, true) == CockpitFeedMode.Recovery);
+            yes(CockpitFeedPresentation.Choose(true, true, false, true, true, false) == CockpitFeedMode.Native);
+        });
+        check("Recovery feed cannot activate outside VR gameplay or before entering a cockpit", () =>
+        {
+            yes(CockpitFeedPresentation.Choose(false, true, true, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, false, true, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, true, true, false, false, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(false, true, true, true, true, false) == CockpitFeedMode.Native);
+        });
     }
 }

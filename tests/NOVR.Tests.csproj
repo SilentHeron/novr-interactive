@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Remove="UiLifecycle/**/*.cs" />
     <Compile Include="../NOVR/VrUi/Components/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
+    <Compile Include="../NOVR/VrUi/Components/CockpitFeedPresentation.cs" Link="CockpitFeedPresentation.cs" />
     <Compile Include="../NOVR/MotionControls/OpticalHudMath.cs" Link="OpticalHudMath.cs" />
     <Compile Include="../NOVR/MotionControls/TargetCueMode.cs" Link="TargetCueMode.cs" />
     <Compile Include="../NOVR/VrUi/Components/HudPresentationMath.cs" Link="HudPresentationMath.cs" />

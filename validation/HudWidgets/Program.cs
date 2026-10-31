@@ -54,7 +54,7 @@ try
     Same(profiles.Load("VT-7")["weapons"], changedShared["weapons"], "Uncustomized cached aircraft inherits later defaults");
 
     CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
-    var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 179.99f), 1.37f, .59f, .31f, false);
+    var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 0), 1.37f, .59f, .31f, false);
     profiles.Save("FS-20", new Dictionary<string, HudWidgetPose> { ["weapons"] = precise, ["unknown widget"] = precise });
     Same(profiles.Load("FS-20")["threats"], customized["threats"], "Partial save preserves other widgets");
     Equal(profiles.Load("FS-20").Count, 7, "Unknown widgets do not create new slots");
@@ -156,6 +156,7 @@ try
     HudWidgetGestureChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
+    HudWidgetAngleChecks.Run(True);
     Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }
