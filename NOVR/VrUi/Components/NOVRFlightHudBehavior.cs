@@ -3,8 +3,11 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
+[DefaultExecutionOrder(200)]
 public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
 {
+    private readonly HudCanvasVisibilityLease _recoveryVisibility = new();
+
     public override void Awake()
     {
         base.Awake();
@@ -43,6 +46,10 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
         transform.position = new Vector3(0f, 0f, 1000f);
         transform.rotation = Quaternion.identity;
     }
+
+    private void LateUpdate() => _recoveryVisibility.Apply(transform, CockpitAlerts.InRecovery);
+    private void OnDisable() => _recoveryVisibility.Restore();
+    private void OnDestroy() => _recoveryVisibility.Restore();
     
     private void MoveHmdPanelToHud(string panelName, Transform noVrHudParent, Vector3 localPosition, Vector3 localScale)
     {

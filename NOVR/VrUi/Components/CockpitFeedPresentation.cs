@@ -9,8 +9,10 @@ internal static class CockpitFeedPresentation
     internal static CockpitFeedMode Choose(bool enabled, bool playing, bool unobstructed,
         bool cockpitReady, bool hadCockpit, bool lostCockpit)
     {
-        if (!enabled || !playing || !unobstructed) return CockpitFeedMode.Native;
+        if (!enabled || !playing) return CockpitFeedMode.Native;
+        if (hadCockpit && lostCockpit) return CockpitFeedMode.Recovery;
+        if (!unobstructed) return CockpitFeedMode.Native;
         if (cockpitReady) return CockpitFeedMode.Cockpit;
-        return hadCockpit && lostCockpit ? CockpitFeedMode.Recovery : CockpitFeedMode.Native;
+        return CockpitFeedMode.Native;
     }
 }

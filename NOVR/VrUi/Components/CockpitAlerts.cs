@@ -18,7 +18,6 @@ internal sealed class CockpitAlerts : MonoBehaviour
     private static readonly AccessTools.FieldRef<ThreatItem, Missile> MissileOf = AccessTools.FieldRefAccess<ThreatItem, Missile>("missile");
     private static readonly AccessTools.FieldRef<MessageUI, TextMeshProUGUI> FeedOf = AccessTools.FieldRefAccess<MessageUI, TextMeshProUGUI>("killFeedText");
     private static readonly AccessTools.FieldRef<MessageUI, TextMeshProUGUI> MissionOf = AccessTools.FieldRefAccess<MessageUI, TextMeshProUGUI>("messageText");
-    private static readonly AccessTools.FieldRef<MessageUI, MessageFeed> MessagesOf = AccessTools.FieldRefAccess<MessageUI, MessageFeed>("messageFeed");
     private static readonly AccessTools.FieldRef<MessageUI, ChatBox> ChatOf = AccessTools.FieldRefAccess<MessageUI, ChatBox>("chat");
     private static readonly AccessTools.FieldRef<MessageUI, Image> BackgroundOf = AccessTools.FieldRefAccess<MessageUI, Image>("backgroundImage");
     private static readonly AccessTools.FieldRef<KillDisplay, TextMeshProUGUI> RewardOf = AccessTools.FieldRefAccess<KillDisplay, TextMeshProUGUI>("killText");
@@ -36,12 +35,12 @@ internal sealed class CockpitAlerts : MonoBehaviour
         internal readonly TMP_Text Source;
         internal bool Visible { get; private set; }
         private readonly TextMeshProUGUI[] _copies;
-        private readonly HudCanvasGroupLease _hide;
+        private readonly HudGraphicVisibilityLease _hide;
         private string? _last;
         internal TextMirror(TMP_Text source, Transform parent, Vector2 position, Vector2 size, int fontSize, bool feed = false)
         {
             Source = source;
-            _hide = new HudCanvasGroupLease(source.gameObject);
+            _hide = new HudGraphicVisibilityLease(source, true);
             _copies = new TextMeshProUGUI[feed ? 3 : 1];
             for (var i = 0; i < _copies.Length; i++)
             {
@@ -58,10 +57,10 @@ internal sealed class CockpitAlerts : MonoBehaviour
                 copy.rectTransform.anchoredPosition = position + new Vector2(0, size.y * .5f - height * (i + .5f));
             }
         }
-        internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressHidden = false)
+        internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressNative = false)
         {
             var visible = active && show && Source != null && Source.isActiveAndEnabled && !string.IsNullOrWhiteSpace(Source.text);
-            if (visible || suppressHidden) _hide.Apply(0); else _hide.Restore();
+            if (suppressNative) _hide.Apply(); else _hide.Restore();
             Visible = visible;
             foreach (var copy in _copies) copy.enabled = visible;
             if (!visible) return;
@@ -89,12 +88,14 @@ internal sealed class CockpitAlerts : MonoBehaviour
     // was actually replaced, not merely whether some other widget is running.
     internal static bool Active => Instance is { } self && self.Replaces("threats", self._missileRoot);
     internal static bool ReplacesEw => Instance is { } self && self.Replaces("ew", self._root);
+    internal static bool InRecovery => Instance?._recovering == true;
     private Aircraft? _aircraft;
     private ThreatList? _list;
-    private HudCanvasGroupLease? _listHide, _rankHide;
+    private HudCanvasGroupLease? _listHide;
+    private HudGraphicVisibilityLease? _rankHide;
     private Image? _rankBackground;
     private MessageUI? _messages;
-    private HudCanvasGroupLease? _messageBackgroundHide;
+    private HudGraphicVisibilityLease? _messageBackgroundHide;
     private TextMirror? _feed, _mission, _reward, _rank;
     private readonly List<Signal> _signals = new();
     private readonly List<ThreatItem> _missiles = new();
@@ -105,7 +106,8 @@ internal sealed class CockpitAlerts : MonoBehaviour
     private Image? _feedBackplate, _missileBackplate;
     private Text? _heading, _missileHeading;
     private bool _active;
-    private bool _hadCockpit;
+    private bool _hadCockpit, _recovering;
+    private FlightHud? _sessionHud;
     private CockpitFeedMode _feedMode;
     private HudWidgetPose _feedPose = HudWidgetProfiles.FactoryDefaults["feed"];
     private float _nextRead, _nextFind;
@@ -147,7 +149,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
         _aircraft = aircraft; _nextRead = _nextFind = 0;
     }
 
-    private bool Ready() => Settings.Enabled.Value && XRSettings.enabled && _aircraft != null && !_aircraft.disabled &&
+    private bool Ready() => Settings.Enabled.Value && XRSettings.enabled && _aircraft != null && !LostCockpit(_aircraft) &&
         _aircraft.cockpit != null && !_aircraft.cockpit.IsDetached() &&
         CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.flightControlsEnabled &&
         NOUIManager.I != null && APIBus.MainCamera != null &&
@@ -162,9 +164,15 @@ internal sealed class CockpitAlerts : MonoBehaviour
         var wasActive = _active; _active = Ready();
         if (wasActive && !_active) ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
         var playing = GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer;
-        if (!playing) _hadCockpit = false;
-        else if (_active) _hadCockpit = true;
-        if (_active || _hadCockpit && playing && XRSettings.enabled && Settings.Enabled.Value && NOUIManager.I != null)
+        var hud = SceneSingleton<FlightHud>.i;
+        if (!playing || !XRSettings.enabled || hud != _sessionHud) _hadCockpit = false;
+        _sessionHud = hud;
+        var lostCockpit = LostCockpit(_aircraft);
+        if (playing && XRSettings.enabled && !lostCockpit && CameraStateManager.cameraMode == CameraMode.cockpit)
+            _hadCockpit = true;
+        _recovering = XRSettings.enabled && playing && _hadCockpit && lostCockpit;
+        CockpitStatusSources.RefreshInstructions();
+        if (_active || _hadCockpit && playing && XRSettings.enabled && (Settings.Enabled.Value || _recovering) && NOUIManager.I != null)
         {
             EnsureUi();
             if (Time.unscaledTime >= _nextFind) { _nextFind = Time.unscaledTime + 1; FindSources(); }
@@ -178,31 +186,31 @@ internal sealed class CockpitAlerts : MonoBehaviour
             !PlayerSettings.cinematicMode && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) && !chatOpen &&
             (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
-        var lostCockpit = _aircraft == null || _aircraft.disabled || _aircraft.cockpit == null || _aircraft.cockpit.IsDetached();
-        _feedMode = CockpitFeedPresentation.Choose(Settings.Enabled.Value && XRSettings.enabled, playing, unobstructed,
+        _feedMode = CockpitFeedPresentation.Choose((Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, unobstructed,
             _active, _hadCockpit, lostCockpit);
         Place();
         var hasThreats = _missiles.Count > 0;
         var hasEw = hasThreats || _signals.Count > 0;
         var recovery = _feedMode == CockpitFeedMode.Recovery;
         var feedVisible = _feedMode == CockpitFeedMode.Cockpit ? WidgetVisible("feed") : recovery && _feedPose.Visible;
-        var hiddenRecovery = recovery && !_feedPose.Visible;
+        // Ownership, not whether there is currently text, controls the source.
+        // Hiding the widget must never bring back its old vanilla duplicate.
+        var suppressNativeFeed = _feedMode != CockpitFeedMode.Native;
         var feedOpacity = recovery ? _feedPose.Opacity : 1;
         if (_root != null) _root.SetActive(WidgetVisible("ew") && hasEw);
         if (_missileRoot != null) _missileRoot.SetActive(WidgetVisible("threats") && hasThreats);
         if (_feedRoot != null) _feedRoot.gameObject.SetActive(feedVisible);
         if (Active) _listHide?.Apply(0); else _listHide?.Restore();
-        _feed?.Refresh(feedVisible, Settings.Feed.Value, true, feedOpacity, hiddenRecovery && Settings.Feed.Value);
+        _feed?.Refresh(feedVisible, Settings.Feed.Value, true, feedOpacity, suppressNativeFeed);
         // Typing/expanded chat keeps its native history and input presentation.
         // Outside chat, mirror only the latest two live mission-message lines.
-        _mission?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery);
-        _reward?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery); _rank?.Refresh(feedVisible, true, false, feedOpacity, hiddenRecovery);
+        _mission?.Refresh(feedVisible && !chatOpen, true, false, feedOpacity, suppressNativeFeed && !chatOpen);
+        _reward?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed); _rank?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed);
         var hasFeed = _feed?.Visible == true || _mission?.Visible == true || _reward?.Visible == true || _rank?.Visible == true;
-        if (_rank?.Visible == true || hiddenRecovery) _rankHide?.Apply(0); else _rankHide?.Restore();
+        if (suppressNativeFeed) _rankHide?.Apply(); else _rankHide?.Restore();
         if (_messageBackgroundHide != null && _messages != null)
         {
-            if ((feedVisible && hasFeed || hiddenRecovery) && !chatOpen &&
-                (MessagesOf(_messages).NoText || _mission?.Visible == true || hiddenRecovery)) _messageBackgroundHide.Apply(0);
+            if (suppressNativeFeed && !chatOpen) _messageBackgroundHide.Apply();
             else _messageBackgroundHide.Restore();
         }
         if (_feedBackplate != null)
@@ -216,6 +224,14 @@ internal sealed class CockpitAlerts : MonoBehaviour
         CockpitHudWidgets.SetHasContent("threats", _active && hasThreats);
         CockpitHudWidgets.SetHasContent("ew", _active && hasEw);
         CockpitHudWidgets.SetHasContent("feed", _active && hasFeed);
+    }
+
+    internal static bool LostCockpit(Aircraft? aircraft)
+    {
+        if (aircraft == null || aircraft.disabled || aircraft.HasEjected() || aircraft.cockpit == null || aircraft.cockpit.IsDetached()) return true;
+        foreach (var pilot in aircraft.pilots)
+            if (pilot != null && !pilot.dead && !pilot.ejected) return false;
+        return true;
     }
 
     private bool WidgetVisible(string id) => _active &&
@@ -238,7 +254,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
             _messageBackgroundHide?.Release();
             _messages = messages;
             var messageBackground = messages != null ? BackgroundOf(messages) : null;
-            _messageBackgroundHide = messageBackground != null ? new HudCanvasGroupLease(messageBackground.gameObject) : null;
+            _messageBackgroundHide = messageBackground != null ? new HudGraphicVisibilityLease(messageBackground) : null;
         }
         var source = messages != null ? FeedOf(messages) : null;
         if (_feed?.Source != source)
@@ -266,7 +282,7 @@ internal sealed class CockpitAlerts : MonoBehaviour
         {
             _rankHide?.Release();
             _rankBackground = background;
-            _rankHide = background == null ? null : new HudCanvasGroupLease(background.gameObject);
+            _rankHide = background == null ? null : new HudGraphicVisibilityLease(background);
         }
     }
 
@@ -505,12 +521,12 @@ internal sealed class CockpitAlerts : MonoBehaviour
     {
         _listHide?.Release(); _rankHide?.Release(); _messageBackgroundHide?.Release();
         _feed?.Release(); _mission?.Release(); _reward?.Release(); _rank?.Release();
-        _feed = _mission = _reward = _rank = null; _list = null; _listHide = _rankHide = null; _rankBackground = null;
+        _feed = _mission = _reward = _rank = null; _list = null; _listHide = null; _rankHide = null; _rankBackground = null;
         _messageBackgroundHide = null; _messages = null;
     }
     private void OnDisable()
     {
-        Application.onBeforeRender -= Place; _active = _hadCockpit = false; _feedMode = CockpitFeedMode.Native; ReleaseSources();
+        Application.onBeforeRender -= Place; _active = _hadCockpit = _recovering = false; _sessionHud = null; _feedMode = CockpitFeedMode.Native; ReleaseSources();
         ThreatItemNotchDirectionPatch.RestoreCompactIndicators();
         if (_root != null) _root.SetActive(false);
         if (_missileRoot != null) _missileRoot.SetActive(false);

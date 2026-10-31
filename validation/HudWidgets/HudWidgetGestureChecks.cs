@@ -62,7 +62,7 @@ internal static class HudWidgetGestureChecks
         var footprints = new Dictionary<string, (float width, float height)>
         {
             ["weapons"] = (420, 170), ["countermeasures"] = (260, 135), ["power"] = (420, 80),
-            ["threats"] = (460, 190), ["ew"] = (260, 260), ["feed"] = (460, 270), ["map"] = (300, 300)
+            ["threats"] = (460, 190), ["ew"] = (260, 260), ["feed"] = (460, 270), ["map"] = (300, 300), ["damage"] = (300, 300), ["objectives"] = (420, 150)
         };
         foreach (var pair in HudWidgetProfiles.FactoryDefaults)
         {

@@ -8,7 +8,7 @@ using UnityEngine.XR;
 namespace NOVR.VrUi.SpecialBehavior;
 
 // Borrow only the game's live leaf widgets. WeaponStatus, CombatHUD and
-// ChargeIndicator retain their own events, visibility, reloads and theme updates.
+// ChargeIndicator/StatusDisplay retain their events, visibility and animations.
 [DefaultExecutionOrder(110)]
 internal sealed class CockpitStatusSources : MonoBehaviour
 {
@@ -34,6 +34,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private HudCanvasGroupLease? _visibility;
         private NativeWeaponSafetyIndicator? _safety;
         private readonly bool _compactWeapon;
+        private readonly bool _damage;
         private readonly Dictionary<GameObject, int> _layers = new();
         private readonly List<Transform> _nodes = new();
         private readonly List<Graphic> _graphics = new();
@@ -41,15 +42,18 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private readonly Vector3[] _corners = new Vector3[4];
         private Bounds _bounds;
 
-        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon)
+        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false)
         {
             Widget = widget; Slot = slot; Parent = widget.parent;
-            _compactWeapon = compactWeapon;
+            _compactWeapon = compactWeapon; _damage = damage;
+            if (damage) widget.GetComponent<NOVRStatusDisplayBehavior>()?.PrepareForWidget();
             Index = widget.GetSiblingIndex(); _position = widget.localPosition;
             _scale = widget.localScale; _rotation = widget.localRotation;
             _anchorMin = widget.anchorMin; _anchorMax = widget.anchorMax;
             _pivot = widget.pivot; _size = widget.sizeDelta;
-            _background = widget.GetComponent<Image>();
+            // StatusDisplay's root image is its aircraft silhouette, including
+            // native damage fading. It is content, never a removable backplate.
+            _background = damage ? null : widget.GetComponent<Image>();
             _backgroundEnabled = _background != null && _background.enabled;
         }
 
@@ -147,6 +151,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
                 foreach (var graphic in _graphics)
                 {
                     if (graphic == null || !graphic.enabled || graphic == _background || graphic == _safety?.Source) continue;
+                    if (_damage && graphic.color.a <= .001f) continue;
                     if (graphic is TMP_Text tmp && string.IsNullOrWhiteSpace(tmp.text) ||
                         graphic is Text text && string.IsNullOrWhiteSpace(text.text)) continue;
                     var active = true;
@@ -185,12 +190,14 @@ internal sealed class CockpitStatusSources : MonoBehaviour
     private static CockpitStatusSources? _instance;
     private readonly Source[] _sources =
     {
-        new("weapons", "weaponPanel"), new("countermeasures", "countermeasuresBackground"), new("power", "PowerPanel")
+        new("weapons", "weaponPanel"), new("countermeasures", "countermeasuresBackground"), new("power", "PowerPanel"),
+        new("damage", "StatusDisplay")
     };
     private FlightHud? _hud;
     private Aircraft? _aircraft;
     private float _nextFind;
     private readonly List<Lease> _restore = new();
+    private readonly CockpitInstructionSources _instructions = new();
 
     private void Awake() => _instance = this;
 
@@ -208,13 +215,21 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         // Hide only the old common container once all three known leaves have
         // safely moved. Never blanket-hide flight instruments or ThreatList.
         foreach (var source in _instance._sources)
+        {
+            // Aircraft damage lives in a separate native anchor. Its absence
+            // must not resurrect the emptied weapons/CM/capacitor backplate.
+            if (source.Id == "damage") continue;
             if (source.Lease?.Valid != true ||
                 source.Lease.Parent != panel && !source.Lease.Parent.IsChildOf(panel)) return false;
+        }
         return true;
     }
 
     private void LateUpdate()
     {
+        // Reports can outlive their aircraft for a frame. Keep the text leases
+        // alive through recovery so old overhead instructions never reappear.
+        _instructions.Update();
         GameManager.GetLocalAircraft(out var aircraft);
         var hud = SceneSingleton<FlightHud>.i;
         if (_aircraft != aircraft || _hud != hud) { Release(); _aircraft = aircraft; _hud = hud; }
@@ -231,8 +246,8 @@ internal sealed class CockpitStatusSources : MonoBehaviour
             { source.Lease.Restore(); source.Lease = null; }
             if (discover && source.Lease == null && !source.Failed)
             {
-                var widget = Find(hud.transform, source.Name);
-                if (widget != null) source.Lease = new Lease(widget, content, source.Id == "weapons");
+                var widget = source.Id == "damage" ? FindDamage(hud.statusAnchor) : Find(hud.transform, source.Name);
+                if (widget != null) source.Lease = new Lease(widget, content, source.Id == "weapons", source.Id == "damage");
             }
         }
         foreach (var source in _sources)
@@ -263,7 +278,24 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         return null;
     }
 
+    private static RectTransform? FindDamage(Transform parent)
+    {
+        if (parent == null) return null;
+        // These are instantiated per aircraft with different prefab names.
+        // Search only the live HUD anchor, never aircraft assets or previews.
+        if (parent.GetComponent<StatusDisplay>() != null && parent is RectTransform rect) return rect;
+        for (var i = 0; i < parent.childCount; i++)
+        {
+            var found = FindDamage(parent.GetChild(i));
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     internal static void ReleaseAll() => _instance?.Release();
+    // Recovery state is decided after this adapter's LateUpdate; the alert
+    // owner calls this before rendering so no old overhead feed flashes back.
+    internal static void RefreshInstructions() => _instance?._instructions.Update();
     private void Release()
     {
         _restore.Clear();
@@ -278,6 +310,6 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         }
         _aircraft = null; _hud = null; _nextFind = 0;
     }
-    private void OnDisable() => Release();
-    private void OnDestroy() { Release(); if (_instance == this) _instance = null; }
+    private void OnDisable() { Release(); _instructions.Release(); }
+    private void OnDestroy() { Release(); _instructions.Release(); if (_instance == this) _instance = null; }
 }

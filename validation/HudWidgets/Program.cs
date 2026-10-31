@@ -14,7 +14,7 @@ try
     var profiles = new HudWidgetProfiles(config);
     var factory = HudWidgetProfiles.FactoryDefaults;
     var defaults = profiles.Load(null);
-    Equal(defaults.Count, 7, "Seven independent widget types including map");
+    Equal(defaults.Count, 9, "Nine independent widget types including damage and instructions");
     True(!profiles.HasOverride(null) && !profiles.HasOverride("FS-20"), "New aircraft inherits defaults");
     foreach (var id in HudWidgetProfiles.Ids)
     {
@@ -57,7 +57,7 @@ try
     var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 0), 1.37f, .59f, .31f, false);
     profiles.Save("FS-20", new Dictionary<string, HudWidgetPose> { ["weapons"] = precise, ["unknown widget"] = precise });
     Same(profiles.Load("FS-20")["threats"], customized["threats"], "Partial save preserves other widgets");
-    Equal(profiles.Load("FS-20").Count, 7, "Unknown widgets do not create new slots");
+    Equal(profiles.Load("FS-20").Count, 9, "Unknown widgets do not create new slots");
     CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
     var reloadedConfig = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var reloaded = new HudWidgetProfiles(reloadedConfig);
@@ -144,6 +144,8 @@ try
             "Only exact legacy aircraft defaults migrate " + pair.Key);
     }
     Same(upgradedAircraft["map"], HudWidgetProfiles.FactoryDefaults["map"], "Old override gets missing map with reachable visible default");
+    Same(upgradedAircraft["damage"], HudWidgetProfiles.FactoryDefaults["damage"], "Old saved layout gains reachable damage widget without repositioning other widgets");
+    Same(upgradedAircraft["objectives"], HudWidgetProfiles.FactoryDefaults["objectives"], "Old saved layout gains readable instructions widget");
     True(upgraded.HasOverride("legacy-aircraft"), "Migration preserves override selection");
     var migratedReload = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
     Same(migratedReload.Load("legacy-aircraft")["weapons"], HudWidgetProfiles.FactoryDefaults["weapons"], "Migrated positions persist without explicit user save");

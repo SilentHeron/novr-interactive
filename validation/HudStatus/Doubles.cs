@@ -51,6 +51,8 @@ namespace UnityEngine
         public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
         public T GetComponentInChildren<T>(bool includeInactive) where T : Component => gameObject.GetComponentInChildren<T>(includeInactive);
         public T[] GetComponentsInChildren<T>(bool includeInactive) where T : Component => gameObject.GetComponentsInChildren<T>(includeInactive);
+        public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component =>
+            results.AddRange(gameObject.GetComponentsInChildren<T>(includeInactive));
     }
     public class MonoBehaviour : Component
     {
@@ -69,6 +71,11 @@ namespace UnityEngine
             parent?.Children.Remove(this); parent = value; parent?.Children.Add(this);
         }
         public void SetAsFirstSibling() { parent?.Children.Remove(this); parent?.Children.Insert(0, this); }
+        public bool IsChildOf(Transform other)
+        {
+            for (var node = parent; node != null; node = node.parent) if (node == other) return true;
+            return false;
+        }
         public Vector3 TransformPoint(Vector3 value) => value + position;
     }
     public class RectTransform : Transform
@@ -102,7 +109,12 @@ namespace UnityEngine
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
     }
     public class CanvasGroup : Component { public float alpha = 1; public bool blocksRaycasts = true, interactable = true; }
-    public class CanvasRenderer : Component { }
+    public class Canvas : MonoBehaviour
+    {
+        public static event Action? willRenderCanvases;
+        public static void Render() => willRenderCanvases?.Invoke();
+    }
+    public class CanvasRenderer : Component { public bool cull; }
     public class Camera : Component { }
     public class Font : Object { }
     public enum TextAnchor { MiddleRight }
@@ -117,6 +129,8 @@ namespace UnityEngine.UI
     {
         public UnityEngine.Color color;
         public bool raycastTarget;
+        public UnityEngine.CanvasRenderer canvasRenderer => GetComponent<UnityEngine.CanvasRenderer>();
+        public void SetVerticesDirty() { }
         public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;
     }
     public class Image : Graphic { }

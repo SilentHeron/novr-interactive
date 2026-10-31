@@ -6,7 +6,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.7.16**. Targets Nuclear Option **0.34.6** and PC VR through SteamVR. Original cockpit displays stay in use; Quest / Touch controller support needs headset testing.
+Experimental version **0.4.7.17**. Targets Nuclear Option **0.34.6** and PC VR through SteamVR. Original cockpit displays stay in use; Quest / Touch controller support needs headset testing.
 
 ## Install
 
@@ -22,7 +22,7 @@ This replaces upstream NOVR; do not install both. On Proton, BepInEx needs the `
 
 **View → Edit layout:** reach a widget with your fingertip and grip to move it; throttle and stick placement uses the same edit mode. Tilt a held widget to adjust pitch/yaw; roll stays locked. Grab opposite corners with both hands to resize. Labels, outlines and corner handles appear only while editing. Touch the eye to hide/show a widget, or its pencil for the backplate opacity slider; surrounding widgets dim temporarily. Reopen View to save or cancel everything together. Layouts save per aircraft, with an optional shared HUD default.
 
-[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/CONTROLLER_BINDINGS.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.16.md)
+[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/CONTROLLER_BINDINGS.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.17.md)
 
 ## Build
 

@@ -40,8 +40,8 @@ internal sealed partial class WristMenu
                 HudWidgets!.Select(id); ShowPage(_hudWidgetPage!);
             });
         }
-        Label(_hudAppearancePage.transform, "Choose a widget to change its look.\n\nTo move the HUD, stick and throttle together,\nuse Edit layout on the View home page.",
-            new Vector2(0, -140), new Vector2(510, 150), 19);
+        Label(_hudAppearancePage.transform, "Choose a widget to change its look.\nUse Edit layout to move the HUD and handles.",
+            new Vector2(0, -185), new Vector2(510, 70), 18);
 
         _hudWidgetPage = Page("HUD WIDGET");
         var visibility = AddHudButton("", 0, 0, () => ChangeHudPose(p => { p.Visible = !p.Visible; return p; }));

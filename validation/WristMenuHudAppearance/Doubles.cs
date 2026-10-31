@@ -78,7 +78,7 @@ namespace NOVR.VrUi.SpecialBehavior
     internal struct HudWidgetPose { internal float Scale, Opacity, Background; internal bool Visible; internal UnityEngine.Vector3 Position, Euler; }
     internal static class HudWidgetProfiles
     {
-        internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map" };
+        internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
         internal static string Label(string id) => id;
         internal static HudWidgetPose Sanitize(string id, HudWidgetPose pose) => pose;
     }

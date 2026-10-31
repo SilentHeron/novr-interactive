@@ -16,16 +16,36 @@ internal static class ThreatItemVectorLineRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::ThreatItem __instance)
         {
-            var missileIconTransform = (Transform)MissileIconTransformField.GetValue(__instance);
-            var playerAircraftIconTransform = (Transform)PlayerAircraftIconTransformField.GetValue(__instance);
-            var vectorLine = (GameObject)VectorLineField.GetValue(__instance);
-            if (missileIconTransform == null || playerAircraftIconTransform == null || vectorLine == null)
+            var missileIconTransform = MissileIconTransformField.GetValue(__instance) as Transform;
+            var playerAircraftIconTransform = PlayerAircraftIconTransformField.GetValue(__instance) as Transform;
+            var vectorLine = VectorLineField.GetValue(__instance) as GameObject;
+            if (vectorLine == null)
                 return false;
 
-            var iconLayer = SceneSingleton<DynamicMap>.i.iconLayer.transform;
+            var map = SceneSingleton<DynamicMap>.i;
+            if (missileIconTransform == null || playerAircraftIconTransform == null || map == null || map.iconLayer == null)
+            {
+                vectorLine.SetActive(false);
+                return false;
+            }
+
+            var iconLayer = map.iconLayer.transform;
             var playerLocalPosition = iconLayer.InverseTransformPoint(playerAircraftIconTransform.position);
             var missileLocalPosition = iconLayer.InverseTransformPoint(missileIconTransform.position);
             var localDelta = missileLocalPosition - playerLocalPosition;
+            localDelta.z = 0;
+            // Both endpoints already use icon-layer coordinates. Dividing their
+            // distance by world scale again makes a small VR map's red line huge.
+            // Keep the native 2-pixel width through map zoom, using map UI units
+            // rather than metres (the entire widget may be scaled and rotated).
+            var pixel = iconLayer.InverseTransformVector(map.transform.TransformVector(Vector3.right)).magnitude;
+            var length = localDelta.magnitude;
+            if (!Finite(playerLocalPosition.x) || !Finite(playerLocalPosition.y) || !Finite(playerLocalPosition.z) ||
+                !Finite(length) || !Finite(pixel) || pixel <= 0)
+            {
+                vectorLine.SetActive(false);
+                return false;
+            }
 
             vectorLine.SetActive(true);
             vectorLine.transform.localPosition = playerLocalPosition;
@@ -33,8 +53,10 @@ internal static class ThreatItemVectorLineRotationSafePatch
                 0.0f,
                 0.0f,
                 -Mathf.Atan2(localDelta.x, localDelta.y) * Mathf.Rad2Deg);
-            vectorLine.transform.localScale = (Vector3.one + Vector3.up * localDelta.magnitude) / iconLayer.lossyScale.x;
+            vectorLine.transform.localScale = new Vector3(pixel, length + pixel, 1);
             return false;
         }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }

@@ -42,9 +42,9 @@ internal static class CockpitAlertChecks
             yes(CockpitFeedPresentation.Choose(true, true, true, true, true, false) == CockpitFeedMode.Cockpit);
             yes(CockpitFeedPresentation.Choose(true, true, true, false, true, false) == CockpitFeedMode.Native);
         });
-        check("Expanded recovery interfaces restore native history and resume compact notifications on close", () =>
+        check("Expanded recovery interfaces keep compact notifications; living cockpit menus retain native history", () =>
         {
-            yes(CockpitFeedPresentation.Choose(true, true, false, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, true, false, false, true, true) == CockpitFeedMode.Recovery);
             yes(CockpitFeedPresentation.Choose(true, true, true, false, true, true) == CockpitFeedMode.Recovery);
             yes(CockpitFeedPresentation.Choose(true, true, false, true, true, false) == CockpitFeedMode.Native);
         });

@@ -124,6 +124,124 @@ using (var f = new Fixture())
     Check(!safetyGroup.Dead && safetyImage.enabled && label == null, "Release preserves native safety state and removes only temporary label");
     Check(weapon.transform.parent == f.Panel && safety.transform.parent == weapon.transform, "Weapon and safety hierarchy restore after compact presentation");
 }
+using (var f = new Fixture())
+{
+    var damage = f.AddDamage("StatusDisplay_SmallFighter1(Clone)");
+    var rect = damage.transform; rect.sizeDelta = new Vector2(270, 270); rect.pivot = new Vector2(1, 0);
+    rect.localPosition = new Vector3(4, 7, 0); rect.localScale = new Vector3(.00045f, .00045f, .00045f);
+    var originalParent = rect.parent; var originalPosition = rect.localPosition;
+    var legacy = damage.AddComponent<NOVRStatusDisplayBehavior>();
+    var silhouette = damage.GetComponent<Image>();
+    var native = damage.GetComponent<StatusDisplay>();
+    var part = rect.GetChild(0).GetComponent<Image>();
+    part.color = new Color(1, .2f, 0, .8f);
+    f.Tick();
+    Check(legacy.Prepares == 1 && rect.parent == CockpitHudWidgets.Slots["damage"], "Damage lease replaces old fixed docking before capturing transform");
+    Check(silhouette.enabled && silhouette.color.a == 1 && native.enabled, "Native aircraft silhouette and damage logic remain enabled");
+    Check(part.enabled && part.color == new Color(1, .2f, 0, .8f), "Native part damage colors survive reparenting unchanged");
+    Near(rect.localScale.x, 300f / 270, "Damage source fits its own aspect and ignores old 0.00045 docking scale");
+    Check(CockpitHudWidgets.Content["damage"] && CockpitStatusSources.Owns(part.transform), "Damage graphics contribute content and belong to movable widget");
+    Check(CockpitStatusSources.EmptiedStatusPanel(f.Panel) && !CockpitStatusSources.EmptiedStatusPanel(originalParent),
+        "Separate damage anchor does not resurrect old status backplate or hide unrelated panels");
+    silhouette.color = new Color(1, 1, 1, 0); part.color = new Color(1, .2f, 0, 0); native.enabled = false;
+    f.Tick(.01f);
+    Check(!CockpitHudWidgets.Content["damage"] && !native.enabled, "Native healthy-aircraft fade can leave only edit placeholder without forced activation");
+    part.color = new Color(.7f, 0, .25f, 1); native.enabled = true; f.Tick(.01f);
+    Check(CockpitHudWidgets.Content["damage"] && part.color == new Color(.7f, 0, .25f, 1), "Later native damage/detachment state becomes visible without rebinding");
+    originalParent.gameObject.SetActive(false); f.Tick(.01f);
+    Check(!CockpitHudWidgets.Content["damage"] && damage.activeSelf && damage.GetComponent<CanvasGroup>().alpha == 0,
+        "Native HUD/map owner hiding suppresses borrowed damage without changing its active state");
+    originalParent.gameObject.SetActive(true); f.Tick(.01f);
+    Check(CockpitHudWidgets.Content["damage"], "Leaving native HUD hiding restores current damage immediately");
+    CockpitStatusSources.ReleaseAll();
+    Check(rect.parent == originalParent && rect.localPosition == originalPosition && rect.localScale == Vector3.one && rect.pivot == new Vector2(1, 0),
+        "Damage returns to native anchor with restorable undocked transform");
+    Check(silhouette.enabled && silhouette.color.a == 0 && part.color == new Color(.7f, 0, .25f, 1) && native.enabled,
+        "Restoration preserves live native damage/fade state");
+}
+using (var f = new Fixture())
+{
+    // Aircraft mods choose their own prefab names; component identity at the
+    // live HUD anchor is the contract, not one hard-coded vanilla name.
+    var damage = f.AddDamage("Custom aircraft health diagram"); damage.transform.sizeDelta = new Vector2(128, 256); f.Tick();
+    Near(damage.transform.localScale.x, 300f / 256, "Tall helicopter damage diagram keeps its aspect ratio");
+    Check(damage.transform.parent == CockpitHudWidgets.Slots["damage"], "Damage discovery supports arbitrary aircraft prefab names");
+    var owner = damage.transform.parent;
+    Object.Destroy(damage); f.Tick(.01f);
+    Check(!CockpitHudWidgets.Content["damage"], "Natively destroyed damage component clears moved content safely");
+    var next = f.AddDamage("Next aircraft diagram"); f.Tick();
+    Check(next.transform.parent == CockpitHudWidgets.Slots["damage"] && CockpitHudWidgets.Content["damage"], "Replacement native damage instance is discovered after destruction");
+}
+using (var f = new Fixture())
+{
+    var damage = f.AddDamage("StatusDisplay_Fighter1(Clone)");
+    var parent = damage.transform.parent; damage.FailNextCanvasGroup = true; f.Tick();
+    Check(damage.transform.parent == parent && damage.GetComponent<Image>().enabled && damage.GetComponent<StatusDisplay>().enabled,
+        "Failed damage attachment leaves native diagram and behavior available");
+    Check(CockpitStatusSources.EmptiedStatusPanel(f.Panel), "Damage failure does not block independent weapons/CM/power replacement");
+}
+using (var f = new Fixture())
+{
+    var hud = SceneSingleton<FlightHud>.i!;
+    var reportRoot = new GameObject("aircraftActions"); reportRoot.transform.SetParent(hud.transform, false);
+    var report = reportRoot.AddComponent<AircraftActionsReport>(); SceneSingleton<AircraftActionsReport>.i = report;
+    var background = reportRoot.AddComponent<Image>(); background.color = new Color(0, 0, 0, .8f);
+    var labelObject = new GameObject("ActionReportText"); labelObject.transform.SetParent(reportRoot.transform, false);
+    var reportText = labelObject.AddComponent<TextMeshProUGUI>(); reportText.color = new Color(1, 1, 1, 1);
+    report.SetFields(reportText, background); report.NativeReport("Cleared to taxi to Runway 21", true);
+    var navRoot = new GameObject("AirbaseOverlay"); navRoot.transform.SetParent(hud.transform, false);
+    var overlay = navRoot.AddComponent<AirbaseOverlay>();
+    var marker = navRoot.AddComponent<Image>();
+    var taxiObject = new GameObject("AirbaseLabel"); taxiObject.transform.SetParent(navRoot.transform, false);
+    var taxi = taxiObject.AddComponent<TextMeshProUGUI>(); taxi.color = new Color(.1f, 1, .2f, 1);
+    overlay.SetLabel(taxi); overlay.NativeLabel("Taxi to Runway 21 187m");
+    var slot = new GameObject("Instructions content") { layer = 30 }.transform; slot.sizeDelta = new Vector2(420, 150);
+    CockpitHudWidgets.Slots.Add("objectives", slot); f.Tick();
+    var copies = slot.Children.Select(x => x.GetComponent<TextMeshProUGUI>()).ToArray();
+    var taxiCopy = copies.Single(x => x.fontSize == 22); var reportCopy = copies.Single(x => x.fontSize == 19);
+    Check(taxiCopy.text == taxi.text && reportCopy.text == reportText.text && CockpitHudWidgets.Content["objectives"],
+        "Instructions mirrors both current taxi guidance and separate native action feed");
+    Check(taxi.canvasRenderer.cull && reportText.canvasRenderer.cull && background.canvasRenderer.cull,
+        "Original instruction text and its own backing are draw-culled despite additive shaders");
+    Check(marker.enabled && !marker.canvasRenderer.cull && taxi.transform.parent == navRoot.transform,
+        "Airbase marker geometry and original world hierarchy are untouched");
+    Check(taxi.enabled && reportText.enabled && background.enabled && reportText.text == "Cleared to taxi to Runway 21",
+        "Native text, enabled state and report queue inputs remain intact");
+    Check(taxiCopy.color == taxi.color && reportCopy.rectTransform.sizeDelta == new Vector2(408, 102) && reportCopy.maxVisibleLines == 4,
+        "Copies preserve native color with fixed readable widget layout");
+    overlay.NativeLabel("Taxi to Runway 21 95m"); report.NativeReport("Rearmed\nCleared for departure", true); f.Tick(.01f);
+    Check(taxiCopy.text.EndsWith("95m") && reportCopy.text == "Rearmed\nCleared for departure",
+        "Native progress and timed message replacements update without rediscovery");
+    report.NativeReport("", false); f.Tick(.01f);
+    Check(!reportCopy.enabled && !background.enabled && taxiCopy.enabled, "Native message expiry removes only report content");
+    overlay.NativeLabel("Stonefield Airbase 2km"); f.Tick(.01f);
+    Check(!taxiCopy.enabled && !taxi.canvasRenderer.cull && !CockpitHudWidgets.Content["objectives"],
+        "Non-taxi airbase names stay in world HUD instead of entering Instructions");
+    overlay.NativeLabel("Taxi to Runway 21 30m"); report.NativeReport("Clearance update", true);
+    CockpitHudWidgets.Visible = false; f.Tick(.01f);
+    Check(!taxiCopy.enabled && !reportCopy.enabled && taxi.canvasRenderer.cull && reportText.canvasRenderer.cull,
+        "Eye-hidden Instructions does not resurrect overhead originals");
+    CockpitHudWidgets.Visible = true; CockpitHudWidgets.Instance!.Available = false; f.Tick(.01f);
+    Check(!taxi.canvasRenderer.cull && !reportText.canvasRenderer.cull && !background.canvasRenderer.cull && !taxiCopy.enabled,
+        "Full map or menu restores native presentation and hides compact copies");
+    // Recovery is selected later than the source adapter. Its explicit refresh
+    // must suppress outside-HUD text in that same frame, without another tick.
+    CockpitAlerts.InRecovery = true; CockpitHudWidgets.Slots.Remove("objectives");
+    GameManager.Aircraft = null; CockpitStatusSources.RefreshInstructions();
+    Check(taxi.canvasRenderer.cull && reportText.canvasRenderer.cull && background.canvasRenderer.cull && !reportCopy.enabled,
+        "Crash recovery suppresses overhead instructions even after cockpit widgets release");
+    // TMP can create extra geometry after the hide begins. A native layout
+    // rebuild may also clear culling before the final canvas draw.
+    var extra = new GameObject("TMP SubMeshUI"); extra.transform.SetParent(reportText.transform, false);
+    var extraGraphic = extra.AddComponent<Image>(); reportText.canvasRenderer.cull = false; Canvas.Render();
+    Check(reportText.canvasRenderer.cull && extraGraphic.canvasRenderer.cull,
+        "Before-render suppression covers later TMP submeshes and layout cull resets");
+    CockpitAlerts.InRecovery = false; f.Tick(.01f);
+    Check(!taxi.canvasRenderer.cull && !reportText.canvasRenderer.cull && !extraGraphic.canvasRenderer.cull,
+        "Leaving VR recovery restores only the native draw states that were borrowed");
+    Object.Destroy(reportRoot); SceneSingleton<AircraftActionsReport>.i = null; f.Tick(); Canvas.Render();
+    Check(!reportCopy.enabled, "Natively destroyed report removes copied instructions and releases dead draw leases");
+}
 Console.WriteLine($"{count} source-linked cockpit widget lifecycle checks passed.");
 
 sealed class Fixture : IDisposable
@@ -135,6 +253,8 @@ sealed class Fixture : IDisposable
     {
         CockpitStatusSources.ReleaseAll(); CockpitHudWidgets.Slots.Clear(); CockpitHudWidgets.Content.Clear();
         Debug.Warnings = 0; UnityEngine.XR.XRSettings.enabled = true;
+        CockpitHudWidgets.Instance = new CockpitHudWidgets(); CockpitHudWidgets.Visible = true;
+        CockpitAlerts.InRecovery = false; SceneSingleton<AircraftActionsReport>.i = null;
         GameManager.Aircraft = CockpitHudWidgets.CurrentAircraft = new Aircraft();
         var hud = new GameObject("HUDCanvas"); SceneSingleton<FlightHud>.i = hud.AddComponent<FlightHud>();
         Panel = new GameObject("TopRightPanel").transform; Panel.SetParent(hud.transform, false);
@@ -152,6 +272,25 @@ sealed class Fixture : IDisposable
     {
         Time.unscaledTime += delta;
         typeof(CockpitStatusSources).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(_adapter, null);
+    }
+    internal GameObject AddDamage(string name)
+    {
+        var hud = SceneSingleton<FlightHud>.i!;
+        if (hud.statusAnchor == null)
+        {
+            hud.statusAnchor = new GameObject("LowerRightPanel").transform;
+            hud.statusAnchor.SetParent(hud.transform, false);
+        }
+        var diagram = new GameObject(name); diagram.transform.SetParent(hud.statusAnchor, false);
+        diagram.AddComponent<StatusDisplay>(); diagram.AddComponent<Image>().color = new Color(1, 1, 1, 1);
+        var part = new GameObject("Wing"); part.transform.SetParent(diagram.transform, false);
+        part.transform.sizeDelta = new Vector2(60, 60); part.AddComponent<Image>().color = new Color(1, 0, 0, 0);
+        if (!CockpitHudWidgets.Slots.ContainsKey("damage"))
+        {
+            var slot = new GameObject("damage content") { layer = 30 }.transform; slot.sizeDelta = new Vector2(300, 300);
+            CockpitHudWidgets.Slots.Add("damage", slot);
+        }
+        return diagram;
     }
     public void Dispose() => typeof(CockpitStatusSources).GetMethod("OnDestroy", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(_adapter, null);
 }

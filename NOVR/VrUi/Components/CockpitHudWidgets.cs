@@ -112,6 +112,8 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         "threats" => new Vector2(460, 190),
         "ew" => new Vector2(260, 260),
         "map" => new Vector2(300, 300),
+        "damage" => new Vector2(300, 300),
+        "objectives" => new Vector2(420, 150),
         _ => new Vector2(460, 270)
     };
 
@@ -119,7 +121,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         var cameraState = SceneSingleton<CameraStateManager>.i;
         var gameCamera = APIBus.MainCamera;
-        return XRSettings.enabled && _aircraft != null && !_aircraft.disabled &&
+        return XRSettings.enabled && _aircraft != null && !CockpitAlerts.LostCockpit(_aircraft) &&
             _aircraft.cockpit != null && !_aircraft.cockpit.IsDetached() && _aircraft.cockpitViewPoint != null &&
             CameraStateManager.cameraMode == CameraMode.cockpit && NOUIManager.I != null &&
             gameCamera != null && APIBus.CockpitHudCamera != null &&
@@ -146,7 +148,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private void Update()
     {
         GameManager.GetLocalAircraft(out var aircraft);
-        if (!XRSettings.enabled || aircraft == null || aircraft.disabled || aircraft.cockpit == null || aircraft.cockpit.IsDetached()) aircraft = null;
+        if (!XRSettings.enabled || CockpitAlerts.LostCockpit(aircraft)) aircraft = null;
         if (aircraft != _aircraft)
         {
             Finish(false);
@@ -542,6 +544,8 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         "threats" => "Incoming missiles\nBearing · distance · notch",
         "ew" => "Electronic warnings\nRadar / jamming bearings",
         "map" => "Tactical map\nTerrain and units",
+        "damage" => "Aircraft damage\nParts and system status",
+        "objectives" => "Instructions\nTaxi guidance and clearances",
         _ => "Kill feed\nMission notifications"
     };
     private static string Idle(string id) => id switch

@@ -9,8 +9,13 @@ public class NOVRStatusDisplayBehavior : UIRenderedCanvasBehavior
     private Vector3 _originalScale;
     private Quaternion _originalRotation;
     private bool _docked;
+    internal void PrepareForWidget() => Restore();
     private void LateUpdate()
     {
+        // Source leases return this to FlightHud on aircraft loss. That root
+        // suppresses drawing during recovery; do not recreate its large fallback.
+        if (CockpitAlerts.InRecovery) { Restore(); return; }
+        if (CockpitStatusSources.Owns(transform)) return;
         var cockpit = Fs20NativeCockpit.Cockpit;
         var game = APIBus.MainCamera?.transform.parent;
         var ui = APIBus.CockpitHudCamera?.transform.parent;

@@ -65,6 +65,7 @@ namespace UnityEngine
             if (type == typeof(CanvasGroup) && FailNextCanvasGroup)
             { FailNextCanvasGroup = false; throw new InvalidOperationException("synthetic attach failure"); }
             var component = (Component)Activator.CreateInstance(type)!; component.gameObject = this; Components.Add(component);
+            if (component is UnityEngine.UI.Graphic && GetComponent<CanvasRenderer>() == null) AddComponent<CanvasRenderer>();
             type.GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
             return component;
         }
@@ -104,6 +105,7 @@ namespace UnityEngine
     }
     public sealed class RectTransform : Transform
     {
+        public Vector2 anchoredPosition;
         public Vector2 anchorMin = new(.5f, .5f), anchorMax = new(.5f, .5f), pivot = new(.5f, .5f), sizeDelta = new(100, 100);
         public Rect rect => new(-pivot * sizeDelta, sizeDelta);
         public void GetWorldCorners(Vector3[] corners)
@@ -117,6 +119,9 @@ namespace UnityEngine
     }
     public sealed class CanvasGroup : Component
     { public float alpha = 1; public bool interactable = true, blocksRaycasts = true; }
+    public sealed class CanvasRenderer : Component { public bool cull; }
+    public sealed class Canvas : Component
+    { public static event Action? willRenderCanvases; public static void Render() => willRenderCanvases?.Invoke(); }
     public readonly record struct Vector2(float x, float y)
     {
         public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
@@ -170,6 +175,9 @@ namespace UnityEngine.UI
         public bool enabled = true, raycastTarget = true;
         public UnityEngine.Color color;
         public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;
+        public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
+        public UnityEngine.CanvasRenderer canvasRenderer => GetComponent<UnityEngine.CanvasRenderer>();
+        public void SetVerticesDirty() { }
     }
     public sealed class Image : Graphic { }
     public sealed class Text : Graphic
@@ -180,10 +188,35 @@ namespace UnityEngine.UI
         public UnityEngine.TextAnchor alignment;
     }
 }
-namespace TMPro { public sealed class TMP_Text : UnityEngine.UI.Graphic { public string text = ""; } }
+namespace TMPro
+{
+    public class TMP_Text : UnityEngine.UI.Graphic
+    {
+        public string text = ""; public object? font, fontSharedMaterial; public int fontSize, maxVisibleLines;
+        public bool richText, enableWordWrapping; public TextOverflowModes overflowMode; public TextAlignmentOptions alignment;
+    }
+    public sealed class TextMeshProUGUI : TMP_Text { }
+    public enum TextOverflowModes { Ellipsis }
+    public enum TextAlignmentOptions { TopLeft }
+}
+namespace HarmonyLib
+{ public static class AccessTools { public static FieldInfo Field(Type type, string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!; } }
 namespace UnityEngine.XR { public static class XRSettings { public static bool enabled = true; } }
 public sealed class Aircraft : UnityEngine.Object { }
-public sealed class FlightHud : UnityEngine.MonoBehaviour { }
+public sealed class FlightHud : UnityEngine.MonoBehaviour { public UnityEngine.Transform statusAnchor = null!; }
+public sealed class StatusDisplay : UnityEngine.MonoBehaviour { public bool enabled = true; }
+public sealed class AircraftActionsReport : UnityEngine.MonoBehaviour
+{
+    private TMPro.TextMeshProUGUI actionsText = null!; private UnityEngine.UI.Image background = null!;
+    internal void SetFields(TMPro.TextMeshProUGUI text, UnityEngine.UI.Image image) { actionsText = text; background = image; }
+    internal void NativeReport(string text, bool backplate) { actionsText.text = text; background.enabled = backplate; }
+}
+public sealed class AirbaseOverlay : UnityEngine.MonoBehaviour
+{
+    private TMPro.TextMeshProUGUI airbaseLabel = null!;
+    internal void SetLabel(TMPro.TextMeshProUGUI text) => airbaseLabel = text;
+    internal void NativeLabel(string text) => airbaseLabel.text = text;
+}
 public static class SceneSingleton<T> { public static T? i; }
 public static class GameManager
 {
@@ -192,12 +225,24 @@ public static class GameManager
 }
 namespace NOVR.VrUi.SpecialBehavior
 {
-    internal static class CockpitHudWidgets
+    // Legacy docking's Unity world transform is outside this bounded hierarchy
+    // check; verify the adapter restores it before capturing the lease.
+    internal sealed class NOVRStatusDisplayBehavior : UnityEngine.MonoBehaviour
     {
+        internal int Prepares;
+        internal void PrepareForWidget() { Prepares++; transform.localScale = UnityEngine.Vector3.one; }
+    }
+    internal sealed class CockpitHudWidgets
+    {
+        internal static CockpitHudWidgets? Instance = new();
+        internal bool Available = true;
+        internal static bool Visible = true;
+        internal static bool IsVisible(string id) => Instance?.Available == true && Visible;
         internal static Aircraft? CurrentAircraft;
         internal static readonly Dictionary<string, UnityEngine.RectTransform> Slots = new();
         internal static readonly Dictionary<string, bool> Content = new();
         internal static bool TryGetContent(string id, out UnityEngine.RectTransform content) => Slots.TryGetValue(id, out content!);
         internal static void SetHasContent(string id, bool visible) => Content[id] = visible;
     }
+    internal static class CockpitAlerts { internal static bool InRecovery; }
 }

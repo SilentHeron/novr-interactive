@@ -16,7 +16,7 @@ internal static class HudWidgetLayoutPersistenceChecks
             // Deliberately beyond the old reach-repair radius, enlarged, and
             // with different backing/content opacity for every widget.
             pose.Position = new Vector3(.7f + i * .1f, -.9f, 1.1f + i * .1f);
-            pose.Scale = 1.5f + i * .1f; pose.Background = i / 6f; pose.Opacity = .4f + i * .05f;
+            pose.Scale = 1.5f + i * .1f; pose.Background = i / (float)(HudWidgetProfiles.Ids.Length - 1); pose.Opacity = .4f + i * .05f;
             saved[id] = pose;
         }
         profiles.Save("FS-20", saved);

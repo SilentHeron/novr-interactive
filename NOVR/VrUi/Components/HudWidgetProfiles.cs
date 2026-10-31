@@ -22,7 +22,7 @@ internal struct HudWidgetPose
 internal sealed class HudWidgetProfiles
 {
     internal const float MinScale = .35f, MaxScale = 3f, MinOpacity = .25f;
-    internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map" };
+    internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
     private readonly ConfigEntry<bool> _sharedLayoutSaved;
@@ -49,7 +49,9 @@ internal sealed class HudWidgetProfiles
         ["threats"] = new(new Vector3(-.17f, -.06f, .44f), Vector3.zero, .65f),
         ["ew"] = new(new Vector3(-.28f, -.40f, .28f), Vector3.zero, .65f),
         ["feed"] = new(new Vector3(.17f, -.06f, .44f), Vector3.zero, .60f),
-        ["map"] = new(new Vector3(.34f, -.21f, .38f), Vector3.zero, .65f)
+        ["map"] = new(new Vector3(.34f, -.21f, .38f), Vector3.zero, .65f),
+        ["damage"] = new(new Vector3(.12f, -.28f, .32f), Vector3.zero, .65f),
+        ["objectives"] = new(new Vector3(-.12f, -.28f, .32f), Vector3.zero, .65f)
     };
     private static readonly Dictionary<string, HudWidgetPose> LegacyFactory = new(StringComparer.Ordinal)
     {
@@ -64,7 +66,8 @@ internal sealed class HudWidgetProfiles
     internal static string Label(string id) => id switch
     {
         "weapons" => "Weapons", "countermeasures" => "Countermeasures", "power" => "Capacitor",
-        "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", "map" => "Map", _ => "HUD widget"
+        "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", "map" => "Map",
+        "damage" => "Aircraft damage", "objectives" => "Instructions", _ => "HUD widget"
     };
     internal Dictionary<string, HudWidgetPose> Load(string? aircraftKey)
     {
