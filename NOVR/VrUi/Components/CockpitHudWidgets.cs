@@ -92,11 +92,13 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private bool Ready()
     {
         var cameraState = SceneSingleton<CameraStateManager>.i;
+        var gameCamera = APIBus.MainCamera;
         return XRSettings.enabled && _aircraft != null && !_aircraft.disabled &&
             _aircraft.cockpit != null && !_aircraft.cockpit.IsDetached() && _aircraft.cockpitViewPoint != null &&
             CameraStateManager.cameraMode == CameraMode.cockpit && NOUIManager.I != null &&
-            APIBus.MainCamera != null && APIBus.CockpitHudCamera != null &&
+            gameCamera != null && APIBus.CockpitHudCamera != null &&
             cameraState != null && cameraState.followingUnit == _aircraft &&
+            gameCamera.transform.parent == cameraState.transform && gameCamera.GetComponent<NOVRPoseDriver>() != null &&
             !PlayerSettings.cinematicMode && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu);
     }
 
@@ -108,6 +110,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         if (_aircraft == null || _aircraft.cockpitViewPoint == null || NOUIManager.I == null) return false;
         var gameCamera = APIBus.MainCamera; var uiCamera = APIBus.CockpitHudCamera;
         if (gameCamera == null || uiCamera == null) return false;
+        var cameraState = SceneSingleton<CameraStateManager>.i;
+        if (cameraState == null || cameraState.followingUnit != _aircraft ||
+            gameCamera.transform.parent != cameraState.transform || gameCamera.GetComponent<NOVRPoseDriver>() == null) return false;
         gameRoot = gameCamera.transform.parent; uiRoot = uiCamera.transform.parent; eye = _aircraft.cockpitViewPoint;
         return gameRoot != null && uiRoot != null;
     }
@@ -223,7 +228,8 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private void EnsureWidgetsWithinReach(bool all)
     {
         if (!Space(out var gameRoot, out _, out var eye)) return;
-        var head = eye.InverseTransformPoint(gameRoot.TransformPoint(NOVRHeadsetData.Translation + CockpitProfiles.SeatOffset));
+        var head = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
+            gameRoot.TransformPoint(NOVRHeadsetData.Translation + CockpitProfiles.SeatOffset));
         var leftShoulder = head + new Vector3(-.16f, -.18f, 0);
         var rightShoulder = head + new Vector3(.16f, -.18f, 0);
         var defaults = HudWidgetProfiles.FactoryDefaults;
@@ -254,7 +260,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         position = default;
         if (!hand.Valid || !Space(out var gameRoot, out _, out var eye)) return false;
-        position = eye.InverseTransformPoint(gameRoot.TransformPoint(hand.Position));
+        position = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation, gameRoot.TransformPoint(hand.Position));
         return TrackedControllers.Finite(position);
     }
     private void UpdateHand(int index, ControllerSample hand)
@@ -452,7 +458,8 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             widget.Root.gameObject.SetActive(show);
             if (!show || gameRoot == null || uiRoot == null || eye == null) continue;
             widget.Canvas.worldCamera = APIBus.CockpitHudCamera;
-            widget.Root.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(eye.TransformPoint(pose.Position))),
+            widget.Root.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(
+                    CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, pose.Position))),
                 uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation * Quaternion.Euler(pose.Euler));
             widget.Root.localScale = Vector3.one * (PixelSize * pose.Scale);
             widget.Group.alpha = pose.Visible ? pose.Opacity : 0;

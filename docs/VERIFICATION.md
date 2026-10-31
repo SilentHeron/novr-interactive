@@ -87,6 +87,7 @@ Native status borrowing/restoration is checked with
 `dotnet run --project tools/CockpitStatusSourceChecks/CockpitStatusSourceChecks.csproj -c Release`,
 using the production adapter with Unity boundary doubles, including inactive
 capacitors, sibling order, missing owners and attachment rollback.
+`dotnet run --project validation/HudStatus/NOVR.HudStatus.Tests.csproj -c Release` checks single-group opacity restoration, empty legacy backplates and compact weapon-safety state using production source and boundary doubles.
 Minimap borrowing, terrain tint and restoration are checked with
 `dotnet run --project tools/CockpitMapChecks/CockpitMapChecks.csproj -c Release`,
 using the production adapter with Unity boundary doubles. This does not verify rendered terrain.

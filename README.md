@@ -6,7 +6,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.7.12**. Targets Nuclear Option **0.34.6** and PC VR through SteamVR. Original cockpit displays stay in use; Quest / Touch controller support needs headset testing.
+Experimental version **0.4.7.13**. Targets Nuclear Option **0.34.6** and PC VR through SteamVR. Original cockpit displays stay in use; Quest / Touch controller support needs headset testing.
 
 ## Install
 
@@ -22,7 +22,7 @@ This replaces upstream NOVR; do not install both. On Proton, BepInEx needs the `
 
 **View → Edit layout:** grip any widget, throttle or stick to move it. Grab opposite widget corners with both hands to resize; angles stay locked. Labels, outlines and corner handles appear only while editing. Reopen View to save or cancel everything together. Layouts save per aircraft, with an optional shared HUD default.
 
-[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/CONTROLLER_BINDINGS.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.12.md)
+[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/CONTROLLER_BINDINGS.md) · [FS-20 cockpit](https://github.com/SilentHeron/novr-interactive/blob/main/docs/FS20_NATIVE_COCKPIT.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.7.13.md)
 
 ## Build
 

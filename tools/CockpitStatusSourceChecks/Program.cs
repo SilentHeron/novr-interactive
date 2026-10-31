@@ -27,10 +27,10 @@ using (var f = new Fixture())
     var nativeGroup = weapon.AddComponent<CanvasGroup>(); nativeGroup.alpha = .37f;
     f.Tick(); f.Panel.gameObject.SetActive(false); f.Tick(.01f);
     Check(weapon.activeSelf, "Parent hiding never changes native activeSelf");
-    Check(weapon.Components.OfType<CanvasGroup>().Where(g => !g.Dead).Any(g => g != nativeGroup && g.alpha == 0), "Borrowed presentation follows native parent hiding");
+    Check(nativeGroup.alpha == 0 && weapon.Components.OfType<CanvasGroup>().Count(g => !g.Dead) == 1, "Borrowed presentation hides through the single native CanvasGroup");
     Check(!CockpitHudWidgets.Content["weapons"], "Hidden native owner contributes no content");
     f.Panel.gameObject.SetActive(true); f.Tick(.01f);
-    Check(weapon.Components.OfType<CanvasGroup>().Where(g => !g.Dead).Any(g => g != nativeGroup && g.alpha == 1), "Native parent can restore presentation without rebinding");
+    Near(nativeGroup.alpha, .37f, "Native parent restores original opacity without rebinding or a second CanvasGroup");
     CockpitStatusSources.ReleaseAll();
     Check(nativeGroup.alpha == .37f && weapon.Components.OfType<CanvasGroup>().Count(g => !g.Dead) == 1, "Release leaves existing native CanvasGroups intact");
 }
@@ -92,7 +92,7 @@ using (var f = new Fixture())
 {
     var weapon = f.Widgets["weapons"]; weapon.transform.sizeDelta = new Vector2(240, 100);
     var image = new GameObject("weaponImage"); image.transform.SetParent(weapon.transform, false);
-    image.transform.sizeDelta = new Vector2(240, 120); image.SetActive(false);
+    image.AddComponent<Image>(); image.transform.sizeDelta = new Vector2(240, 120); image.SetActive(false);
     CockpitHudWidgets.Slots["weapons"].sizeDelta = new Vector2(420, 170); f.Tick();
     Near(weapon.transform.localScale.y, 170f / 120, "Fit includes inactive overflowing native geometry");
     f.Tick(); Near(weapon.transform.localScale.y, 170f / 120, "Repeated discovery cannot accumulate scale");
@@ -100,6 +100,29 @@ using (var f = new Fixture())
     GameManager.Aircraft = new Aircraft(); f.Tick();
     Check(weapon.transform.parent == f.Panel && !CockpitStatusSources.Owns(weapon.transform), "Aircraft mismatch releases rather than borrowing into wrong layout");
     GameManager.Aircraft = oldAircraft;
+}
+using (var f = new Fixture())
+{
+    var weapon = f.Widgets["weapons"]; weapon.transform.sizeDelta = new Vector2(240, 100);
+    var image = new GameObject("weaponImage"); image.transform.SetParent(weapon.transform, false);
+    image.AddComponent<Image>(); image.transform.sizeDelta = new Vector2(240, 120);
+    var safety = new GameObject("weaponDisabled"); safety.transform.SetParent(weapon.transform, false);
+    safety.transform.sizeDelta = new Vector2(1200, 900); // This backing must not determine the fit.
+    var safetyImage = safety.AddComponent<Image>(); safetyImage.color = new Color(.689f, .689f, .689f, .8f);
+    var safetyGroup = safety.AddComponent<CanvasGroup>(); safetyGroup.alpha = .63f;
+    CockpitHudWidgets.Slots["weapons"].sizeDelta = new Vector2(420, 170); f.Tick();
+    var label = weapon.transform.Find("NOVR weapon safety")!.GetComponent<Text>();
+    Check(label.enabled && label.text == "SAFE", "Safety-on is represented in the borrowed weapon widget");
+    Check(safetyImage.enabled && safetyGroup.alpha == 0, "Only grey safety overlay is suppressed; native safety enabled state remains intact");
+    Near(weapon.transform.localScale.y, 170f / 120, "Oversized hidden backing does not shrink the weapon readout");
+    Check(image.GetComponent<Image>().enabled && weapon.transform.GetChild(0).GetComponent<TMP_Text>().enabled, "Weapon icon and original readout remain enabled");
+    safetyImage.enabled = false; f.Tick(.01f);
+    Check(!label.enabled && !safetyImage.enabled, "Native safety release updates the compact label immediately");
+    safetyImage.enabled = true; f.Tick(.01f); Check(label.enabled, "Native safety can engage again without rebinding");
+    CockpitStatusSources.ReleaseAll();
+    Near(safetyGroup.alpha, .63f, "Release restores native safety overlay opacity");
+    Check(!safetyGroup.Dead && safetyImage.enabled && label == null, "Release preserves native safety state and removes only temporary label");
+    Check(weapon.transform.parent == f.Panel && safety.transform.parent == weapon.transform, "Weapon and safety hierarchy restore after compact presentation");
 }
 Console.WriteLine($"{count} source-linked cockpit widget lifecycle checks passed.");
 

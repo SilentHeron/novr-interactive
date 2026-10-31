@@ -154,7 +154,8 @@ try
     Same(intentionalRestore.Load(null)["weapons"], old["weapons"], "Migration runs once; later intentional old default placement is preserved");
     Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
     HudWidgetGestureChecks.Run(True);
-    Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence and actual gesture math).");
+    CockpitWidgetSpaceChecks.Run(True);
+    Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }
 

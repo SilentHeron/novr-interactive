@@ -29,7 +29,7 @@ namespace UnityEngine
         public GameObject gameObject = null!;
         public Transform transform => gameObject.transform;
         public string name => gameObject.name;
-        public T? GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
+        public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
         {
             void Visit(Transform root)
@@ -50,17 +50,22 @@ namespace UnityEngine
         public int layer;
         public bool activeSelf = true, FailNextCanvasGroup;
         public bool activeInHierarchy => !Dead && activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
-        public GameObject(string name)
+        public GameObject(string name, params Type[] types)
         {
             this.name = name; transform = new RectTransform { gameObject = this }; Components.Add(transform);
+            foreach (var type in types)
+                if (type != typeof(RectTransform)) Add(type);
         }
-        public T? GetComponent<T>() where T : Component => Components.OfType<T>().FirstOrDefault(x => !x.Dead);
-        public T AddComponent<T>() where T : Component, new()
+        public T GetComponent<T>() where T : Component => Components.OfType<T>().FirstOrDefault(x => !x.Dead)!;
+        public T AddComponent<T>() where T : Component, new() => (T)Add(typeof(T));
+        private Component Add(Type type)
         {
-            if (typeof(T) == typeof(CanvasGroup) && FailNextCanvasGroup)
+            if (type == typeof(CanvasGroup) && GetComponent<CanvasGroup>() != null)
+                throw new InvalidOperationException("Unity rejects duplicate CanvasGroups");
+            if (type == typeof(CanvasGroup) && FailNextCanvasGroup)
             { FailNextCanvasGroup = false; throw new InvalidOperationException("synthetic attach failure"); }
-            var component = new T { gameObject = this }; Components.Add(component);
-            typeof(T).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
+            var component = (Component)Activator.CreateInstance(type)!; component.gameObject = this; Components.Add(component);
+            type.GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
             return component;
         }
         public void SetActive(bool active) => activeSelf = active;
@@ -73,6 +78,7 @@ namespace UnityEngine
         public Quaternion localRotation = Quaternion.identity;
         public int childCount => Children.Count;
         public Transform GetChild(int index) => Children[index];
+        public Transform? Find(string name) => Children.FirstOrDefault(child => child.name == name);
         public void SetParent(Transform? next, bool worldPositionStays)
         { parent?.Children.Remove(this); parent = next!; next?.Children.Add(this); }
         public int GetSiblingIndex() => parent?.Children.IndexOf(this) ?? 0;
@@ -132,7 +138,11 @@ namespace UnityEngine
     public readonly record struct Quaternion(float x, float y, float z, float w)
     { public static Quaternion identity => new(0, 0, 0, 1); }
     public readonly record struct Rect(Vector2 min, Vector2 size)
-    { public Vector2 center => min + size * new Vector2(.5f, .5f); public float width => size.x; public float height => size.y; }
+    {
+        public Vector2 center => min + size * new Vector2(.5f, .5f);
+        public float width => size.x; public float height => size.y;
+        public float xMax => min.x + size.x; public float yMax => min.y + size.y;
+    }
     public struct Bounds(Vector3 center, Vector3 size)
     {
         private Vector3 _min = center - size * .5f, _max = center + size * .5f;
@@ -145,15 +155,30 @@ namespace UnityEngine
         }
     }
     public static class Mathf { public static float Min(float a, float b) => Math.Min(a, b); }
+    public readonly record struct Color(float r, float g, float b, float a);
+    public sealed class Font : Object { }
+    public enum TextAnchor { MiddleRight }
+    public static class Resources { public static T GetBuiltinResource<T>(string name) where T : new() => new(); }
     public static class Time { public static float unscaledTime; }
     public static class Debug { public static int Warnings; public static void LogWarning(string message) => Warnings++; }
     [AttributeUsage(AttributeTargets.Class)] public sealed class DefaultExecutionOrder(int order) : Attribute { public int Order => order; }
 }
 namespace UnityEngine.UI
 {
-    public class Graphic : UnityEngine.Component { public bool enabled = true; }
+    public class Graphic : UnityEngine.Component
+    {
+        public bool enabled = true, raycastTarget = true;
+        public UnityEngine.Color color;
+        public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;
+    }
     public sealed class Image : Graphic { }
-    public sealed class Text : Graphic { public string text = ""; }
+    public sealed class Text : Graphic
+    {
+        public string text = "";
+        public UnityEngine.Font? font;
+        public int fontSize;
+        public UnityEngine.TextAnchor alignment;
+    }
 }
 namespace TMPro { public sealed class TMP_Text : UnityEngine.UI.Graphic { public string text = ""; } }
 namespace UnityEngine.XR { public static class XRSettings { public static bool enabled = true; } }

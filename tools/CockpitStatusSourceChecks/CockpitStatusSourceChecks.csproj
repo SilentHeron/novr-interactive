@@ -8,5 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Components/CockpitStatusSources.cs" Link="CockpitStatusSources.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/HudCanvasGroupLease.cs" Link="HudCanvasGroupLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/NativeWeaponSafetyIndicator.cs" Link="NativeWeaponSafetyIndicator.cs" />
   </ItemGroup>
 </Project>

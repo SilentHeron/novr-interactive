@@ -10,13 +10,16 @@ internal sealed class HudReadability : MonoBehaviour
     private Vector3 _baseScale;
     private Vector3 _basePosition;
     private Image? _backplate;
-    private CanvasGroup? _group;
+    private HudCanvasGroupLease? _group;
     private bool _secondary;
+    private bool _sourcesMoved;
+    private float _readabilityAlpha = 1f;
     private ThreatList? _threats;
 
     internal static void Add(Transform panel, bool secondary)
     {
-        var behavior = panel.gameObject.AddComponent<HudReadability>();
+        var behavior = panel.GetComponent<HudReadability>();
+        if (behavior == null) behavior = panel.gameObject.AddComponent<HudReadability>();
         behavior._secondary = secondary;
     }
 
@@ -25,8 +28,7 @@ internal sealed class HudReadability : MonoBehaviour
         _threats = GetComponentInChildren<ThreatList>(true);
         _baseScale = transform.localScale;
         _basePosition = transform.localPosition;
-        _group = gameObject.AddComponent<CanvasGroup>();
-        _group.blocksRaycasts = false;
+        _group = new HudCanvasGroupLease(gameObject);
         var go = new GameObject("NOVR status backplate", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         var rect = (RectTransform)go.transform;
         rect.SetParent(transform, false);
@@ -43,10 +45,16 @@ internal sealed class HudReadability : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (_sourcesMoved)
+        {
+            if (_backplate != null) _backplate.enabled = false;
+            _group?.Apply(0);
+            return;
+        }
         if (MotionControls.UniversalCockpitPanel.IsDocked(transform))
         {
             if (_backplate != null) _backplate.enabled = false;
-            if (_group != null) _group.alpha = 1f;
+            _readabilityAlpha = 1f; _group?.Apply(_readabilityAlpha);
             return;
         }
         var config = ModConfiguration.Instance;
@@ -57,9 +65,37 @@ internal sealed class HudReadability : MonoBehaviour
         transform.position = camera.transform.position + direction * ratio;
         transform.localScale = _baseScale * (config.HudPanelScale.Value * ratio);
         var incomingMissile = _secondary && _threats != null && _threats.transform.childCount > 0;
+        // The lower-left source container also held the minimized map. Once
+        // that map moves, retain native threat/text fallbacks without its empty
+        // 400px square backing plate. Active native missile warnings may still
+        // use contrast when the compact warning view cannot replace them.
+        var mapMoved = _secondary && CockpitHudWidgets.Owns("map") && GetComponentInChildren<DynamicMap>(true) == null;
+        var nativeThreats = incomingMissile && !CockpitAlerts.Active;
         if (_backplate != null) _backplate.enabled = config.HudContrast.Value &&
             !(_secondary && CockpitAlerts.Active) &&
+            (!mapMoved || nativeThreats) &&
             (!MotionControls.UniversalCockpitPanel.HasDisplays || incomingMissile);
-        if (_group != null) _group.alpha = _secondary && config.HudDeclutter.Value && !incomingMissile ? 0.15f : 1f;
+        _readabilityAlpha = _secondary && config.HudDeclutter.Value && !incomingMissile ? 0.15f : 1f;
+        _group?.Apply(_readabilityAlpha);
+    }
+
+    internal void SetWidgetSourcesMoved(bool moved)
+    {
+        _sourcesMoved = moved;
+        if (moved && _backplate != null) _backplate.enabled = false;
+        if (isActiveAndEnabled) _group?.Apply(moved ? 0 : _readabilityAlpha);
+        else _group?.Restore();
+    }
+
+    private void OnDisable()
+    {
+        _sourcesMoved = false; _group?.Restore();
+        if (_backplate != null) _backplate.enabled = false;
+    }
+
+    private void OnDestroy()
+    {
+        _group?.Release();
+        if (_backplate != null) Destroy(_backplate.gameObject);
     }
 }
