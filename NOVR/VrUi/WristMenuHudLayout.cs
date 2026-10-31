@@ -10,6 +10,8 @@ internal sealed partial class WristMenu
 {
     private GameObject? _layoutPage, _hudAppearancePage, _hudWidgetPage, _hudDefaultPage;
     private Text? _layoutInfo, _hudWidgetInfo, _hudDefaultInfo;
+    private Slider? _hudBackplateSlider;
+    private Text? _hudBackplateLabel;
     private readonly List<Button> _hudAvailableButtons = new(), _hudEditingButtons = new();
     private static CockpitHudWidgets? HudWidgets => CockpitHudWidgets.Instance;
     private string SelectedHudId => HudWidgets?.SelectedId ?? "weapons";
@@ -47,10 +49,9 @@ internal sealed partial class WristMenu
         AddButton("All widgets", 1, 0, Back);
         AddHudButton("Smaller", 0, 1, () => ChangeHudPose(p => { p.Scale -= .1f; return p; }));
         AddHudButton("Larger", 1, 1, () => ChangeHudPose(p => { p.Scale += .1f; return p; }));
-        AddHudButton("More transparent", 0, 2, () => ChangeHudPose(p => { p.Opacity -= .1f; return p; }));
-        AddHudButton("More opaque", 1, 2, () => ChangeHudPose(p => { p.Opacity += .1f; return p; }));
-        AddHudButton("Less background", 0, 3, () => ChangeHudPose(p => { p.Background -= .1f; return p; }));
-        AddHudButton("More background", 1, 3, () => ChangeHudPose(p => { p.Background += .1f; return p; }));
+        AddHudButton("Fainter readouts", 0, 2, () => ChangeHudPose(p => { p.Opacity -= .1f; return p; }));
+        AddHudButton("Brighter readouts", 1, 2, () => ChangeHudPose(p => { p.Opacity += .1f; return p; }));
+        CreateHudBackplateSlider(_hudWidgetPage.transform);
         AddHudButton("Layout controls", 0, 4, ShowLayoutControls, true);
         _hudWidgetInfo = Label(_hudWidgetPage.transform, "", new Vector2(0, -163), new Vector2(510, 140), 18);
 
@@ -81,6 +82,41 @@ internal sealed partial class WristMenu
         if (HudWidgets?.Available == true)
             HudWidgets.SetAppearance(SelectedHudId, HudWidgetProfiles.Sanitize(SelectedHudId, change(HudWidgets.GetPose(SelectedHudId))));
     }
+    private void CreateHudBackplateSlider(Transform parent)
+    {
+        var go = new GameObject("Backplate opacity", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Slider));
+        var root = (RectTransform)go.transform;
+        root.SetParent(parent, false); root.anchoredPosition = new Vector2(0, 6); root.sizeDelta = new Vector2(510, 49);
+        go.GetComponent<Image>().color = Color.clear;
+        _hudBackplateLabel = Label(root, "Backplate opacity 0%", new Vector2(0, 18), new Vector2(510, 24), 18);
+        Label(root, "Clear", new Vector2(-224, -10), new Vector2(62, 26), 16);
+        Label(root, "Solid", new Vector2(224, -10), new Vector2(62, 26), 16);
+
+        var trackObject = new GameObject("Track", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        var track = (RectTransform)trackObject.transform; track.SetParent(root, false);
+        track.anchoredPosition = new Vector2(0, -10); track.sizeDelta = new Vector2(370, 12);
+        var trackImage = trackObject.GetComponent<Image>(); trackImage.color = new Color(.10f, .24f, .29f); trackImage.raycastTarget = false;
+        var areaObject = new GameObject("Handle area", typeof(RectTransform));
+        var area = (RectTransform)areaObject.transform; area.SetParent(root, false);
+        area.anchoredPosition = new Vector2(0, -10); area.sizeDelta = new Vector2(370, 30);
+        var handleObject = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        var handle = (RectTransform)handleObject.transform; handle.SetParent(area, false); handle.sizeDelta = new Vector2(30, 30);
+        var handleImage = handleObject.GetComponent<Image>(); handleImage.color = new Color(.65f, .88f, .96f);
+
+        _hudBackplateSlider = go.GetComponent<Slider>();
+        _hudBackplateSlider.minValue = 0; _hudBackplateSlider.maxValue = 100; _hudBackplateSlider.wholeNumbers = true;
+        _hudBackplateSlider.direction = Slider.Direction.LeftToRight;
+        _hudBackplateSlider.handleRect = handle; _hudBackplateSlider.targetGraphic = handleImage;
+        _hudBackplateSlider.navigation = new Navigation { mode = Navigation.Mode.None };
+        _hudBackplateSlider.onValueChanged.AddListener(value =>
+        {
+            var manager = HudWidgets;
+            if (manager?.Available != true || Mathf.Approximately(manager.GetPose(SelectedHudId).Background, value * .01f)) return;
+            ChangeHudPose(p => { p.Background = value * .01f; return p; });
+            RefreshHudLayoutEditor();
+        });
+        LayerHelper.SetLayerRecursive(root, LayerHelper.GetVrUiLayer());
+    }
     private void ShowLayoutControls()
     {
         ShowPage(_layoutPage!);
@@ -93,17 +129,19 @@ internal sealed partial class WristMenu
         var available = manager?.Available == true;
         foreach (var button in _hudAvailableButtons) if (button != null) button.interactable = available;
         foreach (var button in _hudEditingButtons) if (button != null) button.interactable = available && CockpitHudWidgets.Editing;
+        if (_hudBackplateSlider != null) _hudBackplateSlider.interactable = available;
         if (_layoutInfo != null && _layoutPage?.activeSelf == true)
             _layoutInfo.text = !available ? "Enter a cockpit to arrange its layout." :
                 "Grip any HUD widget, stick or throttle to move it.\nWidget angles stay fixed.\nGrab opposite corners with both hands to resize.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
         if (_hudWidgetInfo != null && _hudWidgetPage?.activeSelf == true && manager != null)
         {
             var pose = manager.GetPose(SelectedHudId);
+            if (_hudBackplateSlider != null) _hudBackplateSlider.SetValueWithoutNotify(pose.Background * 100);
+            if (_hudBackplateLabel != null) _hudBackplateLabel.text = $"Backplate opacity {pose.Background * 100:0}%";
             _hudWidgetInfo.text = HudWidgetProfiles.Label(SelectedHudId) +
-                $"\nSize {pose.Scale * 100:0}% · Opacity {pose.Opacity * 100:0}% · Background {pose.Background * 100:0}%\n\n" +
+                $"\nSize {pose.Scale * 100:0}% · Readouts {pose.Opacity * 100:0}%\nBackplate opacity leaves readouts unchanged.\n\n" +
                 (CockpitHudWidgets.Editing ? "Preview only; save or cancel in Layout controls.\nEmpty / hidden widgets show while editing." :
-                    "Appearance changes save automatically.\nUse Edit layout on View home to move things.") +
-                "\nSeat adjustments leave the widgets in place.";
+                    "Appearance changes save automatically.\nUse Edit layout on View home to move things.");
         }
         if (_hudDefaultInfo != null && _hudDefaultPage?.activeSelf == true)
             _hudDefaultInfo.text = "Use these widgets as the shared HUD layout?\n\nThis aircraft and uncustomized aircraft\nwill follow it. Other saved aircraft layouts\nstay unchanged.\n\nHandle positions save for this aircraft only.\nSaving ends the entire layout preview.";

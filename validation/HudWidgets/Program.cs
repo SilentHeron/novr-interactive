@@ -155,6 +155,7 @@ try
     Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
     HudWidgetGestureChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
+    HudWidgetLayoutPersistenceChecks.Run(directory, True);
     Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }

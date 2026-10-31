@@ -130,6 +130,74 @@ try
         bindings.ZoomEnabled.Value = false;
         Equal(bindings.ReadFlight(hand, zoomLeft, zoom.Button), 1f, "Disabled zoom releases its reservation");
     }
+
+    // A menu confirmation is one undoable edit, even when it displaces several
+    // actions. Use actual BepInEx values so restoration and persistence agree.
+    foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+    foreach (var leftHanded in new[] { false, true })
+    {
+        Hardware(profile); ModConfiguration.Instance.MotionControls.LeftHanded.Value = leftHanded;
+        var editConfig = Config("undo-" + profile + leftHanded);
+        var bindings = new ControllerBindings(editConfig);
+        True(!bindings.CanUndoEdit && !bindings.UndoEdit(), "New profile has no invented undo history");
+        var release = bindings.Get(ControllerActionId.WeaponRelease);
+        // An imported configuration may already contain duplicate actions.
+        bindings.Set(ControllerActionId.Gear, release);
+        bindings.ZoomEnabled.Value = false;
+        var before = ControllerBindingDefaults.Actions.ToDictionary(action => action, bindings.Get);
+        var beforeVersion = bindings.ChangeVersion;
+        True(!bindings.TryApplyEdit(ControllerActionId.Zoom, release, false), "Conflicts need explicit replacement");
+        foreach (var action in ControllerBindingDefaults.Actions)
+            Equal(bindings.Get(action), before[action], "Rejected edit preserves " + action);
+        Equal(bindings.ChangeVersion, beforeVersion, "Rejected edit does not reset input state");
+        True(bindings.TryApplyEdit(ControllerActionId.Zoom, release, true), "Replacement can be confirmed");
+        Equal(bindings.Get(ControllerActionId.WeaponRelease).Button, ControllerButton.None, "Replacement unassigns weapon release");
+        Equal(bindings.Get(ControllerActionId.Gear).Button, ControllerButton.None, "Replacement unassigns every conflicting action");
+        Equal(bindings.Get(ControllerActionId.Guns), before[ControllerActionId.Guns], "Replacement preserves unrelated guns input");
+        True(bindings.CanUndoEdit && bindings.ChangeVersion > beforeVersion, "Saved edit is undoable and resets input gates");
+        Equal(bindings.UndoEditLabel, ControllerBindings.ActionLabel(ControllerActionId.Zoom), "Undo names the last saved edit");
+        True(bindings.TryApplyEdit(ControllerActionId.Zoom, bindings.Get(ControllerActionId.Zoom), false), "Saving an unchanged row is accepted");
+        True(!bindings.TryApplyEdit(ControllerActionId.WristMenu, new(ControllerButton.Trigger, ControllerHandRole.Left), true), "Invalid pointer trigger cannot clear other assignments");
+        True(bindings.CanUndoEdit && bindings.UndoEdit(), "No-op and invalid edits preserve the previous undo");
+        foreach (var action in ControllerBindingDefaults.Actions)
+            Equal(bindings.Get(action), before[action], "Undo restores button and hand for " + action);
+        True(!bindings.ZoomEnabled.Value && !bindings.CanUndoEdit && !bindings.UndoEdit(), "Undo preserves zoom state and is one-shot");
+
+        bindings.Set(ControllerActionId.SelectTarget, new(ControllerButton.None, ControllerHandRole.Throttle));
+        bindings.ResetProfile();
+        True(bindings.ZoomEnabled.Value && bindings.SelectTargetOnStick.Value, "Default reset restores its ancillary settings");
+        True(bindings.CanUndoEdit && bindings.UndoEdit(), "Default reset is undoable");
+        Equal(bindings.Get(ControllerActionId.Gear), release, "Reset undo restores custom bindings");
+        Equal(bindings.Get(ControllerActionId.SelectTarget).Hand, ControllerHandRole.Throttle, "Reset undo restores target hand");
+        True(!bindings.ZoomEnabled.Value && !bindings.SelectTargetOnStick.Value, "Reset undo restores ancillary settings");
+        bindings.ResetProfile(); bindings.ViewZoomFactor.Value = 2.2f;
+        True(bindings.UndoEdit(), "Unrelated zoom quality edit does not discard binding undo");
+        Equal(bindings.ViewZoomFactor.Value, 2.2f, "Undo does not overwrite unrelated settings");
+
+        True(bindings.TryApplyEdit(ControllerActionId.Zoom, release, true), "Second replacement saves");
+        bindings.Set(ControllerActionId.NextWeapon, new(ControllerButton.None, ControllerHandRole.Throttle));
+        True(!bindings.CanUndoEdit && !bindings.UndoEdit(), "Newer external binding change blocks stale undo");
+        Equal(bindings.Get(ControllerActionId.NextWeapon).Button, ControllerButton.None, "Blocked undo leaves newer change intact");
+        editConfig.Save();
+        var afterReload = new ControllerBindings(new ConfigFile(editConfig.ConfigFilePath, false) { SaveOnConfigSet = false });
+        Equal(afterReload.Get(ControllerActionId.Zoom), release, "Confirmed edit persists");
+        True(!afterReload.CanUndoEdit, "Undo history is confined to the current game session");
+    }
+    Hardware(ControllerBindingProfile.Frame); ModConfiguration.Instance.MotionControls.LeftHanded.Value = false;
+    var perBank = new ControllerBindings(Config("undo-independent-banks"));
+    var frameZoom = perBank.Get(ControllerActionId.Zoom);
+    True(perBank.TryApplyEdit(ControllerActionId.Zoom, perBank.Get(ControllerActionId.WeaponRelease), true), "Frame edit saved");
+    var editedFrameZoom = perBank.Get(ControllerActionId.Zoom);
+    Hardware(ControllerBindingProfile.Touch);
+    var touchZoom = perBank.Get(ControllerActionId.Zoom);
+    True(!perBank.CanUndoEdit, "Touch does not expose Frame undo");
+    True(perBank.TryApplyEdit(ControllerActionId.Zoom, perBank.Get(ControllerActionId.WeaponRelease), true), "Touch edit saved independently");
+    True(perBank.UndoEdit(), "Touch edit undoes independently");
+    Equal(perBank.Get(ControllerActionId.Zoom), touchZoom, "Touch undo restores Touch button and hand");
+    Hardware(ControllerBindingProfile.Frame);
+    Equal(perBank.Get(ControllerActionId.Zoom), editedFrameZoom, "Touch undo does not overwrite Frame changes");
+    True(perBank.CanUndoEdit && perBank.UndoEdit(), "Frame retains its own undo through profile switches");
+    Equal(perBank.Get(ControllerActionId.Zoom), frameZoom, "Frame undo restores Frame button and hand");
     Console.WriteLine($"Controller binding checks passed: {count} assertions (actual binding sources and BepInEx config persistence).");
 }
 finally { Directory.Delete(directory, true); }

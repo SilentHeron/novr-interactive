@@ -34,6 +34,7 @@ With left-handed HOTAS, role-based actions follow the stick or throttle. The phy
 3. Choose **Weapons & targets**, **Flight & defense**, or **Menu, map & zoom**.
 4. Choose an action, select its hand and button, then **Save binding**. You can select the stick/throttle role or a fixed left/right hand. Unsupported buttons are disabled.
 5. If the button is already used, choose another or explicitly replace the listed assignments. Cancel leaves your saved binding intact.
+6. **Undo last change** on the bindings page restores the previous edit, including displaced assignments or a default reset. Each preset has its own one-step undo for the current game session.
 
 Map may share a flight button because it yields to a held handle. View and zoom require their own buttons. Gear, radar, flight assist, hover assist and EOTS may also be assigned; they start unassigned. Grip and flight axes stay under **View → Flight controls**, separate from button bindings. **Restore defaults** changes only the selected controller preset after confirmation.
 

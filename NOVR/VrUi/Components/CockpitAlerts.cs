@@ -274,16 +274,16 @@ internal sealed class CockpitAlerts : MonoBehaviour
         // head turns and saved seat shifts do not drag the overlay around.
         if (!ewOwned)
         {
-            var position = eye.TransformPoint(new Vector3(-.30f, Settings.Height.Value, 1.4f));
+            var position = CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, new Vector3(-.30f, Settings.Height.Value, 1.4f));
             _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(position)),
                 uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation);
             _root.transform.localScale = Vector3.one * (.00085f * Settings.Scale.Value);
         }
         // Other aircraft retain the factory-seat reference; without a fitted
         // coaming profile, place the two feeds below the forward eye line.
-        if (!threatsOwned) PlaceWindow(_missileRoot!.transform, eye.TransformPoint(new Vector3(-.30f, Settings.Height.Value + .18f, 1.4f)),
+        if (!threatsOwned) PlaceWindow(_missileRoot!.transform, CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, new Vector3(-.30f, Settings.Height.Value + .18f, 1.4f)),
             eye.rotation * Quaternion.Euler(5,-12,0), .0007f, gameRoot, uiRoot);
-        if (!feedOwned) PlaceWindow(_feedRoot!, eye.TransformPoint(new Vector3(.30f, Settings.Height.Value + .18f, 1.4f)),
+        if (!feedOwned) PlaceWindow(_feedRoot!, CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, new Vector3(.30f, Settings.Height.Value + .18f, 1.4f)),
             eye.rotation * Quaternion.Euler(5,12,0), .0007f, gameRoot, uiRoot);
     }
 

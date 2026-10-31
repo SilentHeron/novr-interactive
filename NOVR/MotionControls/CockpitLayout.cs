@@ -106,24 +106,17 @@ internal sealed class CockpitLayout : MonoBehaviour
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons();
     }
 
-    internal void EnsureWithinReach() => RepairReach(false);
-    internal void BringWithinReach() => RepairReach(true);
-    private void RepairReach(bool force)
+    internal void BringWithinReach()
     {
         if (!_active || !SameContext) return;
         var seat = CockpitProfiles.SeatOffset;
         var stick = seat + Mirror(new Vector3(.22f, -.35f, .30f));
         var throttle = seat + Mirror(new Vector3(-.22f,
             MotionFlightController.UsesLiftCollective(_aircraft) ? -.55f : -.40f, .30f));
-        var moved = false;
-        if (force || Vector3.Distance(GripPosition(Element.Stick), stick) > .6f)
-        { _stick = Mirror(BoundHandle(stick)); moved = true; }
-        if (force || Vector3.Distance(GripPosition(Element.Throttle), throttle) > .6f)
-        {
-            var offset = GripPosition(Element.Throttle) - Mirror(_throttle);
-            _throttle = Mirror(BoundHandle(throttle - offset)); moved = true;
-        }
-        if (moved) Release();
+        _stick = Mirror(BoundHandle(stick));
+        var offset = GripPosition(Element.Throttle) - Mirror(_throttle);
+        _throttle = Mirror(BoundHandle(throttle - offset));
+        Release();
     }
 
     // Compare direct contact distances before choosing a handle or widget.

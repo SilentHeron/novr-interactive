@@ -25,6 +25,22 @@ internal static class CockpitWidgetSpaceChecks
                 aircraft + " physical hand at widget is detected at 44 cm, not 0.0044 units");
         }
 
+        // Non-profiled aircraft retain three legacy alert placements. These
+        // also use the imported viewpoint bone, but their offsets are meters.
+        // Use an analytical 90-degree yaw result rather than a roundtrip alone.
+        foreach (var side in new[] { -.30f, .30f })
+        foreach (var height in new[] { -.40f, -.22f })
+        {
+            var offset = new Vector3(side, height, 1.4f);
+            var alert = CockpitWidgetSpace.ToWorld(origin, yaw, offset);
+            Near(alert, origin + new Vector3(1.4f, height, -side),
+                "Fallback alert remains 1.4 m forward and 30 cm beside the factory eye line");
+            Length(alert - origin, MathF.Sqrt(side * side + height * height + 1.4f * 1.4f),
+                "Fallback alert distance is physical meters, not 100x bone units");
+            Near(CockpitWidgetSpace.ToLocal(origin, yaw, alert), offset,
+                "Fallback alert preserves its side and height after aircraft rotation");
+        }
+
         foreach (var rotation in new[] { Quaternion.identity, yaw, Quaternion.Euler(-18, 143, 27) })
         foreach (var position in new[] { Vector3.zero, origin, new Vector3(-93, 42, 71) })
         {

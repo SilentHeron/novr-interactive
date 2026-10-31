@@ -25,6 +25,7 @@ internal sealed class HudWidgetProfiles
     internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map" };
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
+    private readonly ConfigEntry<bool> _sharedLayoutSaved;
     private readonly Dictionary<string, ConfigEntry<string>> _defaults;
     private readonly Dictionary<string, AircraftProfile> _aircraft = new(StringComparer.Ordinal);
     private sealed class AircraftProfile
@@ -37,6 +38,8 @@ internal sealed class HudWidgetProfiles
     {
         _config = config;
         _defaults = BindPoses("VR HUD Widgets - Defaults");
+        _sharedLayoutSaved = config.Bind("VR HUD Widgets - Defaults", "Shared layout saved", false,
+            "A user-saved shared layout keeps its exact positions when entering an aircraft or editing.");
     }
     private static readonly Dictionary<string, HudWidgetPose> Factory = new(StringComparer.Ordinal)
     {
@@ -71,6 +74,14 @@ internal sealed class HudWidgetProfiles
         return aircraft.Override.Value ? Read(aircraft.Poses, shared) : shared;
     }
     internal bool HasOverride(string? aircraftKey) => !string.IsNullOrEmpty(aircraftKey) && Aircraft(aircraftKey!).Override.Value;
+    internal bool HasSavedLayout(string? aircraftKey)
+    {
+        if (HasOverride(aircraftKey) || _sharedLayoutSaved.Value) return true;
+        // Preserve shared layouts saved by versions predating the explicit flag.
+        foreach (var id in Ids)
+            if (_defaults[id].Value != Encode(Factory[id])) return true;
+        return false;
+    }
     internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses)
     {
         if (string.IsNullOrEmpty(aircraftKey)) return;
@@ -83,6 +94,7 @@ internal sealed class HudWidgetProfiles
     internal void SaveDefault(Dictionary<string, HudWidgetPose> poses)
     {
         Store(_defaults, Merge(Load(null), poses));
+        _sharedLayoutSaved.Value = true;
         _config.Save();
     }
     internal void ResetAircraft(string aircraftKey)

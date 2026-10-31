@@ -65,7 +65,34 @@ public sealed class ControllerBindings
         if (action == ControllerActionId.SelectTarget && (binding.Hand == ControllerHandRole.Stick || binding.Hand == ControllerHandRole.Throttle))
             Values.SelectTargetOnStick.Value = binding.Hand == ControllerHandRole.Stick;
     }
-    internal void ResetProfile() => Active.Reset();
+    internal bool CanUndoEdit => Active.CanUndo;
+    internal string UndoEditLabel => Active.CanUndo ? Active.EditLabel : "";
+
+    // A replacement is one user edit, including every assignment it displaces.
+    // Validate first so a rejected input cannot leave unrelated actions cleared.
+    internal bool TryApplyEdit(ControllerActionId action, ControllerActionBinding binding, bool replaceConflicts)
+    {
+        var leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
+        var left = ResolveLeft(binding.Hand, leftHanded);
+        if (!IsBindingAvailable(ButtonProfile(left), left, action, binding.Button)) return false;
+        var conflicts = GetConflicts(action, binding, leftHanded);
+        if (conflicts.Length > 0 && !replaceConflicts) return false;
+        var bank = Active;
+        var before = bank.Capture();
+        foreach (var other in conflicts) bank.Set(other, new(ControllerButton.None, bank.Get(other).Hand));
+        bank.Set(action, binding);
+        if (action == ControllerActionId.SelectTarget && (binding.Hand == ControllerHandRole.Stick || binding.Hand == ControllerHandRole.Throttle))
+            bank.Values.SelectTargetOnStick.Value = binding.Hand == ControllerHandRole.Stick;
+        bank.RememberEdit(before, ActionLabel(action));
+        return true;
+    }
+
+    internal bool UndoEdit() => Active.Undo();
+    internal void ResetProfile()
+    {
+        var bank = Active; var before = bank.Capture();
+        bank.Reset(); bank.RememberEdit(before, "Restore defaults");
+    }
     internal static bool ResolveLeft(ControllerHandRole role, bool leftHanded) => ControllerBindingDefaults.ResolveLeft(role, leftHanded);
     internal static string ActionLabel(ControllerActionId action) => ControllerBindingDefaults.ActionLabel(action);
     internal static string ContextLabel(ControllerActionId action) => ControllerBindingDefaults.ContextLabel(action);
@@ -126,6 +153,13 @@ public sealed class ControllerBindings
         internal readonly ControllerBindingBank Values;
         private readonly ControllerBindingProfile _profile;
         private readonly Dictionary<ControllerActionId, Slot> _slots = new();
+        private Snapshot? _beforeEdit, _afterEdit;
+        internal string EditLabel { get; private set; } = "";
+        internal sealed class Snapshot
+        {
+            internal readonly Dictionary<ControllerActionId, ControllerActionBinding> Bindings = new();
+            internal bool ZoomEnabled, SelectOnStick;
+        }
         internal Bank(ConfigFile config, ControllerBindingProfile profile, System.Action changed)
         {
             _profile = profile;
@@ -160,6 +194,39 @@ public sealed class ControllerBindings
         internal ControllerActionBinding Get(ControllerActionId action) => new(_slots[action].Button.Value, _slots[action].Hand.Value);
         internal void Set(ControllerActionId action, ControllerActionBinding binding)
         { _slots[action].Button.Value = binding.Button; _slots[action].Hand.Value = binding.Hand; }
+        internal Snapshot Capture()
+        {
+            var snapshot = new Snapshot { ZoomEnabled = Values.RightBumperZoom.Value, SelectOnStick = Values.SelectTargetOnStick.Value };
+            foreach (var action in ControllerBindingDefaults.Actions) snapshot.Bindings.Add(action, Get(action));
+            return snapshot;
+        }
+        private bool Matches(Snapshot snapshot)
+        {
+            if (snapshot.ZoomEnabled != Values.RightBumperZoom.Value || snapshot.SelectOnStick != Values.SelectTargetOnStick.Value) return false;
+            foreach (var action in ControllerBindingDefaults.Actions)
+            {
+                var current = Get(action); var expected = snapshot.Bindings[action];
+                if (current.Button != expected.Button || current.Hand != expected.Hand) return false;
+            }
+            return true;
+        }
+        internal bool CanUndo => _beforeEdit != null && _afterEdit != null && Matches(_afterEdit);
+        internal void RememberEdit(Snapshot before, string label)
+        {
+            if (Matches(before)) return; // Saving an unchanged row does not consume Undo.
+            _beforeEdit = before; _afterEdit = Capture(); EditLabel = label;
+        }
+        internal bool Undo()
+        {
+            // A config reload or another writer may have changed bindings since
+            // the edit. Never replace that newer state with a stale snapshot.
+            if (!CanUndo) return false;
+            var restore = _beforeEdit!;
+            _beforeEdit = _afterEdit = null; EditLabel = "";
+            foreach (var action in ControllerBindingDefaults.Actions) Set(action, restore.Bindings[action]);
+            Values.RightBumperZoom.Value = restore.ZoomEnabled; Values.SelectTargetOnStick.Value = restore.SelectOnStick;
+            return true;
+        }
         internal void Reset()
         {
             foreach (var action in ControllerBindingDefaults.Actions) Set(action, ControllerBindingDefaults.Get(_profile, action));

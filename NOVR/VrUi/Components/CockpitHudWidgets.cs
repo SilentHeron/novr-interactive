@@ -33,6 +33,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     }
     private readonly Dictionary<string, Widget> _widgets = new();
     private Dictionary<string, HudWidgetPose> _poses = new();
+    private Dictionary<string, HudWidgetPose>? _editStart;
     private readonly Drag[] _hands = { new(), new() };
     private readonly ControllerSample[] _samples = new ControllerSample[2];
     private readonly Vector3[] _points = new Vector3[2];
@@ -136,7 +137,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         }
         if (!_initialPlacementDone && Ready())
         {
-            EnsureWidgetsWithinReach(false); _initialPlacementDone = true;
+            // Only untouched first-use defaults may be fitted to the pilot.
+            // Saved layouts stay aircraft-fixed, regardless of current reach.
+            _initialPlacementDone = _profiles.HasSavedLayout(_key) || EnsureWidgetsWithinReach(false);
         }
         Place();
         if (!_editing) return;
@@ -162,12 +165,12 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         MotionFlightController.Instance?.CancelPlacement();
         MotionFlightController.Instance?.ResetGrips();
         ControllerActions.Instance?.ResetButtons();
-        _poses = _profiles.Load(_key);
         _resetToDefault = false;
         _editing = true;
         if (CockpitLayout.Instance?.BeginUnified() != true) { _editing = false; return; }
-        EnsureWidgetsWithinReach(false);
-        CockpitLayout.Instance.EnsureWithinReach();
+        // Begin at the exact displayed/saved layout. Reach recovery is an
+        // explicit command, never a side effect of opening the editor.
+        _editStart = new Dictionary<string, HudWidgetPose>(_poses);
         CaptureCalibration(); ReleaseHands(); Place();
     }
     internal void Finish(bool save)
@@ -182,7 +185,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         }
         _editing = false; ReleaseHands();
         CockpitLayout.Instance?.FinishUnified(save);
-        if (_key.Length > 0) _poses = _profiles.Load(_key);
+        if (save && _key.Length > 0) _poses = _profiles.Load(_key);
+        else if (_editStart != null) _poses = _editStart;
+        _editStart = null;
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons();
         Place();
     }
@@ -190,7 +195,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         if (!_editing) return;
         _poses = _profiles.Load(""); _resetToDefault = true;
-        EnsureWidgetsWithinReach(false); CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
+        CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
     }
     internal void UseDefaultForAll()
     {
@@ -225,9 +230,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         if (!_editing) return;
         EnsureWidgetsWithinReach(true); CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
     }
-    private void EnsureWidgetsWithinReach(bool all)
+    private bool EnsureWidgetsWithinReach(bool all)
     {
-        if (!Space(out var gameRoot, out _, out var eye)) return;
+        if (!Space(out var gameRoot, out _, out var eye)) return false;
         var head = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
             gameRoot.TransformPoint(NOVRHeadsetData.Translation + CockpitProfiles.SeatOffset));
         var leftShoulder = head + new Vector3(-.16f, -.18f, 0);
@@ -249,6 +254,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             pose.Scale = Mathf.Min(pose.Scale, defaults[id].Scale);
             _poses[id] = pose; _resetToDefault = false;
         }
+        return true;
     }
 
     private void CaptureCalibration()
@@ -463,7 +469,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
                 uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation * Quaternion.Euler(pose.Euler));
             widget.Root.localScale = Vector3.one * (PixelSize * pose.Scale);
             widget.Group.alpha = pose.Visible ? pose.Opacity : 0;
-            widget.Background.color = new Color(.015f, .025f, .03f, pose.Visible ? pose.Background * .8f : 0);
+            widget.Background.color = new Color(.015f, .025f, .03f, pose.Visible ? pose.Background : 0);
             var held = _hands[0].Id == pair.Key || _hands[1].Id == pair.Key;
             var hovered = _hover[0] == pair.Key || _hover[1] == pair.Key;
             var color = held ? new Color(.3f, 1f, .8f, 1) : hovered ? new Color(.6f, 1f, 1f, .9f) : new Color(.65f, .85f, .9f, .55f);

@@ -15,7 +15,7 @@ internal sealed partial class WristMenu
     private ControllerActionBinding _pendingBinding;
     private ControllerBindingProfile _editingProfile;
     private Text? _bindingSummary, _bindingConflictText, _bindingProfileInfo;
-    private Button? _bindingSave;
+    private Button? _bindingSave, _bindingUndo;
     private int _bindingVersion = -1;
     private static readonly ControllerActionId[] BindingActions = (ControllerActionId[])Enum.GetValues(typeof(ControllerActionId));
     private static ControllerBindings Bindings => ModConfiguration.Instance.ControllerBindings;
@@ -35,7 +35,12 @@ internal sealed partial class WristMenu
         AddButton("Flight & defense", 1, 1, () => ShowPage(flight!));
         AddButton("Menu, map & zoom", 0, 2, () => ShowPage(system!));
         AddButton("Restore defaults…", 1, 2, () => { _editingProfile = Bindings.EffectiveProfile; ShowPage(_bindingResetPage!); });
-        _bindingProfileInfo = Label(_bindingsPage.transform, "", new Vector2(0, -98), new Vector2(510, 240), 19);
+        _bindingUndo = AddButton("Undo last change", 0, 3, () =>
+        {
+            Bindings.UndoEdit(); _nextHelpRefresh = 0; RefreshBindingEditor();
+        }).transform.parent.GetComponent<Button>();
+        Label(_bindingsPage.transform, "Restores replaced\nassignments too", new Vector2(132, 6), new Vector2(238, 49), 18);
+        _bindingProfileInfo = Label(_bindingsPage.transform, "", new Vector2(0, -136), new Vector2(510, 190), 18);
         weapons = BindingGroup("WEAPONS & TARGETS", new[] { ControllerActionId.Guns, ControllerActionId.WeaponRelease,
             ControllerActionId.SelectTarget, ControllerActionId.UnlockTarget, ControllerActionId.NextWeapon, ControllerActionId.ClearTargets });
         flight = BindingGroup("FLIGHT & DEFENSE", new[] { ControllerActionId.Countermeasures, ControllerActionId.NextCountermeasure,
@@ -83,7 +88,7 @@ internal sealed partial class WristMenu
         AddButton("Replace assignments", 1, 5, () => ApplyBinding(true));
         _bindingResetPage = Page("RESTORE BINDINGS");
         var resetText = Label(_bindingResetPage.transform, "", new Vector2(0, 45), new Vector2(510, 230), 22);
-        _liveLabels.Add((resetText, () => $"Restore the {ProfileName(_editingProfile)} default bindings?\n\nOnly this controller preset will change.\nYour other preset and handle positions stay saved."));
+        _liveLabels.Add((resetText, () => $"Restore the {ProfileName(_editingProfile)} default bindings?\n\nOnly this controller preset will change.\nUndo last change can restore your bindings\nduring this game session."));
         AddButton("Keep my bindings", 0, 5, Back);
         AddButton("Restore defaults", 1, 5, () => { if (Bindings.EffectiveProfile == _editingProfile) Bindings.ResetProfile(); Back(); });
     }
@@ -121,9 +126,12 @@ internal sealed partial class WristMenu
     }
     private void RefreshBindingEditor()
     {
+        if (_bindingUndo != null) _bindingUndo.interactable = Bindings.CanUndoEdit;
         if (_bindingProfileInfo != null && _bindingsPage?.activeSelf == true)
             _bindingProfileInfo.text = "Active: " + ProfileName(Bindings.EffectiveProfile) +
-                "\nAuto follows the connected controllers.\nFrame and Touch keep separate saved bindings.\n\nSelect an action to change its button and hand.\nShared combat buttons are flagged before saving.\n\nF9 always opens View as a keyboard fallback.";
+                "\nAuto follows the connected controllers.\nEach preset keeps its saved bindings.\n\n" +
+                (Bindings.CanUndoEdit ? "Undo available: " + Bindings.UndoEditLabel : "No recent change to undo for this preset.") +
+                "\nUndo lasts for this game session.\nF9 opens View as a keyboard fallback.";
         if (_bindingEditPage?.activeSelf != true && _bindingConflictPage?.activeSelf != true) return;
         if (Bindings.EffectiveProfile != _editingProfile) { Back(); return; }
         var left = ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft);
@@ -139,7 +147,8 @@ internal sealed partial class WristMenu
         if (_bindingConflictText != null)
             _bindingConflictText.text = DescribeBinding(_pendingBinding) + " is assigned to:\n\n" +
                 string.Join(", ", conflicts.Select(ControllerBindings.ActionLabel)) +
-                "\n\nReplace will unassign those actions and use\nthis button for " + ControllerBindings.ActionLabel(_editingAction) + ".";
+                "\n\nReplace leaves those actions unassigned\nand uses this button for " + ControllerBindings.ActionLabel(_editingAction) +
+                ".\nUndo last change restores them together.";
     }
     private void SaveBinding()
     {
@@ -152,11 +161,7 @@ internal sealed partial class WristMenu
     {
         if (Bindings.EffectiveProfile != _editingProfile || !ControllerBindings.IsBindingAvailable(Bindings.ButtonProfile(ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft)),
                 ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft), _editingAction, _pendingBinding.Button)) return;
-        var conflicts = Bindings.GetConflicts(_editingAction, _pendingBinding, StickLeft);
-        if (conflicts.Length > 0 && !replace) return;
-        foreach (var action in conflicts)
-            Bindings.Set(action, new ControllerActionBinding(ControllerButton.None, Bindings.Get(action).Hand));
-        Bindings.Set(_editingAction, _pendingBinding);
+        if (!Bindings.TryApplyEdit(_editingAction, _pendingBinding, replace)) return;
         if (_bindingConflictPage?.activeSelf == true) Back();
         Back();
     }

@@ -107,6 +107,10 @@ internal sealed class OpticalTargetingHud : MonoBehaviour
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) ||
             CameraStateManager.cameraMode != CameraMode.cockpit ||
             aircraft == null || aircraft.cockpit == null || aircraft.cockpit.IsDetached()) return false;
+        var camera = APIBus.MainCamera;
+        var cameraState = SceneSingleton<CameraStateManager>.i;
+        if (camera == null || cameraState == null || cameraState.followingUnit != aircraft ||
+            camera.transform.parent != cameraState.transform || camera.GetComponent<NOVRPoseDriver>() == null) return false;
         var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
         return !head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) || tracked;
     }
@@ -164,7 +168,12 @@ internal sealed class OpticalTargetingHud : MonoBehaviour
         EnsureWindow(ui); _canvas!.worldCamera = ui;
         _source = source;
         if (_mode == OpticalHudMode.Head)
-            _lease.Borrow(sensor!, source!, ui.transform.position, ui.transform.rotation, FieldOfView(texture!));
+        {
+            // The feed renders scene geometry. The HUD camera lives in a
+            // separate origin-space and must only position the display surface.
+            var head = APIBus.MainCamera.transform;
+            _lease.Borrow(sensor!, source!, head.position, head.rotation, FieldOfView(texture!));
+        }
         var live = (_mode == OpticalHudMode.Head || _mode == OpticalHudMode.Track) && source != null && source.isActiveAndEnabled;
         _picture!.texture = live ? texture : null;
         _picture.enabled = live && _lastRenderedSource == source && _lastRenderedFrame >= Time.frameCount - 1;
@@ -198,8 +207,8 @@ internal sealed class OpticalTargetingHud : MonoBehaviour
         PlaceWindow();
         if (_mode == OpticalHudMode.Head)
         {
-            var view = APIBus.CockpitHudCamera.transform;
-            _lease.RefreshPose(view.position, view.rotation);
+            var head = APIBus.MainCamera.transform;
+            _lease.RefreshPose(head.position, head.rotation);
         }
     }
     private void EnsureWindow(Camera ui)
