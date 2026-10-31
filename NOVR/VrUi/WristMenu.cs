@@ -308,9 +308,11 @@ internal sealed partial class WristMenu : MonoBehaviour
             () => config.Fs20NativeCockpitEnabled.Value = !config.Fs20NativeCockpitEnabled.Value);
         AddLiveButton(() => "KR-67: " + (config.IfritNativeCockpitEnabled.Value ? "ON" : "OFF"), 1, 0,
             () => config.IfritNativeCockpitEnabled.Value = !config.IfritNativeCockpitEnabled.Value);
-        AddButton("Flight actions", 0, 1, () => ShowPage(_flightPage!));
+        AddLiveButton(() => "FS-3: " + (config.TernionNativeCockpitEnabled.Value ? "ON" : "OFF"), 0, 1,
+            () => config.TernionNativeCockpitEnabled.Value = !config.TernionNativeCockpitEnabled.Value);
+        AddButton("Flight actions", 1, 1, () => ShowPage(_flightPage!));
         Label(_nativeCockpitPage.transform,
-            "Original displays remain in use.\nVirtual HOTAS and bindings work across aircraft.\n\nFS-20: touch keys; grip and flick switches.\nGear · brake · radar · EOTS · seat / handle locks\nKR-67: grip the native gear wheel and flick it.\n\nEject: grip a striped seat handle and pull UP.\nOther actions: View → Flight actions.\n\nThe cockpit stays visible while placing handles.",
+            "Original displays remain in use.\nVirtual HOTAS and bindings work across aircraft.\n\nFS-20: touch keys; grip and flick switches.\nGear · brake · radar · EOTS · seat / handle locks\nKR-67 / FS-3: grip the gear wheel and flick it.\n\nFS-20 / KR-67 eject: grip a striped handle; pull UP.\nOther actions: View → Flight actions.\n\nThe cockpit stays visible while placing handles.",
             new Vector2(0,-77), new Vector2(510,300), 18);
 
         _controlsPage = Page("CONTROLS");

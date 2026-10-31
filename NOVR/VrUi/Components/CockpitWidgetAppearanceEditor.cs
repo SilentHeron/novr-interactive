@@ -11,29 +11,33 @@ namespace NOVR.VrUi.SpecialBehavior;
 internal sealed class CockpitWidgetAppearanceEditor : IDisposable
 {
     private static CockpitWidgetAppearanceEditor? _open;
-    private readonly GameObject _pencil, _popup;
-    private readonly CanvasGroup _pencilGroup, _popupGroup;
-    private readonly Image _pencilBack, _sliderHandle;
+    private readonly GameObject _pencil, _eye, _eyeOpen, _eyeClosed, _popup;
+    private readonly CanvasGroup _pencilGroup, _eyeGroup, _popupGroup;
+    private readonly Image _pencilBack, _eyeBack, _sliderHandle;
     private readonly Text _value;
     private readonly Action<float> _setBackground;
-    private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
+    private readonly Action<bool> _setVisible;
+    private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _eyeTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
     private readonly bool[] _hover = new bool[2];
     private readonly Vector2 _popupCenter, _popupSize, _closeCenter;
     private readonly float _trackWidth;
     private int _sliderOwner = -1, _lastTick;
     private float _background, _lastPulse;
     private float _displayedBackground = -1;
-    private bool _editing, _disposed;
+    private float _nextVisibilityChange = float.NegativeInfinity;
+    private bool _editing, _visible, _disposed;
     internal Vector2 PencilCenter { get; }
+    internal Vector2 EyeCenter { get; }
     internal Vector2 SliderCenter { get; }
     internal bool IsOpen => _open == this && _editing && !_disposed;
     internal bool IsHandBusy(int side) => side >= 0 && side < 2 && _sliderOwner == side;
     internal bool IsPointing(int side) => side >= 0 && side < 2 && (_hover[side] || _sliderOwner == side);
 
-    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground)
+    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground, Action<bool> setVisible)
     {
-        _setBackground = setBackground;
-        PencilCenter = new Vector2(0, size.y * .5f + 62);
+        _setBackground = setBackground; _setVisible = setVisible;
+        PencilCenter = new Vector2(-40, size.y * .5f + 62);
+        EyeCenter = new Vector2(40, PencilCenter.y);
         _popupSize = new Vector2(Mathf.Clamp(size.x, 300, 420), 150);
         // Leave the content visible while tuning its background, and keep the
         // contact area below even the shortest widget's resize corners.
@@ -51,6 +55,23 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         var tip = Plate("Pencil tip", _pencil.transform, new Vector2(-9, -13), new Vector2(6, 6), new Color(.88f, .96f, 1f, 1));
         tip.rectTransform.localRotation = Quaternion.Euler(0, 0, -35);
 
+        _eyeBack = Plate("Show or hide widget", root, EyeCenter, new Vector2(52, 52), new Color(.04f, .10f, .13f, .9f));
+        _eye = _eyeBack.gameObject;
+        _eyeGroup = _eye.AddComponent<CanvasGroup>();
+        _eyeGroup.interactable = _eyeGroup.blocksRaycasts = false;
+        _eyeOpen = IconRoot("Eye open", _eye.transform);
+        var outline = new[] { new Vector2(-17, 0), new Vector2(-9, 7), new Vector2(0, 10), new Vector2(9, 7),
+            new Vector2(17, 0), new Vector2(9, -7), new Vector2(0, -10), new Vector2(-9, -7) };
+        for (var i = 0; i < outline.Length; i++) IconLine(_eyeOpen.transform, outline[i], outline[(i + 1) % outline.Length]);
+        Plate("Pupil", _eyeOpen.transform, Vector2.zero, new Vector2(5, 9), Color.white);
+        Plate("Pupil", _eyeOpen.transform, Vector2.zero, new Vector2(9, 5), Color.white);
+        _eyeClosed = IconRoot("Eye closed", _eye.transform);
+        var lid = new[] { new Vector2(-17, 3), new Vector2(-9, -3), new Vector2(0, -6), new Vector2(9, -3), new Vector2(17, 3) };
+        for (var i = 0; i < lid.Length - 1; i++) IconLine(_eyeClosed.transform, lid[i], lid[i + 1]);
+        IconLine(_eyeClosed.transform, new Vector2(-11, -2), new Vector2(-15, -9));
+        IconLine(_eyeClosed.transform, new Vector2(0, -6), new Vector2(0, -13));
+        IconLine(_eyeClosed.transform, new Vector2(11, -2), new Vector2(15, -9));
+
         var popup = Plate("Widget backplate editor", root, _popupCenter, _popupSize, new Color(.025f, .06f, .08f, .95f));
         _popup = popup.gameObject;
         _popupGroup = _popup.AddComponent<CanvasGroup>();
@@ -67,7 +88,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _sliderHandle = Plate("Opacity handle", _popup.transform, new Vector2(-_trackWidth * .5f, -5), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
         Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, -43), new Vector2(60, 28), 17);
         Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, -43), new Vector2(60, 28), 17);
-        _pencil.SetActive(false); _popup.SetActive(false);
+        _pencil.SetActive(false); _eye.SetActive(false); _popup.SetActive(false);
     }
 
     internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1)
@@ -75,11 +96,12 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         if (_disposed) return;
         _editing = editing;
         // Hidden widgets still expose their editor while layout mode is active.
-        _pencil.SetActive(editing);
+        _pencil.SetActive(editing); _eye.SetActive(editing);
+        _visible = visible; RefreshVisibility();
         if (!editing) { ClosePopup(); ReleaseHands(); }
         _popup.SetActive(IsOpen);
         _background = FlightControlMath.IsFinite(background) ? Mathf.Clamp01(background) : 0;
-        _pencilGroup.alpha = _popupGroup.alpha = FlightControlMath.IsFinite(presentationAlpha) ? Mathf.Clamp01(presentationAlpha) : 1;
+        _pencilGroup.alpha = _eyeGroup.alpha = _popupGroup.alpha = FlightControlMath.IsFinite(presentationAlpha) ? Mathf.Clamp01(presentationAlpha) : 1;
         RefreshValue();
     }
 
@@ -90,6 +112,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         if (depth < -.025f || depth > .075f) return false;
         var padding = .008f / metresPerPixel;
         return Inside(point, PencilCenter, new Vector2(52, 52), padding) ||
+            Inside(point, EyeCenter, new Vector2(52, 52), padding) ||
             IsOpen && Inside(point, _popupCenter, _popupSize, padding);
     }
 
@@ -103,9 +126,13 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         var hover = HitTest(point, metresPerPixel);
         if (hover && !_hover[side]) InteractionHaptics.Pulse(device, InteractionCue.Touch);
         _hover[side] = hover;
-        var pencil = Inside(point, PencilCenter, new Vector2(52, 52), padding);
+        // Expanded touch tolerances may overlap at small widget scales. Split
+        // the contact region between the icons so a touch selects only one.
+        var pencil = point.x <= 0 && Inside(point, PencilCenter, new Vector2(52, 52), padding);
+        var eye = point.x > 0 && Inside(point, EyeCenter, new Vector2(52, 52), padding);
         if (_pencilTouch[side].Update(true, pencil, depth))
         {
+            _eyeTouch[side].Reset();
             if (IsOpen) ClosePopup();
             else
             {
@@ -119,6 +146,21 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             return true;
         }
         _pencilBack.color = pencil && hover ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
+        _eyeBack.color = eye && hover ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
+        if (_eyeTouch[side].Update(true, eye, depth))
+        {
+            // Consume both hands together to avoid a simultaneous touch
+            // immediately undoing the first one. Withdrawal is still required.
+            foreach (var gate in _eyeTouch) gate.Reset();
+            _pencilTouch[side].Reset();
+            if (Time.unscaledTime >= _nextVisibilityChange)
+            {
+                _nextVisibilityChange = Time.unscaledTime + .25f;
+                _visible = !_visible; _setVisible(_visible); RefreshVisibility();
+                InteractionHaptics.Pulse(device, InteractionCue.Click);
+            }
+            return true;
+        }
         var close = IsOpen && Inside(point, _closeCenter, new Vector2(36, 36), padding);
         if (_closeTouch[side].Update(IsOpen, close, depth))
         {
@@ -160,6 +202,8 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _value.text = $"Backplate {_background * 100:0}%";
         _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, -5);
     }
+    private void RefreshVisibility()
+    { _eyeOpen.SetActive(_visible); _eyeClosed.SetActive(!_visible); }
     private static bool Finite(Vector3 point, float scale) => FlightControlMath.IsFinite(point.x) && FlightControlMath.IsFinite(point.y) &&
         FlightControlMath.IsFinite(point.z) && FlightControlMath.IsFinite(scale) && scale > 0;
     private static bool Inside(Vector3 point, Vector2 center, Vector2 size, float padding) =>
@@ -171,7 +215,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     }
     private void ReleaseHand(int side)
     {
-        _pencilTouch[side].Reset(); _closeTouch[side].Reset(); _sliderTouch[side].Reset(); _hover[side] = false;
+        _pencilTouch[side].Reset(); _eyeTouch[side].Reset(); _closeTouch[side].Reset(); _sliderTouch[side].Reset(); _hover[side] = false;
         if (_sliderOwner == side) _sliderOwner = -1;
     }
     internal void ReleaseHands() { ReleaseHand(0); ReleaseHand(1); }
@@ -179,7 +223,19 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     {
         if (_disposed) return;
         ClosePopup(); _disposed = true;
-        UnityEngine.Object.Destroy(_pencil); UnityEngine.Object.Destroy(_popup);
+        UnityEngine.Object.Destroy(_pencil); UnityEngine.Object.Destroy(_eye); UnityEngine.Object.Destroy(_popup);
+    }
+    private static GameObject IconRoot(string name, Transform parent)
+    {
+        var go = new GameObject(name, typeof(RectTransform)); go.transform.SetParent(parent, false);
+        go.layer = parent.gameObject.layer; return go;
+    }
+    private static void IconLine(Transform parent, Vector2 start, Vector2 end)
+    {
+        var dx = end.x - start.x; var dy = end.y - start.y;
+        var line = Plate("Eye stroke", parent, new Vector2((start.x + end.x) * .5f, (start.y + end.y) * .5f),
+            new Vector2((float)Math.Sqrt(dx * dx + dy * dy), 2.5f), Color.white);
+        line.rectTransform.localRotation = Quaternion.Euler(0, 0, (float)(Math.Atan2(dy, dx) * 180 / Math.PI));
     }
     private static Image Plate(string name, Transform parent, Vector2 at, Vector2 size, Color color)
     {

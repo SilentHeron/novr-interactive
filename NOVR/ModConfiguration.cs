@@ -28,7 +28,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> FlightHudScale, InstrumentBrightness, MfdBrightness;
     public readonly ConfigEntry<float> MarkerScale, MarkerLabelScale, ReticleScale, WeaponHudScale;
     internal readonly ConfigEntry<MotionControls.MfdPage> LeftMfdPage, RightMfdPage, Fs20LeftMfdPage, Fs20RightMfdPage;
-    public readonly ConfigEntry<bool> CockpitPanelEnabled, Fs20NativeCockpitEnabled, IfritNativeCockpitEnabled;
+    public readonly ConfigEntry<bool> CockpitPanelEnabled, Fs20NativeCockpitEnabled, IfritNativeCockpitEnabled, TernionNativeCockpitEnabled;
     internal readonly ConfigEntry<bool> CockpitMapNorthUp;
     public readonly ConfigEntry<Vector3> CockpitPanelPosition;
     public readonly ConfigEntry<float> CockpitPanelTilt, CockpitPanelScale, CockpitPanelYaw, CockpitPanelRoll;
@@ -45,18 +45,11 @@ public class ModConfiguration
         OpticalHud = new MotionControls.OpticalHudSettings(config);
         InspectionZoom = new MotionControls.InspectionZoomSettings(config);
         CockpitAlerts = new VrUi.SpecialBehavior.CockpitAlertSettings(config);
-        TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Always,
-            "Always keeps a readable HUD-colored hollow gaze circle visible during cockpit flight, brightening near a selectable target or while selecting. Context shows it only during acquisition. Brightness follows the HUD instruments. Off hides the aim cue. Target diamonds and weapon sights are unchanged.");
-        var persistentAimCue = config.Bind("VR HUD", "Persistent Aim Cue Applied", false,
-            "One-time upgrade from the former contextual default to a persistent cockpit cue. An explicitly disabled cue stays off; later changes to Context are retained.");
-        if (!persistentAimCue.Value)
-        {
-            if (TargetCue.Value == global::NOVR.MotionControls.TargetCueMode.Context)
-                TargetCue.Value = global::NOVR.MotionControls.TargetCueMode.Always;
-            persistentAimCue.Value = true;
-        }
+        TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
+            "Context shows a small translucent HUD-colored hollow circle only near a selectable target. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
         Fs20NativeCockpitEnabled = config.Bind("FS-20 Native Cockpit", "Interactive Controls", true, "Operate the FS-20 cockpit switches in VR. Original displays stay in place; disabling interactions leaves the original cockpit visible.");
         IfritNativeCockpitEnabled = config.Bind("KR-67 Native Cockpit", "Interactive Controls", true, "Reach and grip the KR-67 original gear and ejection handles in VR. Original cockpit geometry and displays stay unchanged.");
+        TernionNativeCockpitEnabled = config.Bind("FS-3 Native Cockpit", "Interactive Gear", true, "Grip the Ternion's original red gear wheel and lightly flick up or down. The original wheel and stem animate with gear state; disabling restores the original cockpit mesh.");
         CockpitPanelEnabled = config.Bind("Universal Cockpit Panel", "Enabled", false, "Legacy setting. Added MFDs and the universal panel are retired; native aircraft displays remain in use.");
         CockpitPanelPosition = config.Bind("Universal Cockpit Panel", "Position", new Vector3(0, -0.32f, 0.65f), "Fallback cockpit position if a native dashboard surface is unavailable. Automatic dashboard fit and per-aircraft saved placements take precedence. Independent of seat adjustment.");
         CockpitPanelTilt = config.Bind("Universal Cockpit Panel", "Tilt", 20f, new ConfigDescription("Upward-facing panel tilt in degrees.", new AcceptableValueRange<float>(-90, 90)));

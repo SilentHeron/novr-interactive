@@ -85,8 +85,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             var left=side==0; var sample=TrackedControllers.Read(left);
             Pose? attachment = null; var stick = false; var collective = false;
             if (controls != null && controls.TryGetHeldHandPose(left, out var gripPose, out stick, out collective)) attachment = gripPose;
-            var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing) ?? IfritNativeCockpit.HandPose(left);
-            var pinching = Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left);
+            var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing) ?? IfritNativeCockpit.HandPose(left) ?? TernionNativeCockpit.HandPose(left);
+            var pinching = Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left) || TernionNativeCockpit.OwnsHand(left);
             if (CockpitHudWidgets.TryGetCornerHandPose(left, out var corner, out var cornerRotation))
             {
                 // Corner targets are the midpoint of the posed thumb/index

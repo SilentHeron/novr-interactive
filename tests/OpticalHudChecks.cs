@@ -6,12 +6,18 @@ internal static class OpticalHudChecks
     {
         check("Contextual cue stays quiet outside acquisition and obeys off and flight state", () =>
         {
-            yes(!TargetCueVisibility.Show(TargetCueMode.Context, true, false, false));
-            yes(TargetCueVisibility.Show(TargetCueMode.Context, true, true, false));
-            yes(TargetCueVisibility.Show(TargetCueMode.Context, true, false, true));
+            foreach (var selecting in new[] { false, true })
+            {
+                yes(!TargetCueVisibility.Show(TargetCueMode.Context, true, false, selecting));
+                yes(TargetCueVisibility.Show(TargetCueMode.Context, true, true, selecting));
+                foreach (var candidate in new[] { false, true })
+                {
+                    yes(!TargetCueVisibility.Show(TargetCueMode.Off, true, candidate, selecting));
+                    foreach (var mode in Enum.GetValues<TargetCueMode>())
+                        yes(!TargetCueVisibility.Show(mode, false, candidate, selecting));
+                }
+            }
             yes(TargetCueVisibility.Show(TargetCueMode.Always, true, false, false));
-            foreach (var mode in Enum.GetValues<TargetCueMode>()) yes(!TargetCueVisibility.Show(mode, false, true, true));
-            yes(!TargetCueVisibility.Show(TargetCueMode.Off, true, true, true));
         });
         check("Optical HUD suspends during non-flight contexts regardless of sensor or target state", () =>
         {

@@ -177,7 +177,9 @@ internal sealed class OpticalTargetingHud : MonoBehaviour
         var live = (_mode == OpticalHudMode.Head || _mode == OpticalHudMode.Track) && source != null && source.isActiveAndEnabled;
         _picture!.texture = live ? texture : null;
         _picture.enabled = live && _lastRenderedSource == source && _lastRenderedFrame >= Time.frameCount - 1;
-        _crosshair!.SetActive(_mode == OpticalHudMode.Head && _picture.enabled && ModConfiguration.Instance.TargetCue.Value != TargetCueMode.Off);
+        _crosshair!.SetActive(_mode == OpticalHudMode.Head && _picture.enabled &&
+            TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, true,
+                TargetCueCandidates.Nearby(SceneSingleton<CombatHUD>.i), false));
         _status!.text = _mode == OpticalHudMode.Unavailable ? "EOTS unavailable on this aircraft" :
             _mode == OpticalHudMode.Landing ? "EOTS: landing camera in use" : !live ? "EOTS: waiting for target feed" :
             _mode == OpticalHudMode.Head ? $"HEAD  ·  {Settings.Magnification.Value:0.#}×" : "TRACK";

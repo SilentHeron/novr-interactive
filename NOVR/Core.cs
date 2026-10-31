@@ -51,6 +51,7 @@ public class Core : MonoBehaviour
         // cockpit contacts add interactions without a replacement MFD console.
         gameObject.AddComponent<MotionControls.Fs20NativeCockpit>();
         gameObject.AddComponent<MotionControls.IfritNativeCockpit>();
+        gameObject.AddComponent<MotionControls.TernionNativeCockpit>();
     }
 
     private void OnApplicationQuit() => _quitting = true;

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using HarmonyLib;
 using NOVR.VrUi;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,7 +10,6 @@ namespace NOVR.MotionControls;
 [DefaultExecutionOrder(110)]
 internal sealed class TargetAcquisitionCue : MonoBehaviour
 {
-    private static readonly AccessTools.FieldRef<CombatHUD, List<HUDUnitMarker>> Markers = AccessTools.FieldRefAccess<CombatHUD, List<HUDUnitMarker>>("markers");
     private Image? _native;
     private CanvasGroup? _nativeGroup;
     private float _originalAlpha;
@@ -20,8 +17,6 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
     private Canvas? _canvas;
     private CanvasGroup? _group;
     private float _opacity;
-    private float _nextCandidateCheck;
-    private bool _candidate;
 
     private void LateUpdate()
     {
@@ -46,18 +41,7 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
             !CursorManager.GetFlag(CursorFlags.GameMenu) && (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
             (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
             !OpticalTargetingHud.AimCueVisible && !CockpitViewZoom.AimCueVisible;
-        if (!ready) _candidate = false;
-        if (ready && Time.unscaledTime >= _nextCandidateCheck)
-        {
-            _nextCandidateCheck = Time.unscaledTime + .08f; _candidate = false;
-            var exclusions = SceneSingleton<TargetListSelector>.i;
-            foreach (var marker in Markers(hud!))
-                if (marker.unit != null && !marker.selected && !marker.unit.disabled && marker.image != null && marker.image.isActiveAndEnabled &&
-                    marker.image.canvasRenderer.GetInheritedAlpha() > .01f && exclusions != null && !exclusions.CheckExclusions(marker.unit) &&
-                    Vector3.SqrMagnitude(marker.image.transform.position - _native!.transform.position) <= 10000)
-                { _candidate = true; break; }
-        }
-        var candidate = _candidate;
+        var candidate = ready && TargetCueCandidates.Nearby(hud);
         var selecting = ready && (ControllerActions.Instance?.TargetSelecting == true || GameManager.playerInput.GetButton("Select"));
         var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, ready, candidate, selecting);
         var desired = show ? candidate || selecting ? 1f : .8f : 0;

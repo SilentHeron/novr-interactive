@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace NOVR.MotionControls;
 
 // Both gaze views use the same angular cue. At their 3 m stereo depth and
-// 0.001 canvas scale, 82 units spans about 1.6 degrees. Keep the center completely
+// 0.001 canvas scale, 60 units spans about 1.15 degrees. Keep the center completely
 // empty, with a dark rim for contrast against bright skies.
 internal sealed class GazeRingGraphic : MaskableGraphic
 {
@@ -17,7 +17,7 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         // A small visual-only drop: 26.2 mm at 3 m is about half a degree.
         // Leave the native designator, selection ray and optical camera untouched.
         rect.anchoredPosition = new Vector2(0, -26.2f);
-        rect.sizeDelta = Vector2.one * 82;
+        rect.sizeDelta = Vector2.one * 60;
         var ring = go.AddComponent<GazeRingGraphic>();
         ring.RefreshColor(); ring.raycastTarget = false;
         return go;
@@ -31,7 +31,7 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         // acquisition brightening stays on the parent. The idle cue should
         // remain readable against both the sky and cockpit.
         var tint = ThemeManager.Active != null ? ThemeManager.Active.ColorTheme.AllClear : new Color(.2f, 1f, .35f);
-        tint.a = .78f * ModConfiguration.Instance.InstrumentBrightness.Value;
+        tint.a = .65f * ModConfiguration.Instance.InstrumentBrightness.Value;
         if (color != tint) color = tint;
     }
 

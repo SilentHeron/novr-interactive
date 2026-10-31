@@ -157,6 +157,7 @@ try
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
     HudWidgetAngleChecks.Run(True);
+    HudWidgetMotionChecks.Run(True);
     Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }

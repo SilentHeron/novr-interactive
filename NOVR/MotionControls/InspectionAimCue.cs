@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using HarmonyLib;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,13 +9,10 @@ namespace NOVR.MotionControls;
 [DefaultExecutionOrder(105)]
 internal sealed class InspectionAimCue : MonoBehaviour
 {
-    private static readonly AccessTools.FieldRef<CombatHUD, List<HUDUnitMarker>> Markers =
-        AccessTools.FieldRefAccess<CombatHUD, List<HUDUnitMarker>>("markers");
     private static InspectionAimCue? _instance;
     private RectTransform? _anchor, _ring;
     private CanvasGroup? _group;
-    private float _nextCandidateCheck, _opacity;
-    private bool _candidate;
+    private float _opacity;
     internal float Magnification = 1;
     internal static bool Visible => _instance != null && _instance.isActiveAndEnabled &&
         _instance._ring != null && _instance._ring.gameObject.activeInHierarchy && _instance._opacity > .001f;
@@ -54,20 +49,10 @@ internal sealed class InspectionAimCue : MonoBehaviour
         if (!((RectTransform)transform).rect.Overlaps(ringBounds))
         { Hide(); return; } // Do not clamp an offscreen direction to a false aim point.
 
-        if (Time.unscaledTime >= _nextCandidateCheck)
-        {
-            _nextCandidateCheck = Time.unscaledTime + .08f; _candidate = false;
-            var exclusions = SceneSingleton<TargetListSelector>.i;
-            foreach (var marker in Markers(hud))
-                if (marker.unit != null && !marker.selected && !marker.unit.disabled && marker.image != null &&
-                    marker.image.isActiveAndEnabled && marker.image.canvasRenderer.GetInheritedAlpha() > .01f &&
-                    exclusions != null && !exclusions.CheckExclusions(marker.unit) &&
-                    Vector3.SqrMagnitude(marker.image.transform.position - native.transform.position) <= 10000)
-                { _candidate = true; break; }
-        }
+        var candidate = TargetCueCandidates.Nearby(hud);
         var selecting = ControllerActions.Instance?.TargetSelecting == true || GameManager.playerInput.GetButton("Select");
-        var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, true, _candidate, selecting);
-        var desired = show ? _candidate || selecting ? 1f : .8f : 0;
+        var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, true, candidate, selecting);
+        var desired = show ? candidate || selecting ? 1f : .8f : 0;
         _opacity = Mathf.MoveTowards(_opacity, desired, Time.unscaledDeltaTime * 6);
         _anchor!.anchoredPosition = projected;
         _group!.alpha = _opacity;
@@ -78,7 +63,7 @@ internal sealed class InspectionAimCue : MonoBehaviour
 
     private void Hide()
     {
-        _opacity = 0; _candidate = false; _nextCandidateCheck = 0;
+        _opacity = 0;
         if (_group != null) _group.alpha = 0;
         if (_ring != null) _ring.gameObject.SetActive(false);
     }

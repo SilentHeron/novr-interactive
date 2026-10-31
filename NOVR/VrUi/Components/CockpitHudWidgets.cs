@@ -60,7 +60,9 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     internal static bool Editing => Instance?._editing == true;
     internal static bool IsHandBusy(bool left) => Editing &&
         (Instance!._hands[left ? 0 : 1].Id != null || Instance._appearanceBusy[left ? 0 : 1]);
-    internal static bool AppearancePointing(bool left) => Editing && Instance!._appearanceBusy[left ? 0 : 1];
+    internal static bool AppearancePointing(bool left) => Editing &&
+        (Instance!._appearanceBusy[left ? 0 : 1] ||
+         Instance._hands[left ? 0 : 1].Id == null && Instance._hover[left ? 0 : 1] != null);
     internal static bool TryGetCornerHandPose(bool left, out Vector3 worldPosition, out Quaternion worldRotation)
     {
         worldPosition = default; worldRotation = Quaternion.identity;
@@ -297,7 +299,10 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         position = default;
         if (!hand.Valid || !Space(out var gameRoot, out _, out var eye)) { _angleValid[index] = false; return false; }
-        position = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation, gameRoot.TransformPoint(hand.Position));
+        // The same raw tracked index fingertip drives hover, acquisition and
+        // movement. A visually snapped corner pinch never feeds back into it.
+        position = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
+            PilotHandVisuals.TouchPoint(index == 0, hand, gameRoot, true));
         var rotation = Quaternion.Inverse(eye.rotation) * gameRoot.rotation * hand.Rotation;
         var forward = rotation * Vector3.forward;
         var previous = _handAngles[index];
@@ -399,7 +404,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             }
             var scale = HudWidgetGestureMath.Resize(_resizeScale, _resizeSpan.x, _resizeSpan.y, span.x, span.y, pose.Scale);
             pose.Position = midpoint + _resizeOffset * (scale / _resizeScale); pose.Scale = scale;
-            SetPose(id, pose); return;
+            MovePose(id, pose); return;
         }
         if (_resizing != null)
         {
@@ -415,8 +420,18 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
                 _handAngles[i].x, _handAngles[i].y);
             pose.Euler = new Vector3(angles.pitch, angles.yaw, 0);
             pose.Position = _points[i] - Quaternion.Euler(pose.Euler) * drag.LocalAnchor;
-            SetPose(drag.Id, pose);
+            MovePose(drag.Id, pose);
         }
+    }
+    private void MovePose(string id, HudWidgetPose target)
+    {
+        var current = _poses[id];
+        var blend = HudWidgetMotionMath.Blend(Time.unscaledDeltaTime);
+        target.Position = Vector3.Lerp(current.Position, target.Position, blend);
+        target.Euler = new Vector3(Mathf.Lerp(current.Euler.x, target.Euler.x, blend),
+            HudWidgetMotionMath.Angle(current.Euler.y, target.Euler.y, blend), 0);
+        target.Scale = Mathf.Lerp(current.Scale, target.Scale, blend);
+        SetPose(id, target);
     }
     private string? SelectAt(Vector3 point, int hand, out int corner)
     {
@@ -493,6 +508,10 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         {
             if (!_editing) return;
             var pose = GetPose(id); pose.Background = value; Select(id); SetAppearance(id, pose);
+        }, visible =>
+        {
+            if (!_editing) return;
+            var pose = GetPose(id); pose.Visible = visible; Select(id); SetAppearance(id, pose);
         });
         LayerHelper.SetLayerRecursive(root.transform, LayerHelper.GetVrUiLayer());
         _widgets.Add(id, widget);

@@ -20,8 +20,9 @@ namespace UnityEngine
     public class Transform : Component
     {
         public Transform parent = null!;
+        public readonly List<Transform> children = new();
         public Quaternion localRotation;
-        public void SetParent(Transform value, bool _) => parent = value;
+        public void SetParent(Transform value, bool _) { parent?.children.Remove(this); parent = value; value.children.Add(this); }
         public T GetComponent<T>() => gameObject.GetComponent<T>();
     }
     public sealed class RectTransform : Transform { public Vector2 anchoredPosition, sizeDelta; }
