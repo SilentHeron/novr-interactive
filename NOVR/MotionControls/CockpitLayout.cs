@@ -13,12 +13,11 @@ internal sealed class CockpitLayout : MonoBehaviour
     {
         internal readonly ControllerButtonGate Gate = new();
         internal Element Element, Hover;
-        internal Vector3 StartHand, StartPosition, Offset;
-        internal Quaternion RotationOffset;
+        internal Vector3 StartHand, StartPosition;
     }
     internal static CockpitLayout? Instance { get; private set; }
     internal static bool Active => Instance?._active == true;
-    private bool _active, _leftHanded, _panelChanged;
+    private bool _active, _leftHanded;
     private Element _onlyElement;
     internal static bool PhysicalHandleEdit => Active && Instance!._onlyElement != Element.None;
     internal static bool Unlocked(Element element) => Active && (Instance!._onlyElement == Element.None || Instance._onlyElement == element);
@@ -30,19 +29,18 @@ internal sealed class CockpitLayout : MonoBehaviour
         if (close) return;
         Begin(); if (_active) _onlyElement = element;
     }
-    private float _panelScale;
     private Aircraft? _aircraft;
-    private Vector3 _stick, _throttle, _panel, _calibration, _anchor, _seatOffset;
-    private Quaternion _panelRotation, _recenterRotation;
+    private Vector3 _stick, _throttle, _calibration, _anchor, _seatOffset;
+    private Quaternion _recenterRotation;
     private readonly HandDrag[] _hands = { new(), new() };
     private readonly LineRenderer?[] _rays = new LineRenderer?[2];
     private Material? _rayMaterial;
     internal static Vector3? StickPreview => Active ? Instance!._stick : null;
     internal static Vector3? ThrottlePreview => Active ? Instance!._throttle : null;
-    internal static Vector3 PanelPosition => Active ? Instance!._panel : CockpitPanelPlacement.Position;
-    internal static Quaternion PanelRotation => Active ? Instance!._panelRotation : CockpitPanelPlacement.Rotation;
-    internal static float PanelScale => Active ? Instance!._panelScale : CockpitPanelPlacement.Scale;
-    internal static string Hint => Fs20NativeCockpit.Selected ? "EDIT HANDLES  •  FS-20 CLUSTER IS FIXED  •  VIEW → SAVE LAYOUT" : "EDIT LAYOUT  •  GRIP A HANDLE OR PANEL TO MOVE  •  VIEW → SAVE LAYOUT";
+    internal static Vector3 PanelPosition => CockpitPanelPlacement.Position;
+    internal static Quaternion PanelRotation => CockpitPanelPlacement.Rotation;
+    internal static float PanelScale => CockpitPanelPlacement.Scale;
+    internal static string Hint => "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
     internal static bool Held(Element element) => Active && (Instance!._hands[0].Element == element || Instance._hands[1].Element == element);
     internal static bool Hovered(Element element) => Active && (Instance!._hands[0].Hover == element || Instance._hands[1].Hover == element);
     internal static Element HeldByHand(bool left) => Active ? Instance!._hands[left ? 0 : 1].Element : Element.None;
@@ -54,13 +52,11 @@ internal sealed class CockpitLayout : MonoBehaviour
         if (_active || !GameManager.GetLocalAircraft(out var aircraft) || CameraStateManager.cameraMode != CameraMode.cockpit) return;
         CockpitProfiles.Instance?.Refresh();
         _stick = CockpitProfiles.StickPosition; _throttle = CockpitProfiles.ThrottlePosition;
-        _panel = PanelPosition; _panelRotation = PanelRotation; _panelScale = PanelScale; _panelChanged = false;
         _aircraft = aircraft; _leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         _calibration = NOVRHeadsetData.TranslationCalibrationOffset; _anchor = NOVRHeadsetData.TranslationAnchor;
         _seatOffset = CockpitProfiles.SeatOffset;
         _recenterRotation = NOVRHeadsetData.RotationCalibrationOffset;
         ModConfiguration.Instance.MotionControls.Enabled.Value = true;
-        ModConfiguration.Instance.CockpitPanelEnabled.Value = true;
         MotionFlightController.Instance?.CancelPlacement();
         ControllerActions.Instance?.ResetButtons();
         _onlyElement = Element.None; _active = true; Release(); WristMenu.Close();
@@ -75,7 +71,6 @@ internal sealed class CockpitLayout : MonoBehaviour
         if (save && sameAircraft)
         {
             CockpitProfiles.Instance?.SaveHandles(_stick, _throttle);
-            if (_panelChanged) CockpitPanelPlacement.Instance?.Save(_panel, _panelRotation, _panelScale);
             ModConfiguration.Instance.Config.Save();
         }
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons();
@@ -107,7 +102,6 @@ internal sealed class CockpitLayout : MonoBehaviour
     private Vector3 GripPosition(Element element)
     {
         if (element == Element.Stick) return Mirror(_stick);
-        if (element == Element.Panel) return _panel;
         var offset = FlightControlMath.ThrottleOffset(MotionFlightController.UsesLiftCollective(_aircraft),
             MotionFlightController.Instance?.Throttle ?? .5f, ModConfiguration.Instance.MotionControls.ThrottleTravel.Value);
         return Mirror(_throttle) + (MotionFlightController.Instance?.ThrottleOffset ?? new Vector3(0, offset.height, offset.forward));
@@ -128,26 +122,14 @@ internal sealed class CockpitLayout : MonoBehaviour
         {
             drag.Element = drag.Hover; drag.StartHand = hand.Position;
             drag.StartPosition = GripPosition(drag.Element);
-            drag.Offset = Quaternion.Inverse(hand.Rotation) * (_panel - hand.Position);
-            drag.RotationOffset = Quaternion.Inverse(hand.Rotation) * _panelRotation;
             Pulse(hand);
         }
         if (drag.Element != Element.None && hand.Valid && drag.Gate.Held)
         {
             var delta = hand.Position - drag.StartHand;
-            if (drag.Element == Element.Panel)
-            {
-                var position = BoundPanel(hand.Position + hand.Rotation * drag.Offset);
-                var rotation = hand.Rotation * drag.RotationOffset;
-                _panelChanged |= Vector3.Distance(position, _panel) > .0001f || Quaternion.Angle(rotation, _panelRotation) > .05f;
-                _panel = position; _panelRotation = rotation;
-            }
-            else
-            {
-                var grip = drag.StartPosition + delta;
-                if (drag.Element == Element.Stick) _stick = Mirror(BoundHandle(grip));
-                else _throttle = Mirror(BoundHandle(grip - (GripPosition(Element.Throttle) - Mirror(_throttle))));
-            }
+            var grip = drag.StartPosition + delta;
+            if (drag.Element == Element.Stick) _stick = Mirror(BoundHandle(grip));
+            else _throttle = Mirror(BoundHandle(grip - (GripPosition(Element.Throttle) - Mirror(_throttle))));
         }
         DrawRay(index, hand, drag.Element != Element.None ? drag.Element : drag.Hover);
     }
@@ -156,47 +138,27 @@ internal sealed class CockpitLayout : MonoBehaviour
     {
         var best = Element.None; distance = 2.5f;
         // Reach takes precedence over pointing. Either hand may move any item.
-        foreach (var element in new[] { Element.Stick, Element.Throttle, Element.Panel })
+        foreach (var element in new[] { Element.Stick, Element.Throttle })
         {
             if (_onlyElement != Element.None && element != _onlyElement) continue;
-            if (_hands[1 - index].Element == element || element == Element.Panel && Fs20NativeCockpit.Selected) continue;
-            var d = element == Element.Panel ? PanelDistance(hand) : Vector3.Distance(hand, GripPosition(element));
-            if (d < (element == Element.Panel ? .065f : ModConfiguration.Instance.MotionControls.GrabRadius.Value) && d < distance)
+            if (_hands[1 - index].Element == element) continue;
+            var d = Vector3.Distance(hand, GripPosition(element));
+            if (d < ModConfiguration.Instance.MotionControls.GrabRadius.Value && d < distance)
             { best = element; distance = d; }
         }
         if (best != Element.None || Fs20NativeCockpit.Selected) return best;
-        foreach (var element in new[] { Element.Stick, Element.Throttle, Element.Panel })
+        foreach (var element in new[] { Element.Stick, Element.Throttle })
         {
-            if (_hands[1 - index].Element == element || element == Element.Panel && Fs20NativeCockpit.Selected) continue;
-            // In edit mode the panel is transparent. A ray aimed at a handle
-            // behind it must still select the handle, rather than its outline.
-            if (element == Element.Panel && best != Element.None) return best;
-            float along;
-            if (element == Element.Panel)
-            {
-                var rotation = Quaternion.Inverse(_panelRotation);
-                var origin = rotation * (ray.origin - _panel); var direction = rotation * ray.direction;
-                var size = PanelScale;
-                if (!PointerGeometry.IntersectRect(origin.x, origin.y, origin.z + .05f * size,
-                    direction.x, direction.y, direction.z, -.385f * CockpitPanelPlacement.Aspect * size, -.18f * size, .385f * size * CockpitPanelPlacement.Aspect, .18f * size, out along)) continue;
-            }
-            else
-            {
-                var center = GripPosition(element); along = Vector3.Dot(center - ray.origin, ray.direction);
-                if (Vector3.Distance(ray.GetPoint(along), center) > .09f) continue;
-            }
+            if (_hands[1 - index].Element == element) continue;
+            if (_onlyElement != Element.None && element != _onlyElement) continue;
+            var center = GripPosition(element);
+            var along = Vector3.Dot(center - ray.origin, ray.direction);
+            if (Vector3.Distance(ray.GetPoint(along), center) > .09f) continue;
             if (along > .01f && along < distance) { best = element; distance = along; }
         }
         return best;
     }
 
-    private float PanelDistance(Vector3 hand)
-    {
-        var p = Quaternion.Inverse(_panelRotation) * (hand - _panel);
-        var scale = PanelScale;
-        var closest = new Vector3(Mathf.Clamp(p.x, -.385f * scale * CockpitPanelPlacement.Aspect, .385f * scale * CockpitPanelPlacement.Aspect), Mathf.Clamp(p.y, -.18f * scale, .18f * scale), -.05f * scale);
-        return Vector3.Distance(p, closest);
-    }
     internal static Vector3 BoundPanel(Vector3 p) => !TrackedControllers.Finite(p) ? new Vector3(0, -.32f, .65f) :
         new Vector3(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.2f, .65f), Mathf.Clamp(p.z, .15f, 1.5f));
     private static Vector3 BoundHandle(Vector3 p) => new(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.25f, .7f), Mathf.Clamp(p.z, -.35f, 1.5f));

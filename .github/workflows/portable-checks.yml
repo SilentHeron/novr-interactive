@@ -34,6 +34,8 @@ jobs:
             /tools/verify.py
             /tools/verification/
             /tools/CockpitProfileChecks/
+            /tools/ControllerRuntimeChecks/
+            /tools/ControllerBindingChecks/
             /tools/HandComfortChecks/
             /tools/ArmPoseChecks/
             /tools/HandPoseChecks/
@@ -47,6 +49,7 @@ jobs:
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
             /NOVR/MotionControls/
+            /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
             /NOVR/Assets/Glove-left.json
             /NOVR/Assets/Glove-right.json
             /NOVR/VrUi/Components/

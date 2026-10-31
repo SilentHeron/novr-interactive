@@ -32,6 +32,7 @@
     <Compile Include="../NOVR/MotionControls/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
     <Compile Include="../NOVR/MotionControls/PointerHandSelection.cs" Link="PointerHandSelection.cs" />
     <Compile Include="../NOVR/MotionControls/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../NOVR/MotionControls/FrameActionQueue.cs" Link="FrameActionQueue.cs" />
     <Compile Include="../NOVR/MotionControls/PointerGeometry.cs" Link="PointerGeometry.cs" />
     <Compile Include="../NOVR.Patcher/PayloadFile.cs" Link="PayloadFile.cs" />
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />

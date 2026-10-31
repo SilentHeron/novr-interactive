@@ -3,6 +3,7 @@ using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.XR;
 using UnityEngine.XR.OpenXR;
+using UnityEngine.XR.OpenXR.Features.Interactions;
 using CommonUsages = UnityEngine.XR.CommonUsages;
 
 namespace NOVR.MotionControls;
@@ -13,6 +14,7 @@ internal struct ControllerSample
     // Presence is visual-only and never aliases a button press or flight action.
     public bool HasThumbTouch, HasTriggerTouch, ThumbstickTouched, ButtonTouched, PrimaryTouched, ThumbrestTouched, TriggerTouched, GripTouched;
     public InputDevice Device;
+    public ControllerHardwareProfile Profile;
     public float Grip, Trigger;
     public Vector3 Position, AimPosition;
     public Quaternion Rotation, AimRotation;
@@ -22,6 +24,7 @@ internal struct ControllerSample
 internal static class TrackedControllers
 {
     private static InputDevice? _reportedLeft, _reportedRight;
+    private static readonly ControllerHardwareProfile[] ReportedProfiles = new ControllerHardwareProfile[2];
     private static int _availableFrame = -1;
     private static bool _available;
     private static readonly int[] ReadFrames = { -1, -1 };
@@ -48,8 +51,35 @@ internal static class TrackedControllers
                    (!head.TryGetFeatureValue(CommonUsages.userPresence, out var present) || present);
     }
 
-    internal static bool NativeFrame(bool left) => (left ? XRController.leftHand : XRController.rightHand)
-        is Valve.OpenXR.Utils.SteamFrameControllerProfile.SteamFrameController;
+    internal static ControllerHardwareProfile Profile(bool left) => Profile(left ? XRController.leftHand : XRController.rightHand);
+    private static ControllerHardwareProfile Profile(XRController? controller) => controller switch
+    {
+        Valve.OpenXR.Utils.SteamFrameControllerProfile.SteamFrameController => ControllerHardwareProfile.SteamFrame,
+        OculusTouchControllerProfile.OculusTouchController => ControllerHardwareProfile.Touch,
+        MetaQuestTouchPlusControllerProfile.QuestTouchPlusController => ControllerHardwareProfile.Touch,
+        MetaQuestTouchProControllerProfile.QuestProTouchController => ControllerHardwareProfile.Touch,
+        null => ControllerHardwareProfile.Unknown,
+        _ => ControllerHardwareProfile.Other
+    };
+    internal static bool NativeFrame(bool left) => Profile(left) == ControllerHardwareProfile.SteamFrame;
+    internal static bool IsApplicationMenuAvailable(ControllerHardwareProfile profile, bool left) =>
+        profile != ControllerHardwareProfile.Touch || left;
+
+    // SteamVR's legacy XR feature bridge and OpenXR's named Input System
+    // controls need not expose exactly the same set of usages. Prefer an
+    // available legacy feature, then the registered profile's matching action.
+    private static bool ReadButton(InputDevice device, InputFeatureUsage<bool> usage, XRController? controller, string name) =>
+        device.TryGetFeatureValue(usage, out var value) ? value : controller?.TryGetChildControl<ButtonControl>(name)?.isPressed == true;
+    private static bool ReadAnalog(InputDevice device, InputFeatureUsage<float> usage, XRController? controller, string name, out float value)
+    {
+        if (device.TryGetFeatureValue(usage, out value) && FlightControlMath.IsFinite(value)) return true;
+        var control = controller?.TryGetChildControl<AxisControl>(name);
+        if (control != null) { value = control.ReadValue(); return true; }
+        // Preserve invalid samples as invalid instead of treating tracking/data
+        // failures as a released trigger. A genuinely absent feature is zero.
+        if (!FlightControlMath.IsFinite(value)) return true;
+        value = 0; return false;
+    }
 
     public static ControllerSample Read(bool left)
     {
@@ -77,25 +107,36 @@ internal static class TrackedControllers
             !device.TryGetFeatureValue(CommonUsages.deviceRotation, out var rotation) ||
             !Finite(position) || !Finite(rotation)) return default;
 
-        var hasGrip = device.TryGetFeatureValue(CommonUsages.grip, out var grip);
-        device.TryGetFeatureValue(CommonUsages.gripButton, out var gripButton);
-        if (!device.TryGetFeatureValue(CommonUsages.trigger, out var trigger))
-            trigger = device.TryGetFeatureValue(CommonUsages.triggerButton, out var triggerButton) && triggerButton ? 1f : 0f;
+        var inputDevice = left ? XRController.leftHand : XRController.rightHand;
+        var profile = Profile(inputDevice);
+        var nativeFrame = profile == ControllerHardwareProfile.SteamFrame;
+        var hasGrip = ReadAnalog(device, CommonUsages.grip, inputDevice, "grip", out var grip);
+        var gripButton = ReadButton(device, CommonUsages.gripButton, inputDevice, "gripPressed");
+        if (!ReadAnalog(device, CommonUsages.trigger, inputDevice, "trigger", out var trigger))
+            trigger = ReadButton(device, CommonUsages.triggerButton, inputDevice, "triggerPressed") ? 1f : 0f;
         var hasAxis = device.TryGetFeatureValue(CommonUsages.primary2DAxis, out var axis) &&
                       FlightControlMath.IsFinite(axis.x) && FlightControlMath.IsFinite(axis.y);
-        device.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out var stickClick);
-        device.TryGetFeatureValue(CommonUsages.primaryButton, out var primary);
-        device.TryGetFeatureValue(CommonUsages.secondaryButton, out var secondary);
-        device.TryGetFeatureValue(CommonUsages.menuButton, out var menu);
+        if (!hasAxis && inputDevice?.TryGetChildControl<Vector2Control>("thumbstick") is Vector2Control thumbstick)
+        {
+            axis = thumbstick.ReadValue();
+            hasAxis = FlightControlMath.IsFinite(axis.x) && FlightControlMath.IsFinite(axis.y);
+        }
+        var stickClick = ReadButton(device, CommonUsages.primary2DAxisClick, inputDevice, "thumbstickClicked");
+        var primary = ReadButton(device, CommonUsages.primaryButton, inputDevice, "primaryButton");
+        var secondary = ReadButton(device, CommonUsages.secondaryButton, inputDevice, "secondaryButton");
+        // Oculus/Meta's right system button belongs to the runtime, even though
+        // Unity's stock Touch layout aliases it as MenuButton. Never route it
+        // into cockpit actions; the physical left Menu remains the app button.
+        var menu = IsApplicationMenuAvailable(profile, left) && ReadButton(device, CommonUsages.menuButton, inputDevice, "menu");
 
-        var inputDevice = left ? XRController.leftHand : XRController.rightHand;
         // OpenXR generates device-specific layouts derived from the registered
         // profile, so their layout names need not equal the base layout name.
-        var nativeFrame = NativeFrame(left);
-        if ((left ? _reportedLeft : _reportedRight)?.Equals(device) != true)
+        var handIndex = left ? 0 : 1;
+        if ((left ? _reportedLeft : _reportedRight)?.Equals(device) != true || ReportedProfiles[handIndex] != profile)
         {
             if (left) _reportedLeft = device; else _reportedRight = device;
-            Debug.Log($"[NOVR] {(left ? "Left" : "Right")} controller: {device.name}; layout {inputDevice?.layout ?? "unavailable"}; {(nativeFrame ? "native Steam Frame bindings" : "generic XR / Touch-compatible bindings")}.");
+            ReportedProfiles[handIndex] = profile;
+            Debug.Log($"[NOVR] {(left ? "Left" : "Right")} controller: {device.name}; layout {inputDevice?.layout ?? "unavailable"}; profile {profile}.");
         }
         bool Button(string name) => inputDevice?.TryGetChildControl<ButtonControl>(name)?.isPressed == true;
         grip = FlightControlMath.GripValue(hasGrip, grip, gripButton || nativeFrame && Button("gripPressed"));
@@ -130,7 +171,7 @@ internal static class TrackedControllers
             Secondary = nativeFrame ? Button("faceButtonInside") : secondary,
             Menu = nativeFrame ? Button("menu") : menu,
             Shoulder = Button("shoulder"), Top = Button("faceButtonTop"), Outside = Button("faceButtonOutside"),
-            NativeFrame = nativeFrame,
+            NativeFrame = nativeFrame, Profile = profile,
             HasThumbTouch = hasStickTouch || hasButtonTouch || hasRestTouch, HasTriggerTouch = hasTriggerTouch,
             ThumbstickTouched = stickTouch, ButtonTouched = faceTouch, PrimaryTouched = primaryTouch, ThumbrestTouched = restTouch,
             TriggerTouched = triggerTouch, GripTouched = Button("gripTouched"),

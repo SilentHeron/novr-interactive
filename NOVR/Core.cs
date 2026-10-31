@@ -32,7 +32,6 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<VrCameraManager>();
         gameObject.AddComponent<APIBus>();
         gameObject.AddComponent<MotionControls.CockpitProfiles>();
-        gameObject.AddComponent<MotionControls.CockpitPanelPlacement>();
         gameObject.AddComponent<MotionControls.CockpitLayout>();
         gameObject.AddComponent<MotionControls.MotionFlightController>();
         gameObject.AddComponent<MotionControls.HelmetNightVision>();
@@ -45,9 +44,10 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<MotionControls.TargetAcquisitionCue>();
         gameObject.AddComponent<MotionControls.PcVrCapabilities>();
         gameObject.AddComponent<VrUi.WristMenu>();
-        gameObject.AddComponent<MotionControls.UniversalCockpitPanel>();
-        gameObject.AddComponent<MotionControls.CockpitForeground>();
+        // Native aircraft displays stay in place. Optional physical
+        // cockpit contacts add interactions without a replacement MFD console.
         gameObject.AddComponent<MotionControls.Fs20NativeCockpit>();
+        gameObject.AddComponent<MotionControls.IfritNativeCockpit>();
     }
 
     private void OnApplicationQuit() => _quitting = true;

@@ -14,6 +14,9 @@ namespace NOVR.MotionControls;
 internal sealed class CockpitViewZoom : MonoBehaviour
 {
     private readonly ControllerButtonGate _button = new();
+    private int _bindingVersion = -1;
+    private ControllerBindingProfile _bindingProfile;
+    private bool _bindingLeft;
     private Aircraft? _aircraft;
     private Vector3 _calibration, _anchor;
     private Quaternion _rotation;
@@ -37,7 +40,12 @@ internal sealed class CockpitViewZoom : MonoBehaviour
     private void Update()
     {
         var settings = ModConfiguration.Instance.ControllerBindings;
-        var right = TrackedControllers.Read(false);
+        var binding = settings.Get(ControllerActionId.Zoom);
+        var left = ControllerBindings.ResolveLeft(binding.Hand, ModConfiguration.Instance.MotionControls.LeftHanded.Value);
+        var hand = TrackedControllers.Read(left);
+        var profile = settings.EffectiveProfile;
+        if (_bindingVersion != settings.ChangeVersion || _bindingProfile != profile || _bindingLeft != left)
+        { _button.Reset(); _bindingVersion = settings.ChangeVersion; _bindingProfile = profile; _bindingLeft = left; }
         GameManager.GetLocalAircraft(out var aircraft);
         if (_aircraft != aircraft || _calibration != NOVRHeadsetData.TranslationCalibrationOffset ||
             _anchor != NOVRHeadsetData.TranslationAnchor || _rotation != NOVRHeadsetData.RotationCalibrationOffset)
@@ -45,13 +53,13 @@ internal sealed class CockpitViewZoom : MonoBehaviour
             Reset(); _aircraft = aircraft; _calibration = NOVRHeadsetData.TranslationCalibrationOffset;
             _anchor = NOVRHeadsetData.TranslationAnchor; _rotation = NOVRHeadsetData.RotationCalibrationOffset;
         }
-        var available = settings.RightBumperZoom.Value && XRSettings.enabled && TrackedControllers.Available && right.Valid &&
+        var available = settings.ZoomEnabled.Value && XRSettings.enabled && TrackedControllers.Available && hand.Valid &&
             aircraft != null && aircraft.cockpit != null && !aircraft.cockpit.IsDetached() &&
             CameraStateManager.cameraMode == CameraMode.cockpit && Time.timeScale > 0 && GameManager.flightControlsEnabled &&
             !WristMenu.IsOpen && !CockpitLayout.Active && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
             (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse());
-        _button.Update(available, right.Shoulder ? 1 : 0);
+        _button.Update(available, ControllerBindings.Read(hand, binding.Button));
         _held = _button.Held;
         IsActive = _held;
         if (!_held) Hide();

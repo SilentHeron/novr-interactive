@@ -1,5 +1,7 @@
 # FS-20 Vortex: integrated VR cockpit
 
+Current controls: [controller bindings](CONTROLLER_BINDINGS.md). Since 0.4.7.10, the added MFDs and shared console are removed; original aircraft displays remain in use. The older layout notes below describe previous versions.
+
 Version 0.4.7.5 candidate keeps the FS-20's original instrument cluster and adds
 raised, labelled physical controls over its existing switch rows. There is no movable
 replacement panel. Seat adjustments never move the cluster or flight handles.

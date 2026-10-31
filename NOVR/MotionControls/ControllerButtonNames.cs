@@ -36,8 +36,8 @@ internal static class ControllerButtonNames
             ControllerButton.StickClick => "Thumbstick click",
             ControllerButton.Primary => frame ? (left ? "D-pad down" : "A") : (left ? "X" : "A"),
             ControllerButton.Secondary => frame ? (left ? "D-pad right" : "X") : (left ? "Y" : "B"),
-            ControllerButton.Menu => frame ? (left ? "View" : "Menu") : "Menu (if available)",
-            ControllerButton.Shoulder => frame ? "Shoulder" : "Shoulder (if available)",
+            ControllerButton.Menu => frame ? (left ? "View" : "Menu") : left ? "Menu" : "Unavailable (system button)",
+            ControllerButton.Shoulder => frame ? "Bumper" : "Unavailable",
             ControllerButton.Top => frame ? (left ? "D-pad up" : "Y") : "Unavailable",
             ControllerButton.Outside => frame ? (left ? "D-pad left" : "B") : "Unavailable",
             _ => "Unassigned"

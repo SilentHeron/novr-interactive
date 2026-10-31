@@ -84,9 +84,9 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             var left=side==0; var sample=TrackedControllers.Read(left);
             Pose? attachment = null; var stick = false; var collective = false;
             if (controls != null && controls.TryGetHeldHandPose(left, out var gripPose, out stick, out collective)) attachment = gripPose;
-            var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing);
+            var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing) ?? IfritNativeCockpit.HandPose(left);
             if (attachment.HasValue) { cockpitGrip = null; pointing = false; }
-            _gloves[side]?.Pose(sample, attachment, stick, collective, cockpitGrip, pointing, Fs20NativeCockpit.Pinching(left));
+            _gloves[side]?.Pose(sample, attachment, stick, collective, cockpitGrip, pointing, Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left));
             // Render only, after raw tracking has posed the glove. Contact and
             // grip sockets stay exact; input hit testing still uses the sample.
             if(_gloves[side]!=null)

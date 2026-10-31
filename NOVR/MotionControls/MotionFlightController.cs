@@ -269,8 +269,8 @@ public sealed class MotionFlightController : MonoBehaviour
         // A physical cockpit interaction owns its hand until release, including
         // physics-driven SampleFor calls. Reset the flight gate while owned so
         // a held switch cannot transfer into a nearby flight handle mid-grip.
-        _stickGrip.Update(_stickHand.Valid && !Fs20NativeCockpit.OwnsHand(Settings.LeftHanded.Value), _stickHand.Grip,
-            IsNearStick() && (stickWasHeld || !Fs20NativeCockpit.SwitchWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot)), Settings.StickTapGrip.Value,
+        _stickGrip.Update(_stickHand.Valid && !Fs20NativeCockpit.OwnsHand(Settings.LeftHanded.Value) && !IfritNativeCockpit.OwnsHand(Settings.LeftHanded.Value), _stickHand.Grip,
+            IsNearStick() && (stickWasHeld || !Fs20NativeCockpit.SwitchWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot) && !IfritNativeCockpit.ControlWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot)), Settings.StickTapGrip.Value,
             Time.realtimeSinceStartup, Vector3.Distance(_stickHand.Position, StickPosition) <= Mathf.Max(.4f, Settings.GrabRadius.Value * 2));
         if (_stickGrip.Held && !stickWasHeld)
         {
@@ -301,8 +301,8 @@ public sealed class MotionFlightController : MonoBehaviour
             InteractionHaptics.PulseOnly(_stickHand.Device, limitPulse.strength, limitPulse.seconds);
 
         var throttleWasHeld = _throttleGrip.Held;
-        _throttleGrip.Update(_throttleHand.Valid && !Fs20NativeCockpit.OwnsHand(!Settings.LeftHanded.Value), _throttleHand.Grip,
-            IsNearThrottle() && (throttleWasHeld || !Fs20NativeCockpit.SwitchWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot)), Settings.ThrottleTapGrip.Value,
+        _throttleGrip.Update(_throttleHand.Valid && !Fs20NativeCockpit.OwnsHand(!Settings.LeftHanded.Value) && !IfritNativeCockpit.OwnsHand(!Settings.LeftHanded.Value), _throttleHand.Grip,
+            IsNearThrottle() && (throttleWasHeld || !Fs20NativeCockpit.SwitchWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot) && !IfritNativeCockpit.ControlWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot)), Settings.ThrottleTapGrip.Value,
             Time.realtimeSinceStartup, Vector3.Distance(_throttleHand.Position,
                 ThrottlePosition + ThrottleOffset) <= Mathf.Max(.4f, Settings.GrabRadius.Value * 2));
         if (_throttleGrip.Held && !throttleWasHeld)

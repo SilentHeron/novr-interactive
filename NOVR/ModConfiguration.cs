@@ -28,7 +28,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> FlightHudScale, InstrumentBrightness, MfdBrightness;
     public readonly ConfigEntry<float> MarkerScale, MarkerLabelScale, ReticleScale, WeaponHudScale;
     internal readonly ConfigEntry<MotionControls.MfdPage> LeftMfdPage, RightMfdPage, Fs20LeftMfdPage, Fs20RightMfdPage;
-    public readonly ConfigEntry<bool> CockpitPanelEnabled, Fs20NativeCockpitEnabled;
+    public readonly ConfigEntry<bool> CockpitPanelEnabled, Fs20NativeCockpitEnabled, IfritNativeCockpitEnabled;
     internal readonly ConfigEntry<bool> CockpitMapNorthUp;
     public readonly ConfigEntry<Vector3> CockpitPanelPosition;
     public readonly ConfigEntry<float> CockpitPanelTilt, CockpitPanelScale, CockpitPanelYaw, CockpitPanelRoll;
@@ -55,8 +55,9 @@ public class ModConfiguration
                 TargetCue.Value = global::NOVR.MotionControls.TargetCueMode.Always;
             persistentAimCue.Value = true;
         }
-        Fs20NativeCockpitEnabled = config.Bind("FS-20 Native Cockpit", "Interactive Controls", true, "Operate the FS-20 original cockpit controls in VR. Its native cluster is fixed to the aircraft and always replaces the universal movable panel. Disabling this leaves the original cockpit visible.");
-        CockpitPanelEnabled = config.Bind("Universal Cockpit Panel", "Enabled", true, "Show the shared 3D control panel and dock weapon status and minimap to its displays.");
+        Fs20NativeCockpitEnabled = config.Bind("FS-20 Native Cockpit", "Interactive Controls", true, "Operate the FS-20 cockpit switches in VR. Original displays stay in place; disabling interactions leaves the original cockpit visible.");
+        IfritNativeCockpitEnabled = config.Bind("KR-67 Native Cockpit", "Interactive Controls", true, "Reach and grip the KR-67 original gear and ejection handles in VR. Original cockpit geometry and displays stay unchanged.");
+        CockpitPanelEnabled = config.Bind("Universal Cockpit Panel", "Enabled", false, "Legacy setting. Added MFDs and the universal panel are retired; native aircraft displays remain in use.");
         CockpitPanelPosition = config.Bind("Universal Cockpit Panel", "Position", new Vector3(0, -0.32f, 0.65f), "Fallback cockpit position if a native dashboard surface is unavailable. Automatic dashboard fit and per-aircraft saved placements take precedence. Independent of seat adjustment.");
         CockpitPanelTilt = config.Bind("Universal Cockpit Panel", "Tilt", 20f, new ConfigDescription("Upward-facing panel tilt in degrees.", new AcceptableValueRange<float>(-90, 90)));
         CockpitPanelYaw = config.Bind("Universal Cockpit Panel", "Yaw", 0f, new ConfigDescription("Panel yaw in degrees, set by grabbing it in Edit layout.", new AcceptableValueRange<float>(-180, 180)));
@@ -70,7 +71,7 @@ public class ModConfiguration
         InstrumentBrightness = config.Bind("VR HUD", "Instrument Brightness", 1f,
             new ConfigDescription("Brightness of flight instruments, compass and pitch ladder only. Target/flight-path markers and missile warnings retain their native brightness.", new AcceptableValueRange<float>(.35f, 1f)));
         MfdBrightness = config.Bind("Universal Cockpit Panel", "Display Brightness", 1f,
-            new ConfigDescription("Brightness of MFD content, including native instrument/camera pages. Headers, page choices, weapon safety/readout and external warning indicators stay readable.", new AcceptableValueRange<float>(.35f, 1f)));
+            new ConfigDescription("Brightness of the EOTS helmet image. Original cockpit displays keep their native brightness settings. The legacy configuration key is retained to preserve your saved preference.", new AcceptableValueRange<float>(.35f, 1f)));
         FocusedFlightHud = config.Bind("VR HUD", "Focused Flight HUD", true, "Compact flight instruments and a limited forward pitch ladder. Target and missile-warning projections remain independent.");
         FlightHudScale = config.Bind("VR HUD", "Flight HUD Scale", .38f, new ConfigDescription("Size of the focused flight instruments and pitch-ladder window.", new AcceptableValueRange<float>(.22f, .75f)));
         MarkerScale = config.Bind("VR HUD", "Marker Scale", .45f, new ConfigDescription("Size of target diamonds and location symbols, preserving their world alignment.", new AcceptableValueRange<float>(.2f, 1f)));

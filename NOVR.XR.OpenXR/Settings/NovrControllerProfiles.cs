@@ -12,11 +12,18 @@ public partial class OpenXRSettings
     {
         var profiles = new List<OpenXRFeature>(features);
         AddProfile<OculusTouchControllerProfile>(profiles, OculusTouchControllerProfile.featureId);
+        // Standard Touch remains available on SteamVR. These optional profiles
+        // use their existing OnInstanceCreate extension guards, so a runtime
+        // without Plus/Pro support simply keeps the standard Touch bindings.
+        AddProfile<MetaQuestTouchPlusControllerProfile>(profiles, MetaQuestTouchPlusControllerProfile.featureId);
+        profiles.Find(item => item is MetaQuestTouchPlusControllerProfile)!.openxrExtensionStrings = "XR_META_touch_controller_plus";
+        AddProfile<MetaQuestTouchProControllerProfile>(profiles, MetaQuestTouchProControllerProfile.featureId);
+        profiles.Find(item => item is MetaQuestTouchProControllerProfile)!.openxrExtensionStrings = "XR_FB_touch_controller_pro";
         AddProfile<ValveIndexControllerProfile>(profiles, ValveIndexControllerProfile.featureId);
         AddProfile<HTCViveControllerProfile>(profiles, HTCViveControllerProfile.featureId);
         AddProfile<MicrosoftMotionControllerProfile>(profiles, MicrosoftMotionControllerProfile.featureId);
         AddProfile<Valve.OpenXR.Utils.SteamFrameControllerProfile>(profiles, Valve.OpenXR.Utils.SteamFrameControllerProfile.featureId);
-        var frame = profiles.Find(item => item is Valve.OpenXR.Utils.SteamFrameControllerProfile);
+        var frame = profiles.Find(item => item is Valve.OpenXR.Utils.SteamFrameControllerProfile)!;
         frame.company = "Valve";
         frame.openxrExtensionStrings = "XR_VALVE_frame_controller_interaction";
         // Request the standard gaze action before session creation. Runtime

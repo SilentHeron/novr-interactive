@@ -42,17 +42,10 @@ internal static class Fs20PanelLayout
     }
     internal static readonly Control[] Controls =
     {
-        new("left_prev", "◀ PREV", new(-.154f,.285f,.52354868f), new(.078f,.035f), Kind.Page),
-        new("left_next", "NEXT ▶", new(-.066f,.285f,.52354868f), new(.078f,.035f), Kind.Page),
-        new("right_prev", "◀ PREV", new(.066f,.285f,.52354868f), new(.078f,.035f), Kind.Page),
-        new("right_next", "NEXT ▶", new(.154f,.285f,.52354868f), new(.078f,.035f), Kind.Page),
-        MfdKeys[0][0], MfdKeys[0][1], MfdKeys[0][2], MfdKeys[0][3],
-        MfdKeys[1][0], MfdKeys[1][1], MfdKeys[1][2], MfdKeys[1][3],
         new("gear", "GEAR", Fs20NativeGear.NativePoint, new(.040f,.055f), Kind.Switch),
         new("brake", "BRAKE", new(-.051f,.196f,.498f), new(.074f,.049f), Kind.Hold),
         new("radar", "RADAR", new(.051f,.196f,.498f), new(.074f,.049f), Kind.Switch),
         new("aots", "EOTS HUD", new(.153f,.196f,.498f), new(.074f,.049f), Kind.Switch),
-        new("map_pan", "MAP PAN", new(0,.285f,.52354868f), new(.042f,.032f), Kind.MapSlave),
         new("left_lock", "THROTTLE POS", new(-.48f,.08f,.09f), new(.108f,.045f), Kind.Setup, true),
         new("right_lock", "STICK POS", new(.48f,.08f,.09f), new(.108f,.045f), Kind.Setup, true),
         new("seat_up", "▲ UP", new(-.507f,.08f,.025f), new(.048f,.045f), Kind.Setup, true),

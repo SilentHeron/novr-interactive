@@ -1,5 +1,7 @@
 # Steam Frame PC streaming prototype
 
+Current controls: [controller bindings](CONTROLLER_BINDINGS.md). Since 0.4.7.10, the added MFDs and shared console are removed; original aircraft displays remain in use. The older layout notes below describe previous versions.
+
 NOVR Motion Prototype **0.4.6.9 candidate**, targeting Nuclear Option **0.34.3**, Steam build
 26272685. Nuclear Option runs on the PC; SteamVR supplies OpenXR tracking and
 controller input while the headset streams the game. This is an experimental build,

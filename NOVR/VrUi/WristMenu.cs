@@ -10,7 +10,7 @@ using UnityEngine.UI;
 namespace NOVR.VrUi;
 
 [DefaultExecutionOrder(-1100)]
-internal sealed class WristMenu : MonoBehaviour
+internal sealed partial class WristMenu : MonoBehaviour
 {
     // A dedicated bit leaves every game-owned cursor reason untouched on close.
     private const CursorFlags WristCursorFlag = (CursorFlags)(1 << 28);
@@ -20,7 +20,7 @@ internal sealed class WristMenu : MonoBehaviour
     private Text? _status;
     private Font? _font;
     private GameObject? _alertsPage, _nativeCockpitPage;
-    private GameObject? _setupPage, _flightPage, _ejectPage, _consolePage, _controlsPage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _comfortPage, _alignmentPage, _displayPage, _feedbackPage, _brightnessPage, _aimingPage, _opticalPage, _zoomPage;
+    private GameObject? _setupPage, _flightPage, _ejectPage, _controlsPage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _comfortPage, _alignmentPage, _displayPage, _feedbackPage, _brightnessPage, _aimingPage, _opticalPage, _zoomPage;
     private readonly Dictionary<GameObject, string> _pageTitles = new();
     private GameObject? _performancePage, _handPositionPage, _handAnglesPage;
     private bool _fittingLeftHand = true;
@@ -28,8 +28,10 @@ internal sealed class WristMenu : MonoBehaviour
     private MenuHistory<GameObject>? _history;
     private Button? _backButton;
     private readonly List<(Text label, Func<string> text)> _liveLabels = new();
-    private Text? _controlsInfo, _bindingHelp, _throttleHelp, _helpFooter, _bindingsInfo;
+    private Text? _controlsInfo, _bindingHelp, _throttleHelp, _helpFooter;
     private float _nextHelpRefresh;
+    private ControllerBindingProfile _menuProfile;
+    private bool _menuLeft;
     private Aircraft? _ejectAircraft, _openAircraft, _resetAircraft;
     private bool _resetLeftHanded, _followHand;
     private Vector3 _menuPosition;
@@ -39,7 +41,7 @@ internal sealed class WristMenu : MonoBehaviour
     private bool _anchored;
     private string _pageTitle = "VIEW";
     internal static bool IsOpen => _instance?._panel?.activeSelf == true;
-    internal static bool IsConsoleSetup => IsOpen && _instance?._consolePage?.activeSelf == true;
+    internal static bool IsConsoleSetup => false;
     internal static bool IsPerformancePage => IsOpen && _instance?._performancePage?.activeSelf == true;
     private static bool CollectiveControls => GameManager.GetLocalAircraft(out var aircraft) && MotionFlightController.UsesLiftCollective(aircraft);
     private void Awake() => _instance = this;
@@ -55,13 +57,18 @@ internal sealed class WristMenu : MonoBehaviour
     private void Update()
     {
         var config = ModConfiguration.Instance;
-        var hand = TrackedControllers.Read(!config.MotionControls.LeftHanded.Value);
+        var menuBinding = config.ControllerBindings.Get(ControllerActionId.WristMenu);
+        var menuLeft = ControllerBindings.ResolveLeft(menuBinding.Hand, config.MotionControls.LeftHanded.Value);
+        var hand = TrackedControllers.Read(menuLeft);
+        var bindingVersion = config.ControllerBindings.ChangeVersion;
+        if (_bindingVersion != bindingVersion || _menuProfile != config.ControllerBindings.EffectiveProfile || _menuLeft != menuLeft)
+        { _toggle.Reset(); _bindingVersion = bindingVersion; _menuProfile = config.ControllerBindings.EffectiveProfile; _menuLeft = menuLeft; }
         var cockpit = CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.GetLocalAircraft(out var viewedAircraft) && !viewedAircraft.disabled &&
                       Time.timeScale > 0f && (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
                       (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
         var recoveryMap = !cockpit && ControllerActions.MapAccessAvailable;
         _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && (cockpit || recoveryMap),
-            ControllerBindings.Read(hand, config.ControllerBindings.WristMenu.Value));
+            ControllerButtonNames.Resolve(menuBinding.Button, hand.NativeFrame) == ControllerButton.Trigger ? 0 : ControllerBindings.Read(hand, menuBinding.Button));
         if (_toggle.Pressed || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
         {
             // Outside a usable cockpit, View offers the recovery map instead
@@ -92,14 +99,12 @@ internal sealed class WristMenu : MonoBehaviour
             if (_bindingHelp != null && _helpPage?.activeSelf == true)
             {
                 _bindingHelp.text = HandHelp(true); _throttleHelp!.text = HandHelp(false);
-                var stickLeft = config.MotionControls.LeftHanded.Value;
-                var b = config.ControllerBindings;
-                _helpFooter!.text = "Combat buttons need a held or latched handle.\n" +
-                    "Map (free hand): " + ControllerButtonNames.Describe(b.Map.Value, stickLeft, TrackedControllers.NativeFrame(stickLeft)) +
-                    " · View: " + ControllerButtonNames.Describe(b.WristMenu.Value, !stickLeft, TrackedControllers.NativeFrame(!stickLeft)) +
-                    "\n" + (b.RightBumperZoom.Value ? "Right bumper: hold magnifier, with either grip released or held." : "Right bumper magnifier is OFF.");
+                _helpFooter!.text = "Hold the assigned handle for flight actions.\n" +
+                    "Map: " + DescribeBinding(Bindings.Get(ControllerActionId.Map)) +
+                    " · View: " + DescribeBinding(Bindings.Get(ControllerActionId.WristMenu)) +
+                    "\nZoom (hold, any grip): " + DescribeBinding(Bindings.Get(ControllerActionId.Zoom));
             }
-            if (_bindingsInfo != null && _bindingsPage?.activeSelf == true) _bindingsInfo.text = ThrottleBindingsHelp();
+            RefreshBindingEditor();
             _nextHelpRefresh = Time.unscaledTime + .25f;
         }
         if (_ejectPage?.activeSelf == true &&
@@ -150,7 +155,7 @@ internal sealed class WristMenu : MonoBehaviour
         {
             var status = _pageTitle + "\n" + (CockpitProfiles.Instance?.AircraftName ?? "Cockpit") +
                 " · Motion " + (config.MotionControls.Enabled.Value ? "ON" : "OFF") + "\n" +
-                (CockpitLayout.Active ? "Layout preview · Save or cancel when finished" : _consolePage?.activeSelf == true ? "Outline preview · Close View to see displays" : "Either hand: point + trigger · View closes this menu");
+                (CockpitLayout.Active ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
             if (_status.text != status) _status.text = status;
         }
     }
@@ -244,11 +249,11 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Cockpit setup", 1, 0, () => ShowPage(_setupPage!));
         AddButton("Flight controls", 0, 1, () => ShowPage(_controlsPage!));
         AddButton("Comfort & display", 1, 1, () => ShowPage(_comfortPage!));
-        AddButton("Controller guide", 0, 2, () => ShowPage(_helpPage!));
+        AddButton("Controller bindings", 0, 2, () => ShowPage(_bindingsPage!));
         AddButton("Recenter view", 1, 2, () => { NOVRHeadsetData.CalibrateTranslation(); NOVRHeadsetData.CalibrateRotation(); Close(); });
         AddLiveButton(() => "EOTS HUD: " + (config.OpticalHud.Enabled.Value ? "ON" : "OFF"), 0, 3, () => { OpticalTargetingHud.Toggle(); Close(); });
         AddButton("EOTS setup", 1, 3, () => ShowPage(_opticalPage!));
-        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : Fs20NativeCockpit.Selected ? "Edit handle layout" : "Edit cockpit layout", 0, 4, ToggleLayout);
+        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : "Edit handle layout", 0, 4, ToggleLayout);
         AddLiveButton(() => CockpitLayout.Active ? "Cancel layout" : "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 4, () =>
         {
             if (CockpitLayout.Active) { CockpitLayout.Instance?.Finish(false); Close(); }
@@ -258,9 +263,8 @@ internal sealed class WristMenu : MonoBehaviour
 
         _setupPage = Page("COCKPIT");
         AddButton("Seat position", 0, 0, () => ShowPage(_seatPage!));
-        AddLiveButton(() => Fs20NativeCockpit.Selected ? "FS-20 cockpit" : "Console position", 1, 0,
-            () => ShowPage(Fs20NativeCockpit.Selected ? _nativeCockpitPage! : _consolePage!));
-        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : Fs20NativeCockpit.Selected ? "Edit handle layout" : "Edit cockpit layout", 0, 1, ToggleLayout);
+        AddButton("Cockpit interactions", 1, 0, () => ShowPage(_nativeCockpitPage!));
+        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : "Edit handle layout", 0, 1, ToggleLayout);
         AddLiveButton(() => CockpitLayout.Active ? "Cancel layout" : "Place handles (3s)", 1, 1, () =>
         {
             if (CockpitLayout.Active) CockpitLayout.Instance?.Finish(false);
@@ -270,7 +274,7 @@ internal sealed class WristMenu : MonoBehaviour
         AddLiveButton(() => "Stick hand: " + (motion.LeftHanded.Value ? "LEFT" : "RIGHT"), 0, 2,
             () => { CockpitLayout.Instance?.Finish(false); motion.LeftHanded.Value = !motion.LeftHanded.Value; Close(); });
         AddButton("Reset seat & handles…", 1, 2, AskReset);
-        Label(_setupPage.transform, "Edit layout: grip each item to move it.\nReopen View to save or cancel.\n\nSeat movement leaves handles and panel in place.\nPlacements are saved for this aircraft.", new Vector2(0,-115), new Vector2(510,220), 20);
+        Label(_setupPage.transform, "Edit layout: grip each item to move it.\nReopen View to save or cancel.\n\nSeat movement leaves the handles in place.\nPlacements are saved for this aircraft.", new Vector2(0,-115), new Vector2(510,220), 20);
 
         _seatPage = Page("SEAT");
         AddButton("Seat up", 0, 0, () => CockpitProfiles.Instance?.MoveSeat(Vector3.up * .02f));
@@ -279,10 +283,10 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Seat right", 1, 1, () => CockpitProfiles.Instance?.MoveSeat(Vector3.right * .02f));
         AddButton("Seat forward", 0, 2, () => CockpitProfiles.Instance?.MoveSeat(Vector3.forward * .02f));
         AddButton("Seat back", 1, 2, () => CockpitProfiles.Instance?.MoveSeat(Vector3.back * .02f));
-        Label(_seatPage.transform, "Each step moves the viewpoint 2 cm.\nHandles and console keep their cockpit positions.", new Vector2(0,-92), new Vector2(510,140), 20);
+        Label(_seatPage.transform, "Each step moves the viewpoint 2 cm.\nHandles keep their cockpit positions.", new Vector2(0,-92), new Vector2(510,140), 20);
 
         _resetPage = Page("RESET SETUP");
-        Label(_resetPage.transform, "Restore the default seat, stick and throttle\nfor this aircraft and handedness?\n\nYour saved handle positions will be replaced.\nThe control panel keeps its current placement.", new Vector2(0,45), new Vector2(510,180), 21);
+        Label(_resetPage.transform, "Restore the default seat, stick and throttle\nfor this aircraft and handedness?\n\nYour saved handle positions will be replaced.\nOriginal cockpit instruments stay in place.", new Vector2(0,45), new Vector2(510,180), 21);
         AddButton("Keep my setup", 0, 4, Back);
         AddButton("Reset seat & handles", 1, 4, ConfirmReset);
 
@@ -308,30 +312,15 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Cancel", 0, 4, Back);
         AddButton("Confirm eject", 1, 4, ConfirmEject);
 
-        _consolePage = Page("CONSOLE");
-        AddLiveButton(() => "Console: " + (config.CockpitPanelEnabled.Value ? "ON" : "OFF"), 0, 0, () => { CockpitLayout.Instance?.Finish(false); config.CockpitPanelEnabled.Value = !config.CockpitPanelEnabled.Value; });
-        AddButton("Anchor to dashboard", 1, 0, () => { CockpitPanelPlacement.Instance?.ResetToDashboard(); config.CockpitPanelEnabled.Value = true; });
-        AddButton("Panel up", 0, 1, () => MoveConsole(Vector3.up * .02f));
-        AddButton("Panel down", 1, 1, () => MoveConsole(Vector3.down * .02f));
-        AddButton("Panel left", 0, 2, () => MoveConsole(Vector3.left * .02f));
-        AddButton("Panel right", 1, 2, () => MoveConsole(Vector3.right * .02f));
-        AddButton("Panel nearer", 0, 3, () => MoveConsole(Vector3.back * .02f));
-        AddButton("Panel farther", 1, 3, () => MoveConsole(Vector3.forward * .02f));
-        AddButton("Tilt up", 0, 4, () => CockpitPanelPlacement.Adjust(Vector3.zero, tilt: 5));
-        AddButton("Tilt down", 1, 4, () => CockpitPanelPlacement.Adjust(Vector3.zero, tilt: -5));
-        AddButton("Panel smaller", 0, 5, () => CockpitPanelPlacement.Adjust(Vector3.zero, resize: -.05f));
-        AddButton("Panel larger", 1, 5, () => CockpitPanelPlacement.Adjust(Vector3.zero, resize: .05f));
-        AddLiveButton(() => CockpitLayout.Active ? "Save layout" : "Grab to position", 0, 6, ToggleLayout);
-        var placementInfo = Label(_consolePage.transform, "", new Vector2(0, -223), new Vector2(510, 65), 16);
-        _liveLabels.Add((placementInfo, () => CockpitPanelPlacement.Status + "\nPanel placement is saved per aircraft.\nSeat movement leaves panel and handles in place."));
-
-        _nativeCockpitPage = Page("FS-20 NATIVE COCKPIT");
-        AddLiveButton(() => "Interactions: " + (config.Fs20NativeCockpitEnabled.Value ? "ON" : "OFF"), 0, 0,
+        _nativeCockpitPage = Page("COCKPIT INTERACTIONS");
+        AddLiveButton(() => "FS-20: " + (config.Fs20NativeCockpitEnabled.Value ? "ON" : "OFF"), 0, 0,
             () => config.Fs20NativeCockpitEnabled.Value = !config.Fs20NativeCockpitEnabled.Value);
-        AddButton("Flight actions", 1, 0, () => ShowPage(_flightPage!));
+        AddLiveButton(() => "KR-67: " + (config.IfritNativeCockpitEnabled.Value ? "ON" : "OFF"), 1, 0,
+            () => config.IfritNativeCockpitEnabled.Value = !config.IfritNativeCockpitEnabled.Value);
+        AddButton("Flight actions", 0, 1, () => ShowPage(_flightPage!));
         Label(_nativeCockpitPage.transform,
-            "Physical controls · fixed to the aircraft\nPointing finger: touch a key to press it\nSwitches: reach, grip, then flick up/down\n\nEach MFD: separate PREV and NEXT buttons\nLeft MFD starts on minimap · MAP PAN slaves stick\nGear · hold BRAKE · radar · EOTS HUD\n\nSide panels: unlock, move handle, press to lock\nLeft side arrows: move seat by 2 cm per press\nSeat movement leaves the controls in place\n\nEject: grip a striped seat handle and pull UP\nCockpit stays visible while adjusting layout.",
-            new Vector2(0,-48), new Vector2(510,350), 18);
+            "Original displays remain in use.\nVirtual HOTAS and bindings work across aircraft.\n\nFS-20: touch keys; grip and flick switches.\nGear · brake · radar · EOTS · seat / handle locks\nKR-67: grip the native gear wheel and flick it.\n\nEject: grip a striped seat handle and pull UP.\nOther actions: View → Flight actions.\n\nThe cockpit stays visible while placing handles.",
+            new Vector2(0,-77), new Vector2(510,300), 18);
 
         _controlsPage = Page("CONTROLS");
         AddLiveButton(() => "Stick grip: " + (motion.StickTapGrip.Value ? "TAP" : "HOLD"), 0, 0,
@@ -351,12 +340,7 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Button bindings", 0, 6, () => ShowPage(_bindingsPage!));
         AddButton("Controller guide", 1, 6, () => ShowPage(_helpPage!));
         _controlsInfo = Label(_controlsPage.transform, "", new Vector2(0,-225), new Vector2(510,65), 16);
-        _bindingsPage = Page("BINDINGS");
-        AddButton("Trigger: CMs", 0, 0, () => { config.ControllerBindings.ApplyThrottleLayout(ThrottleBindingLayout.CountermeasureTrigger); _nextHelpRefresh = 0; });
-        AddButton("Trigger: brakes", 1, 0, () => { config.ControllerBindings.ApplyThrottleLayout(ThrottleBindingLayout.BrakeTrigger); _nextHelpRefresh = 0; });
-        AddButton("VTOL-style controls", 0, 1, () => { config.ControllerBindings.ApplyVtolStyle(); _nextHelpRefresh = 0; });
-        AddButton("Controller guide", 1, 1, () => ShowPage(_helpPage!));
-        _bindingsInfo = Label(_bindingsPage.transform, "", new Vector2(0,-61), new Vector2(510,310), 17);
+        CreateBindingPages();
         _helpPage = Page("GUIDE");
         _bindingHelp = Label(_helpPage.transform, "", new Vector2(-132, 12), new Vector2(248, 390), 18);
         _throttleHelp = Label(_helpPage.transform, "", new Vector2(132, 12), new Vector2(248, 390), 18);
@@ -450,7 +434,7 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Less magnification", 0, 2, () => config.ControllerBindings.ViewZoomFactor.Value -= .1f);
         AddButton("More magnification", 1, 2, () => config.ControllerBindings.ViewZoomFactor.Value += .1f);
         var zoomInfo = Label(_zoomPage.transform, "", new Vector2(0,-100), new Vector2(510,245), 18);
-        _liveLabels.Add((zoomInfo, () => $"Right bumper · {config.ControllerBindings.ViewZoomFactor.Value:0.0}× magnification\nOnly the inspection window changes.\nHigher resolution and smoothing cost GPU time\nwhile held. Scene effects are optional.\n\nMSAA requires main Anti-Aliasing enabled.\nUnsupported smoothing falls back automatically.\nChanges apply the next time you hold RB.\nHeadset resolution and eye separation stay fixed."));
+        _liveLabels.Add((zoomInfo, () => $"{DescribeBinding(Bindings.Get(ControllerActionId.Zoom))} · {config.ControllerBindings.ViewZoomFactor.Value:0.0}× magnification\nOnly the inspection window changes.\nHigher resolution and smoothing cost GPU time\nwhile held. Scene effects are optional.\n\nMSAA requires main Anti-Aliasing enabled.\nUnsupported smoothing falls back automatically.\nChanges apply the next time you zoom.\nHeadset resolution and eye separation stay fixed."));
 
         _alertsPage = Page("THREATS & FEED");
         var alerts = config.CockpitAlerts;
@@ -474,7 +458,7 @@ internal sealed class WristMenu : MonoBehaviour
         AddButton("Larger image", 1, 2, () => config.OpticalHud.Width.Value += 2);
         AddButton("Reset optical size", 0, 3, () => { config.OpticalHud.Width.Value = 20; config.OpticalHud.Magnification.Value = 2; });
         var opticalInfo = Label(_opticalPage.transform, "", new Vector2(0, -163), new Vector2(510, 155), 18);
-        _liveLabels.Add((opticalInfo, () => $"{OpticalTargetingHud.ModeLabel} · Head zoom {config.OpticalHud.Magnification.Value:0.#}× · Width {config.OpticalHud.Width.Value:0}°\nLook with your head, then click target-select\nwhile gripping its assigned handle.\nUnlock returns to head aiming.\nTRACK uses the aircraft's automatic camera zoom.\nRight bumper temporarily shows the magnifier."));
+        _liveLabels.Add((opticalInfo, () => $"{OpticalTargetingHud.ModeLabel} · Head zoom {config.OpticalHud.Magnification.Value:0.#}× · Width {config.OpticalHud.Width.Value:0}°\nLook with your head, then click target-select\nwhile gripping its assigned handle.\nUnlock returns to head aiming.\nTRACK uses the aircraft's automatic camera zoom.\nYour zoom binding temporarily shows the magnifier."));
 
         _aimingPage = Page("AIMING & MARKERS");
         AddButton("Symbols smaller", 0, 0, () => config.MarkerScale.Value -= .05f);
@@ -491,14 +475,14 @@ internal sealed class WristMenu : MonoBehaviour
         _liveLabels.Add((aimingInfo, () => $"Symbols {config.MarkerScale.Value*100:0}% • Labels {config.MarkerLabelScale.Value*100:0}%\nReticle {config.ReticleScale.Value*100:0}% • Range {config.WeaponHudScale.Value*100:0}%\nAim points stay aligned with the world."));
 
         _brightnessPage = Page("BRIGHTNESS");
-        AddButton("MFD dimmer", 0, 0, () => config.MfdBrightness.Value -= .1f);
-        AddButton("MFD brighter", 1, 0, () => config.MfdBrightness.Value += .1f);
+        AddButton("EOTS dimmer", 0, 0, () => config.MfdBrightness.Value -= .1f);
+        AddButton("EOTS brighter", 1, 0, () => config.MfdBrightness.Value += .1f);
         AddButton("HUD dimmer", 0, 1, () => config.InstrumentBrightness.Value -= .1f);
         AddButton("HUD brighter", 1, 1, () => config.InstrumentBrightness.Value += .1f);
         AddButton("Day preset", 0, 3, () => { config.InstrumentBrightness.Value = 1; config.MfdBrightness.Value = 1; });
         AddButton("Night preset", 1, 3, () => { config.InstrumentBrightness.Value = .5f; config.MfdBrightness.Value = .45f; });
         var lightInfo = Label(_brightnessPage.transform, "", new Vector2(0,-137), new Vector2(510,215), 19);
-        _liveLabels.Add((lightInfo, () => $"MFD content {config.MfdBrightness.Value*100:0}%\nHUD instruments {config.InstrumentBrightness.Value*100:0}%\n\nHUD: flight instruments, compass and pitch ladder.\nTarget markers and missile alerts keep native brightness.\nMFD page buttons and weapon readout stay readable.\nClose View to inspect the displays."));
+        _liveLabels.Add((lightInfo, () => $"EOTS image {config.MfdBrightness.Value*100:0}%\nHUD instruments {config.InstrumentBrightness.Value*100:0}%\n\nHUD: flight instruments, compass and pitch ladder.\nTarget markers and missile alerts keep native brightness.\nOriginal cockpit displays use the game settings.\nClose View to inspect the displays."));
 
         _performancePage = Page("VR PERFORMANCE");
         var performanceInfo = Label(_performancePage.transform, "", new Vector2(0, -12), new Vector2(510, 390), 18);
@@ -531,62 +515,12 @@ internal sealed class WristMenu : MonoBehaviour
         else CockpitLayout.Instance?.Begin();
     }
 
-    private static void MoveConsole(Vector3 delta)
-    {
-        CockpitPanelPlacement.Adjust(delta);
-    }
-
     private GameObject Page(string title)
     {
         var page = new GameObject(title, typeof(RectTransform));
         page.transform.SetParent(_panel!.transform, false);
         page.SetActive(false); _pageTitles.Add(page, title); _buttonParent = page.transform;
         return page;
-    }
-
-    private string ThrottleBindingsHelp()
-    {
-        var config = ModConfiguration.Instance;
-        var left = !config.MotionControls.LeftHanded.Value;
-        var frame = TrackedControllers.NativeFrame(left);
-        var buttons = config.ControllerBindings.ThrottleButtons;
-        var layout = ThrottleBindingProfiles.Identify(buttons);
-        var wristConflict = ThrottleBindingProfiles.SharesButton(config.ControllerBindings.WristMenu.Value, frame,
-            buttons.Brake, buttons.Countermeasures, buttons.Target, buttons.NextCountermeasure);
-        string Name(ControllerButton value) => !left && config.ControllerBindings.RightBumperZoom.Value && ControllerButtonNames.Resolve(value, frame) == ControllerButton.Shoulder
-            ? "Reserved for zoom" : ControllerButtonNames.Describe(value, left, frame);
-        return $"{(left ? "LEFT" : "RIGHT")} HAND • THROTTLE\n" +
-            "Layout: " + (layout == ThrottleBindingLayout.VtolStyle ? "VTOL-style trigger brake" : layout == ThrottleBindingLayout.CountermeasureTrigger ? "Countermeasure trigger" : layout == ThrottleBindingLayout.BrakeTrigger ? "Brake trigger" : "Custom") +
-            $"\n\nBrake: {Name(buttons.Brake)} (hold)\nCountermeasures: {Name(buttons.Countermeasures)}\n" +
-            (config.ControllerBindings.SelectTargetOnStick.Value ? "Target selection is on the STICK hand.\n" : $"Select target: {Name(buttons.Target)} (release)\n") +
-            $"CM type: {Name(buttons.NextCountermeasure)} (release)\n\n" +
-            (wristConflict ? "Wrist button overlaps; edit custom binding.\n" :
-                ThrottleBindingProfiles.Conflicts(buttons, frame) ? "Shared buttons detected; choose a layout.\n" : "") +
-            "Grip throttle + thumbstick: VTOL angle.\nVTOL style: stick click selects a target.\nRight bumper is reserved while zoom is enabled.";
-    }
-
-    private string HandHelp(bool stick)
-    {
-        var config = ModConfiguration.Instance;
-        var left = stick ? config.MotionControls.LeftHanded.Value : !config.MotionControls.LeftHanded.Value;
-        var b = config.ControllerBindings;
-        string Name(ControllerButton button) => !left && b.RightBumperZoom.Value && ControllerButtonNames.Resolve(button, TrackedControllers.NativeFrame(left)) == ControllerButton.Shoulder
-            ? "Reserved for magnifier" : ControllerButtonNames.Describe(button, left, TrackedControllers.NativeFrame(left));
-        string Action(string name, ControllerButton button) => name + "\n" + Name(button) + "\n\n";
-        var text = (stick ? "STICK" : CollectiveControls ? "COLLECTIVE" : "THROTTLE") + " · " + (left ? "LEFT" : "RIGHT") + "\n\n";
-        if (stick)
-        {
-            text += Action("Guns (hold)", b.Fire.Value) + Action("Missile / weapon release", b.WeaponRelease.Value) + Action("Next weapon (release)", b.NextWeapon.Value);
-            if (b.SelectTargetOnStick.Value) text += "Select: " + Name(b.SelectTarget.Value) + "\n\n";
-            text += "Unlock: " + Name(b.UnlockTarget.Value) + "\n\nClear all: " + Name(b.ClearTargets.Value);
-        }
-        else
-        {
-            text += Action("Brake (hold)", b.Brake.Value) + Action("Countermeasures (hold)", b.Countermeasures.Value) + Action("CM type (release)", b.NextCountermeasure.Value);
-            if (!b.SelectTargetOnStick.Value) text += Action("Select target (release)", b.SelectTarget.Value);
-            text += "Grip + thumbstick\nVTOL angle, when fitted\n\nL STK on MFD\nMap pan · click to recenter";
-        }
-        return text.TrimEnd();
     }
 
     private void AddLiveButton(Func<string> text, int column, int row, Action action) =>

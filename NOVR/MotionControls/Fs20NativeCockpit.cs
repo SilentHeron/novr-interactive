@@ -3,6 +3,7 @@ using NOVR.VrCamera;
 using NOVR.VrUi;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.InputSystem;
 
 namespace NOVR.MotionControls;
 
@@ -15,7 +16,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     internal static bool IsAircraft(Aircraft? aircraft) => aircraft != null && Fs20ControlMap.Matches(aircraft.definition?.jsonKey);
     internal static bool Selected => GameManager.GetLocalAircraft(out var aircraft) && IsAircraft(aircraft);
     internal static bool Active => Instance?._ready == true;
-    internal static Vector2 MapPan => Active ? Instance!._hud?.MapPan ?? Vector2.zero : Vector2.zero;
+    internal static Vector2 MapPan => Vector2.zero;
     internal static bool OwnsHand(bool left) => Active && Instance!._owner == (left ? 0 : 1) && Instance._active != null;
     internal static bool SwitchWithinReach(bool left, ControllerSample hand, Transform tracking)
     {
@@ -27,15 +28,14 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         return false;
     }
     internal static bool BrakeHeld => Active && Instance!._active == "brake";
-    internal static bool IsDocked(Transform widget) => Instance?._hud?.Contains(widget) == true;
+    internal static bool IsDocked(Transform widget) => false;
     internal static Transform? Cockpit => Active ? Instance?._root : null;
-    internal static void ReleaseMap() => Instance?._hud?.ReleaseMap();
-    internal static bool LeftStickSlaved => Active && Instance?._hud?.LeftStickSlaved == true && !WristMenu.IsOpen && !CockpitLayout.Active;
+    internal static void ReleaseMap() { }
+    internal static bool LeftStickSlaved => false;
     internal static bool Pinching(bool left) => Active && Instance!._owner == (left ? 0 : 1) && Instance._active is "gear" or "radar" or "aots";
     private static CockpitLayout.Element SideHandle(bool left) => left == ModConfiguration.Instance.MotionControls.LeftHanded.Value ? CockpitLayout.Element.Stick : CockpitLayout.Element.Throttle;
     private Aircraft? _aircraft;
-    private Transform? _root, _displayRoot, _seat;
-    private CockpitPanelHud? _hud;
+    private Transform? _root, _seat;
     private Fs20ControlCover? _nativeCover;
     private Fs20NativeGear? _nativeGear;
     private readonly Dictionary<string, Transform> _actuators = new();
@@ -57,11 +57,8 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     private Material? _base, _cap, _hover, _on, _metal, _textMaterial;
     private Font? _font;
     private TextMesh? _hint;
-    private readonly TextMesh?[] _mfdTitles = new TextMesh?[2];
     private string? _active;
     private int _owner = -1;
-    private readonly MfdPage[] _keyPages = { (MfdPage)(-1), (MfdPage)(-1) };
-    private readonly int[] _keyContexts = { -1, -1 };
     private Vector3 _start, _calibration, _anchor;
     private Quaternion _recenter;
     private bool _ready, _sent, _physicalPress;
@@ -87,7 +84,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
             }
         }
         var near = self._near[side];
-        pointing = near != null && (near.EndsWith("_prev") || near.EndsWith("_next") || near.EndsWith("_lock") || near.StartsWith("seat_") || near is "brake" or "map_pan" || Fs20PanelLayout.TrySoftkey(near, out _, out _));
+        pointing = near != null && (near.EndsWith("_lock") || near.StartsWith("seat_") || near == "brake");
         if (self._buttonGuides[side].Captured && self._buttonControls[side] is { } button)
         {
             pointing = true;
@@ -98,7 +95,6 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         return null;
     }
     private void Awake() => Instance = this;
-    private void OnEnable() => Application.onBeforeRender += PlaceDisplays;
     private bool Ready(out Aircraft aircraft)
     {
         aircraft = null!;
@@ -115,6 +111,12 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     }
     private void Update()
     {
+        if (Selected && Keyboard.current?.f6Key.wasPressedThisFrame == true)
+        {
+            CockpitLayout.Instance?.Finish(false);
+            var setting = ModConfiguration.Instance.Fs20NativeCockpitEnabled;
+            setting.Value = !setting.Value;
+        }
         if (!Ready(out var aircraft))
         {
             Pause();
@@ -146,26 +148,21 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
                     }
                     catch (System.Exception e) { Debug.LogWarning("[NOVR] Native gear movement unavailable; original knob remains interactive: " + e.Message); }
                 }
-                _displayRoot = new GameObject("NOVR FS-20 native display positions").transform;
-                // Borrowed live game widgets must outlive the aircraft hierarchy
-                // long enough to be restored on despawn/respawn.
-                _displayRoot.SetParent(transform, false);
-                _hud = new CockpitPanelHud(_displayRoot, true);
             }
             catch (System.Exception e) { Release(); Debug.LogError("[NOVR] FS-20 cockpit setup failed: " + e); enabled = false; return; }
-            Debug.Log("[NOVR] FS-20 physical controls ready: four contextual softkeys and separate PREV/NEXT keys for each MFD, gear/brake/radar/EOTS, native seat handles. Left MFD defaults to MAP.");
+            Debug.Log("[NOVR] FS-20 physical controls ready: native displays retained; gear, brake, radar, EOTS, seat adjustment and native eject handles.");
         }
         if (_calibration != NOVRHeadsetData.TranslationCalibrationOffset || _anchor != NOVRHeadsetData.TranslationAnchor || _recenter != NOVRHeadsetData.RotationCalibrationOffset)
         { Cancel(); _calibration = NOVRHeadsetData.TranslationCalibrationOffset; _anchor = NOVRHeadsetData.TranslationAnchor; _recenter = NOVRHeadsetData.RotationCalibrationOffset; }
         _nativeCover?.SetVisible(true);
-        _ready = true; _root!.gameObject.SetActive(true); _displayRoot!.gameObject.SetActive(true);
+        _ready = true; _root!.gameObject.SetActive(true);
         // Presentation remains fixed and visible while positioning or using
         // setup menus. Only interaction pauses; native floating HUD stays hidden.
         if (!TrackedControllers.Available || !GameManager.flightControlsEnabled || Time.timeScale <= 0 || WristMenu.IsOpen ||
             DynamicMap.mapMaximized || CursorManager.GetFlag(CursorFlags.GameMenu) ||
             (GameManager.controlMapper != null && GameManager.controlMapper.isOpen) ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()))
-        { Cancel(); _hint!.text = ""; _hud!.ClosePageMenus(); return; }
+        { Cancel(); _hint!.text = ""; return; }
         _request.Update(aircraft.HasEjected(), Time.unscaledTime, Time.frameCount);
         var motion = MotionFlightController.Instance;
         var leftStick = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
@@ -180,22 +177,6 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     }
     private void Direct(ControllerSample hand, bool free, bool left, int side)
     {
-        // A first hand can change/swap pages before the second hand is processed.
-        // Re-arm both sets of keys against the displayed page at each hand boundary.
-        var settings = ModConfiguration.Instance;
-        for (var screen = 0; screen < 2; screen++)
-        {
-            var page = screen == 0 ? settings.Fs20LeftMfdPage.Value : settings.Fs20RightMfdPage.Value;
-            var context = _hud?.ContextGeneration(screen == 0) ?? -1;
-            if (_keyPages[screen] == page && _keyContexts[screen] == context) continue;
-            _keyPages[screen] = page; _keyContexts[screen] = context;
-            foreach (var key in Fs20PanelLayout.MfdKeys[screen])
-                foreach (var gates in _touch) if (gates.TryGetValue(key.Id, out var gate)) gate.Reset();
-            for (var handSide = 0; handSide < 2; handSide++)
-                if (Fs20PanelLayout.TrySoftkey(_buttonControls[handSide]?.Id, out var keyLeft, out _) && keyLeft == (screen == 0))
-                    _buttonGuides[handSide].Cancel();
-            if (Fs20PanelLayout.TrySoftkey(_active, out var activeLeft, out _) && activeLeft == (screen == 0)) End();
-        }
         if (CockpitLayout.Active && _active != null)
         {
             var setup = false;
@@ -258,7 +239,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
                 close = eligible && inside;
             }
             if (!_touch[side].TryGetValue(c.Id, out var gate)) _touch[side][c.Id] = gate = new CockpitTouchGate();
-            var contact = c.Type != Fs20PanelLayout.Kind.Switch && gate.Update(eligible && CanActivate(c.Id), inside, depth);
+            var contact = c.Type != Fs20PanelLayout.Kind.Switch && gate.Update(eligible, inside, depth);
             if (close && distance < closest)
             { closest = distance; near = c.Id; target = c; touched = contact; }
         }
@@ -274,7 +255,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
                 if (distance < .035f && distance < closest) { near = i == 0 ? "eject_left" : "eject_right"; target = null; closest = distance; }
             }
         }
-        if (near != _near[side] && near != null && CanActivate(near)) InteractionHaptics.Pulse(hand.Device, InteractionCue.Touch);
+        if (near != _near[side] && near != null) InteractionHaptics.Pulse(hand.Device, InteractionCue.Touch);
         _near[side] = near;
         if (_owner < 0 && near != null)
         {
@@ -293,7 +274,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
                 var outward = tracking.InverseTransformDirection(_root!.rotation * target.Rotation * Vector3.back).normalized;
                 press = _seatTouches[side].TryPress(physicalTip.x, physicalTip.y, physicalTip.z, outward.x, outward.y, outward.z, Time.unscaledTime);
             }
-            if (press && CanActivate(near))
+            if (press)
             {
                 _active = near; _owner = side; _sent = false; _physicalPress = touched;
                 _start = seatHandle ? _seat!.InverseTransformPoint(world) : _root!.InverseTransformPoint(fingertip);
@@ -378,7 +359,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         if (control != null)
         {
             var p = Quaternion.Inverse(control.Rotation) * (localTip - control.Point);
-            guide.Update(available && !CockpitLayout.Active && CanActivate(control.Id), p.x, p.y, -p.z - .016f, control.Size.x * .5f, control.Size.y * .5f, tracked: hand.Valid);
+            guide.Update(available && !CockpitLayout.Active, p.x, p.y, -p.z - .016f, control.Size.x * .5f, control.Size.y * .5f, tracked: hand.Valid);
             if (!guide.Captured && !guide.WaitingForWithdrawal) _buttonControls[side] = null;
             return;
         }
@@ -387,7 +368,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         var best = float.MaxValue;
         foreach (var candidate in Fs20PanelLayout.Controls)
         {
-            if (candidate.Type == Fs20PanelLayout.Kind.Switch || !CanActivate(candidate.Id)) continue;
+            if (candidate.Type == Fs20PanelLayout.Kind.Switch) continue;
             var p = Quaternion.Inverse(candidate.Rotation) * (localTip - candidate.Point);
             var depth = -p.z - .016f;
             if (Mathf.Abs(p.x) > candidate.Size.x * .5f || Mathf.Abs(p.y) > candidate.Size.y * .5f || depth > .035f || depth < -.025f) continue;
@@ -411,21 +392,14 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         "aots" => ModConfiguration.Instance.OpticalHud.Enabled.Value,
         "brake" => BrakeHeld || _aircraft!.GetInputs().brake > .05f, _ => false
     };
-    private bool CanActivate(string id) => !Fs20PanelLayout.TrySoftkey(id, out var left, out var key) || _hud?.ContextKey(left, key).enabled == true;
     private void Activate(string id, Vector3 world)
     {
-        if (Fs20PanelLayout.TrySoftkey(id, out var left, out var key)) _hud!.UseContextKey(left, key);
-        else if (id.EndsWith("_lock")) CockpitLayout.Instance?.ToggleHandle(SideHandle(id == "left_lock"));
+        if (id.EndsWith("_lock")) CockpitLayout.Instance?.ToggleHandle(SideHandle(id == "left_lock"));
         else if (id.StartsWith("seat_"))
         {
             var delta = id switch { "seat_up" => Vector3.up, "seat_down" => Vector3.down, "seat_left" => Vector3.left,
                 "seat_right" => Vector3.right, "seat_forward" => Vector3.forward, _ => Vector3.back };
             CockpitProfiles.Instance?.MoveSeat(delta*.02f); ModConfiguration.Instance.Config.Save();
-        }
-        else if (id == "map_pan") _hud!.ToggleSlave(true);
-        else if (id.EndsWith("_prev") || id.EndsWith("_next"))
-        {
-            _hud!.Cycle(id.StartsWith("left_"), id.EndsWith("_prev") ? -1 : 1);
         }
         else if (id == "gear")
         {
@@ -447,7 +421,7 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
             id?.StartsWith("eject_") == true ? "GRIP + PULL UP TO EJECT" :
             id is "gear" or "radar" or "aots" ? _active == id ? "FLICK UP / DOWN · RELEASE TO LET GO" :
                 (_near[0] == id && _switchGrips[0].Held || _near[1] == id && _switchGrips[1].Held) ? "RELEASE GRIP, THEN GRAB SWITCH" : "LIGHT GRIP · SHORT FLICK UP / DOWN" :
-            Fs20PanelLayout.TrySoftkey(id, out var left, out var key) ? _hud!.ContextHint(left, key) : "";
+            "";
         _hint.transform.localPosition = id?.StartsWith("eject_") == true && _seat != null
             ? _root!.InverseTransformPoint(_seat.TransformPoint(new Vector3(id == "eject_left" ? -.258f : .258f, .14f, .33f)))
             : new Vector3(0,.157f,.470f);
@@ -455,15 +429,13 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     private void LateUpdate()
     {
         if (!_ready) return;
-        PlaceDisplays(); _hud!.SetVisible(true); _hud.Update(); _hud.HighlightContextKeys(_active, _near[0], _near[1]);
         _nativeGear?.Update(!_aircraft!.gearDeployed, Time.unscaledDeltaTime);
-        var config = ModConfiguration.Instance;
         foreach (var c in Fs20PanelLayout.Controls)
         {
             if (c.Id == "gear") continue; // Original wheel/stem and its state-driven lever movement.
             var hover = _near[0] == c.Id || _near[1] == c.Id; var active = _active == c.Id;
-            var state = c.Id.EndsWith("_lock") ? CockpitLayout.Unlocked(SideHandle(c.Id == "left_lock")) : c.Id == "map_pan" ? _hud.LeftStickSlaved : State(c.Id); var actuator = _actuators[c.Id];
-            var material = !CanActivate(c.Id) ? _base : active || hover ? _hover : state ? _on : _cap;
+            var state = c.Id.EndsWith("_lock") ? CockpitLayout.Unlocked(SideHandle(c.Id == "left_lock")) : State(c.Id); var actuator = _actuators[c.Id];
+            var material = active || hover ? _hover : state ? _on : _cap;
             if (_faces[c.Id].sharedMaterial != material) _faces[c.Id].sharedMaterial = material;
             if (c.Type == Fs20PanelLayout.Kind.Switch)
             {
@@ -472,26 +444,11 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
                 actuator.localRotation = Quaternion.Slerp(actuator.localRotation, Quaternion.Euler(state ? 25 : -25,0,0), FlightControlMath.SmoothingWeight(Time.unscaledDeltaTime, 20));
             }
             else actuator.localPosition = new Vector3(0,0,active ? -.008f : -.011f);
-            var text = c.Type is Fs20PanelLayout.Kind.Page or Fs20PanelLayout.Kind.Softkey
-                ? c.Label
-                : c.Id.EndsWith("_lock") ? (SideHandle(c.Id == "left_lock") == CockpitLayout.Element.Stick ? "STICK POS" : "THROTTLE POS") + "\n" + (CockpitLayout.Unlocked(SideHandle(c.Id == "left_lock")) ? "UNLOCKED" : "LOCKED")
+            var text = c.Id.EndsWith("_lock") ? (SideHandle(c.Id == "left_lock") == CockpitLayout.Element.Stick ? "STICK POS" : "THROTTLE POS") + "\n" + (CockpitLayout.Unlocked(SideHandle(c.Id == "left_lock")) ? "UNLOCKED" : "LOCKED")
                 : c.Id.StartsWith("seat_") ? "SEAT\n" + c.Label
-                : c.Id == "map_pan" ? "MAP PAN\n" + (_hud.LeftStickSlaved ? "ON" : "OFF")
                 : c.Label + "\n" + (c.Id == "gear" ? (state ? "UP" : "DOWN") : c.Id == "brake" ? "HOLD" : state ? "ON" : "OFF");
             if (_labels[c.Id].text != text) _labels[c.Id].text = text;
         }
-        for (var i = 0; i < 2; i++)
-        {
-            var title = (i == 0 ? "LEFT MFD · " : "RIGHT MFD · ") + MfdPages.ShortTitle(i == 0 ? config.Fs20LeftMfdPage.Value : config.Fs20RightMfdPage.Value);
-            if (_mfdTitles[i]!.text != title) _mfdTitles[i]!.text = title;
-        }
-    }
-    private void PlaceDisplays()
-    {
-        if (!_ready || _root == null || _displayRoot == null) return;
-        // Real cockpit coordinates, not a remap to the depth-clearing UI camera.
-        _displayRoot.SetPositionAndRotation(_root.position, _root.rotation);
-        _displayRoot.localScale = _root.lossyScale;
     }
     private void CreateVisuals()
     {
@@ -508,10 +465,6 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
         _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         _textMaterial = new Material(Shader.Find("UI/Default")); _textMaterial.SetInt("unity_GUIZTestMode", (int)CompareFunction.LessEqual);
         _textMaterial.color = Color.white; RefreshFont(_font); Font.textureRebuilt += RefreshFont;
-        var pageRail = new GameObject("FS-20 MFD page control mounting rail").transform;
-        pageRail.SetParent(_root, false); pageRail.localRotation = Fs20PanelLayout.Face;
-        pageRail.localPosition = new Vector3(0,.285f,.52354868f) + Fs20PanelLayout.Face * Vector3.forward * .0065f;
-        Box(pageRail, Vector3.zero, new Vector3(.394f,.041f,.004f), _base);
         foreach (var c in Fs20PanelLayout.Controls)
         {
             if (c.Id == "gear")
@@ -542,36 +495,9 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
             {
                 actuator.localPosition = new Vector3(0,0,-.011f);
                 _faces[c.Id] = Box(actuator,Vector3.zero,new Vector3(c.Size.x-.008f,c.Size.y-.008f,.009f),_cap);
-                _labels[c.Id] = Label(actuator,new Vector3(0,0,-.005f),c.Type == Fs20PanelLayout.Kind.Softkey ? .0022f : c.Type == Fs20PanelLayout.Kind.Page ? .0016f : .0015f);
+                _labels[c.Id] = Label(actuator,new Vector3(0,0,-.005f),.0015f);
             }
         }
-        for (var i = 0; i < 2; i++)
-        {
-            var frame = new GameObject("FS-20 MFD fitted bezel").transform;
-            frame.SetParent(_root, false); frame.localPosition = Fs20DisplayLayout.Center(i == 0);
-            frame.localRotation = Fs20DisplayLayout.Rotation;
-            var width = Fs20DisplayLayout.Width * Fs20DisplayLayout.Scale;
-            var height = Fs20DisplayLayout.Height * Fs20DisplayLayout.Scale;
-            // A real opaque backing bridges the shallow step below the original
-            // glass. Only the display area is covered; cockpit structure stays.
-            Box(frame, Vector3.forward * .003f, new Vector3(width + .003f, height + .003f, .004f), _base);
-            foreach (var sign in new[] { -1f, 1f })
-            {
-                Box(frame, new Vector3(sign * (width * .5f + .001f), 0, 0), new Vector3(.002f, height + .004f, .003f), _cap);
-                Box(frame, new Vector3(0, sign * (height * .5f + .001f), 0), new Vector3(width + .004f, .002f, .003f), _cap);
-            }
-            var nameplate = new GameObject("MFD page name").transform; nameplate.SetParent(_root,false);
-            nameplate.localPosition = Fs20DisplayLayout.Center(i == 0) + Fs20DisplayLayout.Rotation * Vector3.down * (height * .5f + .014f);
-            nameplate.localRotation = Fs20DisplayLayout.Rotation;
-            Box(nameplate,Vector3.zero,new Vector3(.164f,.018f,.005f),_base);
-            _mfdTitles[i] = Label(nameplate,Vector3.back*.003f,.0016f);
-        }
-        var center = new GameObject("FS-20 MFD center mounting strip").transform;
-        center.SetParent(_root, false);
-        center.localPosition = (Fs20DisplayLayout.Center(true) + Fs20DisplayLayout.Center(false)) * .5f;
-        center.localRotation = Fs20DisplayLayout.Rotation;
-        var gap = Fs20DisplayLayout.Center(false).x - Fs20DisplayLayout.Center(true).x - Fs20DisplayLayout.Width * Fs20DisplayLayout.Scale;
-        Box(center, Vector3.forward * .003f, new Vector3(gap, Fs20DisplayLayout.Height * Fs20DisplayLayout.Scale, .004f), _base);
         _hint = Label(_root!,Vector3.zero,.0017f); _hint.transform.localRotation = Fs20PanelLayout.Face;
     }
     private TextMesh Label(Transform parent, Vector3 position, float size)
@@ -609,19 +535,18 @@ internal sealed class Fs20NativeCockpit : MonoBehaviour
     private void Pause()
     {
         _nativeCover?.SetVisible(false);
-        if (_ready) _hud?.Restore();
-        _ready = false; Cancel(); if (_root != null) _root.gameObject.SetActive(false); if (_displayRoot != null) _displayRoot.gameObject.SetActive(false);
+        _ready = false; Cancel(); if (_root != null) _root.gameObject.SetActive(false);
     }
     private void Release()
     {
-        Pause(); _nativeGear?.Dispose(); _nativeGear = null; _nativeCover?.Dispose(); _nativeCover = null; _hud?.Restore(); _hud = null; Font.textureRebuilt -= RefreshFont;
-        if (_root != null) Destroy(_root.gameObject); if (_displayRoot != null) Destroy(_displayRoot.gameObject);
+        Pause(); _nativeGear?.Dispose(); _nativeGear = null; _nativeCover?.Dispose(); _nativeCover = null; Font.textureRebuilt -= RefreshFont;
+        if (_root != null) Destroy(_root.gameObject);
         foreach (var material in new[] { _base,_cap,_hover,_on,_metal,_textMaterial }) if (material != null) Destroy(material);
         foreach (var mesh in _hardwareMeshes) Destroy(mesh); _hardwareMeshes.Clear();
-        _root = _displayRoot = _seat = null; _aircraft = null; _actuators.Clear(); _faces.Clear(); _labels.Clear(); foreach (var gates in _touch) gates.Clear();
+        _root = _seat = null; _aircraft = null; _actuators.Clear(); _faces.Clear(); _labels.Clear(); foreach (var gates in _touch) gates.Clear();
         _switchReadyAt.Clear();
         for (var i = 0; i < 2; i++) { _buttonGuides[i].Reset(); _buttonControls[i] = null; _seatTouches[i].Reset(); }
     }
-    private void OnDisable() { Application.onBeforeRender -= PlaceDisplays; Release(); }
+    private void OnDisable() => Release();
     private void OnDestroy() { Release(); if (Instance == this) Instance = null; }
 }

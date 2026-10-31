@@ -1,5 +1,7 @@
 # Universal cockpit console
 
+Current controls: [controller bindings](CONTROLLER_BINDINGS.md). Since 0.4.7.10, the added MFDs and shared console are removed; original aircraft displays remain in use. The older layout notes below describe previous versions.
+
 From NOVR 0.4.7.0, the FS-20 Vortex uses its own [integrated native cockpit](FS20_NATIVE_COCKPIT.md). It never creates the movable console.
 
 Other aircraft use the shared 3D console model introduced in 0.4.6.2. Its default

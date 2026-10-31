@@ -1,5 +1,7 @@
 # Motion controls and VR projection prototype
 
+Current controls: [controller bindings](CONTROLLER_BINDINGS.md). Since 0.4.7.10, the added MFDs and shared console are removed; original aircraft displays remain in use. The older layout notes below describe previous versions.
+
 This is the first iteration toward the hands-on cockpit interaction described in the
 [official VTOL VR manual](https://cdn.steamstatic.com/steam/apps/667970/manuals/VTOL_VR_Manual.pdf).
 The stick and throttle reuse isolated meshes and materials from the installed
