@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuHudLayout.cs" Link="WristMenuHudLayout.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuSettingsActions.cs" Link="WristMenuSettingsActions.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/ViewMenuControls.cs" Link="ViewMenuControls.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuNavigation.cs" Link="WristMenuNavigation.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/MenuHistory.cs" Link="MenuHistory.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/CockpitWidgetAppearanceEditor.cs" Link="CockpitWidgetAppearanceEditor.cs" />
+    <Compile Include="../../NOVR/Input/Gestures/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
+  </ItemGroup>
+</Project>

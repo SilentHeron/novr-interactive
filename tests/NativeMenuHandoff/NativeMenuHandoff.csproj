@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Native/Settings/NativeBindingCaptureSession.cs" Link="NativeBindingCaptureSession.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/NativeVrUiRoot.Panels.cs" Link="NativeVrUiRoot.Panels.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Shared/NativeStockMenuHandoff.cs" Link="NativeStockMenuHandoff.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Shared/NativeMissionSelection.cs" Link="NativeMissionSelection.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Shared/NativeMainCanvasDiscovery.cs" Link="NativeMainCanvasDiscovery.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Settings/NativeSettingsPanel.CaptureLifetime.cs" Link="NativeSettingsPanel.CaptureLifetime.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/GameActions/NativeGameActionAdapter.Availability.cs" Link="NativeGameActionAdapter.Availability.cs" />
+  </ItemGroup>
+</Project>

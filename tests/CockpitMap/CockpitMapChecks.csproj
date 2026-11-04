@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Map/CockpitMapWidget.cs" Link="CockpitMapWidget.cs" />
+    <Compile Include="../../NOVR/VrUi/Map/CockpitMapNavigation.cs" Link="CockpitMapNavigation.cs" />
+    <Compile Include="../../NOVR/VrUi/Map/CockpitMapInteraction.cs" Link="CockpitMapInteraction.cs" />
+    <Compile Include="../../NOVR/VrUi/Map/CockpitMapInputState.cs" Link="CockpitMapInputState.cs" />
+    <Compile Include="../../NOVR/Input/Gestures/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/Feedback/MapInteractionFeedback.cs" Link="MapInteractionFeedback.cs" />
+  </ItemGroup>
+</Project>

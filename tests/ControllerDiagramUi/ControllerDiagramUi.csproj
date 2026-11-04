@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerBindingPanel.cs" Link="ControllerBindingPanel.cs" />
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerBindingPanelView.cs" Link="ControllerBindingPanelView.cs" />
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerDiagramView.cs" Link="ControllerDiagramView.cs" />
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerDiagramLayout.cs" Link="ControllerDiagramLayout.cs" />
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerDiagramActivity.cs" Link="ControllerDiagramActivity.cs" />
+    <Compile Include="../../NOVR/VrUi/Bindings/ControllerDiagramImages.cs" Link="ControllerDiagramImages.cs" />
+    <EmbeddedResource Include="../../NOVR/Assets/Controllers/*.png"><LogicalName>NOVR.Controllers.%(Filename)%(Extension)</LogicalName></EmbeddedResource>
+    <Compile Include="../../NOVR/Input/ControllerDiagramModel.cs" Link="ControllerDiagramModel.cs" />
+    <Compile Include="../../NOVR/Input/ControllerBindings.cs" Link="ControllerBindings.cs" />
+    <Compile Include="../../NOVR/Input/ControllerProfileBindings.cs" Link="ControllerProfileBindings.cs" />
+    <Compile Include="../../NOVR/Input/ControllerBindingModel.cs" Link="ControllerBindingModel.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
+    <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
+    <Compile Include="../../NOVR/FlightControls/ThrottleBindingProfiles.cs" Link="ThrottleBindingProfiles.cs" />
+    <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
+  </ItemGroup>
+</Project>

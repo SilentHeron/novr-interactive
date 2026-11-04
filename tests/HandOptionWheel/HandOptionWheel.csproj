@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/RadialMenu/HandOptionWheelGesture.cs" Link="HandOptionWheelGesture.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/EjectConfirmationGesture.cs" Link="EjectConfirmationGesture.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/HandOptionWheelPose.cs" Link="HandOptionWheelPose.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuLease.cs" Link="NativeRadialMenuLease.cs" />
+  </ItemGroup>
+</Project>

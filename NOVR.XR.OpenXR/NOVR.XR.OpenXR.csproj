@@ -31,7 +31,7 @@
 
 
     <ItemGroup>
-      <ProjectReference Include="..\NOVR.XR.Management\NOVR.XR.Management.csproj" />
+      <ProjectReference Include="../NOVR.XR.Management/NOVR.XR.Management.csproj" />
     </ItemGroup>
 
 </Project>

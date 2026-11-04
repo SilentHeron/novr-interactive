@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
-  <ItemGroup><Compile Include="../../NOVR/ModConfiguration.cs" Link="ModConfiguration.cs" />  <Compile Include="../../NOVR/MotionControls/MotionControlSettings.cs" Link="MotionControlSettings.cs" />
-    <Compile Include="../../NOVR/MotionControls/MotionControlMigrations.cs" Link="MotionControlMigrations.cs" />
-    <Compile Include="../../NOVR/MotionControls/HandCalibrationMath.cs" Link="HandCalibrationMath.cs" />
-    <Compile Include="../../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
-  </ItemGroup>
-</Project>

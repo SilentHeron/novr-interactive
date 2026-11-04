@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Status/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/CockpitFeedPresentation.cs" Link="CockpitFeedPresentation.cs" />
+    <Compile Include="../../NOVR/VrUi/Targeting/TargetCueMode.cs" Link="TargetCueMode.cs" />
+    <Compile Include="../../NOVR/VrUi/Hud/HudPresentationMath.cs" Link="HudPresentationMath.cs" />
+    <Compile Include="../../NOVR/Hands/PilotTextureEnhancement.cs" Link="PilotTextureEnhancement.cs" />
+    <Compile Include="../../NOVR/Hands/PilotUniformPalette.cs" Link="PilotUniformPalette.cs" />
+    <Compile Include="../../NOVR/Hands/DeferredTextureJob.cs" Link="DeferredTextureJob.cs" />
+    <Compile Include="../../NOVR/Feedback/InteractionSoundWave.cs" Link="InteractionSoundWave.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/MenuHistory.cs" Link="MenuHistory.cs" />
+    <Compile Include="../../NOVR/Input/Gestures/HelmetGestureMath.cs" Link="HelmetGestureMath.cs" />
+    <Compile Include="../../NOVR/Input/Gestures/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
+    <Compile Include="../../NOVR/FlightControls/ThrottleDetent.cs" Link="ThrottleDetent.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightGrip.cs" Link="FlightGrip.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/FlightControls/ControlMirrorMath.cs" Link="ControlMirrorMath.cs" />
+    <Compile Include="../../NOVR/Feedback/StickLimitFeedback.cs" Link="StickLimitFeedback.cs" />
+    <Compile Include="../../NOVR/Feedback/HandleReachFeedback.cs" Link="HandleReachFeedback.cs" />
+    <Compile Include="../../NOVR/FlightControls/ThrottleBindingProfiles.cs" Link="ThrottleBindingProfiles.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
+    <Compile Include="../../NOVR/Input/PointerHandSelection.cs" Link="PointerHandSelection.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/Input/FrameActionQueue.cs" Link="FrameActionQueue.cs" />
+    <Compile Include="../../NOVR/Input/NativeControllerAction.cs" Link="NativeControllerAction.cs" />
+    <Compile Include="../../NOVR/Input/PointerGeometry.cs" Link="PointerGeometry.cs" />
+    <Compile Include="../../NOVR.Patcher/PayloadFile.cs" Link="PayloadFile.cs" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Status/CockpitStatusSources.cs" Link="CockpitStatusSources.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/CockpitInstructionSources.cs" Link="CockpitInstructionSources.cs" />
+    <Compile Include="../../NOVR/VrUi/Shared/HudGraphicVisibilityLease.cs" Link="HudGraphicVisibilityLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Shared/HudCanvasGroupLease.cs" Link="HudCanvasGroupLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Hud/NativeWeaponSafetyIndicator.cs" Link="NativeWeaponSafetyIndicator.cs" />
+  </ItemGroup>
+</Project>

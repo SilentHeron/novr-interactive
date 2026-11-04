@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../NOVR/VrUi/Native/NativePanelTransition.cs" Link="NativePanelTransition.cs" />
-    <Compile Include="../../NOVR/VrUi/Native/MissionLaunchGate.cs" Link="MissionLaunchGate.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Shared/NativePanelTransition.cs" Link="NativePanelTransition.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Startup/MissionLaunchGate.cs" Link="MissionLaunchGate.cs" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/FlightControls/ThrottleIndicatorMath.cs" Link="ThrottleIndicatorMath.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/FlightControls/ThrottleDetent.cs" Link="ThrottleDetent.cs" />
+    <Compile Include="../../NOVR/FlightControls/MilitaryPower.cs" Link="MilitaryPower.cs" />
+  </ItemGroup>
+</Project>

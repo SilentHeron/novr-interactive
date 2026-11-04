@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR.Installer/InstallerConstants.cs" Link="InstallerConstants.cs" />
+    <Compile Include="../../NOVR.Installer/Models/*.cs" Link="Models/%(Filename).cs" />
+    <Compile Include="../../NOVR.Installer/Services/ReleaseVersion.cs" Link="ReleaseVersion.cs" />
+    <Compile Include="../../NOVR.Installer/Services/NovrPackage.cs" Link="NovrPackage.cs" />
+    <Compile Include="../../NOVR.Installer/Services/FileSystemInstaller.cs" Link="FileSystemInstaller.cs" />
+    <Compile Include="../../NOVR.Installer/Services/GitHubReleaseClient.cs" Link="GitHubReleaseClient.cs" />
+    <Compile Include="../../NOVR.Installer/Services/ProtonPrefixService.cs" Link="ProtonPrefixService.cs" />
+  </ItemGroup>
+</Project>

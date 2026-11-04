@@ -21,12 +21,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\NOVR.XR.Management\NOVR.XR.Management.csproj" ReferenceOutputAssembly="false" />
-        <ProjectReference Include="..\NOVR.XR.OpenXR\NOVR.XR.OpenXR.csproj" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="../NOVR.XR.Management/NOVR.XR.Management.csproj" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="../NOVR.XR.OpenXR/NOVR.XR.OpenXR.csproj" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="CopyToGame\**" >
+        <Content Include="CopyToGame/**" >
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>

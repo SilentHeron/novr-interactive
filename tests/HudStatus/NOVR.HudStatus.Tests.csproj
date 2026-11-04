@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Shared/HudCanvasGroupLease.cs" Link="HudCanvasGroupLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Shared/HudCanvasVisibilityLease.cs" Link="HudCanvasVisibilityLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Shared/HudGraphicVisibilityLease.cs" Link="HudGraphicVisibilityLease.cs" />
+    <Compile Include="../../NOVR/VrUi/Hud/HudReadability.cs" Link="HudReadability.cs" />
+    <Compile Include="../../NOVR/VrUi/Hud/Fs20HudPresentation.cs" Link="Fs20HudPresentation.cs" />
+    <Compile Include="../../NOVR/VrUi/Hud/NativeWeaponSafetyIndicator.cs" Link="NativeWeaponSafetyIndicator.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/CockpitAlerts.Threats.cs" Link="CockpitAlerts.Threats.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
+  </ItemGroup>
+</Project>

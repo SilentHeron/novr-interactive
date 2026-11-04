@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Input/TrackedControllers.cs" Link="TrackedControllers.cs" />
+    <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/Compatibility/PcVrCapabilities.cs" Link="PcVrCapabilities.cs" />
+    <Compile Include="../../NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs" Link="NovrControllerProfiles.cs" />
+  </ItemGroup>
+</Project>

@@ -30,36 +30,13 @@ jobs:
           sparse-checkout-cone-mode: false
           # Only source required by these suites: no Unity/game/native binaries.
           sparse-checkout: |
+            /NOVR/
             /tests/
-            /tools/verify.py
-            /tools/verification/
-            /tools/*Checks/
-            /validation/
-            /NOVR.Installer.Tests/
+            /tools/
             /NOVR.Installer/InstallerConstants.cs
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
-            /NOVR/APIBus.cs
-            /NOVR/NOVRBehaviour.cs
-            /NOVR/NOVRHeadsetData.cs
-            /NOVR/NOVRPoseDriver.cs
-            /NOVR/ModConfiguration.cs
-            /NOVR/Compatibility/ProtonControllerCompatibility.cs
-            /NOVR/VrCamera/StereoCamera.cs
-            /NOVR/VrCamera/VrCamera.cs
-            /NOVR/VrCamera/VrCameraManager.cs
-            /NOVR/VrTogglers/
-            /NOVR/MotionControls/
             /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
-            /NOVR/Assets/Glove-left.json
-            /NOVR/Assets/Glove-right.json
-            /NOVR/Assets/Controllers/*.png
-            /NOVR/VrUi/*.cs
-            /NOVR/VrUi/Components/
-            /NOVR/VrUi/Native/
-            /NOVR/VrUi/HarmonyPatches/GridAircraftReadoutPatch.cs
-            /NOVR/VrUi/HarmonyPatches/ThreatItemVectorLineRotationSafePatch.cs
-            /NOVR/VrUi/HarmonyPatches/AirbaseOverlayViewPositionPatch.cs
             /NOVR.Patcher/PayloadFile.cs
             /NOVR.Patcher/ManagedPayloadUpgrade.cs
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -100,7 +77,7 @@ jobs:
           sparse-checkout-cone-mode: false
           # Build tasks and synthetic fixtures only; no runtime build or binaries.
           sparse-checkout: |
-            /NOVR.Installer.Tests/check_build.py
+            /tests/Installer/check_build.py
             /NOVR.Build/NOVR.Build.csproj
             /NOVR.Build/NOVR.Build.props
             /NOVR.Build/NOVR.Build.targets
@@ -123,4 +100,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify deployment, installer publication and release package safety
-        run: python NOVR.Installer.Tests/check_build.py
+        run: python tests/Installer/check_build.py

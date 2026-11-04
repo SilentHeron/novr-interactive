@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Hands/RiggedGlove.cs" Link="RiggedGlove.cs" />
+    <Compile Include="../../NOVR/Hands/GloveBones.cs" Link="GloveBones.cs" />
+    <Compile Include="../../NOVR/Hands/FreeHandPose.cs" Link="FreeHandPose.cs" />
+    <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
+    <Compile Include="../../NOVR/Hands/Fs20HandPoses.cs" Link="Fs20HandPoses.cs" />
+    <Compile Include="../../NOVR/Hands/CollectiveHandPoses.cs" Link="CollectiveHandPoses.cs" />
+    <Compile Include="../../NOVR/FlightControls/NativeControlSelection.cs" Link="NativeControlSelection.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/Hands/ArmPoseMath.cs" Link="ArmPoseMath.cs" />
+    <Compile Include="../../NOVR/Hands/ArmReachMath.cs" Link="ArmReachMath.cs" />
+    <EmbeddedResource Include="../../NOVR/Assets/Glove-left.json" LogicalName="NOVR.Glove.left.json" />
+    <EmbeddedResource Include="../../NOVR/Assets/Glove-right.json" LogicalName="NOVR.Glove.right.json" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>
