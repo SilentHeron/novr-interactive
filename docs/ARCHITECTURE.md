@@ -81,6 +81,27 @@ and disable/destroy; unwind partial attachment failures too. Release the map
 before native full-map transitions. Do not edit shared game materials or disable
 whole native HUD roots to hide one borrowed leaf.
 
+## Asynchronous native menus
+
+Workshop queries in `NativeWorkshopPanel.Queries` run one at a time and coalesce
+changes to the latest tab/order/page. Each query receives its own result list;
+Steam mutates that list after awaiting, so it must never be the displayed list.
+Only the current visible request may publish results. Selection owns its preview
+cancellation source and author callback, releasing both on deselection or hide.
+Accepted subscription/download operations continue when the page closes, but
+completion messages belong to the original presentation and selected item. The
+shared busy gate always releases, including after failures.
+
+Multiplayer rows refresh independently of user input. Selection follows the
+Steam lobby identity, including when refreshed rows use new native objects.
+A missing selected server leaves JOIN disabled; it must not select another row
+implicitly. Password prompts retain their original lobby and the exact entered
+password, including spaces. These boundaries have source-linked tests:
+
+```sh
+python tools/verify.py portable --suite native-menu-handoff --suite native-workshop
+```
+
 ## Common changes
 
 **A controller binding:** add its identity, defaults, label and collision/context

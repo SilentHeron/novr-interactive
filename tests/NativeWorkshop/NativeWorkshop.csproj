@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeWorkshopPanel.Queries.cs" Link="NativeWorkshopPanel.Queries.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeWorkshopPanel.Selection.cs" Link="NativeWorkshopPanel.Selection.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeWorkshopPanel.Actions.cs" Link="NativeWorkshopPanel.Actions.cs" />
+  </ItemGroup>
+</Project>

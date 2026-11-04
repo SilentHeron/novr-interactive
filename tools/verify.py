@@ -55,6 +55,7 @@ PORTABLE = (
     ("throttle-indicator", "tests/ThrottleIndicator/ThrottleIndicator.csproj"),
     ("threat-vector", "tests/ThreatVectorLine/ThreatVectorLine.csproj"),
     ("native-menu-handoff", "tests/NativeMenuHandoff/NativeMenuHandoff.csproj"),
+    ("native-workshop", "tests/NativeWorkshop/NativeWorkshop.csproj"),
     ("mission-readiness", "tests/MissionReadiness/NOVR.MissionReadiness.Tests.csproj"),
     ("startup-splash", "tests/StartupSplash/NOVR.StartupSplash.Tests.csproj"),
     ("installer", "tests/Installer/NOVR.Installer.Tests.csproj"),

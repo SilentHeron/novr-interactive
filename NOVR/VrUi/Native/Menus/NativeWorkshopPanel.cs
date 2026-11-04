@@ -1,15 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using Cysharp.Threading.Tasks;
-using NuclearOption.ModScripts;
 using NuclearOption.Workshop;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeWorkshopPanel : MonoBehaviour
+public partial class NativeWorkshopPanel : MonoBehaviour
 {
     private const int PageSize = 10;
 
@@ -56,7 +53,6 @@ public class NativeWorkshopPanel : MonoBehaviour
     private bool _itemActionInProgress;
     private bool _wasVisible;
     private SteamWorkshopItem? _selectedItem;
-    private CancellationTokenSource? _previewCancellation;
 
     public void Initialize(NativeGameActionAdapter actions, RectTransform root)
     {
@@ -64,21 +60,6 @@ public class NativeWorkshopPanel : MonoBehaviour
         _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         _steamWorkshop = gameObject.GetComponent<SteamWorkshop>() ?? gameObject.AddComponent<SteamWorkshop>();
         BuildLayout(root);
-    }
-
-    public void SetVisible(bool visible)
-    {
-        if (_container == null)
-            return;
-
-        if (visible && !_wasVisible)
-        {
-            SetStatus("Refreshing Workshop.");
-            RefreshFirstSteamPage();
-        }
-
-        _wasVisible = visible;
-        NativePanelTransition.SetVisible(_container, visible);
     }
 
     private void BuildLayout(RectTransform root)
@@ -158,86 +139,6 @@ public class NativeWorkshopPanel : MonoBehaviour
             CreateText("State", rowTransform, "", new Vector2(365f, 0f), new Vector2(120f, 32f), 12, TextAnchor.MiddleCenter, Color.white));
     }
 
-    private void SelectTab(WorkshopTab tab)
-    {
-        if (_tab == tab)
-            return;
-
-        _tab = tab;
-        RefreshFirstSteamPage();
-    }
-
-    private void CycleOrder(int direction)
-    {
-        var values = new[] { OrderBy.Trend30Days, OrderBy.TopAllTime, OrderBy.New };
-        var index = Array.IndexOf(values, _orderBy);
-        if (index < 0)
-            index = 0;
-
-        _orderBy = values[WrapIndex(index + direction, values.Length)];
-        RefreshFirstSteamPage();
-    }
-
-    private void RefreshFirstSteamPage()
-    {
-        if (_queryInProgress)
-            return;
-
-        _steamPage = 1;
-        _displayPage = 0;
-        QuerySteamPageAsync(clearExisting: true).Forget();
-    }
-
-    private void LoadNextSteamPage()
-    {
-        if (_queryInProgress || !_hasMoreSteamPages)
-            return;
-
-        _steamPage++;
-        _displayPage = 0;
-        QuerySteamPageAsync(clearExisting: true).Forget();
-    }
-
-    private async UniTaskVoid QuerySteamPageAsync(bool clearExisting)
-    {
-        if (_steamWorkshop == null || _queryInProgress)
-            return;
-
-        _queryInProgress = true;
-        SetStatus($"Loading Workshop {_tab} page {_steamPage}.");
-        RefreshButtons();
-
-        try
-        {
-            if (clearExisting)
-            {
-                _items.Clear();
-                _visibleItems.Clear();
-                SelectItem(-1);
-                RefreshRows();
-            }
-
-            _hasMoreSteamPages = await _steamWorkshop.RefreshItems(_orderBy, GetCurrentTag(), _items, (uint)_steamPage);
-            ApplySearchFromCurrentPage();
-            SetStatus($"Loaded {_items.Count} Workshop items from page {_steamPage}.");
-        }
-        catch (Exception exception)
-        {
-            Debug.LogError($"[NOVR] Native Workshop refresh failed: {exception}");
-            _items.Clear();
-            _visibleItems.Clear();
-            _hasMoreSteamPages = false;
-            SelectItem(-1);
-            RefreshRows();
-            SetStatus("Workshop refresh failed. Check the BepInEx log.");
-        }
-        finally
-        {
-            _queryInProgress = false;
-            RefreshButtons();
-        }
-    }
-
     private void ApplySearchFromFirstPage()
     {
         _displayPage = 0;
@@ -306,148 +207,6 @@ public class NativeWorkshopPanel : MonoBehaviour
         if (_pageText != null)
         {
             _pageText.text = $"{_displayPage + 1} / {GetLastDisplayPage() + 1}   Steam {_steamPage}";
-        }
-    }
-
-    private void SelectItem(int index)
-    {
-        if (_selectedItem != null)
-        {
-            _selectedItem.OwnerNameChanged -= OnSelectedOwnerNameChanged;
-        }
-
-        if (index < 0 || index >= _visibleItems.Count)
-        {
-            _selectedIndex = -1;
-            _selectedItem = null;
-            if (_titleText != null)
-                _titleText.text = "";
-            if (_ownerText != null)
-                _ownerText.text = "";
-            if (_descriptionText != null)
-                _descriptionText.text = "";
-            if (_detailsStatusText != null)
-                _detailsStatusText.text = "Select a Workshop item.";
-            if (_previewImage != null)
-            {
-                _previewImage.sprite = null;
-                _previewImage.color = new Color(0.12f, 0.14f, 0.15f, 1f);
-            }
-
-            RefreshButtons();
-            RefreshRows();
-            return;
-        }
-
-        _selectedIndex = index;
-        _selectedItem = _visibleItems[index];
-        _selectedItem.OwnerNameChanged += OnSelectedOwnerNameChanged;
-
-        if (_titleText != null)
-            _titleText.text = _selectedItem.Name;
-        if (_ownerText != null)
-            _ownerText.text = GetOwnerText(_selectedItem);
-        if (_descriptionText != null)
-            _descriptionText.text = _selectedItem.Description ?? "";
-        if (_detailsStatusText != null)
-            _detailsStatusText.text = _selectedItem.Subscribed ? "Installed locally." : "Not installed.";
-        if (_previewImage != null)
-        {
-            _selectedItem.SetPreviewImageAsync(_previewImage, ref _previewCancellation).Forget();
-        }
-
-        RefreshButtons();
-        RefreshRows();
-    }
-
-    private void OnSelectedOwnerNameChanged()
-    {
-        if (_selectedItem == null || _ownerText == null)
-            return;
-
-        _ownerText.text = GetOwnerText(_selectedItem);
-        RefreshRows();
-    }
-
-    private static string GetOwnerText(SteamWorkshopItem item)
-    {
-        return string.IsNullOrWhiteSpace(item.OwnerName)
-            ? "Author unknown"
-            : $"By {item.OwnerName}";
-    }
-
-    private void ToggleSubscribe()
-    {
-        if (_selectedItem == null || _steamWorkshop == null || _itemActionInProgress)
-            return;
-
-        ToggleSubscribeAsync(_selectedItem).Forget();
-    }
-
-    private async UniTaskVoid ToggleSubscribeAsync(SteamWorkshopItem item)
-    {
-        if (_steamWorkshop == null)
-            return;
-
-        _itemActionInProgress = true;
-        RefreshButtons();
-
-        try
-        {
-            if (item.Subscribed)
-            {
-                SetDetailsStatus("Unsubscribing.");
-                await _steamWorkshop.Unsubscribe(item);
-                SetDetailsStatus("Unsubscribed.");
-            }
-            else
-            {
-                SetDetailsStatus("Subscribing and downloading.");
-                await _steamWorkshop.DownloadItem(item);
-                SetDetailsStatus("Installed locally.");
-            }
-        }
-        catch (Exception exception)
-        {
-            Debug.LogError($"[NOVR] Native Workshop subscribe action failed: {exception}");
-            SetDetailsStatus("Workshop item action failed. Check the BepInEx log.");
-        }
-        finally
-        {
-            _itemActionInProgress = false;
-            RefreshButtons();
-            RefreshRows();
-        }
-    }
-
-    private void UpdateAllSubscribed()
-    {
-        if (_itemActionInProgress)
-            return;
-
-        UpdateAllSubscribedAsync().Forget();
-    }
-
-    private async UniTaskVoid UpdateAllSubscribedAsync()
-    {
-        _itemActionInProgress = true;
-        RefreshButtons();
-        SetStatus("Updating subscribed Workshop items.");
-
-        try
-        {
-            await SteamWorkshop.UpdateAllSubscribedItems();
-            SetStatus("Subscribed Workshop items are up to date.");
-        }
-        catch (Exception exception)
-        {
-            Debug.LogError($"[NOVR] Native Workshop update-all failed: {exception}");
-            SetStatus("Workshop update-all failed. Check the BepInEx log.");
-        }
-        finally
-        {
-            _itemActionInProgress = false;
-            RefreshButtons();
         }
     }
 
@@ -567,13 +326,6 @@ public class NativeWorkshopPanel : MonoBehaviour
         {
             _detailsStatusText.text = status;
         }
-    }
-
-    private string GetCurrentTag()
-    {
-        return _tab == WorkshopTab.AircraftLiveries
-            ? NuclearOption.ModScripts.Impl.AircraftLiveryMod.MOD_NAME
-            : NuclearOption.ModScripts.Impl.MissionMod.MOD_NAME;
     }
 
     private static string GetOrderLabel(OrderBy orderBy)
