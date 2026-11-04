@@ -21,6 +21,7 @@ namespace UnityEngine
     public class Transform : Component
     {
         public Transform? parent;
+        public Vector3 position;
         public void SetParent(Transform value, bool worldPositionStays) => parent = value;
     }
     public class RectTransform : Transform
@@ -32,6 +33,9 @@ namespace UnityEngine
     {
         private readonly List<Component> _components = new();
         public Transform transform;
+        public bool activeSelf = true;
+        public bool activeInHierarchy => activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
+        public void SetActive(bool value) => activeSelf = value;
         public GameObject(string name, params Type[] components)
         { transform = new RectTransform { gameObject = this }; _components.Add(transform); }
         public T AddComponent<T>() where T : Component, new()
@@ -44,6 +48,17 @@ namespace UnityEngine
         public static Vector2 zero => new(0, 0);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float v) => new(a.x * v, a.y * v);
+    }
+    public readonly record struct Vector3(float x, float y, float z)
+    {
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static float SqrMagnitude(Vector3 value) => value.x * value.x + value.y * value.y + value.z * value.z;
+    }
+    public static class Time { public static float unscaledTime; }
+    public class CanvasRenderer
+    {
+        public float Alpha = 1;
+        public float GetInheritedAlpha() => Alpha;
     }
     public readonly record struct Rect(float width, float height) { public Vector2 center => Vector2.zero; }
     public record struct Color(float r, float g, float b, float a = 1);
@@ -58,6 +73,12 @@ namespace UnityEngine
 }
 namespace UnityEngine.UI
 {
+    public class Image : MaskableGraphic
+    {
+        public bool enabled = true;
+        public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
+        public readonly UnityEngine.CanvasRenderer canvasRenderer = new();
+    }
     public class MaskableGraphic : UnityEngine.Component
     {
         public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;

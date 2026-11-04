@@ -7,6 +7,7 @@
     <Compile Include="../../NOVR/MotionControls/GazeCueSettings.cs" Link="GazeCueSettings.cs" />
     <Compile Include="../../NOVR/MotionControls/GazeRingGraphic.cs" Link="GazeRingGraphic.cs" />
     <Compile Include="../../NOVR/MotionControls/TargetCueMode.cs" Link="TargetCueMode.cs" />
+    <Compile Include="../../NOVR/MotionControls/TargetCueCandidates.cs" Link="TargetCueCandidates.cs" />
     <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
   </ItemGroup>
 </Project>

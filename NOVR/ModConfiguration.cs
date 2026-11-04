@@ -37,7 +37,7 @@ public class ModConfiguration
         ControllerBindings = new MotionControls.ControllerBindings(config);
         CockpitAlerts = new VrUi.SpecialBehavior.CockpitAlertSettings(config);
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
-            "Context shows the look-direction cue only near a selectable target. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
+            "Context shows the look-direction cue only near a selectable target that is not already in your target list. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
         LookCue = new MotionControls.GazeCueSettings(config);
         InstrumentBrightness = config.Bind("VR HUD", "Instrument Brightness", 1f,
             new ConfigDescription("Brightness of flight instruments, compass and pitch ladder only. Target/flight-path markers and missile warnings retain their native brightness.", new AcceptableValueRange<float>(.35f, 1f)));

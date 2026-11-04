@@ -97,6 +97,7 @@ try
     Check(reloaded.Scale == 1.5f && reloaded.Alpha == .4f && reloaded.CurrentShape == GazeCueShape.Brackets, "Custom appearance persists across reload");
     Check(reloaded.VerticalAngle == -2.25f, "Custom angular position persists across reload");
     reloaded.Reset(); Check(reloaded.VerticalAngle == -1, "Reset restores modest lower default");
-    Console.WriteLine($"PASS: {count} gaze-cue settings/default/geometry checks.");
+    CandidateChecks.Run(Check);
+    Console.WriteLine($"PASS: {count} gaze-cue settings/default/geometry/candidate checks.");
 }
 finally { Directory.Delete(dir, true); }
