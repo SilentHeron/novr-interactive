@@ -11,5 +11,6 @@
 
 Validation: 40 portable suites plus the new patcher suite, assembly contracts and
 package-safety checks passed on Linux. The release package built successfully; the bundled Unity OpenXR source
-still emits existing compiler warnings. Windows runtime and headset comfort remain
-unverified. No measured frame-rate improvement is claimed.
+still emits existing compiler warnings. A normal Linux/Proton startup verified the
+XR-library upgrade and Direct3D 11 VR session. Windows runtime and headset comfort
+remain unverified. No measured frame-rate improvement is claimed.
