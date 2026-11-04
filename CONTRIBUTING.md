@@ -35,6 +35,14 @@ dotnet build NOVR.Build/NOVR.Build.csproj -c Release -p:DeployToGame=false
 For a custom Steam library, pass the same `-p:NuclearOptionGameDir="/path/to/Nuclear Option"`
 to the package command, or set `NUCLEAR_OPTION_GAME_DIR` before building.
 
+To build all maintained projects and both installer executables with SDK 10:
+
+```sh
+dotnet build NuclearOptionVirtualRealityMod.sln -c Release -p:DeployToGame=false
+```
+
+The same custom-library override applies to this command.
+
 Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
 After removing dependencies or payload assets, delete the generated `build-output`
 directory before packaging so stale files cannot enter the archive.
