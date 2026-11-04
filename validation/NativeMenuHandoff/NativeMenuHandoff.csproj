@@ -6,5 +6,6 @@
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Native/NativeStockMenuHandoff.cs" Link="NativeStockMenuHandoff.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeMissionSelection.cs" Link="NativeMissionSelection.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/NativeMainCanvasDiscovery.cs" Link="NativeMainCanvasDiscovery.cs" />
   </ItemGroup>
 </Project>

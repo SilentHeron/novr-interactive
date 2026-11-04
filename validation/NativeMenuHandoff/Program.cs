@@ -39,4 +39,5 @@ Check(picker.Loads == 3 && picker.Mission != null);
 var fallback = new MissionPicker(null); NativeMissionSelection.Select(fallback, first);
 Check(fallback.Loads == 1);
 Check(!NativeMissionSelection.TryGet(fallback, first, out _));
-Console.WriteLine($"{passed} source-linked menu handoff/selection assertions passed (native UI doubles; no renderer/game launch).");
+passed += CanvasDiscoveryChecks.Run();
+Console.WriteLine($"{passed} source-linked menu handoff/selection/discovery assertions passed (native UI doubles; no renderer/game launch).");

@@ -16,7 +16,6 @@ public class NativeVrUiRoot : NOVRBehaviour
     private const float DefaultMenuDistanceMeters = 3f;
     private const float DefaultMenuHeightOffsetMeters = 0f;
     private static readonly Vector2 NativeCanvasSize = new(2000f, 1125f);
-    private const float MainMenuScanIntervalSeconds = 0.5f;
     private const float RequestedMenuTransitionSeconds = 0.5f;
     private const float RecenterDelaySeconds = 2.0f;
     private const float AnchorResetAfterHiddenSeconds = 1.5f;
@@ -31,6 +30,7 @@ public class NativeVrUiRoot : NOVRBehaviour
     private readonly NativeGameActionAdapter _actions = new();
     private readonly VrPointerState _pointerState = new();
     private readonly NativeStockMenuHandoff _stockDialogs = new();
+    private readonly NativeMainCanvasDiscovery _mainCanvasDiscovery = new();
     private readonly List<SuppressedCanvasState> _suppressedCanvasStates = new();
     private GameObject? _root;
     private Canvas? _canvas;
@@ -61,7 +61,6 @@ public class NativeVrUiRoot : NOVRBehaviour
     private bool _workshopRequested;
     private float _workshopRequestTime;
     private bool _vrUiSettingsOpen;
-    private float _nextMainMenuScanTime;
     private float _pendingRecenterTime;
     private bool _recenterPending;
     private bool _menuAnchorInitialized;
@@ -74,6 +73,12 @@ public class NativeVrUiRoot : NOVRBehaviour
     internal bool IsVisible => isActiveAndEnabled && _root != null && _root.activeInHierarchy;
     public GameObject? OriginalMainCanvas => _mainCanvas;
     public NativeGameActionAdapter Actions => _actions;
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        _mainCanvasDiscovery.Enable();
+    }
 
     private void Start()
     {
@@ -208,7 +213,7 @@ public class NativeVrUiRoot : NOVRBehaviour
         {
             _startupAnchorCamera = APIBus.MainCamera;
             _menuAnchorInitialized = false;
-            _nextMainMenuScanTime = 0f;
+            _mainCanvasDiscovery.Invalidate();
             ScanForMainMenuCanvas();
         }
         _mainMenuShell?.SetVisible(false);
@@ -228,6 +233,7 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     protected override void OnDisable()
     {
+        _mainCanvasDiscovery.Disable();
         RestoreOriginalMainCanvas();
         _startupSplash?.Dispose();
         NOUIManager.I?.SetStartupPresentation(false);
@@ -238,6 +244,7 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private void OnDestroy()
     {
+        _mainCanvasDiscovery.Disable();
         _actions.ActionInvoked -= OnNativeActionInvoked;
         _startupSplash?.Dispose();
         if (_root != null) Destroy(_root);
@@ -692,32 +699,13 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private void ScanForMainMenuCanvas()
     {
-        if (Time.unscaledTime < _nextMainMenuScanTime) return;
-
-        _nextMainMenuScanTime = Time.unscaledTime + MainMenuScanIntervalSeconds;
-        var mainCanvas = FindMainCanvas();
+        var mainCanvas = _mainCanvasDiscovery.Find(Time.unscaledTime);
         if (mainCanvas == _mainCanvas) return;
 
         RestoreOriginalMainCanvas();
         _mainCanvas = mainCanvas;
         _actions.SetOriginalMainCanvas(_mainCanvas);
         _mainMenuShell?.SetOriginalMainCanvas(_mainCanvas);
-    }
-
-    private static GameObject? FindMainCanvas()
-    {
-        var gameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        for (var index = 0; index < gameObjects.Length; index++)
-        {
-            var gameObject = gameObjects[index];
-            if (gameObject.name == "MainCanvas" && gameObject.scene.IsValid() && gameObject.scene.isLoaded &&
-                gameObject.GetComponent<Canvas>() != null)
-            {
-                return gameObject;
-            }
-        }
-
-        return null;
     }
 
     private bool IsMissionPickerAvailable()

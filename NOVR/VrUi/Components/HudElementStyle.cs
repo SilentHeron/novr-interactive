@@ -80,9 +80,9 @@ internal sealed class HudElementStyle : BaseMeshEffect
         if (_text != null) _text.havePropertiesChanged = true;
         else graphic.SetVerticesDirty();
     }
-    private Vector3 Style(Vector3 vertex)
+    private Vector3 Style(Vector3 vertex, Vector3 anchor, float scale)
     {
-        var anchor = Anchor; var delta = vertex - anchor; var scale = Scale;
+        var delta = vertex - anchor;
         if (Kind != HudElementKind.HorizontalLine) delta.x = HudPresentationMath.ScaleCoordinate(vertex.x, anchor.x, scale) - anchor.x;
         if (Kind != HudElementKind.VerticalLine) delta.y = HudPresentationMath.ScaleCoordinate(vertex.y, anchor.y, scale) - anchor.y;
         return anchor + delta;
@@ -90,17 +90,21 @@ internal sealed class HudElementStyle : BaseMeshEffect
     public override void ModifyMesh(VertexHelper vertices)
     {
         if (!IsActive() || _text != null) return;
+        var anchor = Anchor;
+        var scale = Scale;
         var v = new UIVertex();
         for (var i = 0; i < vertices.currentVertCount; i++)
-        { vertices.PopulateUIVertex(ref v, i); v.position = Style(v.position); vertices.SetUIVertex(v, i); }
+        { vertices.PopulateUIVertex(ref v, i); v.position = Style(v.position, anchor, scale); vertices.SetUIVertex(v, i); }
     }
     private void StyleText(TMP_TextInfo info)
     {
         if (!IsActive()) return;
+        var anchor = Anchor;
+        var scale = Scale;
         for (var m = 0; m < info.meshInfo.Length; m++)
         {
             var mesh = info.meshInfo[m];
-            for (var i = 0; i < mesh.vertexCount; i++) mesh.vertices[i] = Style(mesh.vertices[i]);
+            for (var i = 0; i < mesh.vertexCount; i++) mesh.vertices[i] = Style(mesh.vertices[i], anchor, scale);
         }
     }
 }

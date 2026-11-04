@@ -24,6 +24,9 @@ public class VrUiCursor: NOVRBehaviour
     internal bool ControllerOverMap => IsControllerPointer && _controllerPointer.OverMap;
     private readonly ControllerUiPointer _controllerPointer = new();
     private readonly ControllerButtonGate _mouseClick = new();
+    private readonly List<RaycastResult> _mouseRaycastResults = new();
+    private EventSystem? _mouseRaycastSystem;
+    private PointerEventData? _mouseRaycastData;
     private LineRenderer? _laser;
     private Material? _laserMaterial;
     private UnityEngine.InputSystem.UI.InputSystemUIInputModule? _boundUiModule;
@@ -376,36 +379,47 @@ public class VrUiCursor: NOVRBehaviour
         distance = default;
         overInteractive = false;
 
-        if (EventSystem.current == null)
+        var eventSystem = EventSystem.current;
+        if (eventSystem == null)
         {
+            _mouseRaycastSystem = null;
+            _mouseRaycastData = null;
             return false;
         }
 
-        var pointerEventData = new PointerEventData(EventSystem.current)
+        if (_mouseRaycastSystem != eventSystem || _mouseRaycastData == null)
         {
-            position = screenPos
-        };
-
-        var results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(pointerEventData, results);
-
-        foreach (var result in results)
-        {
-            if (result.gameObject == _cursor || result.distance < 0f)
-            {
-                continue;
-            }
-
-            if (!TryGetPlaneDistance(cursorRay, result.gameObject.transform, out distance))
-            {
-                continue;
-            }
-
-            overInteractive = IsInteractiveRaycastTarget(result.gameObject);
-            return true;
+            _mouseRaycastSystem = eventSystem;
+            _mouseRaycastData = new PointerEventData(eventSystem);
         }
+        _mouseRaycastData.Reset();
+        _mouseRaycastData.position = screenPos;
 
-        return false;
+        try
+        {
+            eventSystem.RaycastAll(_mouseRaycastData, _mouseRaycastResults);
+            foreach (var result in _mouseRaycastResults)
+            {
+                if (result.gameObject == _cursor || result.distance < 0f)
+                {
+                    continue;
+                }
+
+                if (!TryGetPlaneDistance(cursorRay, result.gameObject.transform, out distance))
+                {
+                    continue;
+                }
+
+                overInteractive = IsInteractiveRaycastTarget(result.gameObject);
+                return true;
+            }
+            return false;
+        }
+        finally
+        {
+            // Retain capacity, but do not keep the last scene's UI alive.
+            _mouseRaycastResults.Clear();
+        }
     }
 
     private static bool TryGetMapDistanceUnderCursor(Vector2 screenPos, Ray cursorRay, Camera camera, out float distance)
