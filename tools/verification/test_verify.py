@@ -254,7 +254,8 @@ class RunnerModeChecks(unittest.TestCase):
             registry.assert_not_called()
             isolation.assert_called_once_with(root / "tests/Core.csproj")
             run = execute.call_args_list[-1].args[0]
-            self.assertEqual(["--", str(plugin), str(managed)], run[-3:])
+            # Windows temp roots may use 8.3 aliases; the runner resolves paths.
+            self.assertEqual(["--", str(plugin.resolve()), str(managed.resolve())], run[-3:])
             summary = json.loads((root / "artifacts/verification/contracts/summary.json").read_text())
             self.assertEqual("contracts", summary["scope"])
             self.assertEqual(["assembly-contracts"], summary["suites"])
