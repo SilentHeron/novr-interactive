@@ -39,6 +39,9 @@
         <ItemGroup>
             <XrAssemblyPayload Include="$(BuildOutputDir)/plugins/Unity.XR.Management.dll" />
             <XrAssemblyPayload Include="$(BuildOutputDir)/plugins/Unity.XR.OpenXR.dll" />
+            <GameLayoutAdditionalFiles Include="@(XrAssemblyPayload)">
+                <TargetPath>CopyToGame/Data/Managed/%(Filename)%(Extension)</TargetPath>
+            </GameLayoutAdditionalFiles>
         </ItemGroup>
 
         <MakeDir Directories="$(TargetDir)CopyToGame/Data/Managed" />

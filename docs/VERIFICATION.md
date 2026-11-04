@@ -59,9 +59,10 @@ deploy the mod.
 
 A separate **SDK 10 package-safety job** runs on both operating systems using
 `python NOVR.Installer.Tests/check_build.py`. Its smaller sparse checkout contains
-only build-task source, the fixture and package notices. It creates synthetic
-assemblies in a temporary directory to check deployment opt-in, version matching,
-package metadata/checksums and rejection without overwriting a previous package.
+only build definitions/task source, the fixture and package notices. It creates
+synthetic assemblies in a temporary directory to check current-output staging,
+generated XR payloads, missing-game diagnostics, deployment opt-in, version
+matching, package metadata/checksums and rejection without overwriting a previous package.
 It never builds or installs the runtime mod or needs game/native binaries.
 
 A passing Linux run does not prove Windows passed; both matrix results need to

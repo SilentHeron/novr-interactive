@@ -12,6 +12,7 @@
         <DebugType>none</DebugType>
         <OutputPath>$(BuildOutputDir)/plugins</OutputPath>
         <GameDeployPath>$(NuclearOptionPluginDeployPath)</GameDeployPath>
+        <RequiresNuclearOptionGameReferences>true</RequiresNuclearOptionGameReferences>
         <RootNamespace>NOVR</RootNamespace>
     </PropertyGroup>
     <ItemGroup>

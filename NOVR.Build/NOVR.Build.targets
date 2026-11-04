@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="ValidateNuclearOptionGameReferences" BeforeTargets="PrepareForBuild;BuildProjectReferencesBeforeResolveReferences"
+          Condition="'$(RequiresNuclearOptionGameReferences)' == 'true' And '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(NuclearOptionManagedDir)/Assembly-CSharp.dll') Or !Exists('$(NuclearOptionManagedDir)/UnityEngine.CoreModule.dll')"
+           Text="Cannot build NOVR: required Nuclear Option assemblies were not found in '$(NuclearOptionManagedDir)'. Install the game and pass -p:NuclearOptionGameDir=&quot;/path/to/Nuclear Option&quot; or set NUCLEAR_OPTION_GAME_DIR. Point to the game installation, not its Managed folder. Source-only checks and installer builds do not require the game." />
+  </Target>
+
   <Target Name="BuildProjectReferencesBeforeResolveReferences" BeforeTargets="ResolveReferences" Condition="'@(ProjectReference)' != '' And '$(DesignTimeBuild)' != 'true'">
     <MSBuild
       Projects="@(ProjectReference)"
@@ -7,16 +13,26 @@
       Properties="Configuration=$(Configuration);Platform=$(Platform)" />
   </Target>
 
-  <Target Name="StageGameLayout" AfterTargets="Build" Condition="'$(GameDeployPath)' != '' And '$(SkipGameLayoutStaging)' != 'true'">
+  <Target Name="StageGameLayout" AfterTargets="Build" DependsOnTargets="GetCopyToOutputDirectoryItems" Condition="'$(GameDeployPath)' != '' And '$(SkipGameLayoutStaging)' != 'true'">
+    <Error Condition="!Exists('$(TargetPath)')" Text="Cannot stage NOVR: current project output '$(TargetPath)' is missing. Build the project before staging it." />
     <ItemGroup>
-      <GameLayoutDeployFiles Include="$(TargetDir)**/*" Exclude="$(TargetDir)Unity.XR.*.dll" />
+      <!-- Output directories are shared and can retain removed assets/dependencies.
+           Only the current project's resolved outputs may enter a package. -->
+      <GameLayoutDeployFiles Include="$(TargetPath)">
+        <TargetPath>$(TargetFileName)</TargetPath>
+      </GameLayoutDeployFiles>
+      <GameLayoutDeployFiles Include="@(ReferenceCopyLocalPaths)"
+                             Condition="!$([System.String]::Copy('%(ReferenceCopyLocalPaths.Filename)').StartsWith('Unity.XR.'))">
+        <TargetPath>%(ReferenceCopyLocalPaths.DestinationSubDirectory)%(Filename)%(Extension)</TargetPath>
+      </GameLayoutDeployFiles>
+      <GameLayoutDeployFiles Include="@(AllItemsFullPathWithTargetPath);@(GameLayoutAdditionalFiles)" />
     </ItemGroup>
 
     <RemoveDir Directories="$(GameLayoutOutputDir)/$(GameDeployPath)" />
     <MakeDir Directories="$(GameLayoutOutputDir)/$(GameDeployPath)" />
     <Copy
       SourceFiles="@(GameLayoutDeployFiles)"
-      DestinationFiles="@(GameLayoutDeployFiles->'$(GameLayoutOutputDir)/$(GameDeployPath)/%(RecursiveDir)%(Filename)%(Extension)')"
+      DestinationFiles="@(GameLayoutDeployFiles->'$(GameLayoutOutputDir)/$(GameDeployPath)/%(TargetPath)')"
       SkipUnchangedFiles="true" />
   </Target>
 

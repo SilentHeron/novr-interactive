@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 import zipfile
 from xml.sax.saxutils import escape
 
@@ -25,7 +26,9 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
       <NuclearOptionGameDirResolved>{escape(str(root))}/game</NuclearOptionGameDirResolved>
       <GameLayoutOutputDir>{escape(str(root))}/layout</GameLayoutOutputDir>
       <TargetDir>{escape(str(source))}/</TargetDir><GameDeployPath>BepInEx/plugins/NOVR</GameDeployPath>
+      <TargetPath>{escape(str(source))}/NOVR.dll</TargetPath><TargetFileName>NOVR.dll</TargetFileName>
       </PropertyGroup><Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.props"/>
+      <Target Name="GetCopyToOutputDirectoryItems" />
       <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.targets"/></Project>''')
     for option in ("", "-p:DeployToGame=typo", "-p:DeployToGame=true"):
         subprocess.run([dotnet, "msbuild", str(project), "-t:StageGameLayout", "-v:q"] +
@@ -63,6 +66,113 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
         shutil.copyfile(fake / "NOVR/bin/Release/net10.0/NOVR.dll", plugin)
 
     compile_plugin(declared)
+
+    # Exercise the real staging target with SDK-resolved references/content and
+    # the patcher's actual generated-payload target, without proprietary files.
+    staged_project = fake / "Staging"
+    staged_project.mkdir()
+    (staged_project / "Class.cs").write_text("public sealed class StagingFixture {}")
+    (staged_project / "Assets").mkdir()
+    (staged_project / "Assets/current.txt").write_text("current asset")
+    (fake / "linked notice.txt").write_text("linked notice")
+    shared_output = root / "shared-output"
+    shared_output.mkdir()
+    (shared_output / "Removed.Plugin.dll").write_text("stale removed assembly")
+    (shared_output / "Assets").mkdir()
+    (shared_output / "Assets/removed.txt").write_text("stale removed asset")
+    generated = root / "generated/plugins"
+    generated.mkdir(parents=True)
+    for name in ("Management", "OpenXR"):
+        (generated / f"Unity.XR.{name}.dll").write_text("current " + name)
+    payload_target = ET.parse(repo / "NOVR.Patcher/NOVR.Patcher.csproj").find(
+        "Target[@Name='CopyXrAssembliesToPatcherPayload']")
+    assert payload_target is not None
+    payload_target_xml = ET.tostring(payload_target, encoding="unicode")
+    staged_layout = root / "staged-game/BepInEx/patchers/NOVR"
+
+    def stage_current(include_dependency=True):
+        dependency = ('<ProjectReference Include="../BepInEx/BepInEx.csproj" />'
+                      '<Content Include="Assets/current.txt" CopyToOutputDirectory="Always" />'
+                      if include_dependency else "")
+        (staged_project / "Staging.csproj").write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup><SkipNuclearOptionReferences>true</SkipNuclearOptionReferences></PropertyGroup>
+          <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.props" />
+          <PropertyGroup><TargetFramework>net10.0</TargetFramework><DebugType>none</DebugType>
+            <SkipNuclearOptionReferences>true</SkipNuclearOptionReferences>
+            <OutputPath>{escape(str(shared_output))}/</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+            <BuildOutputDir>{escape(str(root))}/generated</BuildOutputDir>
+            <GameLayoutOutputDir>{escape(str(root))}/staged-game</GameLayoutOutputDir>
+            <GameDeployPath>BepInEx/patchers/NOVR</GameDeployPath></PropertyGroup>
+          <ItemGroup>{dependency}<None Include="../linked notice.txt" Link="ThirdParty/NOTICE.txt"
+            CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+          <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.targets" />
+          <Target Name="FixtureXrCopyLocal" BeforeTargets="StageGameLayout"><ItemGroup>
+            <ReferenceCopyLocalPaths Include="{escape(str(generated))}/Unity.XR.Management.dll" />
+          </ItemGroup></Target>
+          {payload_target_xml}</Project>''')
+        subprocess.run([dotnet, "build", str(staged_project / "Staging.csproj"), "-c", "Release", "-v:q"], check=True)
+
+    stage_current()
+    assert (staged_layout / "Staging.dll").is_file()
+    assert (staged_layout / "BepInEx.dll").is_file()
+    assert (staged_layout / "Assets/current.txt").read_text() == "current asset"
+    assert (staged_layout / "ThirdParty/NOTICE.txt").read_text() == "linked notice"
+    for name in ("Management", "OpenXR"):
+        assert (staged_layout / f"CopyToGame/Data/Managed/Unity.XR.{name}.dll").read_text() == "current " + name
+    assert not (staged_layout / "Unity.XR.Management.dll").exists(), "XR belongs only in the patcher payload"
+    assert not (staged_layout / "Removed.Plugin.dll").exists()
+    assert not (staged_layout / "Assets/removed.txt").exists()
+    stage_current(False)
+    assert not (staged_layout / "BepInEx.dll").exists()
+    assert not (staged_layout / "Assets/current.txt").exists()
+    assert (shared_output / "Removed.Plugin.dll").exists(), "fixture must retain stray build output"
+    assert not (staged_layout / "Removed.Plugin.dll").exists()
+    print("PASS current outputs, linked content and generated XR payload stage; removed files stay excluded")
+
+    # Invalid/missing game paths fail before dependency builds. BepInEx is a
+    # runtime install requirement, not a required compile-time directory.
+    requires_game = ET.parse(repo / "NOVR/NOVR.csproj").findtext("PropertyGroup/RequiresNuclearOptionGameReferences")
+    assert requires_game == "true"
+    prerequisite = root / "prerequisite"
+    prerequisite.mkdir()
+    (prerequisite / "Class.cs").write_text("public sealed class PrerequisiteFixture {}")
+    (prerequisite / "must-not-build.proj").write_text('''<Project><Target Name="Build">
+      <Error Text="DEPENDENCY_BUILT_BEFORE_GAME_VALIDATION" /></Target></Project>''')
+    managed = root / "prerequisite-game/NuclearOption_Data/Managed"
+
+    def check_game_reference_prerequisite(required=True, dependency=False):
+        reference = '<ItemGroup><ProjectReference Include="must-not-build.proj" /></ItemGroup>' if dependency else ""
+        (prerequisite / "Check.csproj").write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup><NuclearOptionGameDir>{escape(str(managed.parent.parent))}</NuclearOptionGameDir>
+            <SkipNuclearOptionReferences>true</SkipNuclearOptionReferences></PropertyGroup>
+          <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.props" />
+          <PropertyGroup><TargetFramework>net10.0</TargetFramework>
+            <RequiresNuclearOptionGameReferences>{str(required).lower()}</RequiresNuclearOptionGameReferences>
+            <SkipNuclearOptionReferences>true</SkipNuclearOptionReferences></PropertyGroup>
+          {reference}<Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.targets" /></Project>''')
+        # Build target (without restore) isolates ordering before references; the
+        # missing-game guard must run even before SDK assets are available.
+        return subprocess.run([dotnet, "msbuild", str(prerequisite / "Check.csproj"), "-t:Build", "-v:q"],
+                              capture_output=True, text=True)
+
+    for partial in (False, True):
+        if partial:
+            managed.mkdir(parents=True)
+            (managed / "Assembly-CSharp.dll").write_text("assembly presence fixture")
+        result = check_game_reference_prerequisite(dependency=True)
+        assert result.returncode != 0
+        assert "Cannot build NOVR: required Nuclear Option assemblies" in result.stdout, result.stdout + result.stderr
+        assert "-p:NuclearOptionGameDir=" in result.stdout
+        assert "DEPENDENCY_BUILT_BEFORE_GAME_VALIDATION" not in result.stdout
+    (managed / "UnityEngine.CoreModule.dll").write_text("assembly presence fixture")
+    check_game_reference_prerequisite()
+    subprocess.run([dotnet, "build", str(prerequisite / "Check.csproj"), "-v:q"], check=True)
+    assert not (managed.parent.parent / "BepInEx").exists()
+    shutil.rmtree(managed.parent.parent)
+    check_game_reference_prerequisite(required=False)
+    subprocess.run([dotnet, "build", str(prerequisite / "Check.csproj"), "-v:q"], check=True)
+    print("PASS early actionable game reference errors; installed BepInEx and source-only game references not required")
+
     package = root / "dist/NOVR.zip"
     args = [dotnet, "msbuild", str(repo / "NOVR.Build/NOVR.Build.csproj"), "-t:CreateReleaseZip",
             "-p:Configuration=Release", f"-p:ReleasePackageSourceDir={package_source}",

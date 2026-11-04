@@ -110,6 +110,8 @@ jobs:
             /NOVR.Build/Tasks/Directory.Build.props
             /NOVR.Build/Tasks/Directory.Build.targets
             /NOVR/NOVRPlugin.cs
+            /NOVR/NOVR.csproj
+            /NOVR.Patcher/NOVR.Patcher.csproj
             /README.md
             /LICENSE
             /docs/THIRD_PARTY_NOTICES.md

@@ -16,7 +16,8 @@ python tools/verify.py portable
 These checks do not require Nuclear Option, Unity or a headset. See
 [verification](docs/VERIFICATION.md) for logs, SDK selection and coverage limits.
 
-To build the mod, install Nuclear Option and BepInEx 5.x locally. The supported
+To build the mod, install Nuclear Option locally. BepInEx 5.x for Windows x64 is
+needed to run the mod on Windows or Proton; NuGet supplies its compile-time references. The supported
 game version is listed in [README](README.md). Common Steam library locations
 are detected; specify another installation explicitly:
 
@@ -44,8 +45,8 @@ dotnet build NuclearOptionVirtualRealityMod.sln -c Release -p:DeployToGame=false
 The same custom-library override applies to this command.
 
 Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
-After removing dependencies or payload assets, delete the generated `build-output`
-directory before packaging so stale files cannot enter the archive.
+Staging includes the current build's resolved assemblies and declared content;
+removed dependencies or assets left in `build-output` are excluded automatically.
 Its version comes from the compiled plugin and must match `NOVR/NOVRPlugin.cs`.
 An optional `-p:NovrReleaseVersion=X.Y.Z` must match too; old staged metadata is
 always replaced. Building does not install it. Close the game before installing a local package,

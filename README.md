@@ -12,7 +12,7 @@ Experimental version **0.4.8.7**. Targets Nuclear Option **0.34.6** and PC VR th
 
 No package is published yet. Packages will be available from [Releases](https://github.com/SilentHeron/novr-interactive/releases).
 
-1. Close the game and install BepInEx 5.x.
+1. Close the game and install BepInEx 5.x for **Windows x64**, including when using Proton.
 2. Extract `NOVR.zip` into the game's `BepInEx` folder.
 3. Connect SteamVR, then launch Nuclear Option.
 
@@ -28,7 +28,7 @@ This replaces upstream NOVR; do not install both. On Linux/Proton, add `WINEDLLO
 
 ## Build
 
-With .NET SDK 8, Nuclear Option and BepInEx installed:
+With .NET SDK 8 and Nuclear Option installed (BepInEx is needed to run the mod):
 
 ```sh
 dotnet build NOVR/NOVR.csproj -c Release -p:DeployToGame=false
