@@ -221,4 +221,62 @@ Console.WriteLine("PASS collective defaults lower once, custom placement retaine
     Yes(AircraftLayoutIdentity.Resolve("author/new-key", "ModPrefab") == "author/new-key");
     Console.WriteLine("PASS late mod identities initialize independent slots; unnamed definitions cannot save shared fallback profiles");
 }
+{
+    var profiles = Start(false);
+    profiles.Refresh();
+    var secondSeat = new Vector3(-.08f, .05f, .1f);
+    var secondStick = stick + new Vector3(.05f, 0, 0);
+    var secondThrottle = throttle + new Vector3(-.05f, 0, 0);
+    Yes(profiles.SaveSlot(1, seat, stick, throttle));
+    Yes(profiles.SaveSlot(2, secondSeat, secondStick, secondThrottle));
+    profiles.BeginPreview();
+    profiles.MoveSeat(new Vector3(.04f, 0, 0));
+    var resets = MotionFlightController.Instance!.Resets;
+
+    // Configuration reloads/editors can change the bound slot without going
+    // through SelectSlot. The HUD reads ActiveSlot, so handles and seat must
+    // resolve the same slot, discard the old preview and release held controls.
+    Entry("SmallFighter1", "Active Layout Slot", 2);
+    profiles.Refresh();
+    Yes(CockpitProfiles.ActiveSlot == 2);
+    Near(CockpitProfiles.SeatOffset, secondSeat);
+    Near(CockpitProfiles.StickPosition, secondStick);
+    Near(CockpitProfiles.ThrottlePosition, secondThrottle);
+    Yes(MotionFlightController.Instance.Resets == resets + 1);
+    Near(Read("SmallFighter1", "Seat Offset", Vector3.zero), seat);
+    profiles.BeginPreview();
+    profiles.MoveSeat(new Vector3(.02f, .01f, 0));
+    var preview = CockpitProfiles.SeatOffset;
+    resets = MotionFlightController.Instance.Resets;
+    profiles.Refresh();
+    Near(CockpitProfiles.SeatOffset, preview);
+    Yes(MotionFlightController.Instance.Resets == resets);
+
+    // Validate cached profiles too: an invalid entry must never reach array
+    // indexing when the same aircraft stays active or is entered again later.
+    foreach (var invalid in new[] { -1, 0, 4, int.MaxValue })
+    {
+        Yes(profiles.SelectSlot(2));
+        Entry("SmallFighter1", "Active Layout Slot", invalid);
+        profiles.Refresh();
+        Yes(CockpitProfiles.ActiveSlot == 1);
+        Near(CockpitProfiles.SeatOffset, seat);
+        Near(CockpitProfiles.StickPosition, stick);
+        Near(CockpitProfiles.ThrottlePosition, throttle);
+
+        GameManager.Current = new Aircraft { definition = new() { jsonKey = "Multirole1" } };
+        profiles.Refresh();
+        Entry("SmallFighter1", "Active Layout Slot", invalid);
+        GameManager.Current = new Aircraft();
+        profiles.Refresh();
+        Yes(CockpitProfiles.ActiveSlot == 1);
+        Near(CockpitProfiles.SeatOffset, seat);
+        Near(CockpitProfiles.StickPosition, stick);
+    }
+    Yes(profiles.SelectSlot(2));
+    Near(CockpitProfiles.SeatOffset, secondSeat);
+    Near(CockpitProfiles.StickPosition, secondStick);
+    Near(CockpitProfiles.ThrottlePosition, secondThrottle);
+    Console.WriteLine("PASS live configured slot changes discard old previews; active and cached slots reject invalid values");
+}
 Console.WriteLine(assertions + " profile migration and slot assertions passed.");

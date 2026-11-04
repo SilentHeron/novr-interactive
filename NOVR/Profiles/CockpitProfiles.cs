@@ -65,11 +65,10 @@ internal sealed class CockpitProfiles : MonoBehaviour
         var leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         if (_key == identity)
         {
-            if (_leftHanded != leftHanded)
-            {
-                _leftHanded = leftHanded;
+            var handednessChanged = _leftHanded != leftHanded;
+            _leftHanded = leftHanded;
+            if (RefreshSelectedSlot() || handednessChanged)
                 MotionFlightController.Instance?.ResetGrips();
-            }
             return;
         }
         _key = identity;
@@ -92,8 +91,25 @@ internal sealed class CockpitProfiles : MonoBehaviour
                 _slots.Slots[slot - 1] = BindProfile(section + " Slot " + slot, identity, collective);
             _profiles.Add(identity, _slots);
         }
-        _current = _slots.Slots[_slots.Active.Value - 1];
+        RefreshSelectedSlot();
         MotionFlightController.Instance?.ResetGrips();
+    }
+
+    private bool RefreshSelectedSlot()
+    {
+        if (_slots == null)
+            return false;
+        // A configuration reload/editor can change this entry without calling
+        // SelectSlot. Keep the handles and seat in the same slot as the HUD.
+        var slot = _slots.Active.Value;
+        if (!ValidSlot(slot))
+            _slots.Active.Value = slot = 1;
+        var selected = _slots.Slots[slot - 1];
+        if (_current == selected)
+            return false;
+        _current = selected;
+        _seatPreview = null;
+        return true;
     }
 
     private static Profile BindProfile(string section, string identity, bool collective)
