@@ -1,15 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
-using System;
-using Cysharp.Threading.Tasks;
-using NuclearOption.Networking;
 using NuclearOption.SavedMission;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeSinglePlayerMissionPanel : MonoBehaviour
+public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
 {
     private const int PageSize = 13;
 
@@ -182,58 +179,6 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         }
     }
 
-    private void LoadMissions()
-    {
-        _missions.Clear();
-        _filteredMissions.Clear();
-        _page = 0;
-        _selectedIndex = 0;
-
-        try
-        {
-            MissionGroup.Init();
-            var entries = NativeMissionHeaders
-                .QuickLoadMany(MissionGroup.All.GetMissions())
-                .Where(entry => HasTag(entry.mission, MissionTag.SinglePlayer))
-                .Select(entry => new MissionEntry(entry.key, entry.mission));
-            _missions.AddRange(entries);
-            Debug.Log($"[NOVR] Loaded {_missions.Count} single-player missions for the VR menu.");
-        }
-        catch (System.Exception exception)
-        {
-            Debug.LogError($"[NOVR] Failed to load native single player mission list: {exception}");
-        }
-
-        ApplyFilters();
-    }
-
-    private static bool HasTag(MissionQuickLoad mission, MissionTag tag)
-    {
-        var tags = mission.missionSettings.Tags;
-        return tags != null && tags.Any(existing => existing.Equals(tag));
-    }
-
-    private void ApplyFilters()
-    {
-        _filteredMissions.Clear();
-
-        for (var index = 0; index < _missions.Count; index++)
-        {
-            var mission = _missions[index];
-            if (!MatchesGroupFilter(mission))
-                continue;
-            if (!MatchesTagFilter(mission))
-                continue;
-
-            _filteredMissions.Add(mission);
-        }
-
-        _page = ClampInt(_page, 0, GetLastPage());
-        SelectMission(_filteredMissions.Count > 0 ? Mathf.Clamp(_selectedIndex, 0, _filteredMissions.Count - 1) : -1);
-        RefreshList();
-        RefreshFilterButtons();
-    }
-
     private void RefreshList()
     {
         for (var index = 0; index < PageSize; index++)
@@ -274,41 +219,6 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
             _tagFilterTexts[index].text = label;
             SetButtonColor(_tagFilterButtons[index], index == _activeTagFilterIndex ? ButtonSelectedColor : ButtonColor);
         }
-    }
-
-    private void SelectMission(int index)
-    {
-        if (_launch.IsBusy)
-            return;
-        SetIdleLaunchStatus();
-        if (index < 0 || index >= _filteredMissions.Count)
-        {
-            _selectedIndex = -1;
-            if (_titleText != null)
-                _titleText.text = "";
-            if (_tagsText != null)
-                _tagsText.text = "";
-            if (_descriptionText != null)
-                _descriptionText.text = "";
-            if (_startButton != null)
-                _startButton.interactable = false;
-            if (_customizeButton != null)
-                _customizeButton.interactable = false;
-            RefreshList();
-            return;
-        }
-
-        _selectedIndex = index;
-        var mission = _filteredMissions[_selectedIndex];
-        if (_titleText != null)
-            _titleText.text = mission.Key.Name;
-        if (_tagsText != null)
-            _tagsText.text = string.Join("   ", mission.Mission.missionSettings.Tags.Select(tag => tag.Tag));
-        if (_descriptionText != null)
-            _descriptionText.text = mission.Mission.missionSettings.description ?? "";
-        RefreshLaunchButtons();
-        _actions?.TrySelectOriginalMission(mission.Key);
-        RefreshList();
     }
 
     private void PreviousPage()
@@ -381,106 +291,6 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         _actions?.TryInvokeCurrentMenuButton("Customize Mission", "Customize Mission", "CUSTOMIZE MISSION");
     }
 
-    private void StartSelectedMission()
-    {
-        if (_launch.IsBusy || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count)
-            return;
-        if (!BlueprinterContentReadiness.Read().CanLaunch)
-        {
-            SetIdleLaunchStatus();
-            RefreshLaunchButtons();
-            return;
-        }
-        var manager = NetworkManagerNuclearOption.i;
-        if (manager == null)
-        {
-            SetLaunchStatus("The game is still preparing. Please try again in a moment.");
-            return;
-        }
-        if (!_launch.TryBegin(HasActiveSession()))
-        {
-            SetLaunchStatus("A session is already open. Return to the main menu before starting another mission.");
-            RefreshLaunchButtons();
-            return;
-        }
-
-        // Lock before loading or yielding, including direct event invocations.
-        _launchStartedAt = Time.unscaledTime;
-        _launchPhase = "Preparing mission";
-        _nextLaunchStatusTime = 0;
-        LockLaunchButtons();
-        StartMissionAsync(_filteredMissions[_selectedIndex].Key, manager).Forget();
-    }
-
-    private async UniTaskVoid StartMissionAsync(MissionKey missionKey, NetworkManagerNuclearOption manager)
-    {
-        try
-        {
-            SetLaunchStatus("Preparing mission…");
-            // Let the disabled buttons and status render before synchronous IO.
-            await UniTask.NextFrame(cancellationToken: this.GetCancellationTokenOnDestroy());
-            // The loader may have started in the yielded frame. Never race its
-            // temporary asset-preload host even if a click was already accepted.
-            if (!BlueprinterContentReadiness.Read().CanLaunch)
-            {
-                SetIdleLaunchStatus();
-                return;
-            }
-            if (manager == null || HasActiveSession())
-            {
-                SetLaunchStatus("A session is already open. Return to the main menu before starting another mission.");
-                return;
-            }
-            // Customize edits the native selected mission in memory. Use that
-            // instance when it matches this row, falling back to disk only when
-            // its picker is unavailable (for example during a scene transition).
-            Mission? mission = null;
-            var fromPicker = _actions?.TryGetOriginalSelectedMission(missionKey, out mission) == true;
-            if (!fromPicker && !missionKey.TryLoad(out mission, out var error))
-            {
-                SetLaunchStatus("Couldn't open this mission. Choose another mission or try again.\n" + error);
-                Debug.LogWarning($"[NOVR] Native single player failed to load mission '{missionKey}': {error}");
-                return;
-            }
-            if (mission == null)
-            {
-                SetLaunchStatus("No mission selected. Choose a mission and try again.");
-                return;
-            }
-
-            _launchPhase = "Loading map";
-            SetLaunchStatus("Loading map…");
-            MissionManager.SetMission(mission, checkIfSame: false);
-            await manager.StartHostAsync(new HostOptions(SocketType.Offline, GameState.SinglePlayer, mission.MapKey));
-            if (this != null)
-                SetLaunchStatus(manager != null && manager.Server.Active
-                    ? "Mission ready." : "The map couldn't load. Choose another mission or try again.");
-        }
-        catch (OperationCanceledException)
-        {
-            if (this != null)
-                SetLaunchStatus("Mission loading stopped. Return to the main menu to try again.");
-        }
-        catch (Exception exception)
-        {
-            Debug.LogError($"[NOVR] Native single player launch failed: {exception}");
-            if (this != null)
-                SetLaunchStatus("Couldn't start the mission. Return to the main menu and try again.");
-        }
-        finally
-        {
-            _launch.Finish();
-            if (this != null)
-                RestoreLaunchButtons();
-        }
-    }
-
-    private static bool HasActiveSession()
-    {
-        var manager = NetworkManagerNuclearOption.i;
-        return manager != null && (manager.Server.Active || manager.Client.Active);
-    }
-
     private void Update()
     {
         if (!_launch.IsBusy && _visible && Time.unscaledTime >= _nextContentCheck)
@@ -510,22 +320,6 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
     }
 
     private void SetIdleLaunchStatus() => SetLaunchStatus(BlueprinterContentReadiness.Read().Status);
-
-    private void RefreshContentMissions()
-    {
-        // Content loaders can add missions at the end of startup. Refresh once
-        // on that observed transition, preserving the pilot's choice and filters.
-        MissionKey? selected = _selectedIndex >= 0 && _selectedIndex < _filteredMissions.Count
-            ? _filteredMissions[_selectedIndex].Key : null;
-        LoadMissions();
-        if (!selected.HasValue)
-            return;
-        var index = _filteredMissions.FindIndex(entry => entry.Key.Equals(selected.Value));
-        if (index < 0)
-            return;
-        _page = index / PageSize;
-        SelectMission(index);
-    }
 
     private void LockLaunchButtons()
     {

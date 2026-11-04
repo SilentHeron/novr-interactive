@@ -38,6 +38,7 @@ namespace UnityEngine
     public static class Debug
     {
         public static readonly List<string> Messages = new();
+        public static void Log(string text) => Messages.Add(text);
         public static void LogWarning(string text) => Messages.Add(text);
         public static void LogError(string text) => Messages.Add(text);
     }
@@ -82,7 +83,11 @@ public static class MissionManager
     }
 }
 public static class PlayerSettings { public static string playerName_Unsanitized = "Pilot"; }
-public static class MissionTag { public static string GetPvpTypeLobbyString(Mission mission) => "0"; }
+public readonly record struct MissionTag(string Tag)
+{
+    public static readonly MissionTag SinglePlayer = new("Single Player");
+    public static string GetPvpTypeLobbyString(Mission mission) => "0";
+}
 public static class RichTextBoundary { public static string SanitizeRichText(this string value, int maximum) => value; }
 
 namespace NuclearOption.SceneLoading
@@ -122,7 +127,7 @@ namespace Steamworks
 }
 namespace NuclearOption.Networking
 {
-    public enum SocketType { Steam }
+    public enum SocketType { Steam, Offline }
     public sealed class HostOptions(SocketType socket, GameState state, MapKey map)
     {
         public readonly SocketType Socket = socket;
@@ -135,7 +140,7 @@ namespace NuclearOption.Networking
     {
         public static NetworkManagerNuclearOption i = null!;
         public static bool? ModdedServer;
-        public readonly Transport Server = new(), Client = new();
+        public Transport Server = new(), Client = new();
         public readonly List<HostOptions> Starts = new();
         public bool FailBeforeActivation;
         public TaskCompletionSource<bool>? StartCompletion;
@@ -145,7 +150,7 @@ namespace NuclearOption.Networking
             if (FailBeforeActivation)
                 throw new InvalidOperationException("Simulated start failure");
             Server.Active = true;
-            GameManager.SetGameState(GameState.Multiplayer);
+            GameManager.SetGameState(options.State);
             StartCompletion = new();
             return StartCompletion.Task;
         }

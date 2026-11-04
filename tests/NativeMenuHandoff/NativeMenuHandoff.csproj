@@ -7,6 +7,9 @@
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeMultiplayerPanel.Selection.cs" Link="NativeMultiplayerPanel.Selection.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeMultiplayerPanel.Hosting.cs" Link="NativeMultiplayerPanel.Hosting.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeLobbyOwnership.cs" Link="NativeLobbyOwnership.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeSinglePlayerMissionPanel.Launch.cs" Link="NativeSinglePlayerMissionPanel.Launch.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeSinglePlayerMissionPanel.Selection.cs" Link="NativeSinglePlayerMissionPanel.Selection.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Startup/MissionLaunchGate.cs" Link="MissionLaunchGate.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Settings/NativeBindingCaptureSession.cs" Link="NativeBindingCaptureSession.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeVrUiRoot.Panels.cs" Link="NativeVrUiRoot.Panels.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Shared/NativeStockMenuHandoff.cs" Link="NativeStockMenuHandoff.cs" />

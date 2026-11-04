@@ -57,4 +57,6 @@ passed += PanelVisibilityChecks.Run();
 passed += MenuAvailabilityChecks.Run();
 passed += MultiplayerSelectionChecks.Run();
 passed += await MultiplayerHostingChecks.Run();
+passed += await SinglePlayerLaunchChecks.Run();
+passed += SinglePlayerSelectionChecks.Run();
 Console.WriteLine($"{passed} source-linked menu handoff/selection/discovery/capture assertions passed (native UI doubles; no renderer/game launch).");
