@@ -56,17 +56,23 @@ internal sealed class PilotHandUiDepth : MonoBehaviour
             foreach (var material in _sourceMaterials)
                 if (material == null || material.HasProperty("_Surface") && material.GetFloat("_Surface") >= .5f)
                 { Hide(); return; }
+            // Every bone uses the same renderer basis this frame. Keep those
+            // native transform reads/inversion outside the skinning palette loop.
+            var sourceTransform = Source.transform;
+            var sourceRotation = sourceTransform.rotation;
+            var sourceInverseRotation = Quaternion.Inverse(sourceRotation);
+            var sourceScale = sourceTransform.lossyScale;
             if (_root.parent != uiRoot) _root.SetParent(uiRoot, false);
-            _root.localPosition = gameRoot.InverseTransformPoint(Source.transform.position);
-            _root.localRotation = Quaternion.Inverse(gameRoot.rotation) * Source.transform.rotation;
-            _root.localScale = Divide(Source.transform.lossyScale, gameRoot.lossyScale);
+            _root.localPosition = gameRoot.InverseTransformPoint(sourceTransform.position);
+            _root.localRotation = Quaternion.Inverse(gameRoot.rotation) * sourceRotation;
+            _root.localScale = Divide(sourceScale, gameRoot.lossyScale);
             for (var i = 0; i < _bones.Length; i++)
             {
                 var source = _sources[i];
                 if (source == null) { Hide(); return; }
-                _bones[i].localPosition = Source.transform.InverseTransformPoint(source.position);
-                _bones[i].localRotation = Quaternion.Inverse(Source.transform.rotation) * source.rotation;
-                _bones[i].localScale = Divide(source.lossyScale, Source.transform.lossyScale);
+                _bones[i].localPosition = sourceTransform.InverseTransformPoint(source.position);
+                _bones[i].localRotation = sourceInverseRotation * source.rotation;
+                _bones[i].localScale = Divide(source.lossyScale, sourceScale);
             }
             Renderer.localBounds = Source.localBounds;
             Renderer.enabled = true; _root.gameObject.SetActive(true);

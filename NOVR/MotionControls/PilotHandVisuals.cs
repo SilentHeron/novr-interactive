@@ -78,13 +78,14 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         }
         if (_sleeveThickness != settings.SleeveThickness.Value) ResizeSleeves(settings.SleeveThickness.Value);
         var controls=MotionFlightController.Instance;
-        var lean=PilotTorsoMath.Lean(PoseVector(NOVRHeadsetData.Translation-NOVRHeadsetData.TranslationAnchor));
-        var torsoHead=_root.TransformPoint(NOVRHeadsetData.TranslationAnchor+CockpitProfiles.SeatOffset+new Vector3(lean.X,lean.Y,lean.Z));
-        // Seat adjustment remains exact; ordinary head lean moves the shoulders
-        // only partly. The tracked glove and fixed cockpit sockets stay exact.
-        var shift=torsoHead-aircraft.cockpitViewPoint.position;
-        if(_source!=null)
+        var armsEnabled=settings.PilotArms.Value;
+        if(armsEnabled && _source!=null)
         {
+            var lean=PilotTorsoMath.Lean(PoseVector(NOVRHeadsetData.Translation-NOVRHeadsetData.TranslationAnchor));
+            var torsoHead=_root.TransformPoint(NOVRHeadsetData.TranslationAnchor+CockpitProfiles.SeatOffset+new Vector3(lean.X,lean.Y,lean.Z));
+            // Refresh the native baseline before solving on the first enabled
+            // frame too. Hidden sleeves need no bone/renderer transform writes.
+            var shift=torsoHead-aircraft.cockpitViewPoint.position;
             for(var i=0;i<_copies.Length;i++) { _copies[i].position=_sourceBones[i].position+shift;_copies[i].rotation=_sourceBones[i].rotation;_copies[i].localScale=_sourceBones[i].lossyScale; }
             foreach(var sleeve in _sleeves) if(sleeve!=null)
             { sleeve.transform.position=_source.transform.position+shift;sleeve.transform.rotation=_source.transform.rotation;sleeve.transform.localScale=_source.transform.lossyScale; }
@@ -119,9 +120,9 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             if(_sleeves[side]!=null)
             {
                 var glove=_gloves[side]!.Root;
-                var opacity = settings.PilotArms.Value && sample.Valid ? SolveArm(side,glove,attachment.HasValue && collective) : 0;
+                var opacity = armsEnabled && sample.Valid ? SolveArm(side,glove,attachment.HasValue && collective) : 0;
                 if (opacity <= 0) _armPoses[side].Reset();
-                UpdateSleeveBounds(side);
+                if (armsEnabled) UpdateSleeveBounds(side);
                 _sleeves[side]!.enabled = _sleeveFades[side]?.Apply(opacity) ?? opacity > 0;
             }
         }

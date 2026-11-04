@@ -51,6 +51,21 @@ using(var f=new Fixture())
     f.Ui.localPosition=new(3,-8,5); f.Ui.localRotation=Quaternion.Euler(-8,47,-13);
     f.Tick();
     Near(proxies[0].bones[1].position,f.Ui.TransformPoint(f.Game.InverseTransformPoint(left.bones[1].position)),"Animated finger and changing world/UI rigs update copied bone every frame");
+    // The cached renderer basis is per-update, never retained across frames or
+    // shared between independently posed glove/sleeve renderers.
+    foreach(var scale in new[]{75f,1f,120f})
+    {
+        left.transform.localPosition+=new Vector3(.02f,-.01f,.03f);
+        left.transform.localRotation=Quaternion.Euler(scale*.3f,scale*.2f,-scale*.1f);
+        left.transform.localScale=Vector3.one*scale;
+        f.Tick();
+        for(var bone=0;bone<left.bones.Length;bone++)
+        {
+            Near(proxies[0].bones[bone].position,f.Ui.TransformPoint(f.Game.InverseTransformPoint(left.bones[bone].position)),"Renderer basis refreshes before all animated bones after scale/rotation changes");
+            foreach(var axis in new[]{Vector3.right,Vector3.up,Vector3.forward})
+                Near(proxies[0].bones[bone].TransformVector(axis*.001f),f.Ui.TransformVector(f.Game.InverseTransformVector(left.bones[bone].TransformVector(axis*.001f))),"Fresh per-frame source basis preserves skinning orientation and scale");
+        }
+    }
     var leftCopy=proxies[0];
     left.enabled=false; f.Tick(); Check(!Visible(leftCopy),"Disabled displayed glove cannot leave invisible UI hole");
     left.enabled=true; left.gameObject.SetActive(false); f.Tick(); Check(!Visible(leftCopy),"Inactive tracked hand hides its occlusion geometry");
