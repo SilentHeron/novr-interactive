@@ -46,9 +46,13 @@ Release that hand’s flight handle, then click its thumbstick. The smaller game
 
 ## Grip and layout
 
+The floating map has **+ / −** buttons operated by fingertip contact. Touch the map face to select it: a subtle border and centre crosshair appear. While holding the flight stick, use the **physical right thumbstick** to pan, then click it to select an eligible target under the crosshair. The map keeps the game's normal visibility and targeting rules. Touch its face again to return to normal right-stick flight bindings. The other buttons, stick tilt and twist keep working. Centre the thumbstick and release its click when taking or returning control; menus, layout editing and tracking loss cancel map selection.
+
 In **View → Flight controls**, choose **Hold** or **Toggle** independently for stick and throttle. Toggle holds after one squeeze and releases on the next. Tracking loss, menus or moving far from a handle releases it.
 
 **Aircraft profiles** contains three slots for the current aircraft’s seat, handles and HUD widgets. Existing layouts stay in Slot 1. Load a slot, edit, then save to the named aircraft and chosen slot. Cancel discards the preview. There are no cross-aircraft shared profiles. During a two-corner widget grab, move and tilt both hands while changing their separation to translate, rotate and resize together; roll remains locked.
+
+For the map, horizontal and vertical corner separation change its width and height independently. This changes the visible area without stretching terrain or unit icons. The shape is saved with the aircraft's selected profile slot.
 
 The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **Aiming & markers → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults.
 A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.

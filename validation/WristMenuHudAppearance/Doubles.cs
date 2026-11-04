@@ -87,6 +87,7 @@ namespace NOVR.VrUi.SpecialBehavior
         internal static CockpitHudWidgets? Instance;
         internal static bool Editing => Instance?.Preview == true;
         internal bool Preview, Available = true, SnapEnabled = true;
+        internal bool CanSaveProfile => Available;
         internal int Begins, AppearanceSaves, AngleWrites;
         internal int ProfileSlot = 1;
         internal string ProfileAircraftName = "FS-20 Revoker";

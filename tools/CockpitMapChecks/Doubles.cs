@@ -71,6 +71,9 @@ namespace UnityEngine
         public Transform parent = null!;
         public Vector3 localPosition, localScale = Vector3.one;
         public Quaternion localRotation = Quaternion.identity;
+        public Vector3 position { get => TransformPoint(Vector3.zero); set => localPosition = (parent == null ? value : parent.InverseTransformPoint(value)) - Offset; }
+        public Quaternion rotation { get => parent == null ? localRotation : parent.rotation * localRotation; set => localRotation = parent == null ? value : Quaternion.Inverse(parent.rotation) * value; }
+        public Vector3 forward => rotation * new Vector3(0,0,1);
         public int childCount => Children.Count;
         public Transform? Find(string name) => Children.FirstOrDefault(c => c.gameObject.name == name);
         public Transform GetChild(int index) => Children[index];
@@ -88,14 +91,18 @@ namespace UnityEngine
             ? (Vector3)(p.rect.min + p.rect.size * rect.anchorMin) : Vector3.zero;
         public Vector3 TransformPoint(Vector3 point)
         {
-            var result = localPosition + Offset + point * localScale;
+            var result = localPosition + Offset + localRotation * (point * localScale);
             return parent == null ? result : parent.TransformPoint(result);
         }
         public Vector3 InverseTransformPoint(Vector3 point)
         {
             if (parent != null) point = parent.InverseTransformPoint(point);
-            return (point - localPosition - Offset) / localScale;
+            return (Quaternion.Inverse(localRotation) * (point - localPosition - Offset)) / localScale;
         }
+        public Vector3 TransformVector(Vector3 vector)
+        { var result = localRotation * (vector * localScale); return parent == null ? result : parent.TransformVector(result); }
+        public Vector3 InverseTransformVector(Vector3 vector)
+        { if (parent != null) vector = parent.InverseTransformVector(vector); return (Quaternion.Inverse(localRotation) * vector) / localScale; }
     }
     public sealed class RectTransform : Transform
     {
@@ -114,15 +121,24 @@ namespace UnityEngine
     { public float alpha = 1; public bool interactable = true, blocksRaycasts = true; }
     public readonly record struct Vector2(float x, float y)
     {
+        public static Vector2 zero => new(0,0);
+        public float sqrMagnitude => x*x+y*y;
+        public float magnitude => MathF.Sqrt(sqrMagnitude);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
+        public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.x - b.x, a.y - b.y);
         public static Vector2 operator -(Vector2 a) => new(-a.x, -a.y);
+        public static Vector2 operator *(Vector2 a, float b) => new(a.x * b, a.y * b);
+        public static Vector2 operator /(Vector2 a, float b) => new(a.x / b, a.y / b);
         public static Vector2 operator *(Vector2 a, Vector2 b) => new(a.x * b.x, a.y * b.y);
         public static implicit operator Vector3(Vector2 a) => new(a.x, a.y, 0);
     }
-    public readonly record struct Vector3(float x, float y, float z)
+    public record struct Vector3(float x, float y, float z)
     {
         public static Vector3 zero => new(0, 0, 0);
         public static Vector3 one => new(1, 1, 1);
+        public static Vector3 up => new(0,1,0);
+        public float sqrMagnitude => x*x+y*y+z*z;
+        public static explicit operator Vector2(Vector3 a) => new(a.x,a.y);
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
         public static Vector3 operator -(Vector3 a) => new(-a.x, -a.y, -a.z);
@@ -131,9 +147,24 @@ namespace UnityEngine
         public static Vector3 operator /(Vector3 a, Vector3 b) => new(a.x / b.x, a.y / b.y, a.z / b.z);
     }
     public readonly record struct Quaternion(float x, float y, float z, float w)
-    { public static Quaternion identity => new(0, 0, 0, 1); }
+    {
+        public static Quaternion identity => new(0, 0, 0, 1);
+        private System.Numerics.Quaternion N => new(x,y,z,w);
+        private static Quaternion From(System.Numerics.Quaternion q) => new(q.X,q.Y,q.Z,q.W);
+        public static Quaternion operator *(Quaternion a, Quaternion b) => From(a.N*b.N);
+        public static Vector3 operator *(Quaternion q, Vector3 v)
+        { var p = System.Numerics.Vector3.Transform(new(v.x,v.y,v.z),q.N); return new(p.X,p.Y,p.Z); }
+        public static Quaternion Inverse(Quaternion q) => From(System.Numerics.Quaternion.Inverse(q.N));
+        public static Quaternion Euler(float x, float y, float z) => From(System.Numerics.Quaternion.CreateFromYawPitchRoll(y*MathF.PI/180,x*MathF.PI/180,z*MathF.PI/180));
+        public static Quaternion LookRotation(Vector3 forward, Vector3 up) => Euler(0,MathF.Atan2(forward.x,forward.z)*180/MathF.PI,0);
+        public Vector3 eulerAngles { get { var f = this * new Vector3(0,0,1); return new(0,MathF.Atan2(f.x,f.z)*180/MathF.PI,0); } }
+    }
     public readonly record struct Rect(Vector2 min, Vector2 size)
-    { public Vector2 center => min + size * new Vector2(.5f, .5f); public float width => size.x; public float height => size.y; }
+    {
+        public Vector2 center => min + size * new Vector2(.5f, .5f); public float width => size.x; public float height => size.y;
+        public float xMin => min.x; public float yMin => min.y; public float xMax => min.x+size.x; public float yMax => min.y+size.y;
+        public bool Contains(Vector2 p) => p.x >= xMin && p.y >= yMin && p.x < xMax && p.y < yMax;
+    }
     public struct Bounds(Vector3 center, Vector3 size)
     {
         private Vector3 _min = center - size * .5f, _max = center + size * .5f;
@@ -145,7 +176,13 @@ namespace UnityEngine
             _max = new(Math.Max(_max.x, p.x), Math.Max(_max.y, p.y), Math.Max(_max.z, p.z));
         }
     }
-    public static class Mathf { public static float Min(float a, float b) => Math.Min(a, b); public static float Clamp01(float v) => Math.Clamp(v,0,1); }
+    public static class Mathf
+    {
+        public static float Min(float a, float b) => Math.Min(a, b); public static float Clamp01(float v) => Math.Clamp(v,0,1);
+        public static float Clamp(float v, float min, float max) => Math.Clamp(v,min,max);
+        public static bool Approximately(float a, float b) => Math.Abs(a-b)<.00001f;
+    }
+    public sealed class Camera : MonoBehaviour { }
     public sealed class Material : Object { }
     public sealed class Sprite : Object { }
     public readonly record struct Color(float r, float g, float b, float a)
@@ -156,13 +193,15 @@ namespace UnityEngine
 }
 namespace UnityEngine.UI
 {
-    public class Graphic : UnityEngine.Component { public bool enabled = true; }
+    public class Graphic : UnityEngine.Component { public bool enabled = true, raycastTarget = true; }
     public sealed class Image : Graphic { public UnityEngine.Material material = null!; public UnityEngine.Color color; public UnityEngine.Sprite? sprite; }
     public sealed class Text : Graphic { public string text = ""; }
 }
 namespace TMPro { public sealed class TMP_Text : UnityEngine.UI.Graphic { public string text = ""; } }
 namespace UnityEngine.XR { public static class XRSettings { public static bool enabled = true; } }
-public sealed class Aircraft : UnityEngine.Object { }
+public class Unit : UnityEngine.Object { }
+public sealed class Aircraft : Unit { public bool disabled; public WeaponManager? weaponManager = new(); }
+public sealed class WeaponManager { public readonly List<Unit> Targets = new(); public List<Unit> GetTargetList() => Targets; }
 public sealed class FlightHud : UnityEngine.MonoBehaviour { }
 public static class SceneSingleton<T> { public static T? i; }
 public static class GameManager
@@ -175,10 +214,12 @@ namespace NOVR.VrUi.SpecialBehavior
     internal static class CockpitHudWidgets
     {
         internal static Aircraft? CurrentAircraft;
+        internal static bool Editing, Visible = true;
         internal static readonly Dictionary<string, UnityEngine.RectTransform> Slots = new();
         internal static readonly Dictionary<string, bool> Content = new();
         internal static bool TryGetContent(string id, out UnityEngine.RectTransform content) => Slots.TryGetValue(id, out content!);
         internal static void SetHasContent(string id, bool visible) => Content[id] = visible;
+        internal static bool IsVisible(string id) => Visible;
     }
 }
 
@@ -186,7 +227,44 @@ public sealed class DynamicMap : UnityEngine.MonoBehaviour
 {
     public static bool mapMaximized;
     public UnityEngine.GameObject mapImage = null!;
+    public UnityEngine.GameObject viewIndicator = null!;
+    public UnityEngine.UI.Image mapBackground = null!;
+    public UnityEngine.Transform mapScaleCenter = null!, mapScaleProxy = null!;
+    public float mapDisplayFactor = 1;
+    public List<MapIcon> mapIcons = new(), selectedIcons = new();
+    public int Changes;
+    public float GetZoomLevel() => mapScaleCenter.localScale.x;
+    public void SetZoomLevel(float zoom)
+    {
+        // Model the narrow production Harmony ownership hook; the native mouse
+        // anchoring body must never run while the floating map is borrowed.
+        if (!NOVR.VrUi.SpecialBehavior.CockpitMapNavigation.TrySetZoom(this, zoom)) throw new Exception("Unowned desktop zoom");
+        Changes++;
+    }
     public void Maximize() { }
+}
+public class MapIcon : UnityEngine.MonoBehaviour { public UnityEngine.UI.Image iconImage = null!; }
+public sealed class UnitMapIcon : MapIcon { public Unit unit = null!; }
+public sealed class CombatHUD
+{
+    public Aircraft? aircraft;
+    public HashSet<Unit> Markers = new();
+    public List<Unit> Selected = new();
+    public bool RefuseSelection;
+    public bool MarkerExists(Unit unit) => Markers.Contains(unit);
+    public void SelectUnit(Unit unit) { if (RefuseSelection) return; Selected.Add(unit); aircraft!.weaponManager!.Targets.Add(unit); }
+}
+public sealed class TargetListSelector
+{
+    public HashSet<Unit> Excluded = new();
+    public bool CheckExclusions(Unit unit) => Excluded.Contains(unit);
+}
+public sealed class CameraStateManager : UnityEngine.MonoBehaviour { }
+namespace NOVR { internal static class APIBus { internal static UnityEngine.Camera? MainCamera = null; } }
+public static class GlobalPositions
+{
+    public static UnityEngine.Vector3 ToGlobalPosition(this UnityEngine.Vector3 p) => p;
+    public static UnityEngine.Vector3 AsVector3(this UnityEngine.Vector3 p) => p;
 }
 namespace HarmonyLib
 {

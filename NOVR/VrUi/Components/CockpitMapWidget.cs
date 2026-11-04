@@ -16,6 +16,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
     {
         internal readonly DynamicMap Map;
         internal readonly RectTransform Root, Slot;
+        internal CockpitMapNavigation? Navigation;
         private readonly Transform? _parent;
         private readonly int _index;
         private readonly Vector2 _anchorsMin, _anchorsMax, _pivot, _size;
@@ -27,6 +28,9 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         private bool _applied;
         private readonly Image? _forwardReference;
         private readonly bool _forwardEnabled;
+        private readonly RectTransform? _background;
+        private readonly Vector2 _backgroundSize, _backgroundBorder;
+        private readonly float _nativeHeight;
         private readonly Dictionary<GameObject, int> _layers = new();
         private readonly List<Transform> _nodes = new();
         private readonly List<GameObject> _gone = new();
@@ -39,6 +43,10 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             _pivot = Root.pivot; _size = Root.sizeDelta;
             _position = Root.localPosition; _scale = Root.localScale; _rotation = Root.localRotation;
             _terrain = terrain; _material = terrain.material; _nativeColor = terrain.color;
+            _nativeHeight = Root.rect.height;
+            _background = map.mapBackground != null ? map.mapBackground.transform as RectTransform : null;
+            _backgroundSize = _background != null ? _background.sizeDelta : Vector2.zero;
+            _backgroundBorder = _background != null ? _background.rect.size - Root.rect.size : Vector2.zero;
             // This arrow belongs to the old HUD anchor, outside DynamicMap.
             var forward = _parent != null ? _parent.Find("forwardRef") : null;
             _forwardReference = forward != null ? forward.GetComponent<Image>() : null;
@@ -62,17 +70,22 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             // Keep RectMask2D: no terrain is drawn outside the native viewport.
             _terrain.material = null!;
             RefreshLayers(); Update();
+            Navigation = new CockpitMapNavigation(Map, Slot);
         }
 
         internal void Update()
         {
             if (!Valid) return;
-            var dimensions = Root.rect.size;
-            if (dimensions.x > 0 && dimensions.y > 0)
+            if (_nativeHeight > 0 && Slot.rect.width > 0 && Slot.rect.height > 0)
             {
-                var factor = Mathf.Min(Slot.rect.width / dimensions.x, Slot.rect.height / dimensions.y);
+                // Change the native clipping viewport, not the terrain/icon
+                // aspect ratio. Every map child retains an isotropic scale.
+                var dimensions = new Vector2(_nativeHeight * Slot.rect.width / Slot.rect.height, _nativeHeight);
+                Root.sizeDelta = dimensions;
+                if (_background != null) _background.sizeDelta = dimensions + _backgroundBorder;
+                var factor = Slot.rect.height / _nativeHeight;
                 Root.localScale = Vector3.one * factor;
-                Root.localPosition = -(Vector3)Root.rect.center * factor;
+                Root.localPosition = (Vector3)Slot.rect.center - (Vector3)Root.rect.center * factor;
             }
             if (_forwardReference != null) _forwardReference.enabled = false;
             if (_terrain == null) return;
@@ -104,6 +117,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
 
         internal void Restore()
         {
+            Navigation?.Dispose(); Navigation = null;
             foreach (var pair in _layers) if (pair.Key != null) pair.Key.layer = pair.Value;
             _layers.Clear(); _nodes.Clear(); _gone.Clear();
             if (_terrain != null)
@@ -113,6 +127,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             }
             if (_forwardReference != null) _forwardReference.enabled = _forwardEnabled;
             if (Root == null || Root.parent != Slot) return;
+            if (_background != null) _background.sizeDelta = _backgroundSize;
             if (_parent == null)
             {
                 Root.gameObject.SetActive(false); Destroy(Root.gameObject); return;
@@ -133,6 +148,10 @@ internal sealed class CockpitMapWidget : MonoBehaviour
     private bool _failed;
 
     private void Awake() => _instance = this;
+    internal static CockpitMapNavigation? Navigation => _instance?._lease?.Valid == true ? _instance._lease.Navigation : null;
+    internal static RectTransform? Viewport => _instance?._lease?.Valid == true ? _instance._lease.Slot : null;
+    internal static bool Available => _instance?._lease?.HasContent == true &&
+        CockpitHudWidgets.IsVisible("map") && !CockpitHudWidgets.Editing && Navigation?.Valid == true;
     internal static void ReleaseAll() { if (_instance != null) _instance.Release(); }
     internal static bool Owns(Transform source) => _instance != null && _instance._lease?.Valid == true &&
         source != null && (source == _instance._lease.Root || source.IsChildOf(_instance._lease.Root));
@@ -171,6 +190,8 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         if (Time.unscaledTime >= _nextLayers)
         { _nextLayers = Time.unscaledTime + .5f; _lease.RefreshLayers(); }
         _lease.Update();
+        if (!Available) _lease.Navigation?.Deactivate();
+        _lease.Navigation?.Tick();
         CockpitHudWidgets.SetHasContent("map", _lease.HasContent);
     }
 

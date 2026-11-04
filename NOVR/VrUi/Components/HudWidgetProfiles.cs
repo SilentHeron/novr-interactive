@@ -14,10 +14,10 @@ namespace NOVR.VrUi.SpecialBehavior;
 internal struct HudWidgetPose
 {
     internal Vector3 Position, Euler;
-    internal float Scale, Opacity, Background;
+    internal float Scale, Opacity, Background, Aspect;
     internal bool Visible;
-    internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true)
-    { Position = position; Euler = euler; Scale = scale; Opacity = opacity; Background = background; Visible = visible; }
+    internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true, float aspect = 1)
+    { Position = position; Euler = euler; Scale = scale; Opacity = opacity; Background = background; Visible = visible; Aspect = aspect; }
 }
 
 internal sealed class HudWidgetProfiles
@@ -120,7 +120,7 @@ internal sealed class HudWidgetProfiles
         var factory = FactoryDefaults;
         foreach (var id in Ids)
             entries.Add(id, _config.Bind(section, id, Encode(factory[id]),
-                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible. Managed by View > Edit layout."));
+                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio. Managed by View > Edit layout."));
         MigrateUntouchedDefaults(section, entries);
         return entries;
     }
@@ -164,6 +164,8 @@ internal sealed class HudWidgetProfiles
         pose.Euler = new Vector3(HudWidgetAngleMath.Pitch(Angle(pose.Euler.x, fallback.Euler.x)),
             HudWidgetAngleMath.Yaw(pose.Euler.y, fallback.Euler.y), 0);
         pose.Scale = Bound(pose.Scale, MinScale, MaxScale, fallback.Scale);
+        pose.Aspect = id == "map" ? HudWidgetShape.Aspect(pose.Aspect) : 1;
+        HudWidgetShape.Normalize(ref pose.Scale, ref pose.Aspect, fallback.Scale);
         pose.Opacity = Bound(pose.Opacity, MinOpacity, 1, fallback.Opacity);
         pose.Background = Bound(pose.Background, 0, 1, fallback.Background);
         return pose;
@@ -175,17 +177,20 @@ internal sealed class HudWidgetProfiles
     private static string Encode(HudWidgetPose p) => string.Join("|", new[] {
         p.Position.x.ToString("R", Invariant), p.Position.y.ToString("R", Invariant), p.Position.z.ToString("R", Invariant),
         p.Euler.x.ToString("R", Invariant), p.Euler.y.ToString("R", Invariant), p.Euler.z.ToString("R", Invariant),
-        p.Scale.ToString("R", Invariant), p.Opacity.ToString("R", Invariant), p.Background.ToString("R", Invariant), p.Visible ? "1" : "0" });
+        p.Scale.ToString("R", Invariant), p.Opacity.ToString("R", Invariant), p.Background.ToString("R", Invariant), p.Visible ? "1" : "0" }) +
+        (p.Aspect == 1 ? "" : "|" + p.Aspect.ToString("R", Invariant));
     private static HudWidgetPose Decode(string id, string text, HudWidgetPose fallback)
     {
         var parts = (text ?? "").Split('|');
-        if (parts.Length != 10) return fallback;
+        if (parts.Length != 10 && parts.Length != 11) return fallback;
         var values = new float[9];
         for (var i = 0; i < values.Length; i++)
             if (!float.TryParse(parts[i], NumberStyles.Float, Invariant, out values[i])) return fallback;
         if (parts[9] != "0" && parts[9] != "1") return fallback;
+        var aspect = 1f;
+        if (parts.Length == 11 && !float.TryParse(parts[10], NumberStyles.Float, Invariant, out aspect)) aspect = 1;
         return Sanitize(id, new HudWidgetPose(new Vector3(values[0], values[1], values[2]), new Vector3(values[3], values[4], values[5]),
-            values[6], values[7], values[8], parts[9] == "1"));
+            values[6], values[7], values[8], parts[9] == "1", aspect));
     }
     private static string Section(string key)
     {

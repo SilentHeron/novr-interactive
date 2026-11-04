@@ -78,13 +78,15 @@ public sealed class MotionFlightController : MonoBehaviour
     internal float Pitch { get; private set; }
     internal float Roll { get; private set; }
     internal float Yaw { get; private set; }
-    internal bool HasYaw => Settings.TwistYaw.Value || Settings.ThumbstickYaw.Value && _stickHand.HasAxis;
+    internal bool HasYaw => Settings.TwistYaw.Value || Settings.ThumbstickYaw.Value && _stickHand.HasAxis &&
+        !CockpitMapInteraction.ReservesThumbstick(Settings.LeftHanded.Value);
     internal float Throttle { get; private set; }
     internal float VtolAxis
     {
         get
         {
             if (!FlightActive || !ThrottleHeld || !_throttleHand.Valid || !_throttleHand.HasAxis || !_hasVtol ||
+                CockpitMapInteraction.ReservesThumbstick(!Settings.LeftHanded.Value) ||
                 _aircraft?.IsAutoHoverEnabled() == true || Mathf.Abs(_throttleHand.Axis.y) < .35f) return 0;
             // Native relative-axis semantics: +/-1 steps the command and also
             // tells the nozzle controller to leave its automatic operating mode.
@@ -282,7 +284,7 @@ public sealed class MotionFlightController : MonoBehaviour
                 Settings.Deadzone.Value, Settings.ResponseExponent.Value);
             stickTwist = Settings.TwistYaw.Value ? FlightControlMath.StickTwist(relative.y, relative.w,
                 Settings.YawAngle.Value, Settings.Deadzone.Value, Settings.ResponseExponent.Value) : 0f;
-            var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis
+            var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis && !CockpitMapInteraction.ReservesThumbstick(Settings.LeftHanded.Value)
                 ? FlightControlMath.Axis(_stickHand.Axis.x, 0.12f, 1f) : 0f;
             Yaw = Mathf.Clamp(stickTwist + thumb, -1f, 1f);
         }

@@ -2,6 +2,7 @@ using HarmonyLib;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
+using NOVR.VrUi.SpecialBehavior;
 
 namespace NOVR.VrUi.HarmonyPatches;
 
@@ -17,6 +18,7 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
+            if (CockpitMapNavigation.TryCenter(__instance)) return false;
             var cameraPosition = SceneSingleton<CameraStateManager>.i.transform.GlobalPosition().AsVector3() * __instance.mapDisplayFactor;
             __instance.mapImage.transform.localPosition = MapOffsetToLocalPosition(__instance, cameraPosition);
             return false;
@@ -29,6 +31,7 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
+            if (CockpitMapNavigation.TryCenter(__instance)) return false;
             var combatHud = SceneSingleton<CombatHUD>.i;
             if (combatHud == null || combatHud.aircraft == null)
                 return false;
@@ -59,6 +62,7 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
+            if (CockpitMapNavigation.TryCenter(__instance)) return false;
             var currentPosition = __instance.mapImage.transform.localPosition;
             var targetPosition = MapOffsetToLocalPosition(__instance, (Vector3)MapTargetField.GetValue(__instance));
             __instance.mapImage.transform.localPosition = Vector3.Lerp(currentPosition, targetPosition, 0.05f);

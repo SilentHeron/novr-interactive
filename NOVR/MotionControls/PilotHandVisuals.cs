@@ -99,7 +99,7 @@ internal sealed class PilotHandVisuals : MonoBehaviour
                 cockpitGrip = new Pose(corner, cornerRotation); pinching = true;
             }
             else if (attachment.HasValue) { cockpitGrip = null; pointing = pinching = false; }
-            else if (CockpitHudWidgets.AppearancePointing(left))
+            else if (CockpitHudWidgets.AppearancePointing(left) || CockpitMapInteraction.Pointing(left))
             {
                 // Inline sliders use direct fingertip contact. Extend the
                 // index without anchoring or moving the tracked wrist.

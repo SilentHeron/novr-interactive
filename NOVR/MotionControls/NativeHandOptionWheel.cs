@@ -102,7 +102,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
 
     private static bool HandAvailable(int side, ControllerSample hand)
     {
-        if (!hand.Valid || !hand.HasAxis || HelmetNightVision.OwnsHand(side == 0)) return false;
+        if (!hand.Valid || !hand.HasAxis || HelmetNightVision.OwnsHand(side == 0) || CockpitMapInteraction.ReservesThumbstick(side == 0)) return false;
         var controls = MotionFlightController.Instance;
         var stick = (side == 0) == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         return controls == null || !(stick ? controls.StickHeld : controls.ThrottleHeld);

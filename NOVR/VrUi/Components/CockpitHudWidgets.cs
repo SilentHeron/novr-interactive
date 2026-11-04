@@ -108,7 +108,13 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         if (Instance != null && Instance._widgets.TryGetValue(id, out var widget)) widget.HasContent = visible;
     }
-    internal static Vector2 Size(string id) => id switch
+    internal static Vector2 Size(string id)
+    {
+        var size = BaseSize(id);
+        return id == "map" && Instance != null && Instance._poses.TryGetValue(id, out var pose)
+            ? HudWidgetShape.Size(size, pose.Aspect) : size;
+    }
+    private static Vector2 BaseSize(string id) => id switch
     {
         "weapons" => new Vector2(420, 170),
         "countermeasures" => new Vector2(260, 135),
@@ -287,7 +293,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         {
             var pose = _poses[id]; var reachable = defaults[id];
             pose.Position = reachable.Position; pose.Euler = reachable.Euler;
-            pose.Scale = Mathf.Min(pose.Scale, reachable.Scale); _poses[id] = pose;
+            pose.Scale = Mathf.Min(pose.Scale, reachable.Scale); _poses[id] = HudWidgetProfiles.Sanitize(id, pose);
         }
         CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
     }
@@ -429,7 +435,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             if (_resizing != id)
             {
                 _resizing = id;
-                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handAngles[0], _handAngles[1]);
+                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handAngles[0], _handAngles[1], id == "map");
             }
             pose = _resizeGesture.Move(pose, _points[0], _points[1], _handAngles[0], _handAngles[1]);
             MovePose(id, pose); return;
@@ -459,6 +465,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         target.Euler = new Vector3(Mathf.Lerp(current.Euler.x, target.Euler.x, blend),
             HudWidgetMotionMath.Angle(current.Euler.y, target.Euler.y, blend), 0);
         target.Scale = Mathf.Lerp(current.Scale, target.Scale, blend);
+        target.Aspect = Mathf.Lerp(current.Aspect, target.Aspect, blend);
         SetPose(id, target);
     }
     private string? SelectAt(Vector3 point, int hand, out int corner)
@@ -550,6 +557,25 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         var go = new GameObject(name, typeof(RectTransform)); go.transform.SetParent(parent, false);
         var rect = (RectTransform)go.transform; rect.sizeDelta = size; return rect;
     }
+    private static void ResizeWidget(Widget widget, Vector2 size)
+    {
+        if (widget.Root.sizeDelta == size) return;
+        widget.Root.sizeDelta = size;
+        widget.Content.sizeDelta = size;
+        widget.Background.rectTransform.sizeDelta = size;
+        for (var i = 0; i < 4; i++)
+        {
+            widget.Corners[i].rectTransform.anchoredPosition = new Vector2((i & 1) == 0 ? -size.x * .5f : size.x * .5f,
+                (i & 2) == 0 ? -size.y * .5f : size.y * .5f);
+            var edge = widget.Outline[i].rectTransform;
+            edge.sizeDelta = i < 2 ? new Vector2(size.x, 2.5f) : new Vector2(2.5f, size.y);
+            edge.anchoredPosition = i < 2 ? new Vector2(0, (i == 0 ? -1 : 1) * size.y * .5f) : new Vector2((i == 2 ? -1 : 1) * size.x * .5f, 0);
+        }
+        widget.Caption.rectTransform.anchoredPosition = new Vector2(0, size.y * .5f + 18);
+        widget.Caption.rectTransform.sizeDelta = new Vector2(size.x + 50, 32);
+        widget.Placeholder.rectTransform.sizeDelta = size - new Vector2(12, 12);
+        widget.Appearance.SetSize(size);
+    }
     private static Image Plate(string name, RectTransform parent, Color color)
     {
         var rect = Rect(name, parent, parent.sizeDelta); var image = rect.gameObject.AddComponent<Image>();
@@ -596,6 +622,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             var widget = pair.Value;
             if (widget.Root == null) continue;
             var pose = _poses[pair.Key];
+            ResizeWidget(widget, Size(pair.Key));
             var show = ready && (pose.Visible || _editing);
             var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
             widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);

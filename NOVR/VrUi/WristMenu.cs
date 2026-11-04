@@ -66,7 +66,8 @@ internal sealed partial class WristMenu : MonoBehaviour
                       Time.timeScale > 0f && (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
                       (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
         var recoveryMap = !cockpit && ControllerActions.MapAccessAvailable;
-        _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && !NativeHandOptionWheel.OwnsHand(menuLeft) && (cockpit || recoveryMap),
+        _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && !NativeHandOptionWheel.OwnsHand(menuLeft) &&
+            !CockpitMapInteraction.ReservesButton(menuLeft, menuBinding.Button, hand.NativeFrame) && (cockpit || recoveryMap),
             ControllerButtonNames.Resolve(menuBinding.Button, hand.NativeFrame) == ControllerButton.Trigger ? 0 : ControllerBindings.Read(hand, menuBinding.Button));
         if (_toggle.Pressed || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
         {

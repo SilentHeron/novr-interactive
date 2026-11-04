@@ -48,6 +48,7 @@ internal sealed class ControllerActions : MonoBehaviour
 
     private void Update()
     {
+        CockpitMapInteraction.UpdateNavigation();
         // Cancel rather than release: ending a HUD drag must not fire a weapon,
         // replay an eject request, or inherit the grip used to move a widget.
         if (CockpitHudWidgets.Editing) { ResetButtons(); return; }
@@ -68,7 +69,8 @@ internal sealed class ControllerActions : MonoBehaviour
             var binding = bindings.Get(action);
             var left = ControllerBindings.ResolveLeft(binding.Hand, leftHanded);
             var sample = TrackedControllers.Read(left);
-            gate.Update(flightControls && (!combat || bindings.CombatEnabled.Value) && sample.Valid && !NativeHandOptionWheel.OwnsHand(left) && HandleHeld(left),
+            gate.Update(flightControls && (!combat || bindings.CombatEnabled.Value) && sample.Valid && !NativeHandOptionWheel.OwnsHand(left) &&
+                !CockpitMapInteraction.ReservesButton(left, binding.Button, sample.NativeFrame) && HandleHeld(left),
                 bindings.ReadFlight(sample, left, binding.Button));
         }
         FlightButton(ControllerActionId.Brake, _brake, false);
@@ -107,7 +109,8 @@ internal sealed class ControllerActions : MonoBehaviour
         }
         var liveHandleHeld = flightControls && HandleHeld(mapLeft) &&
             GameManager.GetLocalAircraft(out var mapAircraft) && !mapAircraft.disabled;
-        _map.Update(bindings.PointerEnabled.Value && mapHand.Valid && !NativeHandOptionWheel.OwnsHand(mapLeft) && MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active &&
+        _map.Update(bindings.PointerEnabled.Value && mapHand.Valid && !NativeHandOptionWheel.OwnsHand(mapLeft) &&
+            !CockpitMapInteraction.ReservesButton(mapLeft, mapBinding.Button, mapHand.NativeFrame) && MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active &&
             !(mapSharesCombat && liveHandleHeld), ControllerButtonNames.Resolve(mapBinding.Button, mapHand.NativeFrame) == ControllerButton.Trigger
                 ? 0 : bindings.ReadFlight(mapHand, mapLeft, mapBinding.Button));
         if (_map.Pressed) ToggleMap();

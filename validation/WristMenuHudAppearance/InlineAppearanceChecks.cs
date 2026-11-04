@@ -83,7 +83,7 @@ internal static class InlineAppearanceChecks
         editor.SetState(true, true, float.NaN, float.NaN);
         Touch(editor, editor.PencilCenter); editor.Dispose();
         Check(!editor.IsOpen && !editor.HitTest(Point(editor.PencilCenter, 0), pixel), "Disposal clears global popup ownership and all contacts");
-        return checks + VisibilityChecks();
+        return checks + VisibilityChecks() + ResizeChecks();
 
         Vector3 Point(Vector2 at, float depth) => new(at.x, at.y, -depth / pixel);
         void Hand(Vector2 at, float depth) => editor.UpdateHand(0, Point(at, depth), true, pixel, device);
@@ -94,6 +94,45 @@ internal static class InlineAppearanceChecks
             target.UpdateHand(side, Point(at, .001f), true, pixel, device);
         }
         void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
+    }
+
+    private static int ResizeChecks()
+    {
+        const float pixel = .0007f * .8f; var checks = 0; var writes = new List<float>();
+        var root = (RectTransform)new GameObject("Rectangular map").transform;
+        using var editor = new CockpitWidgetAppearanceEditor(root, new Vector2(300, 300), writes.Add, _ => throw new Exception("Resize changed visibility"));
+        editor.SetState(true, true, .4f);
+        var oldPencil = editor.PencilCenter;
+        foreach (var size in new[] { new Vector2(600, 150), new Vector2(150, 600), new Vector2(300, 300) })
+        {
+            editor.SetSize(size);
+            Check(editor.PencilCenter.y == size.y * .5f + 62 && editor.EyeCenter.y == editor.PencilCenter.y,
+                "Pencil and eye move above the reshaped map edge");
+            Check(editor.SliderCenter.y == -size.y * .5f - 115, "Opacity popup contact follows the lower map edge");
+            var pencil = (RectTransform)root.children.Single(x => x.gameObject.Name == "Edit widget appearance");
+            var eye = (RectTransform)root.children.Single(x => x.gameObject.Name == "Show or hide widget");
+            Check(pencil.anchoredPosition.y == editor.PencilCenter.y && eye.anchoredPosition.y == editor.EyeCenter.y,
+                "Rendered edit icons and fingertip contacts remain aligned after reshape");
+            Check(editor.HitTest(Point(editor.PencilCenter, .04f), pixel), "Pencil hit testing follows the new location");
+            Hand(editor.PencilCenter, .04f); Hand(editor.PencilCenter, .04f); Hand(editor.PencilCenter, .001f);
+            Check(editor.IsOpen, "Moved pencil opens the appearance popup");
+            var popup = (RectTransform)root.children.Single(x => x.gameObject.Name == "Widget backplate editor");
+            Check(popup.anchoredPosition.y == -size.y * .5f - 110, "Rendered popup follows its new contact region");
+            Hand(editor.SliderCenter, .04f); Hand(editor.SliderCenter, .04f); Hand(editor.SliderCenter, .001f);
+            Check(editor.IsHandBusy(0), "Moved slider accepts deliberate fingertip contact");
+            var count = writes.Count;
+            editor.SetSize(new Vector2(size.x, size.y + 2));
+            Check(!editor.IsHandBusy(0) && writes.Count == count, "Reshape releases slider capture without changing opacity");
+            Hand(editor.SliderCenter, .001f);
+            Check(!editor.IsHandBusy(0) && writes.Count == count, "Moving a popup under a finger cannot synthesize a press");
+            editor.SetState(false, true, .4f); editor.SetState(true, true, .4f);
+        }
+        editor.SetSize(new Vector2(150, 600));
+        Check(!editor.HitTest(Point(oldPencil, 0), pixel), "Old pencil position no longer captures touches after reshaping");
+        return checks;
+        Vector3 Point(Vector2 at, float depth) => new(at.x, at.y, -depth / pixel);
+        void Hand(Vector2 at, float depth) => editor.UpdateHand(0, Point(at, depth), true, pixel, new InputDevice(1));
+        void Check(bool ok, string label) { if (!ok) throw new Exception(label); checks++; }
     }
 
     private static int VisibilityChecks()

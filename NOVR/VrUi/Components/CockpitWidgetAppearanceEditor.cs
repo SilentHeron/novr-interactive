@@ -19,16 +19,17 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private readonly Action<bool> _setVisible;
     private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _eyeTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
     private readonly bool[] _hover = new bool[2];
-    private readonly Vector2 _popupCenter, _popupSize, _closeCenter;
+    private Vector2 _popupCenter, _closeCenter;
+    private readonly Vector2 _popupSize;
     private readonly float _trackWidth;
     private int _sliderOwner = -1, _lastTick;
     private float _background, _lastPulse;
     private float _displayedBackground = -1;
     private float _nextVisibilityChange = float.NegativeInfinity;
     private bool _editing, _visible, _disposed;
-    internal Vector2 PencilCenter { get; }
-    internal Vector2 EyeCenter { get; }
-    internal Vector2 SliderCenter { get; }
+    internal Vector2 PencilCenter { get; private set; }
+    internal Vector2 EyeCenter { get; private set; }
+    internal Vector2 SliderCenter { get; private set; }
     internal bool IsOpen => _open == this && _editing && !_disposed;
     internal bool IsHandBusy(int side) => side >= 0 && side < 2 && _sliderOwner == side;
     internal bool IsPointing(int side) => side >= 0 && side < 2 && (_hover[side] || _sliderOwner == side);
@@ -89,6 +90,22 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, -43), new Vector2(60, 28), 17);
         Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, -43), new Vector2(60, 28), 17);
         _pencil.SetActive(false); _eye.SetActive(false); _popup.SetActive(false);
+    }
+
+    internal void SetSize(Vector2 size)
+    {
+        if (_disposed || PencilCenter.y == size.y * .5f + 62) return;
+        PencilCenter = new Vector2(-40, size.y * .5f + 62);
+        EyeCenter = new Vector2(40, PencilCenter.y);
+        _popupCenter = new Vector2(0, -size.y * .5f - 110);
+        SliderCenter = _popupCenter + new Vector2(0, -5);
+        _closeCenter = _popupCenter + new Vector2(_popupSize.x * .5f - 24, _popupSize.y * .5f - 24);
+        ((RectTransform)_pencil.transform).anchoredPosition = PencilCenter;
+        ((RectTransform)_eye.transform).anchoredPosition = EyeCenter;
+        ((RectTransform)_popup.transform).anchoredPosition = _popupCenter;
+        // The popup keeps a readable standard width; its dock and every contact
+        // region move with the viewport. Moving it under a finger is not a press.
+        ReleaseHands();
     }
 
     internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1)

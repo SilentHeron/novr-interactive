@@ -38,8 +38,12 @@ internal static class ControllerMapPatch
         [HarmonyPrefix]
         private static bool Prefix(DynamicMap __instance, float __0, ref Vector2 ___positionOffset, Vector2 ___stationaryOffset, System.Action? ___onMapChanged)
         {
-            // A cockpit map zoom is centered on the aircraft by CenterMinimizedMap;
-            // desktop mouse coordinates must never become a world-space pivot.
+            // The selected cockpit map retains its center; an unselected map
+            // resumes ownship-follow. Neither uses a desktop mouse pivot.
+            if (CockpitMapNavigation.TrySetZoom(__instance, __0))
+            {
+                ___onMapChanged?.Invoke(); return false;
+            }
             if (!DynamicMap.mapMaximized && CockpitMapWidget.Owns(__instance.transform))
             {
                 var previous = __instance.GetZoomLevel();

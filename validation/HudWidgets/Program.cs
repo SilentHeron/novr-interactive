@@ -178,13 +178,15 @@ try
     HudWidgetAngleChecks.Run(True);
     HudWidgetMotionChecks.Run(True);
     HudWidgetTwoHandChecks.Run(True);
+    HudWidgetMapShapeChecks.Run(True);
+    HudWidgetAspectPersistenceChecks.Run(directory, True);
     Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }
 
 HudWidgetPose Pose(float x, float opacity, float background, bool visible) => new(new Vector3(x, -.25f, .9f), new Vector3(0, 8, 0), 1.2f, opacity, background, visible);
 void Same(HudWidgetPose a, HudWidgetPose b, string label) => True(a.Position.x == b.Position.x && a.Position.y == b.Position.y && a.Position.z == b.Position.z &&
-    a.Euler.x == b.Euler.x && a.Euler.y == b.Euler.y && a.Euler.z == b.Euler.z && a.Scale == b.Scale && a.Opacity == b.Opacity && a.Background == b.Background && a.Visible == b.Visible, label);
+    a.Euler.x == b.Euler.x && a.Euler.y == b.Euler.y && a.Euler.z == b.Euler.z && a.Scale == b.Scale && a.Aspect == b.Aspect && a.Opacity == b.Opacity && a.Background == b.Background && a.Visible == b.Visible, label);
 void Equal<T>(T a, T b, string label) => True(EqualityComparer<T>.Default.Equals(a, b), label);
 void True(bool value, string label) { if (!value) throw new Exception(label); count++; }
 string Encode(HudWidgetPose p) => string.Join("|", new[] { p.Position.x, p.Position.y, p.Position.z,

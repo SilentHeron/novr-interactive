@@ -30,6 +30,8 @@ using (var f = new Fixture())
     f.Slot.sizeDelta = new(300, 260); f.Tick();
     Near(f.Map.transform.localScale.x, 260f/300, "Non-square slot preserves map aspect");
     Near(f.Map.transform.localScale.y, 260f/300, "Y scale matches X");
+    Near(((RectTransform)f.Map.transform).rect.width * f.Map.transform.localScale.x, 300, "Rectangular viewport fills width without stretching map");
+    Near(f.Map.mapBackground.transform.localScale.x, f.Map.mapBackground.transform.localScale.y, "Native background uses uniform scale");
     f.Terrain.color = new Color(.2f,.8f,.6f,.7f); var changed = f.Terrain.color;
     f.Tick(); f.Tick(); CockpitMapWidget.ReleaseAll();
     Check(f.Terrain.color == changed, "Restoration preserves a native theme change during ownership");
@@ -69,6 +71,7 @@ using (var f = new Fixture())
     f.Tick(); Object.Destroy(f.Parent.gameObject); CockpitMapWidget.ReleaseAll();
     Check(f.Map == null, "Destroyed scene owner cannot orphan native singleton inside widget rig");
 }
+count += NavigationChecks.Run();
 Console.WriteLine($"{count} source-linked map widget lifecycle checks passed.");
 
 sealed class Fixture : IDisposable
@@ -76,19 +79,28 @@ sealed class Fixture : IDisposable
     internal readonly RectTransform Parent, Slot;
     internal readonly DynamicMap Map;
     internal readonly Image Terrain, Forward;
+    internal readonly CombatHUD Hud;
+    internal readonly TargetListSelector Selector;
     internal readonly Material Material = new();
     internal readonly Color NativeColor = new(0,.3f,0,.6f);
     private readonly CockpitMapWidget _adapter;
     internal Fixture()
     {
         CockpitMapWidget.ReleaseAll(); CockpitHudWidgets.Slots.Clear(); CockpitHudWidgets.Content.Clear();
+        CockpitHudWidgets.Editing = false; CockpitHudWidgets.Visible = true;
         Time.unscaledTime = 0; UnityEngine.XR.XRSettings.enabled = true; DynamicMap.mapMaximized = false;
         GameManager.Aircraft = CockpitHudWidgets.CurrentAircraft = new Aircraft();
+        Hud = new CombatHUD { aircraft = GameManager.Aircraft }; Selector = new TargetListSelector();
+        SceneSingleton<CombatHUD>.i = Hud; SceneSingleton<TargetListSelector>.i = Selector;
         Parent = new GameObject("HUDMapAnchor").transform;
         var arrow = new GameObject("forwardRef"); arrow.transform.SetParent(Parent,false); Forward = arrow.AddComponent<Image>();
         var go = new GameObject("MapCanvas"); go.transform.SetParent(Parent,false); go.transform.sizeDelta = new(300,300);
         Map = go.AddComponent<DynamicMap>(); SceneSingleton<DynamicMap>.i = Map;
-        var image = new GameObject("mapImage") {layer=3}; image.transform.SetParent(go.transform,false);
+        var background = new GameObject("mapBackground"); background.transform.SetParent(go.transform,false); background.transform.sizeDelta = new(320,320);
+        Map.mapBackground = background.AddComponent<Image>();
+        Map.mapScaleCenter = new GameObject("zoom center").transform; Map.mapScaleCenter.SetParent(go.transform,false); Map.mapScaleCenter.localScale = Vector3.one * 2;
+        Map.mapScaleProxy = new GameObject("zoom proxy").transform; Map.mapScaleProxy.SetParent(background.transform,false);
+        var image = new GameObject("mapImage") {layer=3}; image.transform.SetParent(background.transform,false); image.transform.sizeDelta = new(2000,2000); image.transform.localScale = Vector3.one * 2;
         Terrain = image.AddComponent<Image>(); Terrain.material = Material; Terrain.color = NativeColor; Terrain.sprite = new Sprite(); Map.mapImage = image;
         Slot = new GameObject("slot") {layer=30}.transform; Slot.sizeDelta = new(300,300); CockpitHudWidgets.Slots["map"] = Slot;
         _adapter = new GameObject("adapter").AddComponent<CockpitMapWidget>();
@@ -101,6 +113,7 @@ sealed class Fixture : IDisposable
     public void Dispose()
     {
         CockpitMapWidget.ReleaseAll(); SceneSingleton<DynamicMap>.i = null;
+        SceneSingleton<CombatHUD>.i = null; SceneSingleton<TargetListSelector>.i = null;
         typeof(CockpitMapWidget).GetMethod("OnDestroy",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(_adapter,null);
         Object.Destroy(_adapter.gameObject); Object.Destroy(Parent.gameObject); Object.Destroy(Slot.gameObject);
     }
