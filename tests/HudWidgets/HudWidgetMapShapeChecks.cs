@@ -17,24 +17,25 @@ internal static class HudWidgetMapShapeChecks
                 var span = initial * localSpan;
                 var left = midpoint - span * .5f;
                 var right = midpoint + span * .5f;
-                var leftAngles = new Vector2(-7, 155);
-                var rightAngles = new Vector2(15, -120);
-                var gesture = new HudWidgetTwoHandGesture(pose, left, right, leftAngles, rightAngles, true);
-                var joined = gesture.Move(pose, left, right, leftAngles, rightAngles);
+                var leftRotation = Quaternion.Euler(-7, 155, 43);
+                var rightRotation = Quaternion.Euler(15, -120, -62);
+                var gesture = new HudWidgetTwoHandGesture(pose, left, right, leftRotation, rightRotation, true);
+                var joined = gesture.Move(pose, left, right, leftRotation, rightRotation);
                 SameGeometry(joined, pose, "Second corner joins a rectangular map without a jump");
 
                 var translation = new Vector3(-.07f, .03f, .05f);
-                var translated = gesture.Move(pose, left + translation, right + translation, leftAngles, rightAngles);
+                var translated = gesture.Move(pose, left + translation, right + translation, leftRotation, rightRotation);
                 Near((translated.Position - pose.Position - translation).magnitude, 0, "Map follows two-hand midpoint");
                 Near(translated.Scale, pose.Scale, "Translation retains map size");
                 Near(translated.Aspect, pose.Aspect, "Translation retains map shape");
 
                 var rotation = Quaternion.Euler(37, 42, 0);
                 var targetMid = midpoint + translation;
-                var targetAnglesLeft = new Vector2(18, -135);
-                var targetAnglesRight = new Vector2(40, -50);
+                var delta = rotation * Quaternion.Inverse(initial);
+                var targetLeftRotation = delta * leftRotation;
+                var targetRightRotation = delta * rightRotation;
                 var rotatedSpan = rotation * localSpan;
-                var rotated = gesture.Move(pose, targetMid - rotatedSpan * .5f, targetMid + rotatedSpan * .5f, targetAnglesLeft, targetAnglesRight);
+                var rotated = gesture.Move(pose, targetMid - rotatedSpan * .5f, targetMid + rotatedSpan * .5f, targetLeftRotation, targetRightRotation);
                 Near(rotated.Scale, pose.Scale, "Rotating the viewport cannot resize it");
                 Near(rotated.Aspect, pose.Aspect, "Rotating the viewport cannot reshape it");
 
@@ -42,7 +43,7 @@ internal static class HudWidgetMapShapeChecks
                 var targetSpan = rotation * new Vector3(localSpan.x * xFactor, localSpan.y * yFactor, localSpan.z * 3);
                 var movedLeft = targetMid - targetSpan * .5f;
                 var movedRight = targetMid + targetSpan * .5f;
-                var resized = gesture.Move(pose, movedLeft, movedRight, targetAnglesLeft, targetAnglesRight);
+                var resized = gesture.Move(pose, movedLeft, movedRight, targetLeftRotation, targetRightRotation);
                 var newShape = HudWidgetShape.Factors(resized.Aspect);
                 Near(resized.Scale * newShape.x, pose.Scale * shape.x * xFactor, "Horizontal corner travel independently resizes map width");
                 Near(resized.Scale * newShape.y, pose.Scale * shape.y * yFactor, "Vertical corner travel independently resizes map height");
@@ -53,10 +54,10 @@ internal static class HudWidgetMapShapeChecks
                 Near((resized.Position - targetMid - rotation * expectedOffset).magnitude, 0, "Off-centre corner contacts follow each dimension independently");
                 check(resized.Opacity == pose.Opacity && resized.Background == pose.Background && resized.Visible == pose.Visible,
                     "Reshaping a map preserves appearance settings");
-                SameGeometry(gesture.Move(resized, movedLeft, movedRight, targetAnglesLeft, targetAnglesRight), resized,
+                SameGeometry(gesture.Move(resized, movedLeft, movedRight, targetLeftRotation, targetRightRotation), resized,
                     "Stationary hands cannot accumulate map shape or placement drift");
-                var rejoined = new HudWidgetTwoHandGesture(resized, movedLeft, movedRight, targetAnglesLeft, targetAnglesRight, true);
-                SameGeometry(rejoined.Move(resized, movedLeft, movedRight, targetAnglesLeft, targetAnglesRight), resized,
+                var rejoined = new HudWidgetTwoHandGesture(resized, movedLeft, movedRight, targetLeftRotation, targetRightRotation, true);
+                SameGeometry(rejoined.Move(resized, movedLeft, movedRight, targetLeftRotation, targetRightRotation), resized,
                     "A new two-hand gesture starts from the displayed rectangular shape");
 
                 foreach (var remaining in new[] { movedLeft, movedRight })
@@ -65,12 +66,12 @@ internal static class HudWidgetMapShapeChecks
                     Near((remaining - rotation * anchor - resized.Position).magnitude, 0,
                         "Releasing either corner keeps the one-hand drag anchored without a position jump");
                 }
-                var reversed = gesture.Move(resized, movedRight, movedLeft, targetAnglesLeft, targetAnglesRight);
+                var reversed = gesture.Move(resized, movedRight, movedLeft, targetLeftRotation, targetRightRotation);
                 Near(reversed.Scale, resized.Scale, "Crossing both corners retains the displayed map dimensions");
                 Near(reversed.Aspect, resized.Aspect, "Crossing corners cannot mirror map contents");
 
                 var deepSpan = initial * new Vector3(localSpan.x, localSpan.y, .5f);
-                var depth = gesture.Move(pose, midpoint - deepSpan * .5f, midpoint + deepSpan * .5f, leftAngles, rightAngles);
+                var depth = gesture.Move(pose, midpoint - deepSpan * .5f, midpoint + deepSpan * .5f, leftRotation, rightRotation);
                 Near(depth.Scale, pose.Scale, "Out-of-plane depth motion does not distort map size");
                 Near(depth.Aspect, pose.Aspect, "Out-of-plane depth motion does not distort map proportions");
             }

@@ -14,7 +14,8 @@ internal sealed class NativeRadialMenuLease : IDisposable
 {
     private static readonly FieldInfo Menu = Field("menuObject"), Main = Field("actionsMainContainer"), Weapons = Field("actionsWeaponsContainer"),
         MainActions = Field("allowedActionsMain"), WeaponActions = Field("allowedActionsWeapons"), State = Field("currentState"),
-        Selected = Field("selectedAction"), Caption = Field("selectedActionText"), Group = Field("canvasGroup");
+        Selected = Field("selectedAction"), Caption = Field("selectedActionText"), Group = Field("canvasGroup"),
+        MainObjects = Field("actionObjectsMain"), Sector = Field("sectorObject");
     private static FieldInfo Field(string name) => AccessTools.Field(typeof(RadialMenuMain), name) ??
         throw new MissingFieldException(typeof(RadialMenuMain).FullName, name);
     internal readonly RadialMenuMain Native;
@@ -33,11 +34,13 @@ internal sealed class NativeRadialMenuLease : IDisposable
     private readonly Dictionary<GameObject, int> _layers = new();
     private readonly Dictionary<Graphic, bool> _raycasts = new();
     private RadialMenuAction? _hovered;
+    private NativeWheelMenuEntries? _menuEntries;
+    private NativeWheelMenuAction _menuHovered;
     internal bool WeaponsPage
     {
         get; private set;
     }
-    internal int Count => Actions.Count;
+    internal int Count => Actions.Count + (!WeaponsPage && _menuEntries != null ? NativeWheelMenuEntries.Count : 0);
     private List<RadialMenuAction> Actions => WeaponsPage ? _weaponActions : _mainActions;
     internal bool Valid => Native != null && Native.isActiveAndEnabled && _rect != null && _parent != null;
 
@@ -75,6 +78,9 @@ internal sealed class NativeRadialMenuLease : IDisposable
         try
         {
             native.OpenMenu(); // Native aircraft filtering, station creation and ammo readouts.
+            var objects = MainObjects.GetValue(native) as List<GameObject> ?? throw new InvalidOperationException("Missing native main entry objects");
+            var template = Require(Sector.GetValue(native) as GameObject, "sector template");
+            _menuEntries = new NativeWheelMenuEntries(_main.transform, objects, _mainActions.Count, template);
             foreach (var node in _rect.GetComponentsInChildren<Transform>(true))
             {
                 _layers[node.gameObject] = node.gameObject.layer;
@@ -118,18 +124,23 @@ internal sealed class NativeRadialMenuLease : IDisposable
     }
     internal bool Hover(int index)
     {
+        var menu = MenuAt(index);
         var next = index >= 0 && index < Actions.Count ? Actions[index] : null;
-        if (next == _hovered)
+        if (next == _hovered && menu == _menuHovered)
             return false;
         if (_hovered != null)
             _hovered.UnHover();
         _hovered = next;
+        _menuHovered = menu;
+        _menuEntries?.Hover(menu);
         Selected.SetValue(Native, next);
-        _caption.text = next != null ? next.DisplayName : "";
+        _caption.text = menu == NativeWheelMenuAction.GameMenu ? "GAME MENU" :
+            menu == NativeWheelMenuAction.VrMenu ? "VR MENU" : next != null ? next.DisplayName : "";
         if (next != null)
             next.Hover();
-        return next != null;
+        return next != null || menu != NativeWheelMenuAction.None;
     }
+    internal NativeWheelMenuAction MenuAt(int index) => !WeaponsPage && _menuEntries != null ? _menuEntries.ActionAt(index) : NativeWheelMenuAction.None;
     internal RadialMenuAction? ActionAt(int index) => index >= 0 && index < Actions.Count ? Actions[index] : null;
     public void Dispose()
     {
@@ -148,6 +159,9 @@ internal sealed class NativeRadialMenuLease : IDisposable
     }
     private void Restore()
     {
+        _menuEntries?.Dispose();
+        _menuEntries = null;
+        _menuHovered = NativeWheelMenuAction.None;
         if (_rect != null)
         {
             // Cancellation is immediate, never a native fade/release action.

@@ -19,6 +19,7 @@ RUN_DIRECTORY = ROOT / "tools" / "verification"
 PORTABLE = (
     ("core", "tests/Core/NOVR.Tests.csproj"),
     ("patcher-payload", "tests/PatcherPayload/PatcherPayloadChecks.csproj"),
+    ("graphics-startup", "tests/GraphicsStartup/GraphicsStartupChecks.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
     ("ui-patching", "tests/UiBehaviorPatcher/UiBehaviorPatcherChecks.csproj"),
     ("api-lifecycle", "tests/ApiBus/ApiBusChecks.csproj"),

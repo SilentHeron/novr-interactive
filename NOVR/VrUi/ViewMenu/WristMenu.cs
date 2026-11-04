@@ -179,6 +179,18 @@ internal sealed partial class WristMenu : MonoBehaviour
         }
     }
 
+    internal static bool OpenFromHandWheel()
+    {
+        if (_instance == null || !_instance.isActiveAndEnabled || IsOpen ||
+            CameraStateManager.cameraMode != CameraMode.cockpit || Time.timeScale <= 0 ||
+            !GameManager.GetLocalAircraft(out var aircraft) || aircraft.disabled ||
+            (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) ||
+            (GameManager.controlMapper != null && GameManager.controlMapper.isOpen))
+            return false;
+        _instance.Open();
+        return IsOpen;
+    }
+
     private void Open()
     {
         if (DynamicMap.mapMaximized)

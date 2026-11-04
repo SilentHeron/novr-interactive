@@ -127,6 +127,27 @@ internal static class ActionChecks
         check(toggled.Actions.GunsHeld, "Fresh press after combat re-enable fires normally");
         toggled.Invoke("OnDestroy");
         check(ControllerActions.Instance == null, "Destruction clears the controller action owner");
+        foreach (var leftHanded in new[] { false, true })
+        {
+            var f = Start(ControllerActionId.NextCountermeasure, true, ControllerBindingProfile.Touch, leftHanded);
+            f.Bindings.ResetProfile();
+            f.TickThrottleClick(false, true);
+            f.TickThrottleClick(true, true);
+            check(!f.Actions.Released(NativeControllerAction.NextCountermeasure), "held Touch click does not cycle until release");
+            f.TickThrottleClick(false, true);
+            check(f.Actions.Released(NativeControllerAction.NextCountermeasure), "Touch throttle click releases one CM-cycle action in either handedness");
+            f.TickThrottleClick(false, true);
+            check(!f.Actions.Released(NativeControllerAction.NextCountermeasure), "Touch CM-cycle release never repeats");
+            f.TickThrottleClick(false, false);
+            f.TickThrottleClick(true, false);
+            f.TickThrottleClick(false, false);
+            check(!f.Actions.Released(NativeControllerAction.NextCountermeasure), "free-hand thumbstick click stays available to wheel, not CM cycling");
+            f.TickThrottleClick(true, false);
+            f.TickThrottleClick(true, true);
+            f.TickThrottleClick(false, true);
+            check(!f.Actions.Released(NativeControllerAction.NextCountermeasure), "gripping while a free-hand click is held cannot synthesize a CM cycle");
+            f.Invoke("OnDestroy");
+        }
     }
 
     private sealed class Fixture
@@ -165,6 +186,14 @@ internal static class ActionChecks
             Time.frameCount++;
             TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
             TrackedControllers.Samples[_left ? 0 : 1].Primary = pressed;
+            Invoke("Update");
+        }
+        internal void TickThrottleClick(bool pressed, bool held)
+        {
+            Time.frameCount++;
+            TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = true, NativeFrame = false };
+            TrackedControllers.Samples[_left ? 1 : 0].StickClick = pressed;
+            MotionFlightController.Instance!.ThrottleHeld = held;
             Invoke("Update");
         }
         internal void Invoke(string name) => typeof(ControllerActions).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Actions, null);

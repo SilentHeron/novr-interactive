@@ -183,7 +183,7 @@ internal sealed partial class CockpitHudWidgets
         }
         _hover[0] = _hover[1] = null;
         _resizing = null;
-        _angleValid[0] = _angleValid[1] = false;
+        _handRotations[0] = _handRotations[1] = Quaternion.identity;
         _appearanceBusy[0] = _appearanceBusy[1] = false;
         foreach (var widget in _widgets.Values)
             widget.Appearance.ReleaseHands();

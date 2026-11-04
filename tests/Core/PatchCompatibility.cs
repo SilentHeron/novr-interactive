@@ -78,6 +78,8 @@ internal static class PatchCompatibility
         // private fields in addition to the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
         foreach (var contract in new[] {
+            (owner: "RadialMenuMain", field: "actionObjectsMain", type: "System.Collections.Generic.List`1<UnityEngine.GameObject>"),
+            (owner: "RadialMenuMain", field: "sectorObject", type: "UnityEngine.GameObject"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_hostedLobby", type: "NuclearOption.Networking.Lobbies.HostedLobbyInstance"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_joinedLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "joinPendingLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
@@ -140,6 +142,16 @@ internal static class PatchCompatibility
             var field = AllTypes(game.MainModule.Types).Single(t => t.FullName == contract.owner).Fields.SingleOrDefault(f => f.Name == contract.field);
             if (field?.FieldType.FullName != contract.type)
                 failures.Add($"Native readout field mismatch {contract.owner}.{contract.field}");
+        }
+        var gameplayUi = game.MainModule.Types.Single(t => t.FullName == "GameplayUI");
+        if (!gameplayUi.Methods.Any(m => m.Name == "PauseGame" && m.IsPublic && !m.IsStatic &&
+            m.ReturnType.FullName == "System.Void" && m.Parameters.Count == 0))
+            failures.Add("Native game-menu PauseGame entry point changed.");
+        foreach (var name in new[] { "AllowPauseKeybind", "GameIsPaused" })
+        {
+            var property = gameplayUi.Properties.SingleOrDefault(p => p.Name == name);
+            if (property?.PropertyType.FullName != "System.Boolean" || property.GetMethod?.IsPublic != true || property.GetMethod.IsStatic != true)
+                failures.Add("Native game-menu availability property changed: " + name);
         }
         using var urp = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Unity.RenderPipelines.Universal.Runtime.dll"));
         if (urp.MainModule.Types.Single(t => t.Name == "UniversalAdditionalCameraData").Fields.SingleOrDefault(f => f.Name == "m_ClearDepth")?.FieldType.FullName != "System.Boolean")

@@ -15,12 +15,28 @@ internal static class HudWidgetAngleChecks
                     Near(angles.pitch, pitch, "Wrist roll cannot change widget pitch");
                     Near(angles.yaw, yaw, "Wrist roll cannot change widget yaw");
                 }
-        var unchanged = HudWidgetAngleMath.Drag(24, -51, -20, 100, -20, 100);
-        Near(unchanged.pitch, 24, "Acquiring/rebasing a tilted widget preserves pitch");
-        Near(unchanged.yaw, -51, "Acquiring/rebasing a tilted widget preserves yaw");
-        var wrapped = HudWidgetAngleMath.Drag(10, 30, 0, 179, 5, -179);
-        Near(wrapped.pitch, 15, "Controller tilt adds relative pitch");
-        Near(wrapped.yaw, 32, "Heading crossing 180 degrees moves two degrees, not a full turn");
+        // Grip orientation is arbitrary: both hands, backward/vertical wrists,
+        // and rolled controllers must follow the same physical panel rotation.
+        foreach (var pitch in new[] { -90f, -40, 0, 65, 90 })
+            foreach (var yaw in new[] { -179f, -90, 0, 90, 180 })
+                foreach (var roll in new[] { -110f, 0, 120 })
+                {
+                    var grip = Quaternion.Euler(pitch, yaw, roll);
+                    var start = new Vector3(24, -51, 0);
+                    var unchanged = HudWidgetRotationMath.Drag(start, grip, grip, start);
+                    Near((unchanged - start).magnitude, 0, "Acquiring any wrist orientation preserves displayed panel");
+                    var target = new Vector3(-23, -19, 0);
+                    var delta = Quaternion.Euler(target.x, target.y, 0) * Quaternion.Inverse(Quaternion.Euler(start.x, start.y, 0));
+                    var moved = HudWidgetRotationMath.Drag(start, grip, delta * grip, start);
+                    Near((moved - target).magnitude, 0, "Panel follows actual tilt toward viewer regardless of controller heading/roll");
+                    var twist = Quaternion.Euler(start.x, start.y, 67) * Quaternion.Inverse(Quaternion.Euler(start.x, start.y, 0));
+                    var noRoll = HudWidgetRotationMath.Drag(start, grip, twist * grip, start);
+                    Near((noRoll - start).magnitude, 0, "Rolling around panel normal keeps pitch/yaw and locks panel roll");
+                }
+        var wrapped = HudWidgetRotationMath.Drag(new Vector3(10, 30, 0), Quaternion.Euler(0, 179, 0),
+            Quaternion.Euler(0, -179, 0), new Vector3(10, 30, 0));
+        Near(wrapped.x, 10, "Heading seam cannot change panel tilt");
+        Near(wrapped.y, 32, "Heading crossing 180 degrees moves two degrees, not a full turn");
         var pole = HudWidgetAngleMath.Direction(0, 1, 0, 12, 48);
         Near(pole.yaw, 48, "Near vertical controller retains heading");
         foreach (var sign in new[] { -1, 1 })
@@ -37,13 +53,17 @@ internal static class HudWidgetAngleChecks
                 previousYaw = a.yaw;
             }
         }
-        Near(HudWidgetAngleMath.Drag(75, 0, 0, 0, 20, 0).pitch, 80, "Pitch cannot cross a panel singularity");
+        Near(HudWidgetRotationMath.Drag(new Vector3(75, 0, 0), Quaternion.identity, Quaternion.Euler(20, 0, 0),
+            new Vector3(75, 0, 0)).x, 80, "Pitch cannot cross a panel singularity");
         foreach (var invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
         {
             var safe = HudWidgetAngleMath.Direction(invalid, 0, 1, 12, 48);
             check(safe.pitch == 12 && safe.yaw == 48, "Bad tracking retains prior angle");
             Near(HudWidgetAngleMath.Pitch(invalid, 13), 13, "Invalid pitch uses fallback");
             Near(HudWidgetAngleMath.Yaw(invalid, 37), 37, "Invalid yaw uses fallback");
+            var previous = new Vector3(12, 48, 0);
+            var held = HudWidgetRotationMath.Drag(previous, Quaternion.identity, Quaternion.Euler(invalid, 0, 0), previous);
+            Near((held - previous).magnitude, 0, "Invalid controller rotation retains displayed panel angle");
         }
         // Holding an off-centre point while tilting must keep that exact point
         // attached, rather than orbiting the whole panel around its centre.

@@ -12,7 +12,33 @@ namespace UnityEngine
 {
     public class Object
     {
+        internal static bool FailInstantiate;
+        internal static int InstantiateCalls, FailInstantiateAt;
         internal bool Dead;
+        public static GameObject Instantiate(GameObject source, Transform parent)
+        {
+            InstantiateCalls++;
+            if (FailInstantiate || InstantiateCalls == FailInstantiateAt)
+            {
+                FailInstantiate = false;
+                FailInstantiateAt = 0;
+                throw new InvalidOperationException("injected clone failure");
+            }
+            var clone = new GameObject(source.name + " clone");
+            clone.transform.SetParent(parent, false);
+            clone.transform.localPosition = source.transform.localPosition;
+            clone.transform.localRotation = source.transform.localRotation;
+            clone.transform.localScale = source.transform.localScale;
+            var original = source.GetComponent<UnityEngine.UI.Image>();
+            if (original != null)
+            {
+                var image = clone.AddComponent<UnityEngine.UI.Image>();
+                image.fillAmount = original.fillAmount;
+                image.color = original.color;
+                image.raycastTarget = original.raycastTarget;
+            }
+            return clone;
+        }
         public static bool operator ==(Object? a, Object? b) => ReferenceEquals(a, b) || (a is null || a.Dead) && (b is null || b.Dead);
         public static bool operator !=(Object? a, Object? b) => !(a == b);
         public override bool Equals(object? obj) => ReferenceEquals(this, obj);
@@ -61,12 +87,18 @@ namespace UnityEngine
         public int layer;
         public bool activeSelf = true, FailActivation;
         public bool activeInHierarchy => !Dead && activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
-        public GameObject(string name)
+        public GameObject(string name, params Type[] components)
         {
             this.name = name;
             transform = new RectTransform { gameObject = this };
             Components.Add(transform);
+            foreach (var type in components)
+                if (type != typeof(RectTransform))
+                    Components.Add((Component)Activator.CreateInstance(type)!);
+            foreach (var component in Components)
+                component.gameObject = this;
         }
+        public T GetComponent<T>() where T : Component => Components.OfType<T>().FirstOrDefault()!;
         public T AddComponent<T>() where T : Component, new()
         {
             var result = new T { gameObject = this };
@@ -139,6 +171,29 @@ namespace UnityEngine
     public readonly record struct Quaternion(float x, float y, float z, float w)
     {
         public static Quaternion identity => new(0, 0, 0, 1);
+        public static Quaternion Euler(float x, float y, float z) => new(x, y, z, 0);
+    }
+    public readonly record struct Color(float r, float g, float b, float a = 1)
+    {
+        public static Color white => new(1, 1, 1);
+    }
+    public sealed class Font : Object
+    {
+    }
+    public enum TextAnchor
+    {
+        MiddleCenter
+    }
+    public static class Resources
+    {
+        public static T GetBuiltinResource<T>(string name) where T : Object, new() => new();
+    }
+    public static class Mathf
+    {
+        public const float Deg2Rad = MathF.PI / 180;
+        public static float Sin(float x) => MathF.Sin(x);
+        public static float Cos(float x) => MathF.Cos(x);
+        public static float Max(float a, float b) => Math.Max(a, b);
     }
 }
 namespace UnityEngine.UI
@@ -146,6 +201,19 @@ namespace UnityEngine.UI
     public class Graphic : UnityEngine.Component
     {
         public bool raycastTarget = true;
+        public UnityEngine.Color color;
+        public UnityEngine.RectTransform rectTransform => gameObject.transform;
+    }
+    public class Image : Graphic
+    {
+        public float fillAmount = 1;
+    }
+    public class Text : Graphic
+    {
+        public UnityEngine.Font font = null!;
+        public int fontSize;
+        public string text = "";
+        public UnityEngine.TextAnchor alignment;
     }
 }
 namespace TMPro
@@ -170,7 +238,8 @@ public class RadialMenuMain : UnityEngine.MonoBehaviour
     {
         Closed, Main, Weapons
     }
-    public UnityEngine.GameObject menuObject = null!, actionsMainContainer = null!, actionsWeaponsContainer = null!;
+    public UnityEngine.GameObject menuObject = null!, actionsMainContainer = null!, actionsWeaponsContainer = null!, sectorObject = null!;
+    public List<UnityEngine.GameObject> actionObjectsMain = new();
     public List<RadialMenuAction> allowedActionsMain = new(), allowedActionsWeapons = new();
     public RadialMenuType currentState;
     public RadialMenuAction? selectedAction;

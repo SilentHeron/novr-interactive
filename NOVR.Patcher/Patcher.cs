@@ -96,6 +96,11 @@ public class Patcher
     // install when the XR assemblies do not yet exist in the game's Managed folder.
     public static void Initialize()
     {
+        if (!StartupHandoff.WaitForOriginalProcess())
+        {
+            Environment.Exit(1);
+            return;
+        }
         Console.WriteLine("[NOVR.Patcher] Preparing runtime payload.");
         using var process = Process.GetCurrentProcess();
         var gameExePath = process.MainModule?.FileName

@@ -15,6 +15,7 @@
     </PropertyGroup>
     
     <ItemGroup>
+        <Compile Include="../NOVR/Compatibility/GraphicsStartupProtocol.cs" Link="GraphicsStartupProtocol.cs" />
         <Reference Include="$(NuclearOptionFallbackLibDir)/*.dll">
             <Private>False</Private>
         </Reference>

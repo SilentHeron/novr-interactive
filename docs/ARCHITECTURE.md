@@ -9,8 +9,14 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
 1. [`NOVR.Patcher`](../NOVR.Patcher/Patcher.cs) installs the XR payload before
    ordinary plugins load. Its managed upgrade path handles assemblies already
    opened by the preloader; see the [vendor boundary](XR_VENDORING.md).
-2. [`NOVRPlugin`](../NOVR/NOVRPlugin.cs) publishes configuration, initializes
-   compatibility handling, applies Harmony patches and creates `Core`.
+2. [`NOVRPlugin`](../NOVR/NOVRPlugin.cs) first checks the graphics backend through
+   [`D3D11Startup`](../NOVR/Compatibility/D3D11Startup.cs). A Steam Windows/Proton
+   launch using another backend hands off once to the same executable with D3D11.
+   [`StartupHandoff`](../NOVR.Patcher/StartupHandoff.cs) waits for that parent before
+   copying payload or initializing plugins; the retry never changes saved Steam
+   options. Flat/headless launches skip NOVR runtime creation. Normal startup then
+   publishes configuration, initializes compatibility handling, applies Harmony
+   patches and creates `Core`.
 3. [`Core.Awake`](../NOVR/Core.cs) registers the persistent feature components.
    `Core.Start` creates headset/UI state and enables XR through
    [`VrTogglerManager`](../NOVR/VrTogglers/VrTogglerManager.cs).

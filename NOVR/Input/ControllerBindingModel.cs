@@ -53,7 +53,7 @@ internal static class ControllerBindingDefaults
             ControllerActionId.NextWeapon => new(touch ? ControllerButton.Secondary : ControllerButton.TopOrSecondary,
                 touch ? ControllerHandRole.Throttle : ControllerHandRole.Stick),
             ControllerActionId.Countermeasures => new(ControllerButton.Primary, ControllerHandRole.Throttle),
-            ControllerActionId.NextCountermeasure => new(touch ? ControllerButton.None : ControllerButton.Secondary, ControllerHandRole.Throttle),
+            ControllerActionId.NextCountermeasure => new(touch ? ControllerButton.StickClick : ControllerButton.Secondary, ControllerHandRole.Throttle),
             ControllerActionId.Brake => new(ControllerButton.Trigger, ControllerHandRole.Throttle),
             ControllerActionId.Map => new(ControllerButton.OutsideOrSecondary, ControllerHandRole.Stick),
             ControllerActionId.WristMenu => new(ControllerButton.Menu, ControllerHandRole.Left),

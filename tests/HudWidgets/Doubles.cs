@@ -35,6 +35,8 @@ public struct Quaternion
     private readonly N.Quaternion _value;
     private Quaternion(N.Quaternion value) => _value = value;
     public static Quaternion identity => new(N.Quaternion.Identity);
+    public static Quaternion operator *(Quaternion left, Quaternion right) => new(left._value * right._value);
+    public static Quaternion Slerp(Quaternion left, Quaternion right, float t) => new(N.Quaternion.Slerp(left._value, right._value, t));
     public static Quaternion Inverse(Quaternion value) => new(N.Quaternion.Inverse(value._value));
     public static Vector3 operator *(Quaternion rotation, Vector3 point) => Vector3.From(N.Vector3.Transform(point.Numerics, rotation._value));
     internal static Quaternion Euler(float pitch, float yaw, float roll) =>

@@ -30,7 +30,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         internal readonly ControllerButtonGate Gate = new();
         internal string? Id;
         internal Vector3 LocalAnchor;
-        internal Vector2 StartAngles, GripAngles;
+        internal Vector3 StartEuler;
+        internal Quaternion GripRotation;
         internal Quaternion CornerRotation;
         internal int Corner = -1;
     }
@@ -38,8 +39,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     private readonly Drag[] _hands = { new(), new() };
     private readonly ControllerSample[] _samples = new ControllerSample[2];
     private readonly Vector3[] _points = new Vector3[2];
-    private readonly Vector2[] _handAngles = new Vector2[2];
-    private readonly bool[] _angleValid = new bool[2];
+    private readonly Quaternion[] _handRotations = new Quaternion[2];
     private readonly bool[] _appearanceBusy = new bool[2];
     private string? _menuAppearanceFocus;
     private readonly string?[] _hover = new string?[2];
@@ -272,20 +272,12 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     {
         position = default;
         if (!hand.Valid || !Space(out var gameRoot, out _, out var eye))
-        {
-            _angleValid[index] = false;
             return false;
-        }
         // The same raw tracked index fingertip drives hover, acquisition and
         // movement. A visually snapped corner pinch never feeds back into it.
         position = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
             PilotHandVisuals.TouchPoint(index == 0, hand, gameRoot, true));
-        var rotation = Quaternion.Inverse(eye.rotation) * gameRoot.rotation * hand.Rotation;
-        var forward = rotation * Vector3.forward;
-        var previous = _handAngles[index];
-        var angles = HudWidgetAngleMath.Direction(forward.x, forward.y, forward.z, previous.x, previous.y, _angleValid[index]);
-        _handAngles[index] = new Vector2(angles.pitch, angles.yaw);
-        _angleValid[index] = true;
+        _handRotations[index] = Quaternion.Inverse(eye.rotation) * gameRoot.rotation * hand.Rotation;
         return TrackedControllers.Finite(position);
     }
     private void UpdateHand(int index, ControllerSample hand)
@@ -394,8 +386,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             return;
         var pose = _poses[drag.Id];
         drag.LocalAnchor = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (_points[index] - pose.Position);
-        drag.StartAngles = new Vector2(pose.Euler.x, pose.Euler.y);
-        drag.GripAngles = _handAngles[index];
+        drag.StartEuler = pose.Euler;
+        drag.GripRotation = _handRotations[index];
     }
     private float WidgetDistance(Vector3 point, string id)
     {
@@ -414,9 +406,9 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             if (_resizing != id)
             {
                 _resizing = id;
-                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handAngles[0], _handAngles[1], id == "map");
+                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handRotations[0], _handRotations[1], id == "map");
             }
-            pose = _resizeGesture.Move(pose, _points[0], _points[1], _handAngles[0], _handAngles[1]);
+            pose = _resizeGesture.Move(pose, _points[0], _points[1], _handRotations[0], _handRotations[1]);
             MovePose(id, pose);
             return;
         }
@@ -433,9 +425,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             if (drag.Id == null || !drag.Gate.Held)
                 continue;
             var pose = _poses[drag.Id];
-            var angles = HudWidgetAngleMath.Drag(drag.StartAngles.x, drag.StartAngles.y, drag.GripAngles.x, drag.GripAngles.y,
-                _handAngles[i].x, _handAngles[i].y);
-            pose.Euler = new Vector3(angles.pitch, angles.yaw, 0);
+            pose.Euler = HudWidgetRotationMath.Drag(drag.StartEuler, drag.GripRotation, _handRotations[i], pose.Euler);
             pose.Position = _points[i] - Quaternion.Euler(pose.Euler) * drag.LocalAnchor;
             MovePose(drag.Id, pose);
         }

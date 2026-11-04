@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Compatibility/GraphicsStartupProtocol.cs" Link="GraphicsStartupProtocol.cs" />
+    <Compile Include="../../NOVR/Compatibility/D3D11Startup.cs" Link="D3D11Startup.cs" />
+    <Compile Include="../../NOVR.Patcher/StartupHandoff.cs" Link="StartupHandoff.cs" />
+  </ItemGroup>
+</Project>

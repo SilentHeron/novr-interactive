@@ -252,7 +252,8 @@ namespace NOVR.VrUi.SpecialBehavior
         private readonly Dictionary<string, Widget> _widgets = new();
         private readonly Contact[] _hands = { new(), new() };
         private readonly string?[] _hover = new string?[2];
-        private readonly bool[] _angleValid = new bool[2], _appearanceBusy = new bool[2];
+        private readonly Quaternion[] _handRotations = new Quaternion[2];
+        private readonly bool[] _appearanceBusy = new bool[2];
         private string? _menuAppearanceFocus, _resizing;
         internal bool ReadyBoundary = true;
         internal CockpitHudWidgets()
@@ -276,7 +277,7 @@ namespace NOVR.VrUi.SpecialBehavior
         internal int WidgetCount => _widgets.Count;
         internal Appearance AppearanceForCheck(string id) => _widgets[id].Appearance;
         internal bool ContactsClear => _hands.All(h => h.Id == null && h.Corner == -1 && !h.Gate.Held) &&
-            _hover.All(h => h == null) && _resizing == null && !_angleValid.Any(v => v) && !_appearanceBusy.Any(v => v) &&
+            _hover.All(h => h == null) && _resizing == null && _handRotations.All(q => q == Quaternion.identity) && !_appearanceBusy.Any(v => v) &&
             _widgets.Values.All(w => !w.Appearance.SliderHeld);
         internal void HoldForCheck(int handCount, bool opacity = false)
         {
@@ -286,7 +287,7 @@ namespace NOVR.VrUi.SpecialBehavior
                 _hands[side].Corner = side == 0 ? 0 : 3;
                 _hands[side].Gate.Update(true, 0);
                 _hands[side].Gate.Update(true, 1);
-                _angleValid[side] = true;
+                _handRotations[side] = new Quaternion(0, 1, 0, 0);
                 _appearanceBusy[side] = opacity;
             }
             _resizing = handCount == 2 ? "map" : null;

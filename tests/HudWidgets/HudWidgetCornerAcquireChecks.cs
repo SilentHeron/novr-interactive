@@ -72,10 +72,10 @@ internal static class HudWidgetCornerAcquireChecks
             var rotation = Quaternion.Euler(pose.Euler.x, pose.Euler.y, 0);
             var left = pose.Position + rotation * new Vector3(-w, 0, 0);
             var right = pose.Position + rotation * new Vector3(w, h, 0);
-            var leftAngles = new Vector2(-8, 153);
-            var rightAngles = new Vector2(14, -117);
-            var gesture = new HudWidgetTwoHandGesture(pose, left, right, leftAngles, rightAngles, true);
-            var joined = gesture.Move(pose, left, right, leftAngles, rightAngles);
+            var leftRotation = Quaternion.Euler(-8, 153, 13);
+            var rightRotation = Quaternion.Euler(14, -117, -37);
+            var gesture = new HudWidgetTwoHandGesture(pose, left, right, leftRotation, rightRotation, true);
+            var joined = gesture.Move(pose, left, right, leftRotation, rightRotation);
             check((joined.Position - pose.Position).magnitude < .00002f, "Promoted edge grip preserves displayed position at second-hand acquisition");
             check((joined.Euler - pose.Euler).magnitude < .00002f, "Promoted edge grip preserves displayed pitch and yaw");
             check(Math.Abs(joined.Scale - pose.Scale) < .00002f && Math.Abs(joined.Aspect - pose.Aspect) < .00002f, "Promoted edge grip preserves map width/height without acquisition jump");

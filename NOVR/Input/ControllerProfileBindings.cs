@@ -229,6 +229,29 @@ public sealed class ControllerBindings
                 Watch(button);
                 Watch(hand);
             }
+            if (profile == ControllerBindingProfile.Touch)
+            {
+                var upgrade = config.Bind(section, "Touch Countermeasure Cycle Upgrade Applied", false,
+                    "One-time update of the unchanged Touch preset to held-throttle thumbstick countermeasure cycling. Custom layouts are retained.");
+                if (!upgrade.Value)
+                {
+                    var oldDefault = Values.SelectTargetOnStick.Value;
+                    foreach (var action in ControllerBindingDefaults.Actions)
+                    {
+                        var expected = ControllerBindingDefaults.Get(profile, action);
+                        if (action == ControllerActionId.NextCountermeasure)
+                            expected = new(ControllerButton.None, ControllerHandRole.Throttle);
+                        var actual = Get(action);
+                        oldDefault &= actual.Button == expected.Button && actual.Hand == expected.Hand;
+                    }
+                    // A pre-revision explicit None in an otherwise untouched
+                    // preset is indistinguishable from its old default. Once
+                    // revised, later unassigned/custom choices stay untouched.
+                    if (oldDefault)
+                        Set(ControllerActionId.NextCountermeasure, ControllerBindingDefaults.Get(profile, ControllerActionId.NextCountermeasure));
+                    upgrade.Value = true;
+                }
+            }
         }
         internal ControllerActionBinding Get(ControllerActionId action) => new(_slots[action].Button.Value, _slots[action].Hand.Value);
         internal void Set(ControllerActionId action, ControllerActionBinding binding)

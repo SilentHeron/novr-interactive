@@ -210,6 +210,7 @@ try
     Equal(perBank.Get(ControllerActionId.Radar), editedFrameZoom, "Touch undo does not overwrite Frame changes");
     True(perBank.CanUndoEdit && perBank.UndoEdit(), "Frame retains its own undo through profile switches");
     Equal(perBank.Get(ControllerActionId.Radar), frameZoom, "Frame undo restores Frame button and hand");
+    TouchCountermeasureChecks.Run(True, Config);
     ActionChecks.Run(True, Config);
     Console.WriteLine($"Controller binding checks passed: {count} assertions (actual binding/action sources and BepInEx config persistence).");
 }

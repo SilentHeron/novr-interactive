@@ -10,7 +10,7 @@ namespace NOVR;
 [BepInPlugin(
     "deltawing.novr",
     "NOVR Interactive",
-    "0.4.8.12")]
+    "0.4.8.13")]
 public class NOVRPlugin : BaseUnityPlugin
 {
     public static string ModFolderPath { get; private set; } = string.Empty;
@@ -18,6 +18,8 @@ public class NOVRPlugin : BaseUnityPlugin
     public NOVRPlugin()
     {
         ModFolderPath = Path.GetDirectoryName(typeof(NOVRPlugin).Assembly.Location) ?? string.Empty;
+        if (!Compatibility.D3D11Startup.Prepare())
+            return;
         new ModConfiguration(Config);
         Compatibility.ProtonControllerCompatibility.Initialize();
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());

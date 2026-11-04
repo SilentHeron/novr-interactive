@@ -17,11 +17,11 @@ Flight buttons require the assigned handle held or toggle-latched. Target select
 | Next weapon | Y on stick hand | Y on throttle hand |
 | Countermeasures | Left D-pad down | X |
 | Wheel / air brake | Left trigger | Left trigger |
-| Next countermeasure type | Left D-pad right | View → Flight actions |
+| Next countermeasure type | Left D-pad right | Left thumbstick click |
 | Clear all targets | View → Flight actions | View → Flight actions |
 | Native option wheel, free hand | Thumbstick click | Thumbstick click |
 | Tactical map | B with stick released | B with stick released |
-| View menu | Left View | Physical left Menu |
+| View menu | Left View, or wheel → VR MENU | Physical left Menu, or wheel → VR MENU |
 
 The map remains available after a crash; View opens the recovery map outside a usable cockpit. F9 is the keyboard fallback. Grip, trigger pointer clicks, thumbstick yaw and throttle VTOL-angle axes retain their existing behavior.
 
@@ -53,7 +53,7 @@ Existing Frame custom bindings are retained. Switching between controller famili
 
 ## Hand option wheel
 
-Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
+Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings without needing the physical Menu button, which Steam Link may consume on Quest.
 
 Selecting **Eject** shows a red eject symbol in the center of the wheel. Keep the thumbstick centered and hold a fresh stick-click for **1.2 seconds** to confirm. The ring expands and fills as vibration builds on that hand. Releasing early resets the hold; tilting the stick or pressing trigger cancels. Tracking loss, a menu or leaving the cockpit also cancels. Other wheel actions still select on return to center.
 

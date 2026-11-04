@@ -79,6 +79,13 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             }
             if (change == HandOptionWheelEvent.Commit)
             {
+                var menu = _lease!.MenuAt(gesture.Committed);
+                if (menu != NativeWheelMenuAction.None)
+                {
+                    if (NativeWheelMenuActions.Open(menu, Close))
+                        InteractionHaptics.Pulse(hand.Device, .22f, .025f);
+                    return;
+                }
                 var action = _lease.ActionAt(gesture.Committed);
                 if (action != null && action.GetActionType() == RadialMenuAction.ActionType.Eject)
                 {

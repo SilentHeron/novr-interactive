@@ -11,6 +11,7 @@
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetShape.cs" Link="HudWidgetShape.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetRotationMath.cs" Link="HudWidgetRotationMath.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetTwoHandGesture.cs" Link="HudWidgetTwoHandGesture.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetMotionMath.cs" Link="HudWidgetMotionMath.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/CockpitWidgetSpace.cs" Link="CockpitWidgetSpace.cs" />

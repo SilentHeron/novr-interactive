@@ -7,11 +7,11 @@ namespace NOVR.VrUi.SpecialBehavior;
 internal readonly struct HudWidgetTwoHandGesture
 {
     private readonly Vector3 _offset, _span, _euler;
-    private readonly Vector2 _leftAngles, _rightAngles;
+    private readonly Quaternion _leftRotation, _rightRotation;
     private readonly float _scale, _aspect;
     private readonly bool _independentAxes;
 
-    internal HudWidgetTwoHandGesture(HudWidgetPose pose, Vector3 left, Vector3 right, Vector2 leftAngles, Vector2 rightAngles, bool independentAxes = false)
+    internal HudWidgetTwoHandGesture(HudWidgetPose pose, Vector3 left, Vector3 right, Quaternion leftRotation, Quaternion rightRotation, bool independentAxes = false)
     {
         var inverse = Quaternion.Inverse(Quaternion.Euler(pose.Euler.x, pose.Euler.y, 0));
         _offset = inverse * (pose.Position - (left + right) * .5f);
@@ -20,16 +20,14 @@ internal readonly struct HudWidgetTwoHandGesture
         _scale = pose.Scale;
         _aspect = pose.Aspect;
         _independentAxes = independentAxes;
-        _leftAngles = leftAngles;
-        _rightAngles = rightAngles;
+        _leftRotation = leftRotation;
+        _rightRotation = rightRotation;
     }
 
-    internal HudWidgetPose Move(HudWidgetPose current, Vector3 left, Vector3 right, Vector2 leftAngles, Vector2 rightAngles)
+    internal HudWidgetPose Move(HudWidgetPose current, Vector3 left, Vector3 right, Quaternion leftRotation, Quaternion rightRotation)
     {
-        var angles = HudWidgetAngleMath.PairDrag(_euler.x, _euler.y,
-            _leftAngles.x, _leftAngles.y, _rightAngles.x, _rightAngles.y,
-            leftAngles.x, leftAngles.y, rightAngles.x, rightAngles.y);
-        var rotation = Quaternion.Euler(angles.pitch, angles.yaw, 0);
+        var euler = HudWidgetRotationMath.PairDrag(_euler, _leftRotation, _rightRotation, leftRotation, rightRotation, current.Euler);
+        var rotation = Quaternion.Euler(euler.x, euler.y, 0);
         var span = Quaternion.Inverse(rotation) * (right - left);
         if (_independentAxes)
         {
@@ -44,14 +42,14 @@ internal readonly struct HudWidgetTwoHandGesture
             var offset = new Vector3(_offset.x * rectangularScale * shape.x / (_scale * startShape.x),
                 _offset.y * rectangularScale * shape.y / (_scale * startShape.y), _offset.z * rectangularScale / _scale);
             current.Position = (left + right) * .5f + rotation * offset;
-            current.Euler = new Vector3(angles.pitch, angles.yaw, 0);
+            current.Euler = euler;
             current.Scale = rectangularScale;
             current.Aspect = aspect;
             return current;
         }
         var scale = HudWidgetGestureMath.Resize(_scale, _span.x, _span.y, _span.z, span.x, span.y, span.z, current.Scale);
         current.Position = (left + right) * .5f + rotation * _offset * (scale / _scale);
-        current.Euler = new Vector3(angles.pitch, angles.yaw, 0);
+        current.Euler = euler;
         current.Scale = scale;
         return current;
     }
