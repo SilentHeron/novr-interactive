@@ -73,7 +73,10 @@ namespace UnityEngine
     {
         internal readonly List<Transform> Children = new();
         public Transform parent = null!;
-        public Vector3 localPosition, localScale = Vector3.one;
+        private Vector3 _localPosition, _localScale = Vector3.one;
+        public int PositionWrites, ScaleWrites;
+        public Vector3 localPosition { get => _localPosition; set { _localPosition = value; PositionWrites++; } }
+        public Vector3 localScale { get => _localScale; set { _localScale = value; ScaleWrites++; } }
         public Quaternion localRotation = Quaternion.identity;
         public Vector3 position { get => TransformPoint(Vector3.zero); set => localPosition = (parent == null ? value : parent.InverseTransformPoint(value)) - Offset; }
         public Quaternion rotation { get => parent == null ? localRotation : parent.rotation * localRotation; set => localRotation = parent == null ? value : Quaternion.Inverse(parent.rotation) * value; }
@@ -111,7 +114,10 @@ namespace UnityEngine
     }
     public sealed class RectTransform : Transform
     {
-        public Vector2 anchorMin = new(.5f, .5f), anchorMax = new(.5f, .5f), pivot = new(.5f, .5f), sizeDelta = new(100, 100);
+        public Vector2 anchorMin = new(.5f, .5f), anchorMax = new(.5f, .5f), pivot = new(.5f, .5f);
+        private Vector2 _sizeDelta = new(100, 100);
+        public int SizeWrites;
+        public Vector2 sizeDelta { get => _sizeDelta; set { _sizeDelta = value; SizeWrites++; } }
         public Rect rect => new(-pivot * sizeDelta, sizeDelta);
         public Vector2 anchoredPosition { get=>new(localPosition.x,localPosition.y); set=>localPosition=new(value.x,value.y,localPosition.z); }
         public void GetWorldCorners(Vector3[] corners)
@@ -205,7 +211,13 @@ namespace UnityEngine
 }
 namespace UnityEngine.UI
 {
-    public class Graphic : UnityEngine.Component { public bool enabled = true, raycastTarget = true; }
+    public class Graphic : UnityEngine.Component
+    {
+        private bool _enabled = true;
+        public int EnabledWrites;
+        public bool enabled { get => _enabled; set { _enabled = value; EnabledWrites++; } }
+        public bool raycastTarget = true;
+    }
     public sealed class Image : Graphic { public UnityEngine.Material material = null!; public UnityEngine.Color color; public UnityEngine.Sprite? sprite; public UnityEngine.RectTransform rectTransform=>(UnityEngine.RectTransform)transform; }
     public sealed class Text : Graphic { public string text = ""; }
 }

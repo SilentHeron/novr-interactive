@@ -27,6 +27,45 @@ using (var f = new Fixture())
 }
 using (var f = new Fixture())
 {
+    f.Tick();
+    var root = (RectTransform)f.Map.transform;
+    var background = (RectTransform)f.Map.mapBackground.transform;
+    (int, int, int, int, int) Writes() =>
+        (root.SizeWrites, root.ScaleWrites, root.PositionWrites, background.SizeWrites, f.Forward.EnabledWrites);
+    var writes = Writes();
+    f.Tick(); f.Tick();
+    Check(Writes() == writes, "Unchanged map viewport performs no layout or arrow visibility setter calls");
+
+    f.Slot.sizeDelta = new(480, 180); f.Slot.pivot = new(.25f, .7f);
+    f.Tick();
+    Check(root.sizeDelta == new Vector2(800, 300) && background.sizeDelta == new Vector2(820, 320),
+        "Rectangular resize changes native clipping and backing dimensions in the same frame");
+    Check(root.localScale == Vector3.one * .6f, "Rectangular resize retains isotropic map scale");
+    Check((root.localPosition - (Vector3)f.Slot.rect.center).sqrMagnitude < .00001f,
+        "Viewport position follows the current slot pivot in the resize frame");
+    Check(root.SizeWrites == writes.Item1 + 1 && root.ScaleWrites == writes.Item2 + 1 &&
+        root.PositionWrites == writes.Item3 + 1 && background.SizeWrites == writes.Item4 + 1,
+        "Resizing submits each changed viewport property once");
+    writes = Writes(); f.Tick();
+    Check(Writes() == writes, "Resized viewport returns to zero setter calls on the next stable frame");
+
+    root.sizeDelta = new(20, 30); background.sizeDelta = new(60, 70);
+    root.localScale = new(2, 3, 4); root.localPosition = new(9, -4, 7); f.Forward.enabled = true;
+    f.Tick();
+    Check(root.sizeDelta == new Vector2(800, 300) && background.sizeDelta == new Vector2(820, 320) &&
+        root.localScale == Vector3.one * .6f && (root.localPosition - (Vector3)f.Slot.rect.center).sqrMagnitude < .00001f,
+        "Native writes are repaired immediately even when the slot dimensions have not changed");
+    Check(!f.Forward.enabled, "Native arrow reactivation is repaired in the same frame");
+    writes = Writes();
+    var nativeTint = new Color(.1f, .3f, .5f, .8f);
+    var sprite = new Sprite(); f.Terrain.sprite = sprite; f.Terrain.color = nativeTint;
+    f.Tick();
+    Check(f.Terrain.sprite == sprite && f.Terrain.color == CockpitMapWidget.TerrainTint(nativeTint),
+        "An unchanged viewport still processes new native terrain and tint immediately");
+    Check(Writes() == writes, "Terrain refresh does not resubmit unchanged viewport layout");
+}
+using (var f = new Fixture())
+{
     f.Slot.sizeDelta = new(300, 260); f.Tick();
     Near(f.Map.transform.localScale.x, 260f/300, "Non-square slot preserves map aspect");
     Near(f.Map.transform.localScale.y, 260f/300, "Y scale matches X");

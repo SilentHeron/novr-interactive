@@ -78,18 +78,24 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         internal void Update()
         {
             if (!Valid) return;
-            if (_nativeHeight > 0 && Slot.rect.width > 0 && Slot.rect.height > 0)
+            var slotRect = Slot.rect;
+            if (_nativeHeight > 0 && slotRect.width > 0 && slotRect.height > 0)
             {
                 // Change the native clipping viewport, not the terrain/icon
                 // aspect ratio. Every map child retains an isotropic scale.
-                var dimensions = new Vector2(_nativeHeight * Slot.rect.width / Slot.rect.height, _nativeHeight);
-                Root.sizeDelta = dimensions;
-                if (_background != null) _background.sizeDelta = dimensions + _backgroundBorder;
-                var factor = Slot.rect.height / _nativeHeight;
-                Root.localScale = Vector3.one * factor;
-                Root.localPosition = (Vector3)Slot.rect.center - (Vector3)Root.rect.center * factor;
+                var dimensions = new Vector2(_nativeHeight * slotRect.width / slotRect.height, _nativeHeight);
+                // Compare live values so native layout changes are repaired
+                // immediately without resubmitting an unchanged viewport.
+                if (Root.sizeDelta != dimensions) Root.sizeDelta = dimensions;
+                var backgroundSize = dimensions + _backgroundBorder;
+                if (_background != null && _background.sizeDelta != backgroundSize) _background.sizeDelta = backgroundSize;
+                var factor = slotRect.height / _nativeHeight;
+                var scale = Vector3.one * factor;
+                var position = (Vector3)slotRect.center - (Vector3)Root.rect.center * factor;
+                if (Root.localScale != scale) Root.localScale = scale;
+                if (Root.localPosition != position) Root.localPosition = position;
             }
-            if (_forwardReference != null) _forwardReference.enabled = false;
+            if (_forwardReference != null && _forwardReference.enabled) _forwardReference.enabled = false;
             if (_terrain == null) return;
             // A new terrain can arrive without replacing this map or aircraft.
             // Return to ownship instead of carrying a selected point from the
