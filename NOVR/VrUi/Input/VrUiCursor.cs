@@ -44,7 +44,7 @@ public class VrUiCursor : NOVRBehaviour
     private PointerEventData? _mouseRaycastData;
     private LineRenderer? _laser;
     private Material? _laserMaterial;
-    private UnityEngine.InputSystem.UI.InputSystemUIInputModule? _boundUiModule;
+    private readonly VirtualMouseBindingOwnership _uiBindings = new();
     private Native.NativeVrUiRoot? _nativeMenu;
     private string? _reportedPointerState;
     private float _nextPointerReport;
@@ -58,6 +58,7 @@ public class VrUiCursor : NOVRBehaviour
 
     private void OnDestroy()
     {
+        _uiBindings.Release();
         _controllerPointer.Cancel();
         if (_cursor != null)
             Destroy(_cursor);
@@ -112,7 +113,6 @@ public class VrUiCursor : NOVRBehaviour
     private bool _hasProjectionReferenceOverride;
     private Quaternion _projectionReferenceRotation = Quaternion.identity;
 
-    private bool _hasInitializedEventSystem = false;
     private bool _reportedMissingUiModule;
     private Mouse? _virtualMouse;
     private Mouse? _realMouse;
@@ -161,6 +161,10 @@ public class VrUiCursor : NOVRBehaviour
 
     private void Update()
     {
+        // Release the previous scene's actions even while the pointer is hidden.
+        var currentModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        if (!_uiBindings.Matches(currentModule))
+            _uiBindings.Release();
         var camera = UiCamera;
         if (XRSettings.enabled ? !OpenXRUtility.IsSessionFocused : !Application.isFocused)
         {
@@ -189,11 +193,8 @@ public class VrUiCursor : NOVRBehaviour
             _virtualMouse = InputSystem.AddDevice<Mouse>("VirtualMouse");
         }
         // Menus may recreate their EventSystem after a scene transition.
-        var currentModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-        if (currentModule != _boundUiModule)
-            _hasInitializedEventSystem = false;
-        if (!_hasInitializedEventSystem)
-            _hasInitializedEventSystem = RestrictUIModuleToVirtualMouse();
+        if (!_uiBindings.Matches(currentModule))
+            RestrictUIModuleToVirtualMouse();
         if (_texture == null)
             return;
         EnsureCursorCanvas(camera);
@@ -327,8 +328,15 @@ public class VrUiCursor : NOVRBehaviour
 
     protected override void OnDisable()
     {
-        HidePointer();
-        base.OnDisable();
+        try
+        {
+            HidePointer();
+        }
+        finally
+        {
+            _uiBindings.Release();
+            base.OnDisable();
+        }
     }
 
     private void UpdateCursorAngles()
@@ -602,52 +610,6 @@ public class VrUiCursor : NOVRBehaviour
         return texture;
     }
 
-    private void LogRaycastAtCursor()
-    {
-        if (EventSystem.current == null)
-            return;
-
-        var screenPos = GetScreenPoint();
-        var pointerEventData = new PointerEventData(EventSystem.current)
-        {
-            position = screenPos
-        };
-
-        var results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(pointerEventData, results);
-
-        Debug.Log($"[VrUiCursor] Click Raycast at screenPos={screenPos}: found {results.Count} results");
-        for (int i = 0; i < results.Count; i++)
-        {
-            var result = results[i];
-            if (result.gameObject == _cursor)
-                continue;
-
-            var canvas = result.gameObject.GetComponentInParent<Canvas>();
-            var cg = result.gameObject.GetComponentInParent<CanvasGroup>();
-            string cgInfo = cg != null ? $", CanvasGroup(alpha={cg.alpha}, interactable={cg.interactable}, blocksRaycasts={cg.blocksRaycasts})" : "";
-            string rectInfo = "";
-            var rt = result.gameObject.GetComponent<RectTransform>();
-            if (rt != null)
-            {
-                rectInfo = $", localPos={rt.localPosition}, size={rt.sizeDelta}";
-            }
-            Debug.Log($"[VrUiCursor]   Hit[{i}]: name='{result.gameObject.name}', path='{GetGameObjectPath(result.gameObject)}', canvas='{(canvas != null ? canvas.name : "None")}'{rectInfo}{cgInfo}");
-        }
-    }
-
-    private static string GetGameObjectPath(GameObject go)
-    {
-        string path = go.name;
-        Transform p = go.transform.parent;
-        while (p != null)
-        {
-            path = p.name + "/" + path;
-            p = p.parent;
-        }
-        return path;
-    }
-
     private bool RestrictUIModuleToVirtualMouse()
     {
         try
@@ -659,14 +621,7 @@ public class VrUiCursor : NOVRBehaviour
             {
                 _reportedMissingUiModule = false;
                 Debug.Log($"[NOVR] Restricting InputSystemUIInputModule actions to VirtualMouse (path: {_virtualMouse.path})");
-                RestrictActionToVirtualMouse(uiModule.point?.action, _virtualMouse.path);
-                RestrictActionToVirtualMouse(uiModule.leftClick?.action, _virtualMouse.path);
-                RestrictActionToVirtualMouse(uiModule.middleClick?.action, _virtualMouse.path);
-                RestrictActionToVirtualMouse(uiModule.rightClick?.action, _virtualMouse.path);
-                RestrictActionToVirtualMouse(uiModule.scrollWheel?.action, _virtualMouse.path);
-                RestrictNavigationToKeyboardAndGamepad(uiModule.move?.action);
-                _boundUiModule = uiModule;
-                return true;
+                return _uiBindings.Acquire(uiModule, _virtualMouse.path);
             }
             else
             {
@@ -685,37 +640,4 @@ public class VrUiCursor : NOVRBehaviour
         }
     }
 
-    // Generic joystick / XR axes (HMD, controllers, HOTAS at rest) otherwise feed UI navigation like a held arrow key.
-    private static void RestrictNavigationToKeyboardAndGamepad(InputAction? action)
-    {
-        if (action == null)
-            return;
-        for (int i = 0; i < action.bindings.Count; i++)
-        {
-            var binding = action.bindings[i];
-            if (binding.isComposite)
-                continue;
-            var path = binding.path ?? string.Empty;
-            if (path.StartsWith("<Keyboard>") || path.StartsWith("<Gamepad>"))
-                continue;
-            action.ApplyBindingOverride(i, string.Empty);
-            Debug.Log($"[NOVR] Disabled UI navigation binding '{path}' on action '{action.name}'");
-        }
-    }
-
-    private static void RestrictActionToVirtualMouse(InputAction? action, string devicePath)
-    {
-        if (action == null)
-            return;
-        for (int i = 0; i < action.bindings.Count; i++)
-        {
-            var binding = action.bindings[i];
-            if (binding.path.Contains("<Mouse>"))
-            {
-                var newPath = binding.path.Replace("<Mouse>", devicePath);
-                action.ApplyBindingOverride(i, newPath);
-                Debug.Log($"[NOVR] Overriding UI binding path: '{binding.path}' -> '{newPath}' for action '{action.name}'");
-            }
-        }
-    }
 }

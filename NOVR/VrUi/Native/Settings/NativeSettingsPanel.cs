@@ -15,8 +15,6 @@ public partial class NativeSettingsPanel : MonoBehaviour
     private static readonly Color PanelColor = new(0.05f, 0.06f, 0.065f, 0.94f);
     private static readonly Color ButtonColor = new(0.24f, 0.29f, 0.31f, 0.96f);
     private static readonly Color ButtonSelectedColor = new(0.44f, 0.49f, 0.50f, 1f);
-    private static readonly Color ButtonHoverColor = new(0.34f, 0.40f, 0.42f, 1f);
-    private static readonly Color ButtonPressedColor = new(0.16f, 0.20f, 0.22f, 1f);
     private static readonly Color BackButtonColor = new(0.62f, 0.12f, 0.14f, 0.96f);
     private static readonly Color ApplyButtonColor = new(0.12f, 0.34f, 0.20f, 0.96f);
 
@@ -51,7 +49,7 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
         if (visible && !_wasVisible)
         {
-            ReloadPlayerSettings();
+            NativePlayerSettingsAccess.ReloadPlayerSettings();
             _bindingEntriesDirty = true;
             RenderCurrentTab();
         }
@@ -224,8 +222,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
         }
 
         AddToggleRow("VSync", () => PlayerSettings.graphics.Vsync, value => PlayerSettings.graphics.Vsync = value);
-        AddToggleRow("Cinematic Mode", () => PlayerSettings.cinematicMode, SetCinematicMode);
-        AddToggleRow("Debug Visuals", () => PlayerSettings.debugVis, SetDebugVisuals);
+        AddToggleRow("Cinematic Mode", () => PlayerSettings.cinematicMode, NativePlayerSettingsAccess.SetCinematicMode);
+        AddToggleRow("Debug Visuals", () => PlayerSettings.debugVis, NativePlayerSettingsAccess.SetDebugVisuals);
         AddOptionRow("Anti-Aliasing", GraphicsHelper.AAOptions, () => PlayerSettings.graphics.AntiAliasing, value => PlayerSettings.graphics.AntiAliasing = value);
         AddOptionRow("Texture Quality", GraphicsHelper.MipmapLimitOptions, () => PlayerSettings.graphics.MipmapLevel, value => PlayerSettings.graphics.MipmapLevel = value);
         AddOptionRow("Anisotropic Filtering", GraphicsHelper.AnisotropicOptions, () => PlayerSettings.graphics.AnisotropicFiltering, value => PlayerSettings.graphics.AnisotropicFiltering = value);
@@ -241,15 +239,15 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void RenderGameplayTab()
     {
-        AddOptionRow("Units", new[] { "Metric", "Imperial" }, () => (int)PlayerSettings.unitSystem, SetUnitSystem);
-        AddFloatRow("Cockpit Camera Inertia", () => PlayerSettings.cockpitCamInertia, value => SetPlayerFloat("CockpitCamInertia", value, static assigned => PlayerSettings.cockpitCamInertia = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value * 100f:0}%");
-        AddFloatRow("Cockpit FOV", () => PlayerSettings.defaultFoV, value => SetPlayerFloat("DefaultFoV", value, static assigned => PlayerSettings.defaultFoV = assigned, apply: true), 30f, 120f, 1f, value => $"{value:0} deg");
-        AddFloatRow("External FOV", () => PlayerSettings.defaultExternalFoV, value => SetPlayerFloat("DefaultExternalFoV", value, static assigned => PlayerSettings.defaultExternalFoV = assigned, apply: true), 30f, 120f, 1f, value => $"{value:0} deg");
-        AddToggleRow("Zoom on Boresight", () => PlayerSettings.zoomOnBoresight, value => SetPlayerBool("ZoomOnBoresight", value, static assigned => PlayerSettings.zoomOnBoresight = assigned, apply: true));
-        AddToggleRow("Padlock Target", () => PlayerSettings.padLockTarget, value => SetPlayerBool("PadLockTarget", value, static assigned => PlayerSettings.padLockTarget = assigned, apply: true));
-        AddToggleRow("Tac Screen IR", () => PlayerSettings.tacScreenIR, value => SetPlayerBool("TacScreenIR", value, static assigned => PlayerSettings.tacScreenIR = assigned, apply: true));
-        AddToggleRow("Camera Auto NVG", () => PlayerSettings.cameraAutoNVG, value => SetPlayerBool("CameraAutoNVG", value, static assigned => PlayerSettings.cameraAutoNVG = assigned, apply: true));
-        AddToggleRow("Hit Markers", () => PlayerSettings.showHitMarkers, value => SetPlayerBool("ShowHitMarkers", value, static assigned => PlayerSettings.showHitMarkers = assigned, apply: true));
+        AddOptionRow("Units", new[] { "Metric", "Imperial" }, () => (int)PlayerSettings.unitSystem, NativePlayerSettingsAccess.SetUnitSystem);
+        AddFloatRow("Cockpit Camera Inertia", () => PlayerSettings.cockpitCamInertia, value => NativePlayerSettingsAccess.SetPlayerFloat("CockpitCamInertia", value, static assigned => PlayerSettings.cockpitCamInertia = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value * 100f:0}%");
+        AddFloatRow("Cockpit FOV", () => PlayerSettings.defaultFoV, value => NativePlayerSettingsAccess.SetPlayerFloat("DefaultFoV", value, static assigned => PlayerSettings.defaultFoV = assigned, apply: true), 30f, 120f, 1f, value => $"{value:0} deg");
+        AddFloatRow("External FOV", () => PlayerSettings.defaultExternalFoV, value => NativePlayerSettingsAccess.SetPlayerFloat("DefaultExternalFoV", value, static assigned => PlayerSettings.defaultExternalFoV = assigned, apply: true), 30f, 120f, 1f, value => $"{value:0} deg");
+        AddToggleRow("Zoom on Boresight", () => PlayerSettings.zoomOnBoresight, value => NativePlayerSettingsAccess.SetPlayerBool("ZoomOnBoresight", value, static assigned => PlayerSettings.zoomOnBoresight = assigned, apply: true));
+        AddToggleRow("Padlock Target", () => PlayerSettings.padLockTarget, value => NativePlayerSettingsAccess.SetPlayerBool("PadLockTarget", value, static assigned => PlayerSettings.padLockTarget = assigned, apply: true));
+        AddToggleRow("Tac Screen IR", () => PlayerSettings.tacScreenIR, value => NativePlayerSettingsAccess.SetPlayerBool("TacScreenIR", value, static assigned => PlayerSettings.tacScreenIR = assigned, apply: true));
+        AddToggleRow("Camera Auto NVG", () => PlayerSettings.cameraAutoNVG, value => NativePlayerSettingsAccess.SetPlayerBool("CameraAutoNVG", value, static assigned => PlayerSettings.cameraAutoNVG = assigned, apply: true));
+        AddToggleRow("Hit Markers", () => PlayerSettings.showHitMarkers, value => NativePlayerSettingsAccess.SetPlayerBool("ShowHitMarkers", value, static assigned => PlayerSettings.showHitMarkers = assigned, apply: true));
     }
 
     private void RenderControlsTab()
@@ -274,21 +272,21 @@ public partial class NativeSettingsPanel : MonoBehaviour
             AddReadOnlyRow("Motion stick: higher sensitivity needs less wrist tilt. Pitch/roll only; yaw is unchanged. Saves immediately.");
         }
         AddActionRow("Control Bindings", "VIEW", () => SelectTab(SettingsTab.Bindings));
-        AddToggleRow("Virtual Joystick", () => PlayerSettings.virtualJoystickEnabled, value => SetPlayerBool("VirtualJoystickEnabled", value, static assigned => PlayerSettings.virtualJoystickEnabled = assigned, apply: true));
-        AddToggleRow("Invert Virtual Pitch", () => PlayerSettings.virtualJoystickInvertPitch, value => SetPlayerBool("VirtualJoystickInvertPitch", value, static assigned => PlayerSettings.virtualJoystickInvertPitch = assigned, apply: true));
-        AddToggleRow("Invert View Pitch", () => PlayerSettings.viewInvertPitch, value => SetPlayerBool("ViewInvertPitch", value, static assigned => PlayerSettings.viewInvertPitch = assigned, apply: true));
-        AddToggleRow("Throttle Uses Negative Axis", () => PlayerSettings.throttleUseNegative, value => SetPlayerBool("ThrottleUseNegative", value, static assigned => PlayerSettings.throttleUseNegative = assigned, apply: true));
-        AddToggleRow("Relative Throttle", () => PlayerSettings.throttleUseRelative, value => SetPlayerBool("ThrottleUseRelative", value, static assigned => PlayerSettings.throttleUseRelative = assigned, apply: true));
-        AddToggleRow("Controller Menu Navigation", () => PlayerSettings.controllerMenuNavigation, value => SetPlayerBool("ControllerMenuNavigation", value, static assigned => PlayerSettings.controllerMenuNavigation = assigned, apply: true));
-        AddToggleRow("Menu Weapon Safety", () => PlayerSettings.menuWeaponSafety, value => SetPlayerBool("MenuWeaponSafety", value, static assigned => PlayerSettings.menuWeaponSafety = assigned, apply: true));
-        AddToggleRow("Invert Collective", () => PlayerSettings.invertCollective, value => SetPlayerBool("InvertCollective", value, static assigned => PlayerSettings.invertCollective = assigned, apply: true));
-        AddToggleRow("TrackIR", () => PlayerSettings.useTrackIR, value => SetPlayerBool("UseTrackIR", value, static assigned => PlayerSettings.useTrackIR = assigned, apply: true));
-        AddFloatRow("Virtual Joystick Sensitivity", () => PlayerSettings.virtualJoystickSensitivity, value => SetPlayerFloat("VirtualJoystickSensitivity", value, static assigned => PlayerSettings.virtualJoystickSensitivity = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
-        AddFloatRow("Virtual Joystick Centering", () => PlayerSettings.virtualJoystickCentering, value => SetPlayerFloat("VirtualJoystickCentering", value, static assigned => PlayerSettings.virtualJoystickCentering = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
-        AddFloatRow("View Sensitivity", () => PlayerSettings.viewSensitivity, value => SetPlayerFloat("ViewSensitivity", value, static assigned => PlayerSettings.viewSensitivity = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
-        AddFloatRow("View Smoothing", () => PlayerSettings.viewSmoothing, value => SetPlayerFloat("ViewSmoothing", value, static assigned => PlayerSettings.viewSmoothing = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
-        AddFloatRow("Button Click Delay", () => PlayerSettings.clickDelay, value => SetPlayerFloat("ClickDelay", value, static assigned => PlayerSettings.clickDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
-        AddFloatRow("Button Hold Delay", () => PlayerSettings.pressDelay, value => SetPlayerFloat("PressDelay", value, static assigned => PlayerSettings.pressDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
+        AddToggleRow("Virtual Joystick", () => PlayerSettings.virtualJoystickEnabled, value => NativePlayerSettingsAccess.SetPlayerBool("VirtualJoystickEnabled", value, static assigned => PlayerSettings.virtualJoystickEnabled = assigned, apply: true));
+        AddToggleRow("Invert Virtual Pitch", () => PlayerSettings.virtualJoystickInvertPitch, value => NativePlayerSettingsAccess.SetPlayerBool("VirtualJoystickInvertPitch", value, static assigned => PlayerSettings.virtualJoystickInvertPitch = assigned, apply: true));
+        AddToggleRow("Invert View Pitch", () => PlayerSettings.viewInvertPitch, value => NativePlayerSettingsAccess.SetPlayerBool("ViewInvertPitch", value, static assigned => PlayerSettings.viewInvertPitch = assigned, apply: true));
+        AddToggleRow("Throttle Uses Negative Axis", () => PlayerSettings.throttleUseNegative, value => NativePlayerSettingsAccess.SetPlayerBool("ThrottleUseNegative", value, static assigned => PlayerSettings.throttleUseNegative = assigned, apply: true));
+        AddToggleRow("Relative Throttle", () => PlayerSettings.throttleUseRelative, value => NativePlayerSettingsAccess.SetPlayerBool("ThrottleUseRelative", value, static assigned => PlayerSettings.throttleUseRelative = assigned, apply: true));
+        AddToggleRow("Controller Menu Navigation", () => PlayerSettings.controllerMenuNavigation, value => NativePlayerSettingsAccess.SetPlayerBool("ControllerMenuNavigation", value, static assigned => PlayerSettings.controllerMenuNavigation = assigned, apply: true));
+        AddToggleRow("Menu Weapon Safety", () => PlayerSettings.menuWeaponSafety, value => NativePlayerSettingsAccess.SetPlayerBool("MenuWeaponSafety", value, static assigned => PlayerSettings.menuWeaponSafety = assigned, apply: true));
+        AddToggleRow("Invert Collective", () => PlayerSettings.invertCollective, value => NativePlayerSettingsAccess.SetPlayerBool("InvertCollective", value, static assigned => PlayerSettings.invertCollective = assigned, apply: true));
+        AddToggleRow("TrackIR", () => PlayerSettings.useTrackIR, value => NativePlayerSettingsAccess.SetPlayerBool("UseTrackIR", value, static assigned => PlayerSettings.useTrackIR = assigned, apply: true));
+        AddFloatRow("Virtual Joystick Sensitivity", () => PlayerSettings.virtualJoystickSensitivity, value => NativePlayerSettingsAccess.SetPlayerFloat("VirtualJoystickSensitivity", value, static assigned => PlayerSettings.virtualJoystickSensitivity = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
+        AddFloatRow("Virtual Joystick Centering", () => PlayerSettings.virtualJoystickCentering, value => NativePlayerSettingsAccess.SetPlayerFloat("VirtualJoystickCentering", value, static assigned => PlayerSettings.virtualJoystickCentering = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
+        AddFloatRow("View Sensitivity", () => PlayerSettings.viewSensitivity, value => NativePlayerSettingsAccess.SetPlayerFloat("ViewSensitivity", value, static assigned => PlayerSettings.viewSensitivity = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
+        AddFloatRow("View Smoothing", () => PlayerSettings.viewSmoothing, value => NativePlayerSettingsAccess.SetPlayerFloat("ViewSmoothing", value, static assigned => PlayerSettings.viewSmoothing = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
+        AddFloatRow("Button Click Delay", () => PlayerSettings.clickDelay, value => NativePlayerSettingsAccess.SetPlayerFloat("ClickDelay", value, static assigned => PlayerSettings.clickDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
+        AddFloatRow("Button Hold Delay", () => PlayerSettings.pressDelay, value => NativePlayerSettingsAccess.SetPlayerFloat("PressDelay", value, static assigned => PlayerSettings.pressDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
     }
 
     private void RenderVrControllerBindings()
@@ -311,20 +309,20 @@ public partial class NativeSettingsPanel : MonoBehaviour
         var hmdSideDistMax = Mathf.Max(100f, PlayerSettings.hmdWidth * 0.5f);
         var hmdTopHeightMax = Mathf.Max(100f, PlayerSettings.hmdHeight * 0.5f);
 
-        AddToggleRow("Lag PIP", () => PlayerSettings.lagPip, value => SetHudBool("LagPip", value, static assigned => PlayerSettings.lagPip = assigned));
-        AddToggleRow("Range Circle", () => PlayerSettings.rangeCircle, value => SetHudBool("RangeCircle", value, static assigned => PlayerSettings.rangeCircle = assigned));
-        AddToggleRow("Gauges", () => PlayerSettings.gauges, value => SetHudBool("Gauges", value, static assigned => PlayerSettings.gauges = assigned));
-        AddToggleRow("HUD Weapons", () => PlayerSettings.hudWeapons, value => SetHudBool("HUDWeapons", value, static assigned => PlayerSettings.hudWeapons = assigned));
-        AddFloatRow("HMD Width", () => PlayerSettings.hmdWidth, value => SetHudFloat("HMDWidth", value, static assigned => PlayerSettings.hmdWidth = assigned), 500f, hmdWidthMax, 10f, value => $"{value:0} px");
-        AddFloatRow("HMD Height", () => PlayerSettings.hmdHeight, value => SetHudFloat("HMDHeight", value, static assigned => PlayerSettings.hmdHeight = assigned), 500f, 1080f, 10f, value => $"{value:0} px");
-        AddFloatRow("HMD Side Distance", () => PlayerSettings.hmdSideDist, value => SetHudFloat("HMDSideDist", value, static assigned => PlayerSettings.hmdSideDist = assigned), 100f, hmdSideDistMax, 5f, value => $"{value:0} px");
-        AddFloatRow("HMD Side Angle", () => PlayerSettings.hmdSideAngle, value => SetHudFloat("HMDSideAngle", value, static assigned => PlayerSettings.hmdSideAngle = assigned), 0f, 90f, 1f, value => $"{value:0} deg");
-        AddFloatRow("HMD Top Height", () => PlayerSettings.hmdTopHeight, value => SetHudFloat("HMDTopHeight", value, static assigned => PlayerSettings.hmdTopHeight = assigned), -hmdTopHeightMax, hmdTopHeightMax, 5f, value => $"{value:0} px");
-        AddFloatRow("HMD Hide Distance", () => PlayerSettings.hmdHideDist, value => SetHudFloat("HMDHideDist", value, static assigned => PlayerSettings.hmdHideDist = assigned), 0.2f, 1f, 0.05f, value => $"{value * 100f:0}%");
-        AddFloatRow("HMD Icon Size", () => PlayerSettings.hmdIconSize, value => SetHudFloat("HMDIconSize", value, static assigned => PlayerSettings.hmdIconSize = assigned), 10f, 80f, 5f, value => $"{value:0}");
-        AddFloatRow("HUD Text Size", () => PlayerSettings.hudTextSize, value => SetHudFloat("HUDTextSize", value, static assigned => PlayerSettings.hudTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
-        AddFloatRow("HMD Text Size", () => PlayerSettings.hmdTextSize, value => SetHudFloat("HMDTextSize", value, static assigned => PlayerSettings.hmdTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
-        AddFloatRow("Overlay Text Size", () => PlayerSettings.overlayTextSize, value => SetHudFloat("OverlayTextSize", value, static assigned => PlayerSettings.overlayTextSize = assigned), 16f, 80f, 2f, value => $"{value:0}");
+        AddToggleRow("Lag PIP", () => PlayerSettings.lagPip, value => NativePlayerSettingsAccess.SetHudBool("LagPip", value, static assigned => PlayerSettings.lagPip = assigned));
+        AddToggleRow("Range Circle", () => PlayerSettings.rangeCircle, value => NativePlayerSettingsAccess.SetHudBool("RangeCircle", value, static assigned => PlayerSettings.rangeCircle = assigned));
+        AddToggleRow("Gauges", () => PlayerSettings.gauges, value => NativePlayerSettingsAccess.SetHudBool("Gauges", value, static assigned => PlayerSettings.gauges = assigned));
+        AddToggleRow("HUD Weapons", () => PlayerSettings.hudWeapons, value => NativePlayerSettingsAccess.SetHudBool("HUDWeapons", value, static assigned => PlayerSettings.hudWeapons = assigned));
+        AddFloatRow("HMD Width", () => PlayerSettings.hmdWidth, value => NativePlayerSettingsAccess.SetHudFloat("HMDWidth", value, static assigned => PlayerSettings.hmdWidth = assigned), 500f, hmdWidthMax, 10f, value => $"{value:0} px");
+        AddFloatRow("HMD Height", () => PlayerSettings.hmdHeight, value => NativePlayerSettingsAccess.SetHudFloat("HMDHeight", value, static assigned => PlayerSettings.hmdHeight = assigned), 500f, 1080f, 10f, value => $"{value:0} px");
+        AddFloatRow("HMD Side Distance", () => PlayerSettings.hmdSideDist, value => NativePlayerSettingsAccess.SetHudFloat("HMDSideDist", value, static assigned => PlayerSettings.hmdSideDist = assigned), 100f, hmdSideDistMax, 5f, value => $"{value:0} px");
+        AddFloatRow("HMD Side Angle", () => PlayerSettings.hmdSideAngle, value => NativePlayerSettingsAccess.SetHudFloat("HMDSideAngle", value, static assigned => PlayerSettings.hmdSideAngle = assigned), 0f, 90f, 1f, value => $"{value:0} deg");
+        AddFloatRow("HMD Top Height", () => PlayerSettings.hmdTopHeight, value => NativePlayerSettingsAccess.SetHudFloat("HMDTopHeight", value, static assigned => PlayerSettings.hmdTopHeight = assigned), -hmdTopHeightMax, hmdTopHeightMax, 5f, value => $"{value:0} px");
+        AddFloatRow("HMD Hide Distance", () => PlayerSettings.hmdHideDist, value => NativePlayerSettingsAccess.SetHudFloat("HMDHideDist", value, static assigned => PlayerSettings.hmdHideDist = assigned), 0.2f, 1f, 0.05f, value => $"{value * 100f:0}%");
+        AddFloatRow("HMD Icon Size", () => PlayerSettings.hmdIconSize, value => NativePlayerSettingsAccess.SetHudFloat("HMDIconSize", value, static assigned => PlayerSettings.hmdIconSize = assigned), 10f, 80f, 5f, value => $"{value:0}");
+        AddFloatRow("HUD Text Size", () => PlayerSettings.hudTextSize, value => NativePlayerSettingsAccess.SetHudFloat("HUDTextSize", value, static assigned => PlayerSettings.hudTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
+        AddFloatRow("HMD Text Size", () => PlayerSettings.hmdTextSize, value => NativePlayerSettingsAccess.SetHudFloat("HMDTextSize", value, static assigned => PlayerSettings.hmdTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
+        AddFloatRow("Overlay Text Size", () => PlayerSettings.overlayTextSize, value => NativePlayerSettingsAccess.SetHudFloat("OverlayTextSize", value, static assigned => PlayerSettings.overlayTextSize = assigned), 16f, 80f, 2f, value => $"{value:0}");
     }
 
     private void RenderLookCueSettings()
@@ -347,16 +345,16 @@ public partial class NativeSettingsPanel : MonoBehaviour
         }
         AddActionRow("Centre of Vision", "CENTRE", () => { cue.VerticalDegrees.Value = 0; RenderCurrentTab(); });
         AddActionRow("Look Cue Defaults", "RESET", () => { cue.Reset(); config.TargetCue.Value = MotionControls.TargetCueMode.Context; RenderCurrentTab(); });
-        AddReadOnlyRow("Position moves only the visible cue. Target selection and weapon sights are unchanged.");
+        AddReadOnlyRow("Target selection follows the cue's position. Weapon sights are unchanged.");
     }
 
     private void RenderChatTab()
     {
-        AddToggleRow("Chat", () => PlayerSettings.chatEnabled, value => SetPlayerBool("ChatEnabled", value, static assigned => PlayerSettings.chatEnabled = assigned));
-        AddToggleRow("Chat Filter", () => PlayerSettings.chatFilter, value => SetPlayerBool("ChatFilter", value, static assigned => PlayerSettings.chatFilter = assigned));
-        AddToggleRow("Text To Speech", () => PlayerSettings.chatTts, value => SetPlayerBool("ChatTts", value, static assigned => PlayerSettings.chatTts = assigned));
-        AddIntRow("TTS Speed", () => PlayerSettings.chatTtsSpeed, value => SetPlayerInt("ChatTtsSpeed", value, static assigned => PlayerSettings.chatTtsSpeed = assigned), -10, 10, 1, value => $"{value}");
-        AddIntRow("TTS Volume", () => PlayerSettings.chatTtsVolume, value => SetPlayerInt("ChatTtsVolume", value, static assigned => PlayerSettings.chatTtsVolume = assigned), 0, 100, 5, value => $"{value}%");
+        AddToggleRow("Chat", () => PlayerSettings.chatEnabled, value => NativePlayerSettingsAccess.SetPlayerBool("ChatEnabled", value, static assigned => PlayerSettings.chatEnabled = assigned));
+        AddToggleRow("Chat Filter", () => PlayerSettings.chatFilter, value => NativePlayerSettingsAccess.SetPlayerBool("ChatFilter", value, static assigned => PlayerSettings.chatFilter = assigned));
+        AddToggleRow("Text To Speech", () => PlayerSettings.chatTts, value => NativePlayerSettingsAccess.SetPlayerBool("ChatTts", value, static assigned => PlayerSettings.chatTts = assigned));
+        AddIntRow("TTS Speed", () => PlayerSettings.chatTtsSpeed, value => NativePlayerSettingsAccess.SetPlayerInt("ChatTtsSpeed", value, static assigned => PlayerSettings.chatTtsSpeed = assigned), -10, 10, 1, value => $"{value}");
+        AddIntRow("TTS Volume", () => PlayerSettings.chatTtsVolume, value => NativePlayerSettingsAccess.SetPlayerInt("ChatTtsVolume", value, static assigned => PlayerSettings.chatTtsVolume = assigned), 0, 100, 5, value => $"{value}%");
     }
 
     private void AddAudioRow(string label, string channel)
@@ -492,120 +490,15 @@ public partial class NativeSettingsPanel : MonoBehaviour
         ApplyAndRefresh();
     }
 
-    private void SetUnitSystem(int value)
-    {
-        PlayerSettings.unitSystem = (PlayerSettings.UnitSystem)value;
-        PlayerPrefs.SetInt("UnitSystem", value);
-        ApplyPlayerSettings();
-    }
-
-    private void SetCinematicMode(bool value)
-    {
-        PlayerSettings.cinematicMode = value;
-        PlayerPrefs.SetInt("CinematicMode", value ? 1 : 0);
-    }
-
-    private void SetDebugVisuals(bool value)
-    {
-        PlayerSettings.debugVis = value;
-        PlayerPrefs.SetInt("DebugVis", value ? 1 : 0);
-    }
-
-    private static void SetPlayerBool(string key, bool value, Action<bool> assign, bool apply = false)
-    {
-        assign(value);
-        PlayerPrefs.SetInt(key, value ? 1 : 0);
-        if (apply)
-        {
-            ApplyPlayerSettings();
-        }
-    }
-
-    private static void SetHudBool(string key, bool value, Action<bool> assign)
-    {
-        assign(value);
-        PlayerPrefs.SetInt(key, value ? 1 : 0);
-        ApplyHudSettings();
-    }
-
-    private static void SetPlayerFloat(string key, float value, Action<float> assign, bool apply = false)
-    {
-        assign(value);
-        PlayerPrefs.SetFloat(key, value);
-        if (apply)
-        {
-            ApplyPlayerSettings();
-        }
-    }
-
-    private static void SetHudFloat(string key, float value, Action<float> assign)
-    {
-        assign(value);
-        PlayerPrefs.SetFloat(key, value);
-        ApplyHudSettings();
-    }
-
-    private static void SetPlayerInt(string key, int value, Action<int> assign, bool apply = false)
-    {
-        assign(value);
-        PlayerPrefs.SetInt(key, value);
-        if (apply)
-        {
-            ApplyPlayerSettings();
-        }
-    }
-
     private void ApplyAndRefresh()
     {
-        PlayerPrefs.Save();
+        NativePlayerSettingsAccess.Save();
         RenderCurrentTab();
     }
 
     private void ApplyAndSave()
     {
-        PlayerPrefs.Save();
-        ApplyPlayerSettings();
-        ApplyHudSettings();
-    }
-
-    private static void ReloadPlayerSettings()
-    {
-        try
-        {
-            PlayerSettings.LoadPrefs();
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"[NOVR] Native settings failed to reload PlayerSettings: {exception}");
-        }
-    }
-
-    private static void ApplyPlayerSettings()
-    {
-        try
-        {
-            PlayerSettings.ApplyPrefs();
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"[NOVR] Native settings failed to apply PlayerSettings: {exception}");
-        }
-    }
-
-    private static void ApplyHudSettings()
-    {
-        try
-        {
-            PlayerSettings.ApplyPrefs();
-            if (SceneSingleton<HUDOptions>.i != null)
-            {
-                SceneSingleton<HUDOptions>.i.ApplyHUDSettings();
-            }
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"[NOVR] Native settings failed to apply HUD settings: {exception}");
-        }
+        NativePlayerSettingsAccess.SaveAndApply();
     }
 
     private static float AdjustFloat(float value, float delta, float min, float max, float step)

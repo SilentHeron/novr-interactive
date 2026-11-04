@@ -18,7 +18,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private readonly Action<float> _setBackground;
     private readonly Action<bool> _setVisible;
     private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _eyeTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
-    private readonly bool[] _hover = new bool[2];
+    private readonly bool[] _hover = new bool[2], _pencilHover = new bool[2], _eyeHover = new bool[2];
     private Vector2 _popupCenter, _closeCenter;
     private readonly Vector2 _popupSize;
     private readonly float _trackWidth;
@@ -176,6 +176,9 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         // the contact region between the icons so a touch selects only one.
         var pencil = point.x <= 0 && Inside(point, PencilCenter, new Vector2(52, 52), padding);
         var eye = point.x > 0 && Inside(point, EyeCenter, new Vector2(52, 52), padding);
+        _pencilHover[side] = pencil && hover;
+        _eyeHover[side] = eye && hover;
+        RefreshHover();
         if (_pencilTouch[side].Update(true, pencil, depth))
         {
             _eyeTouch[side].Reset();
@@ -195,8 +198,6 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             InteractionHaptics.Pulse(device, InteractionCue.Click);
             return true;
         }
-        _pencilBack.color = pencil && hover ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
-        _eyeBack.color = eye && hover ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
         if (_eyeTouch[side].Update(true, eye, depth))
         {
             // Consume both hands together to avoid a simultaneous touch
@@ -270,6 +271,15 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _value.text = $"Backplate {_background * 100:0}%";
         _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, -5);
     }
+    private void RefreshHover()
+    {
+        if (_disposed)
+            return;
+        // Each hand owns its own contact. Updating or losing one hand must not
+        // erase the other hand's hover or leave an interrupted contact lit.
+        _pencilBack.color = _pencilHover[0] || _pencilHover[1] ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
+        _eyeBack.color = _eyeHover[0] || _eyeHover[1] ? new Color(.17f, .36f, .40f, 1) : new Color(.04f, .10f, .13f, .9f);
+    }
     private void RefreshVisibility()
     {
         _eyeOpen.SetActive(_visible);
@@ -292,7 +302,8 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _eyeTouch[side].Reset();
         _closeTouch[side].Reset();
         _sliderTouch[side].Reset();
-        _hover[side] = false;
+        _hover[side] = _pencilHover[side] = _eyeHover[side] = false;
+        RefreshHover();
         if (_sliderOwner == side)
             _sliderOwner = -1;
     }

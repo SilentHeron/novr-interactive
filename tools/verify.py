@@ -57,6 +57,8 @@ PORTABLE = (
     ("threat-vector", "tests/ThreatVectorLine/ThreatVectorLine.csproj"),
     ("native-menu-handoff", "tests/NativeMenuHandoff/NativeMenuHandoff.csproj"),
     ("native-binding-catalog", "tests/NativeBindingCatalog/NativeBindingCatalog.csproj"),
+    ("native-settings-access", "tests/NativeSettingsAccess/NativeSettingsAccess.csproj"),
+    ("ui-binding-ownership", "tests/UiBindingOwnership/UiBindingOwnership.csproj"),
     ("native-workshop", "tests/NativeWorkshop/NativeWorkshop.csproj"),
     ("mission-readiness", "tests/MissionReadiness/NOVR.MissionReadiness.Tests.csproj"),
     ("startup-splash", "tests/StartupSplash/NOVR.StartupSplash.Tests.csproj"),

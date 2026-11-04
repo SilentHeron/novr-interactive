@@ -44,7 +44,7 @@ namespace NOVR.VrUi.Native
 {
     // Panel transitions are source-linked. Only Unity construction, native panel
     // implementations and stock-canvas suppression are replaced at the boundary.
-    public partial class NativeVrUiRoot
+    public partial class NativeVrUiRoot : NOVRBehaviour
     {
         internal sealed class PanelProbe
         {

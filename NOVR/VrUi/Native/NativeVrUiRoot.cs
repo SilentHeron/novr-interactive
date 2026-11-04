@@ -74,12 +74,6 @@ public partial class NativeVrUiRoot : NOVRBehaviour
     public GameObject? OriginalMainCanvas => _mainCanvas;
     public NativeGameActionAdapter Actions => _actions;
 
-    protected override void OnEnable()
-    {
-        base.OnEnable();
-        _mainCanvasDiscovery.Enable();
-    }
-
     private void Start()
     {
         RefreshEnabledState();
@@ -97,13 +91,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         if (!IsNativeMenuUiEnabled)
         {
             RestoreOriginalMainCanvas();
-            if (_root != null)
-            {
-                _root.SetActive(false);
-            }
             _menuAnchorInitialized = false;
-            ClearNativeCursorProjectionReference();
-            SetUtilityWidgetMode(ShouldShowStockNativeUiToggle()
+            SuspendNativePresentation(ShouldShowStockNativeUiToggle()
                 ? UtilityWidgetMode.EnableNativeUi
                 : UtilityWidgetMode.Hidden);
             return;
@@ -114,10 +103,7 @@ public partial class NativeVrUiRoot : NOVRBehaviour
             RestoreOriginalMainCanvas();
             // Suspend the replacement canvas without resetting its panels. On
             // return, keep the chosen mission and its edited settings intact.
-            if (_root != null)
-                _root.SetActive(false);
-            ClearNativeCursorProjectionReference();
-            SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
+            SuspendNativePresentation();
             return;
         }
 
@@ -232,29 +218,6 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         return true;
     }
 
-    protected override void OnDisable()
-    {
-        _mainCanvasDiscovery.Disable();
-        RestoreOriginalMainCanvas();
-        _startupSplash?.Dispose();
-        NOUIManager.I?.SetStartupPresentation(false);
-        if (_root != null)
-            _root.SetActive(false);
-        SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
-        base.OnDisable();
-    }
-
-    private void OnDestroy()
-    {
-        _mainCanvasDiscovery.Disable();
-        _actions.ActionInvoked -= OnNativeActionInvoked;
-        _startupSplash?.Dispose();
-        if (_root != null)
-            Destroy(_root);
-        if (_recenterWidgetRoot != null)
-            Destroy(_recenterWidgetRoot);
-    }
-
     protected override void OnSettingChanged()
     {
         base.OnSettingChanged();
@@ -272,13 +235,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         }
 
         RestoreOriginalMainCanvas();
-        if (_root != null)
-        {
-            _root.SetActive(false);
-        }
         _menuAnchorInitialized = false;
-        ClearNativeCursorProjectionReference();
-        SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
+        SuspendNativePresentation();
     }
 
     private void EnsureRoot()
@@ -317,7 +275,6 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         ShowPanel(MenuPanel.None);
         _startupSplash = new NativeStartupSplash(rectTransform, _actions);
         CreateRecenterWidget();
-        _actions.ActionInvoked += OnNativeActionInvoked;
         _root.SetActive(false);
 
         Debug.Log("[NOVR] Native VR UI root created.");

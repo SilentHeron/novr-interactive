@@ -54,6 +54,7 @@ Check(!NativeMissionSelection.TryGet(fallback, first, out _));
 passed += CanvasDiscoveryChecks.Run();
 passed += CaptureLifetimeChecks.Run();
 passed += PanelVisibilityChecks.Run();
+passed += NativeRootLifetimeChecks.Run();
 passed += MenuAvailabilityChecks.Run();
 passed += MultiplayerSelectionChecks.Run();
 passed += NativeMultiplayerPanel.RunBrowserQueryChecks();

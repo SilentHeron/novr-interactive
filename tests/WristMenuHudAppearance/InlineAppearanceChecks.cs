@@ -91,7 +91,7 @@ internal static class InlineAppearanceChecks
         Touch(editor, editor.PencilCenter);
         editor.Dispose();
         Check(!editor.IsOpen && !editor.HitTest(Point(editor.PencilCenter, 0), pixel), "Disposal clears global popup ownership and all contacts");
-        return checks + VisibilityChecks() + ResizeChecks();
+        return checks + VisibilityChecks() + ResizeChecks() + HoverOwnershipChecks();
 
         Vector3 Point(Vector2 at, float depth) => new(at.x, at.y, -depth / pixel);
         void Hand(Vector2 at, float depth) => editor.UpdateHand(0, Point(at, depth), true, pixel, device);
@@ -104,6 +104,58 @@ internal static class InlineAppearanceChecks
         void Check(bool ok, string message)
         {
             if (!ok)
+                throw new Exception(message);
+            checks++;
+        }
+    }
+
+    private static int HoverOwnershipChecks()
+    {
+        const float pixel = .0007f * .65f;
+        var checks = 0;
+        var writes = 0;
+        var root = (RectTransform)new GameObject("Two-hand appearance feedback").transform;
+        using var editor = new CockpitWidgetAppearanceEditor(root, new Vector2(420, 170), _ => writes++, _ => writes++);
+        var pencil = root.children.Single(x => x.gameObject.Name == "Edit widget appearance").GetComponent<UnityEngine.UI.Image>();
+        var eye = root.children.Single(x => x.gameObject.Name == "Show or hide widget").GetComponent<UnityEngine.UI.Image>();
+        var idle = new Color(.04f, .10f, .13f, .9f);
+        var lit = new Color(.17f, .36f, .40f, 1);
+        editor.SetState(true, true, .37f);
+        foreach (var first in new[] { 0, 1 })
+        {
+            var second = 1 - first;
+            editor.ReleaseHands();
+            Hover(first, editor.PencilCenter);
+            Hover(second, new Vector2(500, 500));
+            Check(pencil.color == lit && eye.color == idle, "An idle second hand cannot erase the first hand's pencil hover");
+            Hover(second, editor.EyeCenter);
+            Check(pencil.color == lit && eye.color == lit, "Both hands can independently highlight different appearance controls");
+            Hover(first, editor.PencilCenter, false);
+            Check(pencil.color == idle && eye.color == lit, "Tracking loss clears only that hand's highlight");
+            Hover(first, editor.EyeCenter);
+            Hover(second, editor.EyeCenter, false);
+            Check(eye.color == lit, "Shared eye hover persists until the final hand withdraws");
+            Hover(first, new Vector2(500, 500));
+            Check(pencil.color == idle && eye.color == idle, "Withdrawal clears both highlights without another press");
+            Hover(first, editor.PencilCenter);
+            editor.ReleaseHands();
+            Check(pencil.color == idle && eye.color == idle && !editor.IsPointing(first), "Explicit release clears visual and contact ownership together");
+        }
+        Hover(0, editor.EyeCenter);
+        editor.SetState(false, true, .37f);
+        editor.SetState(true, true, .37f);
+        Check(pencil.color == idle && eye.color == idle, "Closing and reopening layout cannot restore a stale highlight");
+        Check(writes == 0 && !editor.IsOpen, "Hover and release never change visibility, opacity, or popup state");
+        editor.Dispose();
+        Hover(0, editor.PencilCenter);
+        Check(!editor.IsPointing(0), "A late sample after disposal cannot retain hand ownership");
+        return checks;
+
+        void Hover(int side, Vector2 at, bool available = true) => editor.UpdateHand(side,
+            new Vector3(at.x, at.y, -.04f / pixel), available, pixel, new InputDevice(side));
+        void Check(bool value, string message)
+        {
+            if (!value)
                 throw new Exception(message);
             checks++;
         }
