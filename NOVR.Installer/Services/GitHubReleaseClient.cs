@@ -30,7 +30,7 @@ public sealed class GitHubReleaseClient
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             throw new InvalidOperationException("No published release is available on " + InstallerConstants.ReleaseChannel +
-                ". Your installed files have not been changed. Use a provided Steam Frame package until a release is published.", ex);
+                ". Your installed files have not been changed. Use a provided NOVR package until a release is published.", ex);
         }
         var version = new ReleaseVersion(release.TagName);
         var preferredName = "NOVR-steam-frame-" + version + ".zip";
@@ -98,9 +98,37 @@ public sealed class GitHubReleaseClient
 
     private async Task<GitHubRelease> GetLatestReleaseAsync(string owner, string repo, CancellationToken cancellationToken)
     {
-        await using var stream = await _httpClient.GetStreamAsync($"https://api.github.com/repos/{owner}/{repo}/releases/latest", cancellationToken);
-        return await JsonSerializer.DeserializeAsync<GitHubRelease>(stream, JsonOptions, cancellationToken)
-               ?? throw new InvalidOperationException($"Could not read latest release for {owner}/{repo}.");
+        // This fork publishes experimental prereleases. GitHub's /latest endpoint
+        // excludes them, and list order is not numeric release-version order.
+        const int pageSize = 100;
+        GitHubRelease? latest = null;
+        var latestVersion = default(ReleaseVersion);
+        for (var page = 1; ; page++)
+        {
+            await using var stream = await _httpClient.GetStreamAsync($"https://api.github.com/repos/{owner}/{repo}/releases?per_page={pageSize}&page={page}", cancellationToken);
+            var releases = await JsonSerializer.DeserializeAsync<GitHubRelease[]>(stream, JsonOptions, cancellationToken)
+                           ?? throw new InvalidOperationException($"Could not read releases for {owner}/{repo}.");
+            foreach (var release in releases)
+            {
+                if (release is null || release.Draft || string.IsNullOrWhiteSpace(release.TagName))
+                    continue;
+                ReleaseVersion version;
+                try
+                {
+                    version = new ReleaseVersion(release.TagName);
+                }
+                catch (ArgumentException) { continue; }
+                if (latest is null || version > latestVersion)
+                {
+                    latest = release;
+                    latestVersion = version;
+                }
+            }
+            if (releases.Length < pageSize)
+                break;
+        }
+        return latest ?? throw new InvalidOperationException("No published release with a supported numeric version is available on " +
+            InstallerConstants.ReleaseChannel + ". Your installed files have not been changed. Use a provided NOVR package until a release is published.");
     }
 
     private async Task<GitHubRelease> GetLatestBepInEx5ReleaseAsync(CancellationToken cancellationToken)
@@ -146,7 +174,7 @@ public sealed class GitHubReleaseClient
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "github.com")
             throw new InvalidDataException("Release download must originate from GitHub over HTTPS.");
     }
-    private sealed record GitHubRelease([property: System.Text.Json.Serialization.JsonPropertyName("tag_name")] string TagName, GitHubAsset[] Assets);
+    private sealed record GitHubRelease([property: System.Text.Json.Serialization.JsonPropertyName("tag_name")] string TagName, GitHubAsset[] Assets, bool Draft);
     private sealed record GitHubAsset(string Name,
         [property: System.Text.Json.Serialization.JsonPropertyName("browser_download_url")] string BrowserDownloadUrl, string? Digest);
 }

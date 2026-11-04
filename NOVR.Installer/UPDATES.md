@@ -1,12 +1,12 @@
-# Steam Frame fork installation and updates
+# NOVR Interactive installation and updates
 
-The configured release channel is **SilentHeron/novr-interactive**; publication is pending. This installer follows that channel only. It does not fall back to the original NOVR repository when the fork has no release. The channel appears in the installer window and progress text.
+The configured release channel is **SilentHeron/novr-interactive**, including its published experimental prereleases. This installer follows that channel only. It does not fall back to the original NOVR repository when the fork has no release. The channel appears in the installer window and progress text.
 
 Close Nuclear Option before applying an update. The installer does not stop a running game automatically.
 
 ## Downloaded and local packages
 
-Opening the installer is offline; network access begins only when Install or Repair / Update is chosen. Online updates use the latest published release on the fork. Supported assets are `NOVR-steam-frame-<version>.zip` (preferred) and `NOVR.zip`; unrelated ZIP files are never selected. Tags support three or four numeric components, with an optional `v` prefix. The installer will not downgrade a newer installed version.
+Opening the installer is offline; network access begins only when Install or Repair / Update is chosen. Online updates scan all release-list pages and choose the highest published numeric version on the fork, including prereleases. Drafts and nonnumeric tags are ignored. Supported assets are `NOVR-steam-frame-<version>.zip` (preferred) and `NOVR.zip`; unrelated ZIP files are never selected. Tags support three or four numeric components, with an optional `v` prefix. The installer will not downgrade a newer installed version.
 
 An online package must have a GitHub SHA-256 asset digest or a matching `<package>.zip.sha256` release asset. The entire download is checked before installation. A failed or canceled download never replaces an installed directory. Checksums establish correspondence to the selected release; they are not a separate publisher signature.
 
@@ -54,6 +54,6 @@ Run the portable installer checks without game files or network access:
 dotnet run --project tests/Installer/NOVR.Installer.Tests.csproj -c Release
 ```
 
-An optional ZIP argument validates a real release package without installing it. Tests cover four-part versions, malformed archives, settings/other-mod preservation, forced second-swap failure, cancellation, interrupted-update recovery, concurrent updates, mocked release selection and checksums. Temporary fixture files are removed on completion.
+An optional ZIP argument validates a real release package without installing it. Tests cover four-part versions, malformed archives, settings/other-mod preservation, forced second-swap failure, cancellation, interrupted-update recovery, concurrent updates, mocked paginated release selection, checksums, HTTP-body cancellation and response cleanup. Temporary fixture files are removed on completion.
 
 With SDK 10 and Python available, `python3 tests/Installer/check_build.py /path/to/dotnet` also verifies deployment settings, compiled release identity, stale metadata/binary rejection, missing payloads and generated checksums in temporary directories. It compiles tiny fake plugin fixtures, without building or deploying the runtime plugin.

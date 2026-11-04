@@ -210,6 +210,8 @@ try
     await installer.UninstallBepInExAsync(removeAll, messages, default);
     Check(!Directory.Exists(removeAll.BepInExDir), "repeated removal does not recreate BepInEx for its legacy lock");
 
+    await ReleaseSelectionChecks.Run(root, Check);
+
     var bytes = File.ReadAllBytes(zip);
     var hash = Convert.ToHexString(SHA256.HashData(bytes));
     var releaseName = "NOVR-steam-frame-0.4.7.3.zip";
@@ -218,7 +220,7 @@ try
     var downloaded = await client.DownloadLatestNovrReleaseAsync(Path.Combine(root, "download"), messages, default);
     Check(File.ReadAllBytes(downloaded).SequenceEqual(bytes), "verified release downloaded intact");
     Check(client.FoundNOVRRelease == new ReleaseVersion("0.4.7.3"), "verified release version published after download");
-    Check(urls[0] == "https://api.github.com/repos/SilentHeron/novr-interactive/releases/latest", "only fork channel queried");
+    Check(urls[0] == "https://api.github.com/repos/SilentHeron/novr-interactive/releases?per_page=100&page=1", "only fork channel queried");
     Check(urls.All(u => !u.Contains("InfernoSuperNova")), "no upstream fallback requests");
     var badHashClient = MockClient(new string('0', 64), bytes, releaseName);
     var badDir = Path.Combine(root, "bad-hash");
@@ -295,7 +297,7 @@ static GitHubReleaseClient MockClient(string? hash, byte[] bytes, string name, s
         var url = request.RequestUri!.ToString();
         urls?.Add(url);
         if (url.StartsWith("https://api.github.com/"))
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { tag_name = "v0.4.7.3", assets })) };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new[] { new { tag_name = "v0.4.7.3", assets } })) };
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = url.EndsWith(".sha256") ? new StringContent(sidecar!) : new ByteArrayContent(bytes) };
     })));
 }
