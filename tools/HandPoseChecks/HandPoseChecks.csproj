@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/MotionControls/RiggedGlove.cs" Link="RiggedGlove.cs" />
+    <Compile Include="../../NOVR/MotionControls/GloveBones.cs" Link="GloveBones.cs" />
     <Compile Include="../../NOVR/MotionControls/FreeHandPose.cs" Link="FreeHandPose.cs" />
     <Compile Include="../../NOVR/MotionControls/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
     <Compile Include="../../NOVR/MotionControls/Fs20HandPoses.cs" Link="Fs20HandPoses.cs" />

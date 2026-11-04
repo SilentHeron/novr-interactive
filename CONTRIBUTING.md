@@ -15,6 +15,8 @@ python tools/verify.py portable
 
 These checks do not require Nuclear Option, Unity or a headset. See
 [verification](docs/VERIFICATION.md) for logs, SDK selection and coverage limits.
+Use `python tools/verify.py portable --list` to find a focused suite, then run it
+with `--suite NAME` while developing.
 
 To build the mod, install Nuclear Option locally. BepInEx 5.x for Windows x64 is
 needed to run the mod on Windows or Proton; NuGet supplies its compile-time references. The supported
@@ -36,13 +38,23 @@ dotnet build NOVR.Build/NOVR.Build.csproj -c Release -p:DeployToGame=false
 For a custom Steam library, pass the same `-p:NuclearOptionGameDir="/path/to/Nuclear Option"`
 to the package command, or set `NUCLEAR_OPTION_GAME_DIR` before building.
 
-To build all maintained projects and both installer executables with SDK 10:
+To build all maintained projects with SDK 10:
 
 ```sh
 dotnet build NuclearOptionVirtualRealityMod.sln -c Release -p:DeployToGame=false
 ```
 
 The same custom-library override applies to this command.
+
+Publishing the self-contained Linux and Windows installers is a separate opt-in:
+
+```sh
+dotnet build NOVR.Installer/NOVR.Installer.csproj -c Release -p:PublishInstallers=true
+```
+
+This writes `dist/NOVR.Installer-Linux` and `dist/NOVR.Installer-Win.exe` and does
+not require the game. For a full release build, add `-p:PublishInstallers=true` to
+the solution command. An ordinary Release build does not republish installers.
 
 Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
 Staging includes the current build's resolved assemblies and declared content;
@@ -63,6 +75,15 @@ and retain a backup of the previous plugin, patcher and settings.
 | `NOVR/VrCamera` | Stereo camera setup and cockpit/tracking-space conversion |
 | `NOVR.Patcher`, `NOVR.XR.*` | Early XR payload installation and Unity XR integrations |
 | `tests`, `tools/*Checks`, `validation` | Executable checks that compile production code with narrow boundary doubles |
+
+Put new source-only suites in `tests/<feature>/`; `tools/` is for verification
+and asset-preparation utilities. Register each suite in `tools/verify.py`, preserve
+the empty build-import files that isolate it from game references, and include
+its linked inputs in the CI sparse checkout. Existing checks in the older roots
+remain supported while they are consolidated.
+
+The Unity XR projects contain inherited vendor source. See the
+[XR source boundary](docs/XR_VENDORING.md) before changing or updating them.
 
 The game camera and cockpit UI camera use different coordinate spaces. Convert
 through their rig roots when moving a tracked point between them; do not assume

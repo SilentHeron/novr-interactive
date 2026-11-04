@@ -17,13 +17,21 @@ internal struct HudWidgetPose
     internal float Scale, Opacity, Background, Aspect;
     internal bool Visible;
     internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true, float aspect = 1)
-    { Position = position; Euler = euler; Scale = scale; Opacity = opacity; Background = background; Visible = visible; Aspect = aspect; }
+    {
+        Position = position;
+        Euler = euler;
+        Scale = scale;
+        Opacity = opacity;
+        Background = background;
+        Visible = visible;
+        Aspect = aspect;
+    }
 }
 
 internal sealed class HudWidgetProfiles
 {
     internal const float MinScale = .35f, MaxScale = 3f, MinOpacity = .25f;
-    internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
+    internal static readonly string[] Ids = HudWidgetCatalog.CreateIds();
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
     private readonly Dictionary<(string key, int slot), AircraftProfile> _aircraft = new();
@@ -37,18 +45,7 @@ internal sealed class HudWidgetProfiles
     {
         _config = config;
     }
-    private static readonly Dictionary<string, HudWidgetPose> Factory = new(StringComparer.Ordinal)
-    {
-        ["weapons"] = new(new Vector3(.28f, -.40f, .28f), Vector3.zero, .65f),
-        ["countermeasures"] = new(new Vector3(-.34f, -.21f, .38f), Vector3.zero, .65f),
-        ["power"] = new(new Vector3(0, -.43f, .28f), Vector3.zero, .65f),
-        ["threats"] = new(new Vector3(-.17f, -.06f, .44f), Vector3.zero, .65f),
-        ["ew"] = new(new Vector3(-.28f, -.40f, .28f), Vector3.zero, .65f),
-        ["feed"] = new(new Vector3(.17f, -.06f, .44f), Vector3.zero, .60f),
-        ["map"] = new(new Vector3(.34f, -.21f, .38f), Vector3.zero, .65f),
-        ["damage"] = new(new Vector3(.12f, -.28f, .32f), Vector3.zero, .65f),
-        ["objectives"] = new(new Vector3(-.12f, -.28f, .32f), Vector3.zero, .65f)
-    };
+    private static readonly Dictionary<string, HudWidgetPose> Factory = HudWidgetCatalog.CreateDefaults();
     private static readonly Dictionary<string, HudWidgetPose> LegacyFactory = new(StringComparer.Ordinal)
     {
         ["weapons"] = new(new Vector3(.34f, -.34f, .75f), new Vector3(0, 12, 0)),
@@ -59,16 +56,12 @@ internal sealed class HudWidgetProfiles
         ["feed"] = new(new Vector3(.27f, -.12f, .85f), new Vector3(0, 12, 0))
     };
     internal static Dictionary<string, HudWidgetPose> FactoryDefaults => new(Factory, StringComparer.Ordinal);
-    internal static string Label(string id) => id switch
-    {
-        "weapons" => "Weapons", "countermeasures" => "Countermeasures", "power" => "Capacitor",
-        "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", "map" => "Map",
-        "damage" => "Aircraft damage", "objectives" => "Instructions", _ => "HUD widget"
-    };
+    internal static string Label(string id) => HudWidgetCatalog.Label(id);
     internal Dictionary<string, HudWidgetPose> Load(string? aircraftKey, int slot = 1)
     {
         ValidateSlot(slot);
-        if (string.IsNullOrEmpty(aircraftKey)) return FactoryDefaults;
+        if (string.IsNullOrEmpty(aircraftKey))
+            return FactoryDefaults;
         var aircraft = Aircraft(aircraftKey!, slot);
         return aircraft.Override.Value ? Read(aircraft.Poses, FactoryDefaults) : FactoryDefaults;
     }
@@ -81,7 +74,8 @@ internal sealed class HudWidgetProfiles
     internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses, int slot = 1)
     {
         ValidateSlot(slot);
-        if (string.IsNullOrEmpty(aircraftKey)) return;
+        if (string.IsNullOrEmpty(aircraftKey))
+            return;
         var snapshot = Merge(Load(aircraftKey, slot), poses);
         var aircraft = Aircraft(aircraftKey, slot);
         Store(aircraft.Poses, snapshot);
@@ -91,7 +85,8 @@ internal sealed class HudWidgetProfiles
     internal void ResetAircraft(string aircraftKey, int slot = 1)
     {
         ValidateSlot(slot);
-        if (string.IsNullOrEmpty(aircraftKey)) return;
+        if (string.IsNullOrEmpty(aircraftKey))
+            return;
         var profile = Aircraft(aircraftKey, slot);
         Store(profile.Poses, FactoryDefaults);
         profile.Override.Value = false;
@@ -99,7 +94,8 @@ internal sealed class HudWidgetProfiles
     }
     private AircraftProfile Aircraft(string key, int slot)
     {
-        if (_aircraft.TryGetValue((key, slot), out var profile)) return profile;
+        if (_aircraft.TryGetValue((key, slot), out var profile))
+            return profile;
         // Slot1 deliberately keeps the pre-slot per-aircraft section. Shared
         // defaults are not read or imported into any aircraft/slot.
         var section = Section(key) + (slot == 1 ? "" : " Slot " + slot);
@@ -113,7 +109,10 @@ internal sealed class HudWidgetProfiles
         return profile;
     }
     private static void ValidateSlot(int slot)
-    { if (slot < 1 || slot > 3) throw new ArgumentOutOfRangeException(nameof(slot), "Layout slot must be 1, 2 or 3."); }
+    {
+        if (slot < 1 || slot > 3)
+            throw new ArgumentOutOfRangeException(nameof(slot), "Layout slot must be 1, 2 or 3.");
+    }
     private Dictionary<string, ConfigEntry<string>> BindPoses(string section)
     {
         var entries = new Dictionary<string, ConfigEntry<string>>(StringComparer.Ordinal);
@@ -128,34 +127,42 @@ internal sealed class HudWidgetProfiles
     {
         var applied = _config.Bind(section, "Compact reachable defaults applied", false,
             "One-time update of untouched 0.4.7.11 widgets to smaller, closer, forward-facing positions. Custom values are preserved.");
-        if (applied.Value) return;
+        if (applied.Value)
+            return;
         var changed = false;
         foreach (var legacy in LegacyFactory)
         {
             // Exact stored stock values only. Even appearance-only customizations
             // retain their complete pose; later intentional stock restores are
             // protected by the per-section migration flag.
-            if (entries[legacy.Key].Value != Encode(legacy.Value)) continue;
+            if (entries[legacy.Key].Value != Encode(legacy.Value))
+                continue;
             entries[legacy.Key].Value = Encode(Factory[legacy.Key]);
             changed = true;
         }
         applied.Value = true;
-        if (changed) _config.Save();
+        if (changed)
+            _config.Save();
     }
     private static Dictionary<string, HudWidgetPose> Read(Dictionary<string, ConfigEntry<string>> entries, Dictionary<string, HudWidgetPose> fallback)
     {
         var result = new Dictionary<string, HudWidgetPose>(StringComparer.Ordinal);
-        foreach (var id in Ids) result.Add(id, Decode(id, entries[id].Value, fallback[id]));
+        foreach (var id in Ids)
+            result.Add(id, Decode(id, entries[id].Value, fallback[id]));
         return result;
     }
     private static Dictionary<string, HudWidgetPose> Merge(Dictionary<string, HudWidgetPose> current, Dictionary<string, HudWidgetPose> changed)
     {
         foreach (var id in Ids)
-            if (changed.TryGetValue(id, out var pose)) current[id] = Sanitize(id, pose);
+            if (changed.TryGetValue(id, out var pose))
+                current[id] = Sanitize(id, pose);
         return current;
     }
     private static void Store(Dictionary<string, ConfigEntry<string>> entries, Dictionary<string, HudWidgetPose> poses)
-    { foreach (var id in Ids) entries[id].Value = Encode(Sanitize(id, poses[id])); }
+    {
+        foreach (var id in Ids)
+            entries[id].Value = Encode(Sanitize(id, poses[id]));
+    }
     internal static HudWidgetPose Sanitize(string id, HudWidgetPose pose)
     {
         var fallback = Factory.TryGetValue(id, out var factory) ? factory : new HudWidgetPose(new Vector3(0, -.2f, .8f), Vector3.zero);
@@ -182,13 +189,17 @@ internal sealed class HudWidgetProfiles
     private static HudWidgetPose Decode(string id, string text, HudWidgetPose fallback)
     {
         var parts = (text ?? "").Split('|');
-        if (parts.Length != 10 && parts.Length != 11) return fallback;
+        if (parts.Length != 10 && parts.Length != 11)
+            return fallback;
         var values = new float[9];
         for (var i = 0; i < values.Length; i++)
-            if (!float.TryParse(parts[i], NumberStyles.Float, Invariant, out values[i])) return fallback;
-        if (parts[9] != "0" && parts[9] != "1") return fallback;
+            if (!float.TryParse(parts[i], NumberStyles.Float, Invariant, out values[i]))
+                return fallback;
+        if (parts[9] != "0" && parts[9] != "1")
+            return fallback;
         var aspect = 1f;
-        if (parts.Length == 11 && !float.TryParse(parts[10], NumberStyles.Float, Invariant, out aspect)) aspect = 1;
+        if (parts.Length == 11 && !float.TryParse(parts[10], NumberStyles.Float, Invariant, out aspect))
+            aspect = 1;
         return Sanitize(id, new HudWidgetPose(new Vector3(values[0], values[1], values[2]), new Vector3(values[3], values[4], values[5]),
             values[6], values[7], values[8], parts[9] == "1", aspect));
     }

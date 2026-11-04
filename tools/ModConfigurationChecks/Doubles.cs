@@ -4,13 +4,20 @@ namespace BepInEx.Configuration
     {
         public Action<int>? BeforeBind;
         public int BindCount { get; private set; }
-        public ConfigEntry<T> Bind<T>(string section, string key, T value, string description) => Bind(value);
-        public ConfigEntry<T> Bind<T>(string section, string key, T value, ConfigDescription description) => Bind(value);
-        private ConfigEntry<T> Bind<T>(T value)
+        private readonly Dictionary<(string Section, string Key), object> _entries = new();
+        public List<string> BoundKeys { get; } = new();
+        public void Seed<T>(string section, string key, T value) => _entries[(section, key)] = new ConfigEntry<T>(value);
+        public ConfigEntry<T> Bind<T>(string section, string key, T value, string description) => Bind(section, key, value);
+        public ConfigEntry<T> Bind<T>(string section, string key, T value, ConfigDescription description) => Bind(section, key, value);
+        private ConfigEntry<T> Bind<T>(string section, string key, T value)
         {
             BindCount++;
+            BoundKeys.Add(key);
             BeforeBind?.Invoke(BindCount);
-            return new ConfigEntry<T>(value);
+            if (_entries.TryGetValue((section, key), out var entry)) return (ConfigEntry<T>)entry;
+            var created = new ConfigEntry<T>(value);
+            _entries.Add((section, key), created);
+            return created;
         }
     }
     public sealed class ConfigEntry<T>(T value) { public T Value { get; set; } = value; }
@@ -29,10 +36,6 @@ namespace BepInEx.Configuration
 namespace NOVR.MotionControls
 {
     using BepInEx.Configuration;
-    public sealed class MotionControlSettings
-    {
-        public MotionControlSettings(ConfigFile config) => config.Bind("Motion", "Test boundary", true, "");
-    }
     public sealed class ControllerBindings
     {
         public ControllerBindings(ConfigFile config) => config.Bind("Bindings", "Test boundary", true, "");
@@ -51,4 +54,24 @@ namespace NOVR.VrUi.SpecialBehavior
     {
         public CockpitAlertSettings(ConfigFile config) => config.Bind("Alerts", "Test boundary", true, "");
     }
+}
+
+namespace UnityEngine
+{
+    public struct Vector3(float x, float y, float z)
+    {
+        public float x = x, y = y, z = z;
+        public static Vector3 zero => default;
+        public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static bool operator ==(Vector3 a, Vector3 b)
+        {
+            var d = a - b;
+            return d.x * d.x + d.y * d.y + d.z * d.z < 1e-10f;
+        }
+        public static bool operator !=(Vector3 a, Vector3 b) => !(a == b);
+        public override bool Equals(object? other) => other is Vector3 value && this == value;
+        public override int GetHashCode() => HashCode.Combine(x, y, z);
+    }
+    public static class Mathf { public static float Abs(float value) => MathF.Abs(value); }
 }

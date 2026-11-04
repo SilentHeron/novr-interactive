@@ -8,6 +8,7 @@ StickLimitFeedbackChecks.Run(Check, True);
 HandleReachFeedbackChecks.Run(Check, True);
 ControlMirrorChecks.Run(Check, True);
 FrameActionQueueChecks.Run(Check, True);
+NativeControllerActionChecks.Run(Check, True);
 
 Check("Menu history returns shared help to its source and clears confirmations on Home", () =>
 {

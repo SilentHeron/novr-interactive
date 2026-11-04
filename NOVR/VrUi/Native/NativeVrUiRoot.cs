@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeVrUiRoot : NOVRBehaviour
+public partial class NativeVrUiRoot : NOVRBehaviour
 {
     private const float BaseCanvasScale = 0.0015625f;
     private const float DefaultMenuScale = 1.25f;
@@ -176,14 +176,15 @@ public class NativeVrUiRoot : NOVRBehaviour
             _vrUiSettingsOpen = false;
         }
 
-        _mainMenuShell?.SetVisible(shouldShowMainMenu);
-        _multiplayerPanel?.SetVisible(shouldShowMultiplayer);
-        _singlePlayerMissionPanel?.SetVisible(shouldShowSinglePlayerMissionPicker);
-        _settingsPanel?.SetVisible(shouldShowSettings);
-        _workshopPanel?.SetVisible(shouldShowWorkshop);
-        _vrUiSettingsPanel?.SetVisible(shouldShowVrUiSettings);
+        var panel = shouldShowMainMenu ? MenuPanel.Main :
+            shouldShowSinglePlayerMissionPicker ? MenuPanel.SinglePlayer :
+            shouldShowMultiplayer ? MenuPanel.Multiplayer :
+            shouldShowSettings ? MenuPanel.Settings :
+            shouldShowWorkshop ? MenuPanel.Workshop :
+            shouldShowVrUiSettings ? MenuPanel.VrUiSettings : MenuPanel.None;
+        ShowPanel(panel);
 
-        var shouldShowNativeUi = shouldShowMainMenu || shouldShowSinglePlayerMissionPicker || shouldShowMultiplayer || shouldShowSettings || shouldShowWorkshop || shouldShowVrUiSettings;
+        var shouldShowNativeUi = panel != MenuPanel.None;
         HandleRecenterShortcut(shouldShowNativeUi);
         UpdatePlacement(shouldShowNativeUi);
         UpdatePendingRecenter(shouldShowNativeUi);
@@ -216,12 +217,7 @@ public class NativeVrUiRoot : NOVRBehaviour
             _mainCanvasDiscovery.Invalidate();
             ScanForMainMenuCanvas();
         }
-        _mainMenuShell?.SetVisible(false);
-        _multiplayerPanel?.SetVisible(false);
-        _singlePlayerMissionPanel?.SetVisible(false);
-        _settingsPanel?.SetVisible(false);
-        _workshopPanel?.SetVisible(false);
-        _vrUiSettingsPanel?.SetVisible(false);
+        ShowPanel(MenuPanel.None);
         _singlePlayerMissionPickerRequested = _multiplayerRequested = _settingsRequested = _workshopRequested = _vrUiSettingsOpen = false;
         HandleRecenterShortcut(true);
         UpdatePlacement(true);
@@ -300,19 +296,15 @@ public class NativeVrUiRoot : NOVRBehaviour
         _mainMenuShell.SetOriginalMainCanvas(_mainCanvas);
         _multiplayerPanel = _root.AddComponent<NativeMultiplayerPanel>();
         _multiplayerPanel.Initialize(_actions, rectTransform);
-        _multiplayerPanel.SetVisible(false);
         _singlePlayerMissionPanel = _root.AddComponent<NativeSinglePlayerMissionPanel>();
         _singlePlayerMissionPanel.Initialize(_actions, rectTransform);
-        _singlePlayerMissionPanel.SetVisible(false);
         _settingsPanel = _root.AddComponent<NativeSettingsPanel>();
         _settingsPanel.Initialize(_actions, rectTransform);
-        _settingsPanel.SetVisible(false);
         _workshopPanel = _root.AddComponent<NativeWorkshopPanel>();
         _workshopPanel.Initialize(_actions, rectTransform);
-        _workshopPanel.SetVisible(false);
         _vrUiSettingsPanel = _root.AddComponent<NativeVrUiSettingsPanel>();
         _vrUiSettingsPanel.Initialize(rectTransform, CloseVrUiSettingsPanel, RecenterMenu);
-        _vrUiSettingsPanel.SetVisible(false);
+        ShowPanel(MenuPanel.None);
         _startupSplash = new NativeStartupSplash(rectTransform, _actions);
         CreateRecenterWidget();
         _actions.ActionInvoked += OnNativeActionInvoked;
@@ -784,14 +776,14 @@ public class NativeVrUiRoot : NOVRBehaviour
         if (_singlePlayerMissionPickerRequested)
         {
             _singlePlayerMissionPickerRequestTime = Time.unscaledTime;
-            ShowSinglePlayerMissionPanelImmediately();
+            ActivatePanel(MenuPanel.SinglePlayer);
         }
 
         _multiplayerRequested = action == NativeGameAction.Multiplayer;
         if (_multiplayerRequested)
         {
             _multiplayerRequestTime = Time.unscaledTime;
-            ShowMultiplayerPanelImmediately();
+            ActivatePanel(MenuPanel.Multiplayer);
         }
 
         _settingsRequested = action == NativeGameAction.Settings;
@@ -805,7 +797,7 @@ public class NativeVrUiRoot : NOVRBehaviour
         if (_workshopRequested)
         {
             _workshopRequestTime = Time.unscaledTime;
-            ShowWorkshopPanelImmediately();
+            ActivatePanel(MenuPanel.Workshop);
         }
     }
 
@@ -817,72 +809,13 @@ public class NativeVrUiRoot : NOVRBehaviour
         _workshopRequested = false;
         _vrUiSettingsOpen = true;
 
-        if (_root != null && !_root.activeSelf)
-        {
-            _root.SetActive(true);
-        }
-
-        _mainMenuShell?.SetVisible(false);
-        _multiplayerPanel?.SetVisible(false);
-        _singlePlayerMissionPanel?.SetVisible(false);
-        _settingsPanel?.SetVisible(false);
-        _workshopPanel?.SetVisible(false);
-        _vrUiSettingsPanel?.SetVisible(true);
-        SuppressOriginalMainCanvas(true);
+        ActivatePanel(MenuPanel.VrUiSettings);
     }
 
     private void CloseVrUiSettingsPanel()
     {
         _vrUiSettingsOpen = false;
-        _vrUiSettingsPanel?.SetVisible(false);
-    }
-
-    private void ShowSinglePlayerMissionPanelImmediately()
-    {
-        if (_root != null && !_root.activeSelf)
-        {
-            _root.SetActive(true);
-        }
-
-        _mainMenuShell?.SetVisible(false);
-        _multiplayerPanel?.SetVisible(false);
-        _singlePlayerMissionPanel?.SetVisible(true);
-        _settingsPanel?.SetVisible(false);
-        _workshopPanel?.SetVisible(false);
-        _vrUiSettingsPanel?.SetVisible(false);
-        SuppressOriginalMainCanvas(true);
-    }
-
-    private void ShowMultiplayerPanelImmediately()
-    {
-        if (_root != null && !_root.activeSelf)
-        {
-            _root.SetActive(true);
-        }
-
-        _mainMenuShell?.SetVisible(false);
-        _multiplayerPanel?.SetVisible(true);
-        _singlePlayerMissionPanel?.SetVisible(false);
-        _settingsPanel?.SetVisible(false);
-        _workshopPanel?.SetVisible(false);
-        _vrUiSettingsPanel?.SetVisible(false);
-        SuppressOriginalMainCanvas(true);
-    }
-
-    private void ShowWorkshopPanelImmediately()
-    {
-        if (_root != null && !_root.activeSelf)
-        {
-            _root.SetActive(true);
-        }
-
-        _mainMenuShell?.SetVisible(false);
-        _multiplayerPanel?.SetVisible(false);
-        _singlePlayerMissionPanel?.SetVisible(false);
-        _settingsPanel?.SetVisible(false);
-        _workshopPanel?.SetVisible(true);
-        _vrUiSettingsPanel?.SetVisible(false);
-        SuppressOriginalMainCanvas(true);
+        ShowPanel(MenuPanel.None);
     }
 
     private void SuppressOriginalMainCanvas(bool suppress)

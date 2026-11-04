@@ -11,16 +11,22 @@ internal static class ArmReachMath
     {
         internal readonly float Distance, Scale, Opacity;
         internal Reach(float distance, float scale, float opacity)
-        { Distance = distance; Scale = scale; Opacity = opacity; }
+        {
+            Distance = distance;
+            Scale = scale;
+            Opacity = opacity;
+        }
+
         internal bool Valid => Scale >= 1;
     }
+
     internal static Reach Evaluate(float upper, float forearm, float distance)
     {
-        if (!FlightControlMath.IsFinite(upper) || !FlightControlMath.IsFinite(forearm) ||
-            !FlightControlMath.IsFinite(distance) || upper < .05f || forearm < .05f || distance < .001f)
+        if (!FlightControlMath.IsFinite(upper) || !FlightControlMath.IsFinite(forearm) || !FlightControlMath.IsFinite(distance) || upper < .05f || forearm < .05f || distance < .001f)
             return default;
         var length = upper + forearm;
-        if (!FlightControlMath.IsFinite(length)) return default;
+        if (!FlightControlMath.IsFinite(length))
+            return default;
         var extension = Math.Min(MaximumExtension, length * MaximumStretchRatio);
         var maximum = length + extension - .002f;
         var minimum = Math.Abs(upper - forearm) + .002f;
@@ -43,16 +49,16 @@ internal static class ArmReachMath
         return new Reach(solvedDistance, scale, opacity);
     }
 
-    internal static bool Triangle(float upper,float forearm,float distance,out float along,out float height)
+    internal static bool Triangle(float upper, float forearm, float distance, out float along, out float height)
     {
-        along=height=0;
-        if (!FlightControlMath.IsFinite(upper) || !FlightControlMath.IsFinite(forearm) || !FlightControlMath.IsFinite(distance) ||
-            upper<=0 || forearm<=0 || distance<=0 || distance>=upper+forearm || distance<=Math.Abs(upper-forearm))return false;
+        along = height = 0;
+        if (!FlightControlMath.IsFinite(upper) || !FlightControlMath.IsFinite(forearm) || !FlightControlMath.IsFinite(distance) || upper <= 0 || forearm <= 0 || distance <= 0 || distance >= upper + forearm || distance <= Math.Abs(upper - forearm))
+            return false;
         // Double precision and Heron's factors retain a useful bend near full
         // extension instead of subtracting two almost identical float squares.
-        double a=upper,b=forearm,d=distance;
-        along=(float)((a*a-b*b+d*d)/(2*d));
-        height=(float)(Math.Sqrt((a+b+d)*(a+b-d)*(d+a-b)*(d-a+b))/(2*d));
+        double a = upper, b = forearm, d = distance;
+        along = (float)((a * a - b * b + d * d) / (2 * d));
+        height = (float)(Math.Sqrt((a + b + d) * (a + b - d) * (d + a - b) * (d - a + b)) / (2 * d));
         return FlightControlMath.IsFinite(along) && FlightControlMath.IsFinite(height);
     }
 }

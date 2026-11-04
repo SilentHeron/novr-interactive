@@ -7,6 +7,7 @@
     <Compile Include="../../NOVR/MotionControls/AircraftLayoutIdentity.cs" Link="AircraftLayoutIdentity.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetDefaultPlacement.cs" Link="HudWidgetDefaultPlacement.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/HudWidgetCatalog.cs" Link="HudWidgetCatalog.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetShape.cs" Link="HudWidgetShape.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />

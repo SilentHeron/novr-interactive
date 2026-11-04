@@ -150,12 +150,11 @@ namespace NOVR.VrUi
         internal Dictionary<(string page, string text), (Text label, Action? action)> Buttons =>
             _buttons.ToDictionary(b => (b.page, b.label.text), b => (b.label, b.action));
         private readonly List<GameObject> _pages = new();
-        private string _building = "";
-        private Transform? _buttonParent;private readonly Font _font=new();
-        private void Section(string title,float y,float width=620,float x=0)=>ViewMenuControls.Section(_buttonParent!,_font,title,y,width,x);
+        private readonly Font _font=new();
+        private void Section(Transform parent,string title,float y,float width=620,float x=0)=>ViewMenuControls.Section(parent,_font,title,y,width,x);
         private static string Percent(float value)=>$"{value*100:0}%";
         private static string Degrees(float value)=>$"{value:0.#}°";
-        private Text ActionButton(string title,int column,float y,Action action,bool danger=false)=>AddButton(title,column,(int)y,action);
+        private Text ActionButton(Transform parent,string title,int column,float y,Action action,bool danger=false)=>AddButton(parent,title,column,(int)y,action);
         internal Slider Scalar(string title)=>_hudSliders.Single(item=>item.control.Slider.gameObject.Name==title).control.Slider;
         internal Toggle Visibility=>_hudVisibility!.Toggle;
         internal void Nudge(string title,float delta){var slider=Scalar(title);if(slider.interactable)slider.value+=delta;}
@@ -165,12 +164,16 @@ namespace NOVR.VrUi
         internal Text AngleInfo => _hudAngleInfo!;
         internal Text ProfilesInfo => _aircraftProfilesInfo!;
         internal string ActivePage => _pages.Single(page => page.activeSelf).Name;
+        internal bool ButtonsHavePageParents => _buttons.All(button =>
+            button.label.transform.parent.parent.gameObject.Name == button.page);
+        internal string ScalarPage(string title) => Scalar(title).transform.parent.gameObject.Name;
         internal static int Closes;
-        private GameObject Page(string title) { _building = title; var page = new GameObject(title); _buttonParent=page.transform; _pages.Add(page); return page; }
-        private Text AddButton(string text, int column, int row, Action? action)
+        private GameObject Page(string title) { var page = new GameObject(title); _pages.Add(page); return page; }
+        private Text AddButton(Transform parent,string text, int column, int row, Action? action)
         {
             var button = new GameObject(text, typeof(Button)); var label = Label(button.transform, text, default, default, 20);
-            _buttons.Add((_building, column, row, label, action)); return label;
+            button.transform.SetParent(parent, false);
+            _buttons.Add((parent.gameObject.Name, column, row, label, action)); return label;
         }
         private Text Label(Transform parent, string text, Vector2 position, Vector2 size, int fontSize)
         { var go = new GameObject("Label", typeof(Text)); go.transform.SetParent(parent, false); var label = go.GetComponent<Text>(); label.text = text; return label; }

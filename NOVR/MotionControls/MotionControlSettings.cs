@@ -22,7 +22,6 @@ public sealed class MotionControlSettings
     public readonly ConfigEntry<Vector3> GloveOffset, GloveRotation;
     public readonly ConfigEntry<Vector3> LeftGloveOffset, RightGloveOffset, LeftGloveRotation, RightGloveRotation;
     public readonly ConfigEntry<bool> StickTapGrip, ThrottleTapGrip;
-
     public MotionControlSettings(ConfigFile config)
     {
         const string section = "Motion Controls";
@@ -39,8 +38,8 @@ public sealed class MotionControlSettings
         RiggedGloves = config.Bind(section, "Rigged Gloves", true, "Show rigged gloves using the installed pilot material. Grip curls three fingers and thumb; trigger curls the index. Uses controller input, not optical finger tracking.");
         SleeveThickness = Float(config, "Pilot Sleeve Thickness", .82f, .6f, 1.2f, "Visual sleeve width relative to the native pilot. Changes thickness around the arm bones, preserving length, reach and controller positions.");
         PilotArms = config.Bind(section, "Pilot Sleeves", true, "Render-only two-bone arm posing using installed pilot sleeve geometry. Sleeves gently extend and fade near their reach limit; tracked gloves remain visible.");
-        GloveOffset = config.Bind(section, "Glove Wrist Offset", new Vector3(0,-.015f,-.055f), "Baseline free-hand wrist offset from the runtime grip pose in meters. X mirrors for the right hand. Per-hand fit corrections are added to this baseline. Visible fingertips and physical cockpit touch points stay aligned; held grips, pointers and flight inputs are unchanged.");
-        GloveRotation = config.Bind(section, "Glove Wrist Rotation", new Vector3(0,0,90), "Baseline free-hand glove rotation relative to the controller's forward aim in degrees; Y/Z mirror for the right hand. Per-hand fit corrections are added to this baseline. Direct touch follows the glove; held grips, pointers and flight inputs are unchanged.");
+        GloveOffset = config.Bind(section, "Glove Wrist Offset", new Vector3(0, -.015f, -.055f), "Baseline free-hand wrist offset from the runtime grip pose in meters. X mirrors for the right hand. Per-hand fit corrections are added to this baseline. Visible fingertips and physical cockpit touch points stay aligned; held grips, pointers and flight inputs are unchanged.");
+        GloveRotation = config.Bind(section, "Glove Wrist Rotation", new Vector3(0, 0, 90), "Baseline free-hand glove rotation relative to the controller's forward aim in degrees; Y/Z mirror for the right hand. Per-hand fit corrections are added to this baseline. Direct touch follows the glove; held grips, pointers and flight inputs are unchanged.");
         LeftGloveOffset = config.Bind(section, "Left Hand Fit Position", Vector3.zero, "Independent left free-hand correction in controller-local meters, added to the legacy wrist offset. Zero preserves the existing fit. Adjust in View > Hands & arms > Fit left hand.");
         RightGloveOffset = config.Bind(section, "Right Hand Fit Position", Vector3.zero, "Independent right free-hand correction in controller-local meters, added after the legacy wrist offset is mirrored. Zero preserves the existing fit.");
         LeftGloveRotation = config.Bind(section, "Left Hand Fit Rotation", Vector3.zero, "Independent left free-hand angle correction in degrees, added to the legacy wrist angles. Zero preserves the existing fit.");
@@ -49,37 +48,7 @@ public sealed class MotionControlSettings
         MilDetent = config.Bind(section, "MIL Throttle Detent", true, "Afterburning jets only: a 1.6 cm shelf at the installed engine's military-power boundary. Push through for afterburner; no timer or extra button.");
         InteractionVolume = Float(config, "Interaction Sound Volume", .4f, 0f, 1f, "Volume of spatial button, grip, detent, guard and helmet cues. Zero mutes them without disabling haptics. Uses the aircraft audio mixer when available.");
         HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief handle-reach, grab, release, widget, detent and stick-limit feedback. Zero disables these cues.");
-        var hapticsUpgrade = config.Bind(section, "Stronger Haptics Applied", false, "Migrates the former stock strength once; preserves custom levels and disabled haptics.");
-        if (!hapticsUpgrade.Value)
-        {
-            if (Mathf.Abs(HapticStrength.Value - 1f) < .0001f) HapticStrength.Value = 1.5f;
-            hapticsUpgrade.Value = true;
-        }
-        var audioUpgrade = config.Bind(section, "Mechanical Audio Defaults Applied", false, "Migrates the former stock cue volume once; preserves custom levels and muted audio.");
-        if (!audioUpgrade.Value)
-        {
-            if (Mathf.Abs(InteractionVolume.Value - .25f) < .0001f) InteractionVolume.Value = .4f;
-            audioUpgrade.Value = true;
-        }
-        var comfortUpgrade = config.Bind(section, "Frame Comfort Defaults Applied", false, "Tracks the one-time shorter default throttle travel and neutral-wrist visual adjustment.");
-        if (!comfortUpgrade.Value)
-        {
-            if (Mathf.Abs(ThrottleTravel.Value - .25f) < .0001f) ThrottleTravel.Value = .22f;
-            if (GloveRotation.Value == Vector3.zero) GloveRotation.Value = new Vector3(25,0,0);
-            comfortUpgrade.Value = true;
-        }
-        var compactUpgrade = config.Bind(section, "Compact Travel Defaults Applied", false, "Migrates the former stock 22/25 cm travel to 12 cm once, preserving customized travel.");
-        if (!compactUpgrade.Value)
-        {
-            if (Mathf.Abs(ThrottleTravel.Value - .22f) < .0001f || Mathf.Abs(ThrottleTravel.Value - .25f) < .0001f) ThrottleTravel.Value = .12f;
-            compactUpgrade.Value = true;
-        }
-        var uprightUpgrade = config.Bind(section, "Upright Glove Defaults Applied", false, "Migrates former stock wrist angles to palms vertical, thumbs up; preserves custom alignment.");
-        if (!uprightUpgrade.Value)
-        {
-            if (GloveRotation.Value == Vector3.zero || GloveRotation.Value == new Vector3(25,0,0)) GloveRotation.Value = new Vector3(0,0,90);
-            uprightUpgrade.Value = true;
-        }
+        MotionControlMigrations.Apply(config, this);
         GrabRadius = Float(config, "Grab Radius", 0.12f, 0.03f, 0.3f, "Maximum hand distance from a handle when pressing grip.");
         StickTapGrip = config.Bind(section, "Stick Tap Grip", false, "Toggle grip: squeeze once to hold the stick, squeeze again to release. Off requires continuous grip pressure. Moving more than 40 cm away, tracking loss or menus releases the handle.");
         ThrottleTapGrip = config.Bind(section, "Throttle Tap Grip", false, "Toggle grip for the throttle/collective: squeeze once to hold, squeeze again to release. Off requires continuous pressure. The saved legacy key is retained.");
@@ -92,41 +61,56 @@ public sealed class MotionControlSettings
     // never rewrites an existing user's carefully tuned fit or the opposite hand.
     internal Vector3 FreeHandOffset(bool left)
     {
-        var baseline = GloveOffset.Value; if (!left) baseline.x = -baseline.x;
+        var baseline = GloveOffset.Value;
+        if (!left)
+            baseline.x = -baseline.x;
         return baseline + SafeCorrection((left ? LeftGloveOffset : RightGloveOffset).Value, .15f);
     }
+
     internal Vector3 FreeHandAngles(bool left)
     {
         var baseline = GloveRotation.Value;
-        if (!left) { baseline.y = -baseline.y; baseline.z = -baseline.z; }
+        if (!left)
+        {
+            baseline.y = -baseline.y;
+            baseline.z = -baseline.z;
+        }
+
         return baseline + SafeCorrection((left ? LeftGloveRotation : RightGloveRotation).Value, 180f);
     }
+
     internal void MoveFreeHand(bool left, Vector3 amount)
     {
         var entry = left ? LeftGloveOffset : RightGloveOffset;
         entry.Value = SafeCorrection(entry.Value + amount, .15f);
     }
+
     internal void TurnFreeHand(bool left, Vector3 amount)
     {
         var entry = left ? LeftGloveRotation : RightGloveRotation;
         entry.Value = SafeCorrection(entry.Value + amount, 180f);
     }
+
     internal void ResetFreeHand(bool left)
     {
         (left ? LeftGloveOffset : RightGloveOffset).Value = Vector3.zero;
         (left ? LeftGloveRotation : RightGloveRotation).Value = Vector3.zero;
     }
+
     internal void SetFreeHandPalm(bool left, bool upright)
     {
         var entry = left ? LeftGloveRotation : RightGloveRotation;
         var baseline = GloveRotation.Value;
-        if (!left) { baseline.y = -baseline.y; baseline.z = -baseline.z; }
+        if (!left)
+        {
+            baseline.y = -baseline.y;
+            baseline.z = -baseline.z;
+        }
+
         var desired = upright ? new Vector3(0, 0, left ? 90 : -90) : Vector3.zero;
         entry.Value = SafeCorrection(desired - baseline, 180f);
     }
-    private static Vector3 SafeCorrection(Vector3 value, float limit) => new(
-        HandCalibrationMath.Correction(value.x, limit), HandCalibrationMath.Correction(value.y, limit), HandCalibrationMath.Correction(value.z, limit));
 
-    private static ConfigEntry<float> Float(ConfigFile config, string name, float value, float min, float max, string description) =>
-        config.Bind("Motion Controls", name, value, new ConfigDescription(description, new AcceptableValueRange<float>(min, max)));
+    private static Vector3 SafeCorrection(Vector3 value, float limit) => new(HandCalibrationMath.Correction(value.x, limit), HandCalibrationMath.Correction(value.y, limit), HandCalibrationMath.Correction(value.z, limit));
+    private static ConfigEntry<float> Float(ConfigFile config, string name, float value, float min, float max, string description) => config.Bind("Motion Controls", name, value, new ConfigDescription(description, new AcceptableValueRange<float>(min, max)));
 }

@@ -68,7 +68,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Check verification isolation
+      - name: Test verification runner
         run: python -m unittest discover -s tools/verification -p "test_*.py"
       - name: Verify source-only suites
         run: python tools/verify.py portable
@@ -112,6 +112,7 @@ jobs:
             /NOVR/NOVRPlugin.cs
             /NOVR/NOVR.csproj
             /NOVR.Patcher/NOVR.Patcher.csproj
+            /NOVR.Installer/NOVR.Installer.csproj
             /README.md
             /LICENSE
             /docs/THIRD_PARTY_NOTICES.md
@@ -121,5 +122,5 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Verify deployment opt-in and release package safety
+      - name: Verify deployment, installer publication and release package safety
         run: python NOVR.Installer.Tests/check_build.py

@@ -37,6 +37,51 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
         assert deployed == option.endswith("=true"), (option, deployed)
         print("PASS build deployment", option or "unset", deployed)
 
+    # Exercise the real cross-publication target's opt-in and recursion guards.
+    # Replace only its child-process launches with a command record: this fixture
+    # must never publish a real installer or depend on host runtime packs.
+    installer = ET.parse(repo / "NOVR.Installer/NOVR.Installer.csproj")
+    publish_default = installer.find("PropertyGroup/PublishInstallers")
+    publish_target = installer.find("Target[@Name='PublishInstallersToDist']")
+    assert publish_default is not None and publish_target is not None
+    assert publish_default.text == "false"
+    for task in publish_target.findall("Exec"):
+        command = task.attrib["Command"]
+        assert "-p:IsPublishingInstaller=true" in command and "--no-restore" in command
+        task.tag = "WriteLinesToFile"
+        task.attrib.clear()
+        task.attrib.update(File="$(InstallerPublishIntermediateDir)/commands.txt", Lines=command, Overwrite="false")
+    installer_publish = root / "installer-publish"
+    for runtime, filename in (("linux-x64", "NOVR.Installer"), ("win-x64", "NOVR.Installer.exe")):
+        artifact = installer_publish / runtime / filename
+        artifact.parent.mkdir(parents=True)
+        artifact.write_text(runtime)
+    installer_dist = root / "installer-dist"
+    installer_project = root / "installer-check.proj"
+    installer_project.write_text(f'''<Project><PropertyGroup>
+      <Configuration>Release</Configuration>
+      <InstallerDistDir>{escape(str(installer_dist))}</InstallerDistDir>
+      <InstallerPublishIntermediateDir>{escape(str(installer_publish))}</InstallerPublishIntermediateDir>
+      {ET.tostring(publish_default, encoding="unicode")}</PropertyGroup>
+      <Target Name="Build" />{ET.tostring(publish_target, encoding="unicode")}</Project>''')
+    publish_cases = (([], False), (["-p:PublishInstallers=false"], False),
+                     (["-p:PublishInstallers=typo"], False), (["-p:PublishInstallers=true"], True),
+                     (["-p:PublishInstallers=true", "-p:Configuration=Debug"], False),
+                     (["-p:PublishInstallers=true", "-p:IsPublishingInstaller=true"], False))
+    for options, expected in publish_cases:
+        shutil.rmtree(installer_dist, ignore_errors=True)
+        commands = installer_publish / "commands.txt"
+        commands.unlink(missing_ok=True)
+        subprocess.run([dotnet, "msbuild", str(installer_project), "-t:Build", "-v:q", *options], check=True)
+        assert commands.exists() == expected, options
+        assert installer_dist.exists() == expected, options
+        if expected:
+            lines = commands.read_text(encoding="utf-8-sig").splitlines()
+            assert len(lines) == 2 and "-r linux-x64" in lines[0] and "-r win-x64" in lines[1], lines
+            assert (installer_dist / "NOVR.Installer-Linux").read_text() == "linux-x64"
+            assert (installer_dist / "NOVR.Installer-Win.exe").read_text() == "win-x64"
+    print("PASS installer cross-publication requires explicit Release opt-in and cannot recurse")
+
     # Real managed metadata with an external attribute, without any game assets.
     fake = root / "fake"
     (fake / "BepInEx").mkdir(parents=True)

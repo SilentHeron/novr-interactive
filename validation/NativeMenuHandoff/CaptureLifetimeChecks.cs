@@ -60,6 +60,22 @@ internal static class CaptureLifetimeChecks
         normalClose.CancelNormally(); normalClose.Disable(); normalClose.Enable();
         Check(mapper.Clears == 1 && !normalClose.HasCapture && normalClose.Renders == 0,
             "Existing explicit close cancellation is not repeated by the new lifecycle hooks");
+        var session = new NativeBindingCaptureSession<object>();
+        var first = new object(); var second = new object();
+        session.Queue(first, 2);
+        Check(session.Pending && session.TakeReady(1.99f) == null, "Queued capture does not start before its release delay");
+        Check(ReferenceEquals(session.TakeReady(2), first) && !session.Pending && session.TakeReady(3) == null,
+            "A due capture is consumed exactly once at its deadline");
+        session.Queue(first, 2); session.Queue(second, 3);
+        Check(session.TakeReady(2) == null && ReferenceEquals(session.TakeReady(3), second),
+            "Replacing a delayed capture keeps only the new binding and deadline");
+        var old = new InputMapper(); var callbackCount = 0;
+        old.Canceled += () => callbackCount++;
+        session.Attach(first, old); session.Queue(second, 4);
+        Check(old.Clears == 1 && !old.Listening && callbackCount == 0 && ReferenceEquals(session.Queued, second),
+            "Queuing a replacement stops the old global mapper before retaining the new request");
+        session.Cancel();
+        Check(!session.Pending && session.TakeReady(10) == null, "Cancel discards delayed work permanently");
         return passed;
     }
 }
@@ -70,26 +86,26 @@ namespace NOVR.VrUi.Native
     // release and lifecycle methods are compiled directly from production source.
     public partial class NativeSettingsPanel
     {
-        private object? _queuedBinding, _activeBinding;
-        private InputMapper? _inputMapper;
+        private readonly NativeBindingCaptureSession<object> _bindingCapture = new();
         private string _bindingStatus = "";
         private bool _wasVisible = true;
         internal int Renders, MappedCallbacks, CanceledCallbacks;
-        internal bool HasCapture => _queuedBinding != null || _activeBinding != null || _inputMapper != null;
+        internal bool HasCapture => _bindingCapture.Pending;
         internal string Status => _bindingStatus;
         internal bool Visible { set => _wasVisible = value; }
         internal void Enable() => OnEnable();
         internal void Disable() => OnDisable();
         internal void DestroyPanel() => OnDestroy();
         internal void CancelNormally() => CancelBindingCapture("Binding capture canceled.");
-        internal void QueueCapture() { _queuedBinding = new object(); _bindingStatus = "Release input, then remap."; }
+        internal void QueueCapture() { _bindingCapture.Queue(new object(), 0); _bindingStatus = "Release input, then remap."; }
         internal InputMapper BeginCapture()
         {
-            _queuedBinding = null; _activeBinding = new object(); _bindingStatus = "Listening…";
-            _inputMapper = new InputMapper();
-            _inputMapper.Mapped += () => { MappedCallbacks++; ReleaseInputMapper(); };
-            _inputMapper.Canceled += () => { CanceledCallbacks++; ReleaseInputMapper(); RenderCurrentTab(); };
-            return _inputMapper;
+            _bindingStatus = "Listening…";
+            var mapper = new InputMapper();
+            mapper.Mapped += () => { MappedCallbacks++; _bindingCapture.Release(); };
+            mapper.Canceled += () => { CanceledCallbacks++; _bindingCapture.Release(); RenderCurrentTab(); };
+            _bindingCapture.Attach(new object(), mapper);
+            return mapper;
         }
         private void RenderCurrentTab() => Renders++;
     }

@@ -14,17 +14,33 @@ If .NET is not on `PATH`, supply its executable explicitly:
 python tools/verify.py portable --dotnet /path/to/dotnet
 ```
 
+For a focused change, list suite names and select only the relevant ones:
+
+```sh
+python tools/verify.py portable --list
+python tools/verify.py portable --suite gaze-cue
+python tools/verify.py portable --suite cockpit-map --suite cockpit-map-input
+```
+
+`--list` needs only Python. Repeat `--suite` to select several suites; each runs
+once in registry order. Unknown names are errors. Focused reports go to
+`artifacts/verification/portable-focused/` and are marked as partial verification,
+so they do not replace the full-run summary. `--output` overrides either location.
+Run the full portable command before submitting a change.
+
 `tools/verification/global.json` selects a stable SDK 8 feature band even when
 newer SDKs are installed. Restore uses only the public NuGet feed and the package
 versions declared in each test project. No game paths are autodetected. Each
 project has isolated build imports; the runner rejects assembly references,
 project references or imports that would silently pull in the game build.
 
-The command runs every suite registered in `tools/verify.py` and returns a
+Without `--suite`, the command runs every registered suite and returns a
 nonzero exit code if any fails. Read individual logs and JSON/Markdown summaries
 under `artifacts/verification/portable/`; use `--verbose` to print passing output.
-The runner also checks that linked source and embedded resources are present and
-inside this repository. It rejects missing resource globs and binary dependencies.
+Every portable invocation, including focused runs and listing, checks the entire
+registry for missing, duplicate or unregistered projects and validates isolation.
+It also checks that linked source and embedded resources are present and inside
+this repository, rejecting missing resource globs and binary dependencies.
 
 | Area | Coverage |
 | --- | --- |
@@ -41,7 +57,7 @@ string. Some suites exercise pure math; others compile production components
 against small Unity/game boundary doubles. Profile suites use real temporary
 BepInEx config files. None of those doubles supplies a rendered game scene.
 
-The runner's own registry and isolation checks require only Python:
+The runner's regression tests require only Python:
 
 ```sh
 python -m unittest discover -s tools/verification -p "test_*.py"
@@ -52,8 +68,8 @@ python -m unittest discover -s tools/verification -p "test_*.py"
 `.github/workflows/portable-checks.yml` runs the same command on Ubuntu and
 Windows for pushes, pull requests and manual dispatch. Its sparse checkout
 includes the source and controller/glove artwork needed by these suites,
-excluding the repository's Unity/native binaries. It runs the Python isolation
-checks before the portable suites. It uploads verification logs, not build
+excluding the repository's Unity/native binaries. It runs the Python runner
+regressions before the portable suites. It uploads verification logs, not build
 binaries or game files. Jobs have read-only repository permission and never
 deploy the mod.
 
@@ -61,8 +77,10 @@ A separate **SDK 10 package-safety job** runs on both operating systems using
 `python NOVR.Installer.Tests/check_build.py`. Its smaller sparse checkout contains
 only build definitions/task source, the fixture and package notices. It creates
 synthetic assemblies in a temporary directory to check current-output staging,
-generated XR payloads, missing-game diagnostics, deployment opt-in, version
-matching, package metadata/checksums and rejection without overwriting a previous package.
+generated XR payloads, missing-game diagnostics, deployment and installer
+publication opt-in, version matching, package metadata/checksums and rejection
+without overwriting a previous package.
+It records the installer's child publication commands instead of executing them.
 It never builds or installs the runtime mod or needs game/native binaries.
 
 A passing Linux run does not prove Windows passed; both matrix results need to
@@ -85,6 +103,8 @@ plus the embedded asset and patch/field compatibility checks. Reports are kept
 separately under `artifacts/verification/contracts/`. It does not launch the
 game, install a package, send game input, or upload local assemblies. Do not add
 private game files or hardcoded installation paths to CI to make this check run.
+`--suite` and `--list` apply only to portable verification; contracts always runs
+the complete core/assembly contract program.
 
 The SDK 10 package-safety check can also run locally with
 `python NOVR.Installer.Tests/check_build.py /path/to/sdk10/dotnet`. It remains

@@ -4,6 +4,9 @@ using NOVR.VrUi.SpecialBehavior;
 var checks = 0;
 var manager = new CockpitHudWidgets(); CockpitHudWidgets.Instance = manager;
 var menu = new WristMenu(); menu.Build(); menu.Appearance();
+Check(menu.ButtonsHavePageParents, "Each extracted page builder attaches its buttons to its explicit page");
+Check(menu.ScalarPage("Backplate opacity") == "HUD WIDGET" && menu.ScalarPage("Pitch") == "WIDGET ANGLE",
+    "Appearance and angle sliders retain their own page after all later pages have been built");
 Check(menu.Backplate.minValue == 0 && menu.Backplate.maxValue == 100 && !menu.Backplate.wholeNumbers,
     "Backplate slider spans clear through solid without rounding saved values during initialization");
 Check(manager.Begins == 0 && !CockpitHudWidgets.Editing, "Appearance does not open placement guides");

@@ -59,6 +59,34 @@ PORTABLE = (
     ("startup-splash", "validation/StartupSplash/NOVR.StartupSplash.Tests.csproj"),
     ("installer", "NOVR.Installer.Tests/NOVR.Installer.Tests.csproj"),
 )
+TEST_ROOTS = ("tests", "tools", "validation", "NOVR.Installer.Tests")
+
+
+def portable_registry() -> None:
+    """Check the entire registry, including during a focused verification run."""
+    names = [name for name, _ in PORTABLE]
+    paths = [path for _, path in PORTABLE]
+    if not names or any(not name for name in names):
+        raise ValueError("Portable registry must contain named suites")
+    if len(names) != len(set(names)) or len(paths) != len(set(paths)):
+        raise ValueError("Portable registry contains duplicate suite names or project paths")
+    discovered = {
+        path.relative_to(ROOT).as_posix()
+        for folder in TEST_ROOTS
+        for path in (ROOT / folder).rglob("*.csproj")
+        if not {"bin", "obj"}.intersection(path.relative_to(ROOT).parts)
+    }
+    unregistered = discovered - set(paths)
+    missing = set(paths) - discovered
+    if unregistered or missing:
+        details = []
+        if unregistered:
+            details.append("unregistered projects: " + ", ".join(sorted(unregistered)))
+        if missing:
+            details.append("missing projects: " + ", ".join(sorted(missing)))
+        raise ValueError("Portable registry is incomplete; " + "; ".join(details))
+    for _, relative in PORTABLE:
+        portable_project(ROOT / relative)
 
 
 def portable_project(path: Path) -> None:
@@ -118,33 +146,54 @@ def main() -> int:
     parser.add_argument("--dotnet", default=os.environ.get("DOTNET", "dotnet"), help=".NET executable (SDK 8 required)")
     parser.add_argument("--plugin", type=Path, help="local built NOVR.dll; required only for contracts")
     parser.add_argument("--managed", type=Path, help="local NuclearOption_Data/Managed directory; contracts only")
-    parser.add_argument("--output", type=Path, help="logs and summary directory (default: artifacts/verification/MODE)")
+    parser.add_argument("--output", type=Path,
+                        help="logs and summary directory (default: artifacts/verification/MODE, or portable-focused)")
     parser.add_argument("--verbose", action="store_true", help="print passing test output as well as failures")
+    parser.add_argument("--list", action="store_true", help="list portable suites without running .NET")
+    parser.add_argument("--suite", action="append", default=[], metavar="NAME",
+                        help="run a portable suite by name; repeat to select several (default: all)")
     args = parser.parse_args()
     if args.mode == "portable" and (args.plugin or args.managed):
         parser.error("portable checks do not accept game assemblies; use contracts explicitly")
+    if args.mode == "contracts" and (args.list or args.suite):
+        parser.error("--list and --suite are portable-only; contracts always runs the core assembly checks")
+    if args.list and args.suite:
+        parser.error("use --list to discover suites, then --suite to run them")
+    unknown = set(args.suite) - {name for name, _ in PORTABLE}
+    if unknown:
+        parser.error("unknown portable suite(s): " + ", ".join(sorted(unknown)) + "; use portable --list")
     if args.mode == "contracts" and (not args.plugin or not args.managed):
         parser.error("contracts requires both --plugin and --managed; no game paths are autodetected")
     if args.mode == "contracts" and (not args.plugin.is_file() or not args.managed.is_dir()):
         parser.error("--plugin must be an existing file and --managed an existing directory")
+    if args.mode == "portable":
+        portable_registry()
+        if args.list:
+            for name, relative in PORTABLE:
+                print(f"{name:28} {relative}")
+            return 0
+        selected = tuple(item for item in PORTABLE if not args.suite or item[0] in args.suite)
+    else:
+        selected = (("assembly-contracts", dict(PORTABLE)["core"]),)
+        portable_project(ROOT / selected[0][1])
     executable = shutil.which(args.dotnet)
     if executable is None:
         parser.error(f".NET executable not found: {args.dotnet}. Install SDK 8 or supply --dotnet.")
     executable = str(Path(executable).resolve())
-    selected = PORTABLE if args.mode == "portable" else (("assembly-contracts", PORTABLE[0][1]),)
-    for _, relative in selected:
-        portable_project(ROOT / relative)
     environment = dict(os.environ)
     environment.update(DOTNET_CLI_TELEMETRY_OPTOUT="1", DOTNET_NOLOGO="1", DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1")
     sdk_code, sdk = execute([executable, "--version"], environment)
     sdk = sdk.strip()
     if sdk_code or not sdk.startswith("8.0."):
         parser.error("SDK 8 could not be selected by tools/verification/global.json:\n" + sdk)
-    output = (args.output or ROOT / "artifacts" / "verification" / args.mode).resolve()
+    scope = "focused" if args.suite else "all" if args.mode == "portable" else "contracts"
+    report_directory = "portable-focused" if args.suite else args.mode
+    output = (args.output or ROOT / "artifacts" / "verification" / report_directory).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    summary = {"mode": args.mode, "sdk": sdk, "platform": platform.platform(),
+    summary = {"mode": args.mode, "scope": scope, "suites": [name for name, _ in selected],
+               "sdk": sdk, "platform": platform.platform(),
                "started_utc": datetime.now(timezone.utc).isoformat(), "results": []}
-    print(f"NOVR {args.mode} verification — SDK {sdk}, {platform.system()}", flush=True)
+    print(f"NOVR {args.mode} verification ({scope}) — SDK {sdk}, {platform.system()}", flush=True)
     for name, relative in selected:
         started = time.monotonic()
         print(f"Running {name}…", flush=True)
@@ -171,10 +220,12 @@ def main() -> int:
     summary["passed"] = failures == 0
     summary["finished_utc"] = datetime.now(timezone.utc).isoformat()
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    report = [f"# NOVR {args.mode} verification", "", f"SDK {sdk} · {platform.system()}", "",
+    report = [f"# NOVR {args.mode} verification ({scope})", "", f"SDK {sdk} · {platform.system()}", "",
               "| Suite | Result | Seconds |", "| --- | --- | ---: |"]
     report.extend(f"| {item['name']} | {'PASS' if item['exit_code'] == 0 else 'FAIL'} | {item['seconds']:.2f} |"
                   for item in summary["results"])
+    if args.suite:
+        report += ["", "Focused run: only the selected suites executed. This is not a full portable verification."]
     report += ["", "These checks do not establish stereo comfort, rendered appearance, haptic feel, multiplayer behavior or frame-time performance.", ""]
     markdown = "\n".join(report)
     (output / "summary.md").write_text(markdown, encoding="utf-8")

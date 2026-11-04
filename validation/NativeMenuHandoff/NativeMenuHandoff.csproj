@@ -4,6 +4,8 @@
     <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Native/NativeBindingCaptureSession.cs" Link="NativeBindingCaptureSession.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/NativeVrUiRoot.Panels.cs" Link="NativeVrUiRoot.Panels.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeStockMenuHandoff.cs" Link="NativeStockMenuHandoff.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeMissionSelection.cs" Link="NativeMissionSelection.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeMainCanvasDiscovery.cs" Link="NativeMainCanvasDiscovery.cs" />

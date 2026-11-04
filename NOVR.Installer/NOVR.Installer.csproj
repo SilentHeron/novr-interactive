@@ -29,6 +29,7 @@
 
     <InstallerDistDir>$(MSBuildThisFileDirectory)../dist</InstallerDistDir>
     <InstallerPublishIntermediateDir>$(BaseIntermediateOutputPath)publish</InstallerPublishIntermediateDir>
+    <PublishInstallers Condition="'$(PublishInstallers)' == ''">false</PublishInstallers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,7 +42,7 @@
 
   <Target Name="PublishInstallersToDist"
           AfterTargets="Build"
-          Condition="'$(Configuration)' == 'Release' And '$(IsPublishingInstaller)' != 'true'">
+          Condition="'$(PublishInstallers)' == 'true' And '$(Configuration)' == 'Release' And '$(IsPublishingInstaller)' != 'true'">
 
     <MakeDir Directories="$(InstallerDistDir)" />
 

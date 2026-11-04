@@ -18,6 +18,7 @@ namespace UnityEngine
         public SceneManagement.Scene scene;
         public bool activeSelf = true;
         public GameObject? Parent;
+        public void SetActive(bool value) => activeSelf = value;
         public bool activeInHierarchy => activeSelf && (Parent?.activeInHierarchy ?? true);
         public readonly List<MonoBehaviour> Components = new();
         public int HierarchySearches;

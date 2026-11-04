@@ -53,4 +53,5 @@ var next = new ModConfiguration(nextFile);
 Check(ReferenceEquals(next, ModConfiguration.Instance), "A successful replacement becomes current.");
 Check(ReferenceEquals(firstFile, first.Config), "Replacing current settings does not mutate the previous object.");
 Check(firstFile.BindCount == nextFile.BindCount, "Every settings binding is still performed.");
+MotionControlMigrationChecks.Run(Check);
 Console.WriteLine($"PASS {checks} configuration lifecycle checks (production ModConfiguration, configuration boundary doubles).");

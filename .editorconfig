@@ -1,0 +1,34 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+csharp_new_line_before_open_brace = all
+csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_statements = false
+dotnet_sort_system_directives_first = true
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Keep imported Unity/Valve source in its upstream format. Local feature code
+# lives in NOVR; vendor changes should remain small and easy to compare.
+[NOVR.XR.*/**/*.cs]
+csharp_new_line_before_open_brace = unset
+csharp_preserve_single_line_blocks = unset
+csharp_preserve_single_line_statements = unset
+dotnet_sort_system_directives_first = unset

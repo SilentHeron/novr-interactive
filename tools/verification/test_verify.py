@@ -2,6 +2,7 @@
 import importlib.util
 import contextlib
 import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -16,22 +17,57 @@ SPEC.loader.exec_module(verify)
 
 class PortableRegistryChecks(unittest.TestCase):
     def test_registered_projects_are_present_and_isolated(self):
-        names = [name for name, _ in verify.PORTABLE]
-        paths = [path for _, path in verify.PORTABLE]
-        self.assertEqual(len(names), len(set(names)))
-        self.assertEqual(len(paths), len(set(paths)))
-        for name, path in verify.PORTABLE:
-            with self.subTest(suite=name):
-                verify.portable_project(verify.ROOT / path)
+        verify.portable_registry()
 
-    def test_source_check_projects_are_registered(self):
-        discovered = {
-            path.relative_to(verify.ROOT).as_posix()
-            for folder in ("tests", "tools", "validation", "NOVR.Installer.Tests")
-            for path in (verify.ROOT / folder).rglob("*.csproj")
-            if not {"bin", "obj"}.intersection(path.parts)
-        }
-        self.assertEqual(discovered, {path for _, path in verify.PORTABLE})
+
+class RegistryFailureChecks(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.project = self.root / "tests/Example/Example.csproj"
+        self.project.parent.mkdir(parents=True)
+        self.project.write_text('<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>')
+        for filename in ("Directory.Build.props", "Directory.Build.targets"):
+            (self.root / "tests" / filename).write_text("<Project />")
+        for attribute, value in (("ROOT", self.root), ("PORTABLE", (("example", "tests/Example/Example.csproj"),))):
+            replacement = patch.object(verify, attribute, value)
+            replacement.start()
+            self.addCleanup(replacement.stop)
+
+    def test_new_project_must_be_registered(self):
+        extra = self.root / "tests/Extra.csproj"
+        extra.write_text("<Project />")
+        with self.assertRaisesRegex(ValueError, "unregistered projects: tests/Extra.csproj"):
+            verify.portable_registry()
+
+    def test_removed_project_must_be_removed_from_registry(self):
+        self.project.unlink()
+        with self.assertRaisesRegex(ValueError, "missing projects: tests/Example/Example.csproj"):
+            verify.portable_registry()
+
+    def test_duplicate_names_and_paths_are_rejected(self):
+        for extra in (("example", "tests/Other.csproj"), ("other", "tests/Example/Example.csproj")):
+            with self.subTest(extra=extra), patch.object(verify, "PORTABLE", (*verify.PORTABLE, extra)):
+                with self.assertRaisesRegex(ValueError, "duplicate suite names or project paths"):
+                    verify.portable_registry()
+
+    def test_empty_registry_does_not_claim_a_passing_run(self):
+        with patch.object(verify, "PORTABLE", ()):
+            with self.assertRaisesRegex(ValueError, "must contain named suites"):
+                verify.portable_registry()
+
+    def test_generated_projects_are_not_suites(self):
+        for directory in ("bin", "obj"):
+            generated = self.project.parent / directory / "generated.csproj"
+            generated.parent.mkdir()
+            generated.write_text("<Project />")
+        verify.portable_registry()
+
+    def test_registry_preflight_checks_isolation(self):
+        self.project.write_text('<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup><ItemGroup><Reference Include="Game.dll" /></ItemGroup></Project>')
+        with self.assertRaisesRegex(ValueError, "assembly/project/import"):
+            verify.portable_registry()
 
 
 class PortableIsolationChecks(unittest.TestCase):
@@ -143,8 +179,106 @@ class RunnerModeChecks(unittest.TestCase):
     def test_contracts_requires_explicit_paths(self):
         self.assert_setup_rejected(["contracts"], "requires both --plugin and --managed")
 
+    def test_contracts_rejects_portable_selection(self):
+        for selection in (("--suite", "core"), ("--list",)):
+            with self.subTest(selection=selection):
+                self.assert_setup_rejected(["contracts", *selection], "portable-only")
+
+    def test_unknown_suite_fails_before_dotnet(self):
+        with patch.object(verify, "execute") as execute:
+            self.assert_setup_rejected(["portable", "--suite", "does-not-exist"], "unknown portable suite(s)")
+            execute.assert_not_called()
+
+    def test_listing_and_selection_are_not_combined(self):
+        self.assert_setup_rejected(["portable", "--list", "--suite", "core"], "use --list to discover")
+
+    def test_list_requires_no_dotnet_or_artifact_directory(self):
+        output = io.StringIO()
+        with patch.object(sys, "argv", ["verify.py", "portable", "--list"]), \
+                patch.object(verify.shutil, "which") as which, \
+                patch.object(verify, "execute") as execute, contextlib.redirect_stdout(output):
+            self.assertEqual(0, verify.main())
+        self.assertIn("core", output.getvalue())
+        self.assertIn(dict(verify.PORTABLE)["core"], output.getvalue())
+        which.assert_not_called()
+        execute.assert_not_called()
+
+    def test_focused_run_still_requires_complete_registry(self):
+        with patch.object(sys, "argv", ["verify.py", "portable", "--suite", "core"]), \
+                patch.object(verify, "portable_registry", side_effect=ValueError("unregistered projects: extra.csproj")), \
+                patch.object(verify, "execute") as execute:
+            with self.assertRaisesRegex(ValueError, "unregistered projects"):
+                verify.main()
+            execute.assert_not_called()
+
+    def test_focused_run_executes_only_selected_suites_once_and_reports_its_scope(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            registry = (("first", "tests/First.csproj"), ("second", "tests/Second.csproj"),
+                        ("unselected", "tests/Other.csproj"))
+            arguments = ["verify.py", "portable", "--suite", "second", "--suite", "first", "--suite", "second"]
+            with patch.object(sys, "argv", arguments), patch.object(verify, "ROOT", root), \
+                    patch.object(verify, "PORTABLE", registry), patch.object(verify, "portable_registry") as preflight, \
+                    patch.object(verify.shutil, "which", return_value=str(root / "dotnet")), \
+                    patch.object(verify, "execute", side_effect=[(0, "8.0.100"), (0, ""), (0, "first passed"), (0, ""), (1, "second failed")]) as execute, \
+                    patch.dict(verify.os.environ, {"GITHUB_STEP_SUMMARY": ""}), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(1, verify.main())
+            preflight.assert_called_once_with()
+            commands = [call.args[0] for call in execute.call_args_list]
+            self.assertEqual(5, len(commands))
+            self.assertEqual(str(root / "tests/First.csproj"), commands[1][2])
+            self.assertEqual(str(root / "tests/Second.csproj"), commands[3][2])
+            report = root / "artifacts/verification/portable-focused"
+            summary = json.loads((report / "summary.json").read_text())
+            self.assertEqual("focused", summary["scope"])
+            self.assertEqual(["first", "second"], summary["suites"])
+            self.assertFalse(summary["passed"])
+            self.assertIn("not a full portable verification", (report / "summary.md").read_text())
+            self.assertFalse((root / "artifacts/verification/portable").exists())
+
+    def test_contracts_passes_explicit_assemblies_to_core_without_portable_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plugin = root / "NOVR.dll"
+            plugin.write_text("fixture")
+            managed = root / "Managed"
+            managed.mkdir()
+            arguments = ["verify.py", "contracts", "--plugin", str(plugin), "--managed", str(managed)]
+            with patch.object(sys, "argv", arguments), patch.object(verify, "ROOT", root), \
+                    patch.object(verify, "PORTABLE", (("other", "tests/Other.csproj"), ("core", "tests/Core.csproj"))), \
+                    patch.object(verify, "portable_registry") as registry, patch.object(verify, "portable_project") as isolation, \
+                    patch.object(verify.shutil, "which", return_value=str(root / "dotnet")), \
+                    patch.object(verify, "execute", side_effect=[(0, "8.0.100"), (0, "restored"), (0, "contracts passed")]) as execute, \
+                    patch.dict(verify.os.environ, {"GITHUB_STEP_SUMMARY": ""}), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, verify.main())
+            registry.assert_not_called()
+            isolation.assert_called_once_with(root / "tests/Core.csproj")
+            run = execute.call_args_list[-1].args[0]
+            self.assertEqual(["--", str(plugin), str(managed)], run[-3:])
+            summary = json.loads((root / "artifacts/verification/contracts/summary.json").read_text())
+            self.assertEqual("contracts", summary["scope"])
+            self.assertEqual(["assembly-contracts"], summary["suites"])
+
+    def test_restore_failure_does_not_run_suite_and_is_reported(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "custom-output"
+            with patch.object(sys, "argv", ["verify.py", "portable", "--output", str(output)]), \
+                    patch.object(verify, "ROOT", root), patch.object(verify, "PORTABLE", (("core", "tests/Core.csproj"),)), \
+                    patch.object(verify, "portable_registry"), \
+                    patch.object(verify.shutil, "which", return_value=str(root / "dotnet")), \
+                    patch.object(verify, "execute", side_effect=[(0, "8.0.100"), (1, "restore failed")]) as execute, \
+                    patch.dict(verify.os.environ, {"GITHUB_STEP_SUMMARY": ""}), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(1, verify.main())
+            self.assertEqual(2, execute.call_count)
+            summary = json.loads((output / "summary.json").read_text())
+            self.assertFalse(summary["passed"])
+            self.assertEqual("all", summary["scope"])
+            self.assertEqual(1, summary["results"][0]["exit_code"])
+            self.assertEqual("restore failed", (output / "core.log").read_text())
+
     def test_incompatible_sdk_stops_before_restore(self):
-        with patch.object(verify, "PORTABLE", ()), \
+        with patch.object(verify, "portable_registry"), \
                 patch.object(verify.shutil, "which", return_value=str(Path.cwd() / "dotnet")), \
                 patch.object(verify, "execute", return_value=(0, "10.0.100")) as execute:
             self.assert_setup_rejected(["portable"], "SDK 8 could not be selected")

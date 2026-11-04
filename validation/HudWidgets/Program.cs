@@ -12,6 +12,25 @@ try
     var path = Path.Combine(directory, "hud.cfg");
     var config = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var profiles = new HudWidgetProfiles(config);
+    True(HudWidgetProfiles.Ids.SequenceEqual(new[]
+    {
+        "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives"
+    }), "Catalog preserves persisted widget IDs and menu order");
+    foreach (var definition in HudWidgetCatalog.All)
+    {
+        True(definition.Size.x > 0 && definition.Size.y > 0 &&
+            !string.IsNullOrWhiteSpace(definition.Label) && !string.IsNullOrWhiteSpace(definition.Preview),
+            "Every registered widget has explicit presentation metadata: " + definition.Id);
+        Same(profiles.Load(null)[definition.Id], definition.DefaultPose,
+            "Widget presentation and profile initialization use the same default: " + definition.Id);
+    }
+    Equal(HudWidgetCatalog.Get("weapons").Size.x, 420f, "Weapon panel retains its fitted width");
+    Equal(HudWidgetCatalog.Get("feed").Size.y, 270f, "Feed retains its formerly implicit height");
+    Equal(HudWidgetCatalog.Get("map").Size.x, 300f, "Map retains its aspect-ratio base width");
+    Equal(HudWidgetCatalog.Get("map").Size.y, 300f, "Map retains its aspect-ratio base height");
+    Equal(HudWidgetCatalog.Get("threats").Idle, "", "Idle threats remain free of placeholder text");
+    Equal(HudWidgetCatalog.Presentation("unknown").Size.y, 270f, "Unknown widget presentation retains the historical feed fallback");
+    Equal(HudWidgetCatalog.Label("unknown"), "HUD widget", "Unknown widget labels retain their fallback");
     foreach(var id in new[]{"SmallFighter1","Multirole1","modauthor/FS-3_Ternion","other-author/custom-plane"})
     {
         var all=profiles.Load(id,2);
