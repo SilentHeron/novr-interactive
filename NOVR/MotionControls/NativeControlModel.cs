@@ -9,7 +9,8 @@ using Object = UnityEngine.Object;
 namespace NOVR.MotionControls;
 
 // Render-only copies of installed control meshes/materials. Fixed-wing aircraft
-// share the fitted FS-20 handles; helicopters retain their native controls. No game
+// share the fitted FS-20 handles; helicopters share the full utility collective.
+// Helicopter cyclics retain their native controls. No game
 // assets are exported, no native scripts/colliders are cloned or destroyed.
 internal sealed class NativeControlModel : IDisposable
 {
@@ -23,7 +24,9 @@ internal sealed class NativeControlModel : IDisposable
     private NativeHandleFade? _fade;
     private MirroredControlGeometry? _mirror;
     internal bool UsesFittedPose { get; private set; }
+    internal bool UsesCollectivePose { get; private set; }
     private const string StandardAircraftKey = "SmallFighter1";
+    private const string CollectiveAircraftKey = "UtilityHelo1";
 
     private NativeControlModel(Transform parent)
     {
@@ -42,14 +45,19 @@ internal sealed class NativeControlModel : IDisposable
                     foreach (var source in Sources(cockpit, stick))
                         if (!sources.Contains(source)) sources.Add(source);
             var collective = MotionFlightController.UsesLiftCollective(aircraft);
-            var standard = !collective ? StandardSource(stick) : null;
-            // During loading a live FS-20 can also supply the same installed
-            // geometry. Other aircraft fall back safely if that asset is absent.
-            if (standard == null && !collective && aircraft.definition?.jsonKey == StandardAircraftKey && sources.Count > 0)
+            var standardKey = collective ? stick ? null : CollectiveAircraftKey : StandardAircraftKey;
+            var standard = standardKey != null ? StandardSource(standardKey, stick) : null;
+            // A live canonical aircraft can supply the same installed geometry
+            // during loading. Other aircraft fall back safely if it is absent.
+            if (standard == null && standardKey != null && aircraft.definition?.jsonKey == standardKey && sources.Count > 0)
                 standard = sources[0];
             var selected = standard != null ? standard : sources.Count > 0 ? sources[0] : null;
             if (selected == null) return null;
-            model = new NativeControlModel(parent) { UsesFittedPose = standard != null };
+            model = new NativeControlModel(parent)
+            {
+                UsesFittedPose = standard != null && !collective,
+                UsesCollectivePose = standard != null && collective && !stick
+            };
             var geometry = new GameObject("Aircraft handle geometry").transform;
             geometry.SetParent(model._root, false); geometry.localScale = selected.lossyScale;
             foreach (var renderer in selected.GetComponentsInChildren<MeshRenderer>(true))
@@ -73,9 +81,12 @@ internal sealed class NativeControlModel : IDisposable
             var bounds = model.Bounds();
             // Seat the palm below the stick button head. A sliding throttle
             // supports the palm on its upper grip, not through the lever body.
-            // Collective grips keep their cylindrical center.
+            // The common collective pose uses the sleeve/neck grip socket,
+            // never the whole long assembly's bounds center.
             var grip = bounds.center;
-            if (stick) grip.y = bounds.max.y - Mathf.Min(.080f, bounds.size.y * .36f);
+            if (model.UsesCollectivePose)
+                grip = new Vector3(0, FlightControlMath.CollectiveGripHeight, FlightControlMath.CollectiveGripForward);
+            else if (stick) grip.y = bounds.max.y - Mathf.Min(.080f, bounds.size.y * .36f);
             else if (!collective)
                 grip.y = bounds.max.y - Mathf.Min(.028f, bounds.size.y * .22f);
             geometry.localPosition = -grip;
@@ -101,7 +112,7 @@ internal sealed class NativeControlModel : IDisposable
                     if (renderer.GetComponent<MeshFilter>()?.sharedMesh != null)
                         model._originals.Add((renderer, renderer.forceRenderingOff));
             LayerHelper.SetLayerRecursive(model._root, LayerHelper.Layers.Cockpit);
-            Debug.Log($"[NOVR] Reused {(model.UsesFittedPose ? "standard FS-20" : "aircraft-native")} {(stick ? "stick" : "throttle")} model from {selected.name}; {model._copies.Count} mesh renderers, {model._originals.Count} stationary renderers managed.");
+            Debug.Log($"[NOVR] Reused {(model.UsesCollectivePose ? "standard utility-helicopter" : model.UsesFittedPose ? "standard FS-20" : "aircraft-native")} {(stick ? "stick" : collective ? "collective" : "throttle")} model from {selected.name}; {model._copies.Count} mesh renderers, {model._originals.Count} stationary renderers managed.");
             return model;
         }
         catch (Exception exception)
@@ -112,11 +123,11 @@ internal sealed class NativeControlModel : IDisposable
         }
     }
 
-    private static Transform? StandardSource(bool stick)
+    private static Transform? StandardSource(string aircraftKey, bool stick)
     {
         // Use the game's loaded definition; never instantiate a live aircraft or
         // copy scripts, collision shapes, animations or gameplay state.
-        if (Encyclopedia.Lookup == null || !Encyclopedia.Lookup.TryGetValue(StandardAircraftKey, out var definition) ||
+        if (Encyclopedia.Lookup == null || !Encyclopedia.Lookup.TryGetValue(aircraftKey, out var definition) ||
             definition == null || definition.unitPrefab == null) return null;
         foreach (var cockpit in definition.unitPrefab.GetComponentsInChildren<Cockpit>(true))
         {

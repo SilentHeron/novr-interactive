@@ -127,9 +127,15 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     Settle(grip, true);
     SameRotation(glove.Root.rotation, grip.rotation * Fs20HandPoses.StickRotation(left), "Standard handle did not restore approved fitted pose");
     Settle(grip, collective: true);
+    SameRotation(glove.Root.rotation, grip.rotation * CollectiveHandPoses.Rotation(left), "Shared collective lost authored wrist rotation");
+    Near(glove.Root.position, grip.position + grip.rotation * CollectiveHandPoses.Wrist(left), "Shared collective lost sleeve socket");
+    Near(glove.FreeTouchPoint(sample, true), rawTip, "Collective attachment changed raw fingertip input");
+    MotionControlVisuals.HasFittedCollective = false;
+    Settle(grip, collective: true);
     var collectiveRotation = grip.rotation * Quaternion.Euler(0, 0, left ? 60 : -60) * Quaternion.Euler(0, left ? -90 : 90, 0);
-    SameRotation(glove.Root.rotation, collectiveRotation, "Collective cuff orientation changed");
-    Near(glove.Root.position, grip.position - collectiveRotation * new Vector3(0, -.019f, .043f), "Collective palm anchor changed");
+    SameRotation(glove.Root.rotation, collectiveRotation, "Missing canonical model lost safe fallback rotation");
+    Near(glove.Root.position, grip.position - collectiveRotation * new Vector3(0, -.019f, .043f), "Missing canonical model lost fallback palm anchor");
+    MotionControlVisuals.HasFittedCollective = true;
     sample.TriggerTouched = true; Settle(grip, true);
     previous = glove.Root.position; previousBones = glove.Renderer.bones.Select(b => b.localRotation).ToArray();
     sample.Trigger = 1; Settle(grip, true);
@@ -244,3 +250,4 @@ foreach(var aimed in new[]{Quaternion.identity,Quaternion.Euler(-90,0,0),Quatern
 }
 Console.WriteLine($"{checks} hand pose checks passed at 45/72/90/120 Hz on both glove rigs.");
 Console.WriteLine("Standalone transform/math checks only: Unity rendering and headset comfort remain unverified.");
+CollectiveChecks.Run(args);

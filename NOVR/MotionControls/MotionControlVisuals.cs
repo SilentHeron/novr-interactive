@@ -13,6 +13,8 @@ internal sealed class MotionControlVisuals : IDisposable
     private static MotionControlVisuals? _active;
     internal static bool HasFittedHandle(bool stick) => _active != null && _active.Root != null &&
         _active.Root.gameObject.activeInHierarchy && (stick ? _active._nativeStick : _active._nativeThrottle)?.UsesFittedPose == true;
+    internal static bool HasFittedCollective => _active != null && _active.Root != null &&
+        _active.Root.gameObject.activeInHierarchy && _active._nativeThrottle?.UsesCollectivePose == true;
     public Transform Root { get; }
     private readonly Transform _stickBase, _stickPivot, _throttleBase, _throttleHandle;
     private readonly Transform _stickHand, _throttleHand, _rail;
@@ -186,13 +188,14 @@ internal sealed class MotionControlVisuals : IDisposable
         if (collective)
         {
             var length = FlightControlMath.CollectiveArmLength(travel);
-            var pivot = Vector3.back * length;
+            var neutralArm = new Vector3(0, FlightControlMath.CollectiveGripHeight, FlightControlMath.CollectiveNeutralForward(travel));
+            var pivot = -neutralArm;
             var arm = _throttleHandle.localPosition - pivot;
             _collectiveJoint.localPosition = pivot;
             _collectiveShaft.localPosition = pivot + arm * .5f;
             _collectiveShaft.localRotation = Quaternion.FromToRotation(Vector3.up, arm);
             _collectiveShaft.localScale = new Vector3(.023f, length * .5f, .023f);
-            _throttleHandle.localRotation = Quaternion.LookRotation(arm, Vector3.up);
+            _throttleHandle.localRotation = Quaternion.FromToRotation(neutralArm, arm);
         }
         _nativeStick?.Highlight(stickHeld || CockpitLayout.Held(CockpitLayout.Element.Stick) ? 2 : stickNear ? 1 : 0);
         _nativeThrottle?.Highlight(throttleHeld || CockpitLayout.Held(CockpitLayout.Element.Throttle) ? 2 : throttleNear ? 1 : 0);

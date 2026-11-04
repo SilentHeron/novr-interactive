@@ -32,14 +32,26 @@ internal static class FlightControlMath
 
     // Both input hit testing and the model use this path. Collective input is
     // measured vertically; the small fore/aft arc is visual, not another axis.
-    public static float CollectiveArmLength(float travel) => Math.Max(.28f, travel);
+    // The shared native utility-helicopter lever is bent: its palm sleeve sits
+    // above and ahead of the authored pivot. Keep that full-size assembly rigid
+    // while preserving the configured vertical displacement and neutral socket.
+    internal const float CollectiveGripHeight = .289435f;
+    internal const float CollectiveGripForward = .570f;
+    public static float CollectiveArmLength(float travel) => Math.Max(
+        (float)Math.Sqrt(CollectiveGripHeight * CollectiveGripHeight + CollectiveGripForward * CollectiveGripForward), travel);
+    public static float CollectiveNeutralForward(float travel)
+    {
+        var length = CollectiveArmLength(travel);
+        return (float)Math.Sqrt(length * length - CollectiveGripHeight * CollectiveGripHeight);
+    }
 
     public static (float height, float forward) ThrottleOffset(bool collective, float value, float travel)
     {
         var displacement = (Clamp(value, 0f, 1f) - .5f) * travel;
         if (!collective) return (0f, displacement);
         var length = CollectiveArmLength(travel);
-        return (displacement, (float)Math.Sqrt(length * length - displacement * displacement) - length);
+        var height = CollectiveGripHeight + displacement;
+        return (displacement, (float)Math.Sqrt(Math.Max(0, length * length - height * height)) - CollectiveNeutralForward(travel));
     }
 
     public static (float pitch, float roll) Stick(float tiltX, float tiltY, float tiltZ,

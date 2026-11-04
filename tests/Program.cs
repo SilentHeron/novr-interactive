@@ -537,13 +537,18 @@ Check("collective has a rigid arm and monotonic lift through the full configured
         {
             var p = FlightControlMath.ThrottleOffset(true, i / 100f, travel);
             True(p.height > lastHeight);
-            Near(p.height * p.height + (p.forward + length) * (p.forward + length), length * length);
+            var fromPivotHeight = p.height + FlightControlMath.CollectiveGripHeight;
+            var fromPivotForward = p.forward + FlightControlMath.CollectiveNeutralForward(travel);
+            Near(fromPivotHeight * fromPivotHeight + fromPivotForward * fromPivotForward, length * length);
             Near(FlightControlMath.Throttle(0, -travel * .5f, p.height, travel), i / 100f);
             lastHeight = p.height;
         }
         Near(FlightControlMath.ThrottleOffset(true, 1, travel).height -
              FlightControlMath.ThrottleOffset(true, 0, travel).height, travel);
         Near(FlightControlMath.ThrottleOffset(true, .5f, travel).forward, 0);
+        // The visible native hinge and every command share one fixed circle;
+        // retain the actual grip dimensions instead of shrinking the whole lever.
+        Near(FlightControlMath.CollectiveNeutralForward(travel), FlightControlMath.CollectiveGripForward);
     }
 });
 Check("collective travel stays finite at command limits", () =>

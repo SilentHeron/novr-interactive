@@ -24,6 +24,7 @@ internal sealed class RiggedGlove : IDisposable
     internal readonly SkinnedMeshRenderer Renderer;
     private readonly Transform[] _bones;
     private readonly Quaternion[] _open, _closed, _fs20Throttle, _fs20Stick, _throttleThumb, _stickThumb, _stickThumbPress, _stickTrigger, _fireTouch, _firePress, _switchPinch;
+    private readonly Quaternion[] _collective, _collectiveThumb, _collectiveTrigger;
     private readonly int[] _fingers;
     private readonly Mesh _mesh;
     private readonly bool _left;
@@ -68,6 +69,7 @@ internal sealed class RiggedGlove : IDisposable
         _fireTouch = new Quaternion[_bones.Length]; _firePress = new Quaternion[_bones.Length];
         _stickTrigger = new Quaternion[_bones.Length]; _stickThumbPress = new Quaternion[_bones.Length]; _switchPinch = new Quaternion[_bones.Length];
         _attachmentFromBones = new Quaternion[_bones.Length];
+        _collective = new Quaternion[_bones.Length]; _collectiveThumb = new Quaternion[_bones.Length]; _collectiveTrigger = new Quaternion[_bones.Length];
         var bind = new Matrix4x4[_bones.Length];
         for (var i = 0; i < _bones.Length; i++)
         {
@@ -80,6 +82,9 @@ internal sealed class RiggedGlove : IDisposable
             _throttleThumb[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i], true);
             _stickThumb[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], true);
             _switchPinch[i] = Fs20HandPoses.SwitchPinchJoint(i, left, _open[i], _closed[i]);
+            _collective[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i]);
+            _collectiveThumb[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], thumbContact: true);
+            _collectiveTrigger[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], trigger: true);
             if (i >= 2 && i <= 4)
             {
                 _stickThumbPress[i] = Fs20HandPoses.HatPressJoint(i, left, _open[i], _closed[i]);
@@ -155,6 +160,7 @@ internal sealed class RiggedGlove : IDisposable
             }
         }
         var fitted = held && !collective && !cockpitGrip.HasValue && MotionControlVisuals.HasFittedHandle(stick);
+        var fittedCollective = held && collective && !stick && !cockpitGrip.HasValue && MotionControlVisuals.HasFittedCollective;
         if (cockpitGrip.HasValue && !buttonContact)
         {
             var socket = cockpitGrip.Value;
@@ -170,7 +176,10 @@ internal sealed class RiggedGlove : IDisposable
             var grip = attachment!.Value;
             var rotation = grip.rotation * (stick ? Quaternion.Euler(0, 0, _left ? 90 : -90)
                 : collective ? Quaternion.Euler(0, 0, _left ? 60 : -60) * Quaternion.Euler(0, _left ? -90 : 90, 0) : Quaternion.Euler(8, 0, 0));
-            if (fitted)
+            if (fittedCollective)
+                Root.SetPositionAndRotation(grip.position + grip.rotation * CollectiveHandPoses.Wrist(_left),
+                    grip.rotation * CollectiveHandPoses.Rotation(_left));
+            else if (fitted)
                 Root.SetPositionAndRotation(grip.position + grip.rotation * Fs20HandPoses.Wrist(stick, _left),
                     grip.rotation * (stick ? Fs20HandPoses.StickRotation(_left) : Quaternion.identity));
             else Root.SetPositionAndRotation(grip.position - rotation * new Vector3(0, -.019f, .043f), rotation);
@@ -195,8 +204,10 @@ internal sealed class RiggedGlove : IDisposable
         _thumb=Mathf.Lerp(_thumb,pinching ? .45f : pointing ? .7f : cockpitGrip.HasValue ? .85f : held ? .65f : thumbPressed ? 1 : thumbTouch ? .65f : _grip*.3f,amount);
         for (var i = 0; i < _bones.Length; i++)
         {
-            var pose = pinching ? _switchPinch[i] : fitted ? (stick ? _fs20Stick[i] : _fs20Throttle[i])
+            var pose = pinching ? _switchPinch[i] : fittedCollective ? _collective[i] : fitted ? (stick ? _fs20Stick[i] : _fs20Throttle[i])
                 : Quaternion.Slerp(_open[i], _closed[i], _fingers[i]==1 ? _thumb : _fingers[i]==2 ? _trigger : _fingers[i]==3 ? _grip : 0);
+            if (fittedCollective && i == 4) pose = Quaternion.Slerp(pose, _collectiveThumb[i], _thumbContact);
+            if (fittedCollective && i >= 7 && i <= 9) pose = Quaternion.Slerp(pose, _collectiveTrigger[i], _triggerPressure);
             // Lift clear of the actuator when not touching it; settle onto the
             // fitted contact pose on touch, then the final millimeter on press.
             if (fitted && i >= 2 && i <= 4)

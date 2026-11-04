@@ -51,9 +51,11 @@ foreach(var collective in new[]{false,true})
 var mirrorGood=true;var lowMidHigh=true;
 foreach(var command in new[]{0f,.5f,1f})
 {
-    var lift=(command-.5f)*.12f;
-    var forward=(float)Math.Sqrt(.28f*.28f-lift*lift)-.28f;
-    var pitch=-(float)(Math.Atan2(lift,.28f+forward)*180/Math.PI);
+    var offset=FlightControlMath.ThrottleOffset(true,command,.12f);
+    var lift=offset.height;var forward=offset.forward;
+    var neutralForward=FlightControlMath.CollectiveNeutralForward(.12f);
+    var pitch=-(float)((Math.Atan2(FlightControlMath.CollectiveGripHeight+lift,neutralForward+forward)-
+        Math.Atan2(FlightControlMath.CollectiveGripHeight,neutralForward))*180/Math.PI);
     V Glove(V v)=>Rotate(Rotate(Rotate(v,new V(0,1,0),-90),new V(0,0,1),60),new V(1,0,0),pitch);
     var wrist=new V(-.32f,-.55f+lift,.18f+forward)-Glove(new V(0,-.019f,.043f));
     var shoulder=new V(-.18f,-.18f,0);
@@ -67,7 +69,7 @@ foreach(var command in new[]{0f,.5f,1f})
     lowMidHigh &= reachable && Angle(bend,cuff.OnPlane(delta.Unit))<.05f && elbow.Y>wrist.Y+.15f;
 }
 Check(mirrorGood,"Left/right collective geometry mirrors without handed elbow bias");
-Check(lowMidHigh,"Low/mid/high collective poses preserve upward cuffs and their aligned elbow circle");
+Check(lowMidHigh,"Low/mid/high fallback collective poses preserve upward cuffs and their aligned elbow circle");
 
 var transitionSolver=new ArmPoseMath();
 var raisedCuff=neutral*-1;
