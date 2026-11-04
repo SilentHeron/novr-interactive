@@ -5,6 +5,14 @@ var checks = 0;
 void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); checks++; }
 void Near(Vector3 a, Vector3 b, string message, float tolerance = .00001f) => Check((a - b).magnitude <= tolerance, message);
 void SameRotation(Quaternion a, Quaternion b, string message) => Check(Quaternion.Angle(a, b) < .08f, message);
+foreach (var collectiveAircraft in new[] { false, true })
+{
+    Check(NativeControlSelection.Source(true, collectiveAircraft) == "SmallFighter1", "Helicopter stick lost the shared FS20 model");
+    Check(NativeControlSelection.FittedFs20(true, collectiveAircraft, true), "Helicopter stick lost the refined FS20 grip");
+    Check(!NativeControlSelection.FittedFs20(true, collectiveAircraft, false), "Missing canonical stick incorrectly received a fitted pose");
+    Check(NativeControlSelection.Source(false, collectiveAircraft) == (collectiveAircraft ? "UtilityHelo1" : "SmallFighter1"), "Aircraft throttle/collective model changed");
+    Check(NativeControlSelection.FittedFs20(false, collectiveAircraft, true) == !collectiveAircraft, "Collective incorrectly received the FS20 throttle pose");
+}
 foreach (var left in new[] { false, true })
 foreach (var fps in new[] { 45, 72, 90, 120 })
 {
@@ -114,7 +122,7 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     MotionControlVisuals.FittedStick = false;
     Settle(grip, true);
     var genericStick = grip.rotation * Quaternion.Euler(0, 0, left ? 90 : -90);
-    SameRotation(glove.Root.rotation, genericStick, "Aircraft-native helicopter/fallback stick received the fitted FS20 wrist");
+    SameRotation(glove.Root.rotation, genericStick, "Missing canonical stick fallback received the fitted FS20 wrist");
     Near(glove.Root.position, grip.position - genericStick * new Vector3(0, -.019f, .043f), "Unfitted stick palm offset changed");
     // A successfully acquired standard throttle remains fitted even when the
     // other handle is unavailable; selection follows each actual visual model.

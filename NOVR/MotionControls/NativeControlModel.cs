@@ -8,9 +8,9 @@ using Object = UnityEngine.Object;
 
 namespace NOVR.MotionControls;
 
-// Render-only copies of installed control meshes/materials. Fixed-wing aircraft
-// share the fitted FS-20 handles; helicopters share the full utility collective.
-// Helicopter cyclics retain their native controls. No game
+// Render-only copies of installed control meshes/materials. Every aircraft shares
+// the fitted FS-20 stick; helicopters replace its throttle with the full utility
+// collective. No game
 // assets are exported, no native scripts/colliders are cloned or destroyed.
 internal sealed class NativeControlModel : IDisposable
 {
@@ -25,8 +25,6 @@ internal sealed class NativeControlModel : IDisposable
     private MirroredControlGeometry? _mirror;
     internal bool UsesFittedPose { get; private set; }
     internal bool UsesCollectivePose { get; private set; }
-    private const string StandardAircraftKey = "SmallFighter1";
-    private const string CollectiveAircraftKey = "UtilityHelo1";
 
     private NativeControlModel(Transform parent)
     {
@@ -45,17 +43,17 @@ internal sealed class NativeControlModel : IDisposable
                     foreach (var source in Sources(cockpit, stick))
                         if (!sources.Contains(source)) sources.Add(source);
             var collective = MotionFlightController.UsesLiftCollective(aircraft);
-            var standardKey = collective ? stick ? null : CollectiveAircraftKey : StandardAircraftKey;
-            var standard = standardKey != null ? StandardSource(standardKey, stick) : null;
+            var standardKey = NativeControlSelection.Source(stick, collective);
+            var standard = StandardSource(standardKey, stick);
             // A live canonical aircraft can supply the same installed geometry
             // during loading. Other aircraft fall back safely if it is absent.
-            if (standard == null && standardKey != null && aircraft.definition?.jsonKey == standardKey && sources.Count > 0)
+            if (standard == null && aircraft.definition?.jsonKey == standardKey && sources.Count > 0)
                 standard = sources[0];
             var selected = standard != null ? standard : sources.Count > 0 ? sources[0] : null;
             if (selected == null) return null;
             model = new NativeControlModel(parent)
             {
-                UsesFittedPose = standard != null && !collective,
+                UsesFittedPose = NativeControlSelection.FittedFs20(stick, collective, standard != null),
                 UsesCollectivePose = standard != null && collective && !stick
             };
             var geometry = new GameObject("Aircraft handle geometry").transform;

@@ -82,4 +82,5 @@ Check(HandOptionWheelGesture.Sector(0, 0, 8) == -1 && HandOptionWheelGesture.Sec
 Check(HandOptionWheelGesture.Sector(float.NaN, 1, 8) == -1, "invalid sector rejected");
 LeaseChecks.Run(Check);
 PoseChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} native option-wheel gesture, ownership, lease and pose assertions.");
+EjectConfirmationChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} native option-wheel gesture, ownership, lease, pose and eject confirmation assertions.");

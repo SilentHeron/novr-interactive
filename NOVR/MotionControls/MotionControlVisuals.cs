@@ -98,7 +98,8 @@ internal sealed class MotionControlVisuals : IDisposable
             _indicatorCursor = Shape("Throttle slider cursor", PrimitiveType.Cube, _throttleBase, Vector3.zero,
                 new Vector3(.019f, .004f, .008f), _indicatorWhite).transform;
             _throttleReadout = Label("", _throttleBase, Vector3.zero);
-            _throttleReadout.characterSize = .0011f;
+            _throttleReadout.characterSize = .00165f;
+            _throttleReadout.lineSpacing = 1.1f;
             _stickHand = Shape("Stick Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
             _throttleHand = Shape("Throttle Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
             _fallbackStickMirror = new MirroredControlGeometry(_stickBase, _stickBase.GetComponentsInChildren<MeshFilter>(true));
@@ -234,9 +235,9 @@ internal sealed class MotionControlVisuals : IDisposable
         _indicatorFill.localScale = new Vector3(.003f, .003f, Mathf.Max(.001f, fillAxis.magnitude));
         _indicatorCursor.localPosition = cursor;
         _indicatorCursor.localRotation = _indicatorTrack.localRotation;
-        // Place the readout further inboard and beside the moving cursor, clear
-        // of the broad native housing and palm. It never floats above a handle.
-        _throttleReadout.transform.localPosition = cursor + new Vector3(side * .037f, .008f, -.018f);
+        // Keep the larger two-line readout beside the cursor, with extra inboard
+        // clearance from the rail, broad housing and palm in either handedness.
+        _throttleReadout.transform.localPosition = cursor + new Vector3(side * .052f, .008f, -.018f);
         _throttleReadout.transform.localRotation = Quaternion.Euler(collective ? 15f : 60f, -side * 15f, 0);
         var percent = ThrottleIndicatorMath.Percent(thrust);
         var state = ThrottleIndicatorMath.State(thrust, militaryPower, collective, hover);

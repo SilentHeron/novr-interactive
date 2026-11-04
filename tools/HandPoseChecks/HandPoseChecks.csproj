@@ -12,6 +12,7 @@
     <Compile Include="../../NOVR/MotionControls/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
     <Compile Include="../../NOVR/MotionControls/Fs20HandPoses.cs" Link="Fs20HandPoses.cs" />
     <Compile Include="../../NOVR/MotionControls/CollectiveHandPoses.cs" Link="CollectiveHandPoses.cs" />
+    <Compile Include="../../NOVR/MotionControls/NativeControlSelection.cs" Link="NativeControlSelection.cs" />
     <Compile Include="../../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/MotionControls/ArmPoseMath.cs" Link="ArmPoseMath.cs" />
     <Compile Include="../../NOVR/MotionControls/ArmReachMath.cs" Link="ArmReachMath.cs" />

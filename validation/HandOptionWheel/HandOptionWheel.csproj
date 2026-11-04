@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/MotionControls/HandOptionWheelGesture.cs" Link="HandOptionWheelGesture.cs" />
+    <Compile Include="../../NOVR/MotionControls/EjectConfirmationGesture.cs" Link="EjectConfirmationGesture.cs" />
     <Compile Include="../../NOVR/MotionControls/HandOptionWheelPose.cs" Link="HandOptionWheelPose.cs" />
     <Compile Include="../../NOVR/MotionControls/NativeRadialMenuLease.cs" Link="NativeRadialMenuLease.cs" />
   </ItemGroup>

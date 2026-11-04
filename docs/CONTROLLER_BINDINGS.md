@@ -2,7 +2,7 @@
 
 NOVR uses the connected **controllers**, not the headset brand, to select its default layout. Use PC SteamVR streaming with a tracked OpenXR session before starting the game. This does not run Nuclear Option directly on a standalone headset.
 
-The virtual stick and throttle work across aircraft. Original instrument displays remain in place; added MFDs are removed. Added cockpit switches and panels are removed. Fixed-wing aircraft use the refined FS-20 virtual handles; helicopters share the complete native utility-helicopter collective lever and keep their original cyclic models. Flight actions, including gear, radar and ejection, are also available in View.
+The virtual stick and throttle work across aircraft. Original instrument displays remain in place; added MFDs are removed. Added cockpit switches and panels are removed. All aircraft use the refined FS-20 stick and grip; helicopters pair it with the complete native utility-helicopter collective lever. Flight actions, including gear, radar and ejection, are also available in View.
 
 ## Default right-handed layout
 
@@ -54,6 +54,8 @@ Existing Frame custom bindings are retained. Switching between controller famili
 ## Hand option wheel
 
 Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
+
+Selecting **Eject** shows a red eject symbol in the center of the wheel. Keep the thumbstick centered and hold a fresh stick-click for **1.2 seconds** to confirm. The ring expands and fills as vibration builds on that hand. Releasing early resets the hold; tilting the stick or pressing trigger cancels. Tracking loss, a menu or leaving the cockpit also cancels. Other wheel actions still select on return to center.
 
 ## Grip and layout
 
