@@ -41,6 +41,9 @@ public sealed class FileSystemInstaller
         EnsureNormalPath(Path.GetDirectoryName(game.PatcherDir)!);
         EnsureNormalPath(game.PatcherDir);
         RecoverTransaction(game, transaction, progress);
+        // The UI check can become stale during downloads or another install.
+        // Inspect the recovered live version while both installer locks are held.
+        EnsureNotDowngrade(game, release);
         Directory.CreateDirectory(transaction);
         var staged = Path.Combine(transaction, "staged");
         try
@@ -76,6 +79,18 @@ public sealed class FileSystemInstaller
         }
         catch (IOException) { progress.Report("NOVR installed. Previous-file cleanup will finish on the next update."); }
         catch (UnauthorizedAccessException) { progress.Report("NOVR installed. Previous-file cleanup will finish on the next update."); }
+    }
+
+    private static void EnsureNotDowngrade(GameInstallInfo game, string release)
+    {
+        var current = new GameLocator().Inspect(game.GameDir);
+        // Keep existing partial-install and missing-metadata repair behavior.
+        if (current.ModState != InstallState.FullyInstalled)
+            return;
+        var installedVersion = current.Version;
+        var requestedVersion = new ReleaseVersion(release);
+        if (installedVersion > requestedVersion)
+            throw new InvalidOperationException($"Installed NOVR {installedVersion} is newer than {requestedVersion}. Choose a matching or newer NOVR package; the newer installation has been preserved.");
     }
 
     private static void WriteDurableText(string path, string content)

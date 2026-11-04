@@ -45,18 +45,22 @@ this repository, rejecting missing resource globs and binary dependencies.
 | Area | Coverage |
 | --- | --- |
 | Core and lifecycle | Flight-control math, input ownership, detents, ejection rules, complete configuration publication, XR enable/disable and retry, camera discovery/ownership, API event subscriptions, canvas-camera rebinding, paused/reentrant UI attachment and UI open/close ownership |
-| Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, controller artwork/callouts/activity, View settings, binding editor, hand option wheel, native-menu handoff, stable lobby selection/password routing, deferred host ownership, and Workshop query/preview lifetime |
-| Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry, texture preparation/ownership and initialization failure cleanup, UI-depth restoration and feedback dispatch |
-| HUD widgets | Per-aircraft layout slots, migration, saved placement, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources, unchanged threat refresh and depth handling |
+| Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, native Rewired map/axis-slot discovery, controller artwork/callouts/activity, View settings, binding editor, hand option wheel, native-menu handoff, lobby filtering/sorting and stable selection/password routing, deferred host ownership, and Workshop query/preview lifetime |
+| Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry and resource lifetime, texture preparation/ownership and initialization failure cleanup, UI-depth restoration and feedback dispatch |
+| HUD widgets | Per-aircraft layout slots, migration, saved placement, combined edit-session save/cancel/context transitions, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources, unchanged threat refresh and depth handling |
 | Map and flight cues | Minimap borrowing, terrain changes/tint/restoration, map interaction, redundant coordinate suppression, gaze candidates, nozzle/collective visibility, threat-vector bounds, delayed pitch-ladder setup and native runway endpoints |
-| Startup and installer | Mission-content readiness, splash progress, managed XR payload upgrades under preloader file locks, release selection, package validation, replacement/rollback, shared install/uninstall locks, picker ownership/failure handling, destination capture and settings preservation |
+| Startup and installer | Mission-content readiness, splash progress, managed XR payload upgrades under preloader file locks, release selection, package validation, replacement/rollback, shared install/uninstall locks, stale-version rejection after transaction recovery, picker ownership/failure handling, destination capture and settings preservation |
 
 These are executable check programs, so the runner uses `dotnet run` rather than
 `dotnet test`. It trusts exit status, not a fixed assertion count or expected log
 string. Some suites exercise pure math; others compile production components
 against small Unity/game boundary doubles. HUD profile persistence uses real
 temporary BepInEx config files; cockpit seat/handle profile checks use in-memory
-configuration doubles. Installer UI checks replace OS pickers and file/network
+configuration doubles. The HUD session fixture links the actual coordinator and
+both profile stores, with rendering/contact endpoints and in-memory configuration
+replaced at their boundaries. Installer service checks use real transactions in
+temporary directories, including an older pending request racing a newer install;
+same-version and partial-install repairs remain supported. Installer UI checks replace OS pickers and file/network
 operations; they do not open the native desktop dialogs. None of these doubles
 supplies a rendered game scene.
 

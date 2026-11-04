@@ -10,6 +10,7 @@
     <Compile Include="../../NOVR.Installer/Services/ReleaseVersion.cs" Link="ReleaseVersion.cs" />
     <Compile Include="../../NOVR.Installer/Services/NovrPackage.cs" Link="NovrPackage.cs" />
     <Compile Include="../../NOVR.Installer/Services/FileSystemInstaller.cs" Link="FileSystemInstaller.cs" />
+    <Compile Include="../../NOVR.Installer/Services/GameLocator.cs" Link="GameLocator.cs" />
     <Compile Include="../../NOVR.Installer/Services/GitHubReleaseClient.cs" Link="GitHubReleaseClient.cs" />
     <Compile Include="../../NOVR.Installer/Services/ProtonPrefixService.cs" Link="ProtonPrefixService.cs" />
   </ItemGroup>

@@ -210,6 +210,7 @@ try
     await installer.UninstallBepInExAsync(removeAll, messages, default);
     Check(!Directory.Exists(removeAll.BepInExDir), "repeated removal does not recreate BepInEx for its legacy lock");
 
+    await InstallVersionChecks.Run(root, Check);
     await ReleaseSelectionChecks.Run(root, Check);
 
     var bytes = File.ReadAllBytes(zip);
