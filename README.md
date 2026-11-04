@@ -10,7 +10,7 @@ Experimental version **0.4.8.8**. Targets Nuclear Option **0.34.6** and PC VR th
 
 ## Install
 
-No package is published yet. Packages will be available from [Releases](https://github.com/SilentHeron/novr-interactive/releases).
+Download the experimental package from [Releases](https://github.com/SilentHeron/novr-interactive/releases). The Windows and Linux installers also accept a downloaded `NOVR.zip` through **Install local package**.
 
 1. Close the game and install BepInEx 5.x for **Windows x64**, including when using Proton.
 2. Extract `NOVR.zip` into the game's `BepInEx` folder.
