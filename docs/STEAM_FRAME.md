@@ -32,6 +32,10 @@ window can reduce copying and desktop presentation costs, but lowering it does
 not reduce the headset's eye textures. Check SteamVR's **per-eye resolution**, not
 just the game's resolution menu or a percentage without its resulting dimensions.
 
+Use the game's graphics settings to change its windowed/fullscreen preference.
+Nuclear Option reapplies that saved preference during startup, so Unity's
+`-screen-fullscreen` launch option alone can be overridden after loading.
+
 Start with a stable headset refresh rate and change one setting at a time:
 
 | Refresh rate | Time available per frame |
