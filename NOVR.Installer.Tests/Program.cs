@@ -25,6 +25,47 @@ try
     Check(default(ReleaseVersion) < new ReleaseVersion("0.4.7.3"), "default version comparison is safe");
     foreach (var value in new[] { "", "0.4", "0.4.7.-1", "0.4.7.3-preview", "0.4.7.3.1" }) RejectSync(() => _ = new ReleaseVersion(value), "reject invalid tag " + value);
 
+    var library = Path.Combine(root, "external Steam library", "steamapps");
+    var protonGame = Path.Combine(library, "common", "Nuclear Option");
+    var exactPrefix = Path.Combine(library, "compatdata", "2168680", "pfx");
+    var unrelatedPrefix = Path.Combine(library, "compatdata", "999999", "pfx");
+    Directory.CreateDirectory(protonGame);
+    Directory.CreateDirectory(unrelatedPrefix);
+    File.WriteAllText(Path.Combine(unrelatedPrefix, "user.reg"), "other game settings");
+    Check(ProtonPrefixService.FindPrefix(protonGame) is null, "another game's prefix is never selected when Nuclear Option has none");
+    Directory.CreateDirectory(exactPrefix);
+    File.WriteAllText(Path.Combine(exactPrefix, "user.reg"), "Nuclear Option settings");
+    Directory.SetLastWriteTimeUtc(exactPrefix, DateTime.UtcNow.AddDays(-1));
+    Check(ProtonPrefixService.FindPrefix(protonGame) == exactPrefix, "selected external library resolves only app2168680 despite a newer unrelated prefix");
+    Check(ProtonPrefixService.FindPrefix(protonGame + Path.DirectorySeparatorChar) == exactPrefix, "trailing game-directory separator resolves the same prefix");
+    var otherLibraryGame = Path.Combine(root, "other library", "steamapps", "common", "Nuclear Option");
+    Directory.CreateDirectory(otherLibraryGame);
+    Check(ProtonPrefixService.FindPrefix(otherLibraryGame) is null, "missing selected-library prefix never falls back to another library");
+    Check(ProtonPrefixService.FindPrefix(Path.Combine(root, "custom game")) is null, "custom installation receives guidance without guessing a Steam prefix");
+    var guidance = ProtonPrefixService.SetupGuidance(protonGame, linux: true);
+    Check(guidance.Contains("WINEDLLOVERRIDES=\"winhttp=n,b\" %command%") && guidance.Contains("Preserve existing launch options"), "Linux guidance gives the exact per-game override and preserves existing options");
+    Check(guidance.Contains("Manual Proton setup") && guidance.Contains("has not changed Wine/Proton settings") && guidance.Contains(exactPrefix), "Linux result clearly reports a manual step and the matching prefix without claiming configuration");
+    Check(ProtonPrefixService.SetupGuidance(otherLibraryGame, linux: true).Contains("No existing Nuclear Option prefix"), "missing prefix is reported honestly with launch-option guidance still available");
+    Check(ProtonPrefixService.SetupGuidance("\0not a path", linux: false) == "Proton/Wine override is only needed on Linux.", "Windows behavior is unchanged and never inspects Proton paths");
+    var prefixFiles = Directory.GetFiles(library, "*", SearchOption.AllDirectories).Order().ToArray();
+    var prefixProgress = new List<string>();
+    var prefixService = new ProtonPrefixService();
+    var prefixResult = await prefixService.TryConfigureWinHttpOverrideAsync(
+        new GameInstallInfo(protonGame, true, true, InstallState.FullyInstalled, null),
+        new ImmediateProgress(prefixProgress.Add), default);
+    Check(Directory.GetFiles(library, "*", SearchOption.AllDirectories).Order().SequenceEqual(prefixFiles) &&
+          File.ReadAllText(Path.Combine(exactPrefix, "user.reg")) == "Nuclear Option settings" &&
+          File.ReadAllText(Path.Combine(unrelatedPrefix, "user.reg")) == "other game settings", "actual installer setup leaves both registries and prefix files untouched");
+    Check(prefixResult == ProtonPrefixService.SetupGuidance(protonGame, OperatingSystem.IsLinux()), "public setup path reports the current platform's guidance");
+    if (OperatingSystem.IsLinux())
+        Check(prefixProgress.Single().Contains("manual"), "Linux progress never presents automatic configuration as successful");
+    else
+        Check(prefixProgress.Count == 0, "Windows has no Proton setup progress or side effects");
+    await Reject(() => prefixService.TryConfigureWinHttpOverrideAsync(
+        new GameInstallInfo(protonGame, true, true, InstallState.FullyInstalled, null),
+        new ImmediateProgress(_ => throw new TestFailure("Cancelled setup reported progress")), new CancellationToken(true)),
+        "cancelled setup stops before inspecting or reporting Proton setup");
+
     var zip = MakeZip(root, "valid.zip");
     NovrPackage.Validate(zip, "v0.4.7.3"); Check(true, "validate complete package");
     Check(NovrPackage.ReadVersion(zip).ToString() == "0.4.7.3", "offline package identifies own version");

@@ -16,7 +16,7 @@ No package is published yet. Packages will be available from [Releases](https://
 2. Extract `NOVR.zip` into the game's `BepInEx` folder.
 3. Connect SteamVR, then launch Nuclear Option.
 
-This replaces upstream NOVR; do not install both. On Proton, BepInEx needs the `winhttp` override set to `native,builtin`.
+This replaces upstream NOVR; do not install both. On Linux/Proton, add `WINEDLLOVERRIDES="winhttp=n,b" %command%` to Nuclear Option's Steam launch options. Preserve existing options and merge any existing `WINEDLLOVERRIDES` setting; do not duplicate `%command%`. The installer provides guidance but does not change Proton settings.
 
 **F7:** motion controls. **F8:** place handles. **View / F9:** VR settings. On Steam Frame, with the stick held: **trigger** fires guns, **A** releases the selected weapon, **B** unselects the latest target and **Y** cycles weapons. Select buttons on the diagram under **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings**.
 
