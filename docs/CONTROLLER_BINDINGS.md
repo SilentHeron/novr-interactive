@@ -2,7 +2,7 @@
 
 NOVR uses the connected **controllers**, not the headset brand, to select its default layout. Use PC SteamVR streaming with a tracked OpenXR session before starting the game. This does not run Nuclear Option directly on a standalone headset.
 
-The virtual stick and throttle work across aircraft. Original instrument displays remain in place; added MFDs are removed. Added cockpit switches and panels are removed. Fixed-wing aircraft use the refined FS-20 virtual handles; helicopters keep native cyclic/collective controls. Flight actions, including gear, radar and ejection, are also available in View.
+The virtual stick and throttle work across aircraft. Original instrument displays remain in place; added MFDs are removed. Added cockpit switches and panels are removed. Fixed-wing aircraft use the refined FS-20 virtual handles; helicopters share the complete native utility-helicopter collective lever and keep their original cyclic models. Flight actions, including gear, radar and ejection, are also available in View.
 
 ## Default right-handed layout
 
@@ -67,6 +67,8 @@ For the map, horizontal and vertical corner separation change its width and heig
 
 The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **View → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults.
 A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.
+
+MIL detection covers the game's turbojet and turbofan engines, including mods based on those engine types. Engines without an afterburner have no MIL notch. Helicopter collective travel stays continuous: lift to increase the command and lower to decrease it. The complete lever pivots beneath and behind its grip; the saved grip position and configured lift distance remain unchanged.
 
 Stick-limit feedback briefly grows stronger near full pitch, roll or twist input, then stops completely within 0.45 seconds. Holding a tight turn stays silent. Release the grip or ease below 70% travel for a moment to rearm the cue. It uses the normal haptic-strength setting.
 
