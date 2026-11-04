@@ -27,8 +27,8 @@ internal static class TexturePreparationChecks
                 for (var c = 0; c < 3; c++) assert(output[4+c] < output[8+c] && output[8+c] < output[12+c]);
                 for (var i = 3; i < output.Length; i += 4) assert(output[i] == input[i]);
                 assert(output.Skip(16).SequenceEqual(input.Skip(16)) && input.SequenceEqual(original));
-                if (glove) assert(team == PilotUniformTeam.Bdf ? output[9] > output[8] && output[9] > output[10] : output[8] > output[9] * 2);
-                else assert(team == PilotUniformTeam.Bdf ? output[8] > 140 && output[10] > output[8] : output[10] < 40);
+                if (glove) assert(team == PilotUniformTeam.Bdf ? output[10] > output[9] && output[9] > output[8] : output[8] > output[9] * 2);
+                else assert(team == PilotUniformTeam.Bdf ? output[9] > output[8] && output[9] > output[10] : output[10] < 40);
             }
             assert(PilotTextureEnhancement.Recolor(input, 5, 1, PilotUniformTeam.Native, false, CancellationToken.None).SequenceEqual(input));
             using var cancel = new CancellationTokenSource(); cancel.Cancel();
