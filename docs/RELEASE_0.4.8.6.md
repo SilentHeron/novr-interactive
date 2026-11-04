@@ -8,5 +8,8 @@
 Validation: focused alert, material, texture, installer and XR-payload checks,
 verification-runner tests and game-assembly contracts passed on Linux. The package
 and both Windows/Linux installer executables built; package contents and checksum
-were checked. Windows execution remains unverified. This candidate has not been
-installed or tested in a headset; no frame-rate improvement is claimed.
+were checked. A normal Linux/Proton startup loaded this build through Direct3D 11,
+reached the main menu and released the loading splash at the existing 90 Hz
+headset setting. The pre-existing CI-23 aircraft-mod encyclopedia error remains.
+Windows execution and in-headset flight performance remain unverified; no
+frame-rate improvement is claimed.
