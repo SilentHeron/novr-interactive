@@ -12,16 +12,13 @@ internal enum NativeControllerAction
     Countermeasures,
     Select,
     NextWeapon,
-    PreviousWeapon,
     NextCountermeasure,
     Gear,
     Radar,
     ToggleEngine,
     FlightAssist,
     AutoHover,
-    Eject,
-    NavLights,
-    LinkGuns
+    Eject
 }
 
 internal static class NativeControllerActionNames
@@ -36,7 +33,6 @@ internal static class NativeControllerActionNames
         "Countermeasures" => NativeControllerAction.Countermeasures,
         "Select" => NativeControllerAction.Select,
         "Next Weapon" => NativeControllerAction.NextWeapon,
-        "Previous Weapon" => NativeControllerAction.PreviousWeapon,
         "Next Countermeasure" => NativeControllerAction.NextCountermeasure,
         "Gear" => NativeControllerAction.Gear,
         "Radar" => NativeControllerAction.Radar,
@@ -44,14 +40,11 @@ internal static class NativeControllerActionNames
         "Flight Assist" => NativeControllerAction.FlightAssist,
         "Auto Hover" => NativeControllerAction.AutoHover,
         "Eject" => NativeControllerAction.Eject,
-        "Nav Lights" => NativeControllerAction.NavLights,
-        "Link Guns" => NativeControllerAction.LinkGuns,
         _ => NativeControllerAction.Unknown
     };
 
     internal static bool CanQueue(NativeControllerAction action) => action is
         NativeControllerAction.Gear or NativeControllerAction.Radar or NativeControllerAction.ToggleEngine or
-        NativeControllerAction.FlightAssist or NativeControllerAction.NextWeapon or NativeControllerAction.PreviousWeapon or
-        NativeControllerAction.NextCountermeasure or NativeControllerAction.Eject or NativeControllerAction.AutoHover or
-        NativeControllerAction.NavLights or NativeControllerAction.LinkGuns;
+        NativeControllerAction.FlightAssist or NativeControllerAction.NextWeapon or
+        NativeControllerAction.NextCountermeasure or NativeControllerAction.Eject or NativeControllerAction.AutoHover;
 }

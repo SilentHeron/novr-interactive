@@ -12,6 +12,11 @@
     <Compile Include="../../NOVR/Input/ControllerBindingModel.cs" Link="ControllerBindingModel.cs" />
     <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
     <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
+    <Compile Include="../../NOVR/Input/ControllerActions.cs" Link="ControllerActions.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/Input/FrameActionQueue.cs" Link="FrameActionQueue.cs" />
+    <Compile Include="../../NOVR/Input/NativeControllerAction.cs" Link="NativeControllerAction.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/FlightControls/ThrottleBindingProfiles.cs" Link="ThrottleBindingProfiles.cs" />
     <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
   </ItemGroup>

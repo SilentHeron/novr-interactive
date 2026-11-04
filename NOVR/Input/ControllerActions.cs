@@ -105,10 +105,10 @@ internal sealed class ControllerActions : MonoBehaviour
         UpdateFlightButton(ControllerActionId.NextCountermeasure, _nextCountermeasure);
         UpdateFlightButton(ControllerActionId.ClearTargets, _clear);
         UpdateFlightButton(ControllerActionId.UnlockTarget, _unlock);
-        UpdateFlightButton(ControllerActionId.Gear, _gear);
+        UpdateFlightButton(ControllerActionId.Gear, _gear, false);
         UpdateFlightButton(ControllerActionId.Radar, _radar);
-        UpdateFlightButton(ControllerActionId.FlightAssist, _assist);
-        UpdateFlightButton(ControllerActionId.HoverAssist, _hover);
+        UpdateFlightButton(ControllerActionId.FlightAssist, _assist, false);
+        UpdateFlightButton(ControllerActionId.HoverAssist, _hover, false);
         if (_unlock.Released)
             SceneSingleton<CombatHUD>.i?.DeselectLast();
         if (_clear.Released)
