@@ -29,7 +29,7 @@ namespace UnityEngine
         public GameObject gameObject = null!;
         public Transform transform => gameObject.transform;
         public string name => gameObject.name;
-        public T? GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
+        public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
         {
             void Visit(Transform root)
@@ -50,11 +50,13 @@ namespace UnityEngine
         public int layer;
         public bool activeSelf = true, FailNextCanvasGroup;
         public bool activeInHierarchy => !Dead && activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
-        public GameObject(string name)
+        public GameObject(string name, params Type[] components)
         {
             this.name = name; transform = new RectTransform { gameObject = this }; Components.Add(transform);
+            foreach(var type in components)
+                if(type!=typeof(RectTransform)) { var component=(Component)Activator.CreateInstance(type)!; component.gameObject=this; Components.Add(component); }
         }
-        public T? GetComponent<T>() where T : Component => Components.OfType<T>().FirstOrDefault(x => !x.Dead);
+        public T GetComponent<T>() where T : Component => Components.OfType<T>().FirstOrDefault(x => !x.Dead)!;
         public T AddComponent<T>() where T : Component, new()
         {
             if (typeof(T) == typeof(CanvasGroup) && FailNextCanvasGroup)
@@ -80,6 +82,7 @@ namespace UnityEngine
         public void SetParent(Transform? next, bool worldPositionStays)
         { parent?.Children.Remove(this); parent = next!; next?.Children.Add(this); }
         public int GetSiblingIndex() => parent?.Children.IndexOf(this) ?? 0;
+        public void SetAsLastSibling() { if(parent!=null)SetSiblingIndex(parent.Children.Count-1); }
         public void SetSiblingIndex(int index)
         {
             if (parent == null) return;
@@ -108,6 +111,7 @@ namespace UnityEngine
     {
         public Vector2 anchorMin = new(.5f, .5f), anchorMax = new(.5f, .5f), pivot = new(.5f, .5f), sizeDelta = new(100, 100);
         public Rect rect => new(-pivot * sizeDelta, sizeDelta);
+        public Vector2 anchoredPosition { get=>new(localPosition.x,localPosition.y); set=>localPosition=new(value.x,value.y,localPosition.z); }
         public void GetWorldCorners(Vector3[] corners)
         {
             var min = rect.min; var max = min + rect.size;
@@ -122,6 +126,7 @@ namespace UnityEngine
     public readonly record struct Vector2(float x, float y)
     {
         public static Vector2 zero => new(0,0);
+        public static Vector2 one => new(1,1);
         public float sqrMagnitude => x*x+y*y;
         public float magnitude => MathF.Sqrt(sqrMagnitude);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
@@ -137,6 +142,8 @@ namespace UnityEngine
         public static Vector3 zero => new(0, 0, 0);
         public static Vector3 one => new(1, 1, 1);
         public static Vector3 up => new(0,1,0);
+        public static Vector3 forward => new(0,0,1);
+        public float magnitude => MathF.Sqrt(sqrMagnitude);
         public float sqrMagnitude => x*x+y*y+z*z;
         public static explicit operator Vector2(Vector3 a) => new(a.x,a.y);
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -178,6 +185,7 @@ namespace UnityEngine
     }
     public static class Mathf
     {
+        public static float Abs(float value)=>Math.Abs(value);
         public static float Min(float a, float b) => Math.Min(a, b); public static float Clamp01(float v) => Math.Clamp(v,0,1);
         public static float Clamp(float v, float min, float max) => Math.Clamp(v,min,max);
         public static bool Approximately(float a, float b) => Math.Abs(a-b)<.00001f;
@@ -187,14 +195,16 @@ namespace UnityEngine
     public sealed class Sprite : Object { }
     public readonly record struct Color(float r, float g, float b, float a)
     { public static Color white => new(1,1,1,1); public static Color Lerp(Color x, Color y, float t) => new(x.r+(y.r-x.r)*t,x.g+(y.g-x.g)*t,x.b+(y.b-x.b)*t,x.a+(y.a-x.a)*t); }
-    public static class Time { public static float unscaledTime; }
+    public static class Time { public static float unscaledTime,unscaledDeltaTime=.02f,timeScale=1; }
+    public static class Cursor { public static bool visible; }
+    public sealed class CanvasRenderer : Component { }
     public static class Debug { public static int Warnings; public static void LogWarning(string message) => Warnings++; }
     [AttributeUsage(AttributeTargets.Class)] public sealed class DefaultExecutionOrder(int order) : Attribute { public int Order => order; }
 }
 namespace UnityEngine.UI
 {
     public class Graphic : UnityEngine.Component { public bool enabled = true, raycastTarget = true; }
-    public sealed class Image : Graphic { public UnityEngine.Material material = null!; public UnityEngine.Color color; public UnityEngine.Sprite? sprite; }
+    public sealed class Image : Graphic { public UnityEngine.Material material = null!; public UnityEngine.Color color; public UnityEngine.Sprite? sprite; public UnityEngine.RectTransform rectTransform=>(UnityEngine.RectTransform)transform; }
     public sealed class Text : Graphic { public string text = ""; }
 }
 namespace TMPro { public sealed class TMP_Text : UnityEngine.UI.Graphic { public string text = ""; } }
@@ -206,6 +216,8 @@ public sealed class FlightHud : UnityEngine.MonoBehaviour { }
 public static class SceneSingleton<T> { public static T? i; }
 public static class GameManager
 {
+    public static bool flightControlsEnabled=true;
+    public static ControlMapper? controlMapper;
     public static Aircraft? Aircraft;
     public static bool GetLocalAircraft(out Aircraft aircraft) { aircraft = Aircraft!; return aircraft != null; }
 }
@@ -259,8 +271,8 @@ public sealed class TargetListSelector
     public HashSet<Unit> Excluded = new();
     public bool CheckExclusions(Unit unit) => Excluded.Contains(unit);
 }
-public sealed class CameraStateManager : UnityEngine.MonoBehaviour { }
-namespace NOVR { internal static class APIBus { internal static UnityEngine.Camera? MainCamera = null; } }
+public sealed class CameraStateManager : UnityEngine.MonoBehaviour { public static CameraMode cameraMode=CameraMode.cockpit; }
+namespace NOVR { internal static class APIBus { internal static UnityEngine.Camera? MainCamera,CockpitHudCamera; } }
 public static class GlobalPositions
 {
     public static UnityEngine.Vector3 Origin;

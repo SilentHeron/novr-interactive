@@ -26,7 +26,9 @@ internal sealed class CockpitMapInputState
         {
             if (_context) _handoff = true;
             _context = _armed = false; _click.Reset();
-            if (neutral) _handoff = false;
+            // Flight thumbstick yaw starts outside 0.12, earlier than map pan.
+            // Returning ownership at the larger map deadzone leaks small yaw.
+            if (x * x + y * y <= .12f * .12f && !clicked) _handoff = false;
             Reserved = _handoff;
             return;
         }

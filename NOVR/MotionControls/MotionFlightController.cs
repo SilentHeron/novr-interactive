@@ -283,7 +283,7 @@ public sealed class MotionFlightController : MonoBehaviour
             (Pitch, Roll) = FlightControlMath.Stick(tilt.x, tilt.y, tilt.z, Settings.StickAngle.Value,
                 Settings.Deadzone.Value, Settings.ResponseExponent.Value);
             stickTwist = Settings.TwistYaw.Value ? FlightControlMath.StickTwist(relative.y, relative.w,
-                Settings.YawAngle.Value, Settings.Deadzone.Value, Settings.ResponseExponent.Value) : 0f;
+                Settings.YawAngle.Value, Settings.YawDeadzone.Value, Settings.ResponseExponent.Value) : 0f;
             var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis && !CockpitMapInteraction.ReservesThumbstick(Settings.LeftHanded.Value)
                 ? FlightControlMath.Axis(_stickHand.Axis.x, 0.12f, 1f) : 0f;
             Yaw = Mathf.Clamp(stickTwist + thumb, -1f, 1f);

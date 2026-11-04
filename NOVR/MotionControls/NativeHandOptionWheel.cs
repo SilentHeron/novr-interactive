@@ -118,35 +118,15 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         var basis = trackingRoot != null ? trackingRoot.rotation : Quaternion.identity;
         var gripPosition = origin + basis * hand.Position;
         var gripRotation = basis * hand.Rotation;
-        ThumbstickSurface(Owner == 0, hand.NativeFrame, out var cap, out var normal, out var forward);
-        // The wheel lies over the thumbstick's top face and rotates with the
-        // physical controller. Glove-fit settings and head motion cannot tilt it.
-        // UI fronts face local -Z; local +Y follows thumbstick-forward selection.
-        _view.transform.SetPositionAndRotation(gripPosition + gripRotation * (cap + normal * .055f),
+        HandOptionWheelPose.Get(Owner == 0, hand.NativeFrame, out var offset, out var normal, out var forward);
+        // The wheel is fixed above the thumbstick with a modest tilt toward the
+        // wrist. It still follows only the controller, never the user's gaze.
+        // UI fronts face local -Z; local +Y keeps thumbstick-forward selection.
+        _view.transform.SetPositionAndRotation(gripPosition + gripRotation * offset,
             gripRotation * Quaternion.LookRotation(-normal, forward));
         _canvas!.worldCamera = camera;
     }
 
-    private static void ThumbstickSurface(bool left, bool frame, out Vector3 cap, out Vector3 normal, out Vector3 forward)
-    {
-        // Derived from the installed controller render models' openxr_grip and
-        // thumbstick transforms, converted from OpenVR to Unity coordinates.
-        // Frame's button deck is canted relative to grip-up, and mirrored in X.
-        var side = left ? 1f : -1f;
-        if (frame)
-        {
-            cap = new Vector3(side * .027826f, .0110762f, .0537274f);
-            normal = new Vector3(side * .1654186f, .7774802f, .6067629f).normalized;
-            forward = new Vector3(side * .1007780f, -.6253439f, .7738145f).normalized;
-        }
-        else
-        {
-            // Current Touch / Quest controllers share this grip-relative deck.
-            cap = new Vector3(-side * .006413f, -.0166453f, .0537527f);
-            normal = new Vector3(0, .7358035f, .6771951f).normalized;
-            forward = new Vector3(0, -.6771951f, .7358035f).normalized;
-        }
-    }
     private void EnsureView()
     {
         if (_view != null) return;

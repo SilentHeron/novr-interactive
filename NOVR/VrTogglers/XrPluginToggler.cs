@@ -1,4 +1,4 @@
-﻿#if MODERN
+#if MODERN
 using System;
 using UnityEngine;
 using UnityEngine.XR.Management;
@@ -7,9 +7,10 @@ namespace NOVR.VrTogglers;
 
 public abstract class XrPluginToggler: VrToggler
 {
-    protected XRGeneralSettings _generalSettings;
-    protected XRManagerSettings _managerSetings;
+    protected XRGeneralSettings _generalSettings = null!;
+    protected XRManagerSettings _managerSetings = null!;
     private bool _previousRunInBackground;
+    private bool _ownsBackgroundSetting;
     
     protected override bool SetUp()
     {
@@ -26,28 +27,52 @@ public abstract class XrPluginToggler: VrToggler
         _managerSetings.loaders.Add(CreateLoader());
         #pragma warning restore CS0618
         
-        _managerSetings.InitializeLoaderSync();
-        if (_managerSetings.activeLoader == null) throw new Exception("Cannot initialize OpenXR Loader. Maybe The VR headset wasn't ready?");
-
         return true;
     }
 
     protected override bool EnableVr()
     {
-        if (!IsVrEnabled) _previousRunInBackground = Application.runInBackground;
+        // Setup configures the loader list once. DeinitializeLoader clears the
+        // active loader, so every later enable must initialize it again.
+        if (_managerSetings.activeLoader == null)
+            _managerSetings.InitializeLoaderSync();
+        if (_managerSetings.activeLoader == null)
+            throw new Exception("Cannot initialize OpenXR Loader. Maybe The VR headset wasn't ready?");
+
+        _previousRunInBackground = Application.runInBackground;
+        _ownsBackgroundSetting = true;
         Application.runInBackground = true;
-        _managerSetings.StartSubsystems();
-        return _managerSetings.activeLoader != null;
+        try
+        {
+            _managerSetings.StartSubsystems();
+            if (_managerSetings.activeLoader != null) return true;
+            RestoreBackgroundSetting();
+            return false;
+        }
+        catch
+        {
+            try { _managerSetings.DeinitializeLoader(); }
+            finally { RestoreBackgroundSetting(); }
+            throw;
+        }
     }
 
     protected override bool DisableVr()
     {
-        if (_managerSetings.activeLoader == null) return true;
+        try
+        {
+            // The manager stops subsystems as part of deinitialization.
+            if (_managerSetings.activeLoader != null) _managerSetings.DeinitializeLoader();
+            return _managerSetings.activeLoader == null;
+        }
+        finally { RestoreBackgroundSetting(); }
+    }
 
-        _managerSetings.StopSubsystems();
-        _managerSetings.DeinitializeLoader();
+    private void RestoreBackgroundSetting()
+    {
+        if (!_ownsBackgroundSetting) return;
         Application.runInBackground = _previousRunInBackground;
-        return _managerSetings.activeLoader == null;
+        _ownsBackgroundSetting = false;
     }
 
     protected abstract XRLoader CreateLoader();

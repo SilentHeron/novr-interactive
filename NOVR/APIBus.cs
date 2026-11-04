@@ -6,120 +6,63 @@ namespace NOVR;
 
 public class APIBus : MonoBehaviour
 {
-    #region API Properties
-    public static Camera MainCamera => _previousMainCamera;
-    public static Camera CockpitHudCamera => NOUIManager.I.CockpitHudCamera;
-    public static GameObject CockpitHudReference => NOUIManager.I.CockpitHudReference;
+    // Normalize Unity's destroyed references for callers that use ?. or CLR
+    // null checks during a scene transition.
+    public static Camera MainCamera => _previousMainCamera != null ? _previousMainCamera : null!;
+    public static Camera CockpitHudCamera => NOUIManager.I != null ? NOUIManager.I.CockpitHudCamera : null!;
+    public static GameObject CockpitHudReference => NOUIManager.I != null ? NOUIManager.I.CockpitHudReference : null!;
     public static double AngleFromZero;
-    //public static Vector3 TrackingCalibrationOffset => NOVRPoseDriver.TranslationCalibrationOffset;
-    #endregion
-    
-    
-    public static Action<Camera?, Camera?> OnMainCameraChanged;       
-    private static Camera? _previousMainCamera; 
-    
-    
+    public static Action<Camera?, Camera?>? OnMainCameraChanged;
 
-    
+    private static Camera? _previousMainCamera;
     private static APIBus? _current;
+    private bool _loggedExtraEventsError;
 
+    private void Awake() => TryClaimOwnership();
+    private void OnEnable() => TryClaimOwnership();
 
-    private bool _loggedExtraEventsError = false;
-    private HandoffState _state = HandoffState.NoState;
-    
-
-    private APIBus()
-    {
-        if (CheckExtraDispatchers())
-        {
-            string trace = StackTraceUtility.ExtractStackTrace();
-            Debug.Log($"{typeof(APIBus)} ctor stack: " + trace);
-        }
-    }
-    
     public void Update()
     {
-        if (!CheckExtraDispatchers()) return;
-
-
-        var newMainCamera = Camera.main;                                                         
-        if (newMainCamera != _previousMainCamera)                                                
-        {                                                                                        
-            OnMainCameraChanged(_previousMainCamera, newMainCamera);                             
-            _previousMainCamera = newMainCamera;                                                 
-        }                                                                                        
-        
+        if (!TryClaimOwnership()) return;
+        var camera = Camera.main;
+        Publish(camera != null ? camera : null);
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <returns>Should continue executing</returns>
-    /// <exception cref="Exception">If internal state is deemed impossible</exception>
-    private bool CheckExtraDispatchers()
+    private bool TryClaimOwnership()
     {
-        var oldState = _state;
-        _state = GetDispatcherHandoffState(_state);
-        switch (_state)
+        if (!isActiveAndEnabled) return false;
+        if (ReferenceEquals(_current, this)) return true;
+        if (_current == null || !_current.isActiveAndEnabled)
         {
-            case HandoffState.NoState:
-            case HandoffState.GodFuckingKnows:
-                throw new Exception($"Invalid state in {typeof(APIBus)}! State: {_state}");
-            case HandoffState.InitialDispatcher:
-                _current = this;
-                return true;
-            case HandoffState.AwaitingPreviousDisposal:
-                LogExtraDispatcher();
-                return false;
-            case HandoffState.ProperHandoff:
-                _current = this;
-                return true;
-            case HandoffState.ImproperHandoff:
-                _current = this;
-                if (oldState == HandoffState.AwaitingPreviousDisposal)
-                    Debug.LogWarning($"{typeof(APIBus)}: Successful handoff after suspicious state");
-                return true;
+            _current = this;
+            return true;
         }
-        throw new Exception("How did we get here?");
-    }
-
-    private HandoffState GetDispatcherHandoffState(HandoffState current)
-    {
-        bool isNull = _current is null;                             
-        
-
-        if (isNull) return HandoffState.InitialDispatcher;
-        bool unityDisposed = _current != null;
-        bool isUs = _current == this;
-        if (isUs) return current;   
-        if (unityDisposed)
+        if (!_loggedExtraEventsError)
         {
-            if (current == HandoffState.NoState) return HandoffState.ProperHandoff;
-            if (current == HandoffState.AwaitingPreviousDisposal) return HandoffState.ImproperHandoff;
+            Debug.LogWarning("[NOVR] Additional camera dispatcher is waiting for the active instance to stop.");
+            _loggedExtraEventsError = true;
         }
-
-        return HandoffState.GodFuckingKnows;
+        return false;
     }
 
-    private void LogExtraDispatcher()
+    private static void Publish(Camera? camera)
     {
-        if (!_loggedExtraEventsError) return;
-        Debug.LogError($"Additional instances of {typeof(APIBus)}. This should not happen!");
-        
-        _loggedExtraEventsError = true;
+        // Unity considers a destroyed camera equal to null, but subscribers
+        // still need that loss notification and the stale reference cleared.
+        if (ReferenceEquals(_previousMainCamera, camera)) return;
+        var previous = _previousMainCamera;
+        _previousMainCamera = camera;
+        // Publish the cache first. A failing subscriber must not make the
+        // same camera transition replay on every subsequent frame.
+        OnMainCameraChanged?.Invoke(previous, camera);
     }
 
-
-
-    private enum HandoffState
+    private void ReleaseOwnership()
     {
-        NoState,
-        InitialDispatcher,          
-        AwaitingPreviousDisposal,   
-        ProperHandoff,                            
-        ImproperHandoff,                   
-        GodFuckingKnows = -1
+        if (!ReferenceEquals(_current, this)) return;
+        _current = null;
+        Publish(null);
     }
- 
- 
+    private void OnDisable() => ReleaseOwnership();
+    private void OnDestroy() => ReleaseOwnership();
 }

@@ -9,36 +9,6 @@ HandleReachFeedbackChecks.Run(Check, True);
 ControlMirrorChecks.Run(Check, True);
 FrameActionQueueChecks.Run(Check, True);
 
-Check("Idle pointer prefers an actionable control over the other hand's background", () =>
-{
-    foreach (var left in new[] { false, true })
-    {
-        var p = new PointerHandSelection();
-        p.Update(!left, true, 0, true, true, 0, true, left ? 2 : 1, left ? 1 : 2);
-        True(p.Left == left && !p.Trigger.Pressed);
-        p.Update(!left, true, left ? 1 : 0, true, true, left ? 0 : 1, true);
-        True(p.Left == left && p.Trigger.Pressed);
-        p.Update(!left, true, left ? 1 : 0, true, true, left ? 0 : 1, true, left ? 1 : 2, left ? 2 : 1);
-        True(p.Left == left && p.Trigger.Held);
-        p.Update(!left, true, 0, true, true, 0, true, left ? 1 : 2, left ? 2 : 1);
-        True(p.Left == left && p.Trigger.Released);
-        p.Update(!left, true, 0, true, true, 0, true, left ? 1 : 2, left ? 2 : 1);
-        True(p.Left != left && !p.Trigger.Pressed);
-    }
-});
-Check("Priority changes cannot convert a held non-owner trigger to a click", () =>
-{
-    var p = new PointerHandSelection();
-    p.Update(false, true, 1, true, true, 0, true, 1, 2);
-    p.Update(false, true, 1, true, true, 0, true, 2, 1);
-    True(!p.Left && !p.Trigger.Pressed);
-    p.Update(false, true, 0, true, true, 0, true, 2, 1);
-    True(p.Left && !p.Trigger.Pressed);
-    p.Update(false, true, 1, true, true, 0, true, 2, 1);
-    True(p.Left && p.Trigger.Pressed);
-});
-
-
 Check("Menu history returns shared help to its source and clears confirmations on Home", () =>
 {
     var h = new MenuHistory<string>("Home");
@@ -88,76 +58,42 @@ Check("MIL shelf fits entirely inside the chosen throttle range and preserves re
         }
     }
 });
-Check("Either hand can acquire the pointer with a fresh trigger", () =>
-{
-    foreach (var preferLeft in new[] { false, true })
-    {
-        var p = new PointerHandSelection();
-        p.Update(preferLeft, true, 0, true, true, 0, true);
-        True(p.Left == preferLeft);
-        p.Update(preferLeft, true, preferLeft ? 0 : 1, true, true, preferLeft ? 1 : 0, true);
-        True(p.Left != preferLeft && p.Trigger.Pressed);
-    }
-});
-Check("Pointer drag ownership survives other-hand presses and its release frame", () =>
+Check("Pointer ownership changes only on a fresh button edge", () =>
 {
     var p = new PointerHandSelection();
-    p.Update(false, true, 0, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 1, true);
-    True(p.Left && p.Trigger.Held && !p.Trigger.Pressed);
-    p.Update(false, true, 0, true, true, 1, true);
-    True(p.Left && p.Trigger.Released);
-    p.Update(false, true, 0, true, true, 1, true);
-    True(p.Left && !p.Trigger.Pressed);
-    p.Update(false, true, 0, true, true, 0, true);
-    p.Update(false, true, 0, true, true, 1, true);
-    True(!p.Left && p.Trigger.Pressed);
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    True(!p.Left);
+    for (var i = 0; i < 60; i++) p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    True(!p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 2); True(!p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(!p.Left);
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(p.Left);
+    p.Reset(); p.Update(true, 0, 0, 0, true, 0, 0, 0); True(p.Left);
 });
-Check("Held triggers cannot acquire clicks when tracking or menus return", () =>
+Check("Pointer drag owns its release frame and consumes ignored other-hand presses", () =>
 {
     var p = new PointerHandSelection();
-    p.Update(false, true, 1, true, true, 1, true);
-    True(!p.Trigger.Held && !p.Trigger.Pressed);
-    p.Update(false, true, 0, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 0, true);
-    True(p.Left && p.Trigger.Pressed);
-    p.Reset();
-    p.Update(false, true, 1, true, true, 1, true);
-    True(!p.Trigger.Held && !p.Trigger.Pressed);
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    p.Update(true, 1, 0, 0, true, 0, 0, 0); True(p.Left && p.Trigger.Pressed);
+    p.Update(true, 1, 0, 0, true, 1, 1, 1); True(p.Left && p.Trigger.Held);
+    p.Update(true, 0, 0, 0, true, 1, 1, 2); True(p.Left && p.Trigger.Released);
+    p.Update(true, 0, 0, 0, true, 1, 1, 2); True(p.Left && !p.Trigger.Held);
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    p.Update(true, 0, 0, 0, true, 1, 0, 0); True(!p.Left && p.Trigger.Pressed);
 });
-Check("Pointer tracking loss cancels without a release-click or held-hand takeover", () =>
+Check("Pointer tracking and focus loss require fresh input and retain the chosen hand", () =>
 {
     var p = new PointerHandSelection();
-    p.Update(false, true, 0, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 1, true);
-    p.Update(false, false, 0, false, true, 1, true);
-    True(p.Left && !p.Trigger.Released && !p.Trigger.Held);
-    p.Update(false, true, 1, true, true, 0, true);
-    True(!p.Trigger.Pressed);
-    p.Update(false, true, 0, true, true, 0, true);
-    p.Update(false, true, 1, true, true, 0, true);
-    True(p.Left && p.Trigger.Pressed);
-});
-Check("Idle pointer follows the only targeted or available hand", () =>
-{
-    var p = new PointerHandSelection();
-    p.Update(false, true, 0, true, true, 0, false);
-    True(p.Left && !p.Trigger.Pressed);
-    p.Update(false, false, 0, false, true, 0, false);
-    True(!p.Left && !p.Trigger.Pressed);
-});
-Check("Arriving on a panel with a held trigger never creates a new press", () =>
-{
-    var p = new PointerHandSelection();
-    p.Update(false, true, 0, false, true, 0, false);
-    p.Update(false, true, 1, false, true, 0, false);
-    p.Update(false, true, 1, true, true, 0, false);
-    True(!p.Trigger.Pressed && !p.Left);
-    p.Update(false, true, 0, true, true, 0, false);
-    p.Update(false, true, 1, true, true, 0, false);
-    True(p.Left && p.Trigger.Pressed);
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    p.Update(true, 0, 1, 0, true, 0, 0, 0); True(p.Left);
+    p.Update(false, 0, 0, 0, true, 0, 0, 0); True(p.Left && !p.Trigger.Released);
+    p.Update(false, 0, 0, 0, true, 0, 0, 1); True(!p.Left);
+    p.Reset(); p.Update(true, 1, 1, 127, true, 1, 1, 127);
+    True(!p.Left && !p.Trigger.Held && !p.Trigger.Pressed);
+    p.Update(true, 0, 0, 0, true, 0, 0, 127);
+    p.Update(true, 1, 0, 0, true, 0, 0, 127); True(p.Left && p.Trigger.Pressed);
 });
 Check("Interaction cues are finite, brief, peak bounded and fade to silence", () =>
 {
@@ -199,6 +135,25 @@ Check("Twist respects deadzone and handles invalid or ambiguous rotations", () =
     Near(FlightControlMath.StickTwist(float.NaN, 1, 30, 0, 1), 0);
     Near(FlightControlMath.StickTwist(1, float.PositiveInfinity, 30, 0, 1), 0);
     Near(FlightControlMath.StickTwist(1, 1, 0, 0, 1), 0);
+});
+Check("Larger yaw deadzone rejects small wrist twist while preserving pitch and full steering", () =>
+{
+    foreach (var sign in new[] { -1f, 1f })
+    {
+        float Twist(float degrees, float deadzone)
+        {
+            var halfAngle = sign * degrees * MathF.PI / 360f;
+            return FlightControlMath.StickTwist(MathF.Sin(halfAngle), MathF.Cos(halfAngle), 30, deadzone, 1.5f);
+        }
+        True(Math.Abs(Twist(4, .06f)) > 0);
+        Near(Twist(4, .15f), 0);
+        Near(Twist(4.5f, .15f), 0);
+        True(sign * Twist(5, .15f) > 0);
+        Near(Twist(30, .15f), sign);
+        Near(Twist(40, .15f), sign);
+        var pitch = FlightControlMath.Stick(0, MathF.Cos(4 * MathF.PI / 180f), sign * MathF.Sin(4 * MathF.PI / 180f), 25, .06f, 1.5f);
+        True(sign * pitch.pitch > 0 && pitch.roll == 0);
+    }
 });
 Check("VTOL-style throttle leaves target selection to the stick hand", () =>
 {
@@ -809,7 +764,7 @@ if (args.Length == 2)
 
     Check("Harmony patch targets and injected fields match the installed game", () =>
         PatchCompatibility.Verify(args[0], args[1]));
-    Check("Proton input workaround uses supported Rewired initialization and configuration APIs", () =>
+    Check("Proton input workaround matches Rewired pre-initialization hooks and public configuration", () =>
         PatchCompatibility.VerifyInputBackend(args[1]));
 }
 

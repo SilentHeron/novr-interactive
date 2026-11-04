@@ -19,15 +19,37 @@ RUN_DIRECTORY = ROOT / "tools" / "verification"
 PORTABLE = (
     ("core", "tests/NOVR.Tests.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
+    ("api-lifecycle", "tools/ApiBusChecks/ApiBusChecks.csproj"),
+    ("xr-toggle-lifecycle", "tools/XrTogglerChecks/XrTogglerChecks.csproj"),
     ("cockpit-profiles", "tools/CockpitProfileChecks/CockpitProfileChecks.csproj"),
     ("controller-runtime", "tools/ControllerRuntimeChecks/ControllerRuntimeChecks.csproj"),
+    ("controller-pointer", "tools/ControllerPointerChecks/ControllerPointerChecks.csproj"),
+    ("proton-compatibility", "tools/ProtonCompatibilityChecks/ProtonCompatibilityChecks.csproj"),
     ("controller-bindings", "tools/ControllerBindingChecks/ControllerBindingChecks.csproj"),
+    ("controller-diagram", "validation/ControllerDiagram/ControllerDiagram.csproj"),
+    ("controller-diagram-ui", "validation/ControllerDiagramUi/ControllerDiagramUi.csproj"),
     ("hand-comfort", "tools/HandComfortChecks/HandComfortChecks.csproj"),
     ("arm-pose", "tools/ArmPoseChecks/ArmPoseChecks.csproj"),
     ("hand-pose", "tools/HandPoseChecks/HandPoseChecks.csproj"),
+    ("hand-ui-depth", "tools/HandUiDepthChecks/HandUiDepthChecks.csproj"),
     ("sleeve-bounds", "tools/SleeveBoundsChecks/SleeveBoundsChecks.csproj"),
+    ("sleeve-geometry", "tools/SleeveGeometryChecks/SleeveGeometryChecks.csproj"),
+    ("texture-preparation", "tools/TexturePreparationChecks/TexturePreparationChecks.csproj"),
     ("feedback-preview", "tools/FeedbackPreviewChecks/FeedbackPreviewChecks.csproj"),
-    ("mfd-context", "tools/MfdContextChecks/MfdContextChecks.csproj"),
+    ("hand-option-wheel", "validation/HandOptionWheel/HandOptionWheel.csproj"),
+    ("hud-widgets", "validation/HudWidgets/NOVR.HudWidgets.Tests.csproj"),
+    ("hud-appearance-ui", "validation/WristMenuHudAppearance/WristMenuHudAppearance.csproj"),
+    ("hud-status", "validation/HudStatus/NOVR.HudStatus.Tests.csproj"),
+    ("cockpit-status-sources", "tools/CockpitStatusSourceChecks/CockpitStatusSourceChecks.csproj"),
+    ("cockpit-widget-depth", "tools/CockpitWidgetDepthChecks/CockpitWidgetDepthChecks.csproj"),
+    ("cockpit-map", "tools/CockpitMapChecks/CockpitMapChecks.csproj"),
+    ("cockpit-map-input", "tools/CockpitMapInputChecks/CockpitMapInputChecks.csproj"),
+    ("grid-readout", "validation/GridAircraftReadout/GridAircraftReadout.csproj"),
+    ("gaze-cue", "validation/GazeCue/GazeCue.csproj"),
+    ("nozzle-hud", "validation/NozzleHud/NozzleHud.csproj"),
+    ("throttle-indicator", "validation/ThrottleIndicator/ThrottleIndicator.csproj"),
+    ("threat-vector", "validation/ThreatVectorLine/ThreatVectorLine.csproj"),
+    ("native-menu-handoff", "validation/NativeMenuHandoff/NativeMenuHandoff.csproj"),
     ("mission-readiness", "validation/MissionReadiness/NOVR.MissionReadiness.Tests.csproj"),
     ("startup-splash", "validation/StartupSplash/NOVR.StartupSplash.Tests.csproj"),
     ("installer", "NOVR.Installer.Tests/NOVR.Installer.Tests.csproj"),
@@ -43,6 +65,20 @@ def portable_project(path: Path) -> None:
     forbidden = {"Reference", "ProjectReference", "Import"}
     if any(item.tag in forbidden for item in root.iter()):
         raise ValueError(f"{path.relative_to(ROOT)} has assembly/project/import dependencies; review portable isolation")
+    for item in root.iter():
+        if item.tag not in {"Compile", "EmbeddedResource"} or "Include" not in item.attrib:
+            continue
+        pattern = item.attrib["Include"].replace("\\", "/")
+        if "$" in pattern or ";" in pattern or Path(pattern).is_absolute():
+            raise ValueError(f"{path.relative_to(ROOT)} has a nonportable source/resource include: {pattern}")
+        matches = list(path.parent.glob(pattern))
+        if not matches:
+            raise ValueError(f"{path.relative_to(ROOT)} is missing source/resource input: {pattern}")
+        for match in matches:
+            if not match.resolve().is_relative_to(ROOT) or not match.is_file():
+                raise ValueError(f"{path.relative_to(ROOT)} includes an external or non-file input: {pattern}")
+            if match.suffix.lower() in {".dll", ".exe", ".so", ".dylib", ".bundle"}:
+                raise ValueError(f"{path.relative_to(ROOT)} embeds a binary dependency: {pattern}")
     for filename in ("Directory.Build.props", "Directory.Build.targets"):
         directory = path.parent
         while True:

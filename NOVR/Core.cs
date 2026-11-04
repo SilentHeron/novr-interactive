@@ -18,8 +18,7 @@ public class Core : MonoBehaviour
     private NOUIManager? _vrUi;
     private VrTogglerManager? _vrTogglerManager;
     
-    private Aircraft _aircraft;
-    private Aircraft _oldAircraft;
+    private Aircraft? _aircraft;
 
     public static void Create()
     {
@@ -75,9 +74,9 @@ public class Core : MonoBehaviour
 
     private void FixedUpdate()
     {
-        _oldAircraft = _aircraft;
+        var previousAircraft = _aircraft;
         GameManager.GetLocalAircraft(out _aircraft);
-        if (_aircraft != _oldAircraft) NOVRHeadsetData.CalibrateTranslation();
+        if (_aircraft != previousAircraft) NOVRHeadsetData.CalibrateTranslation();
         CameraStateManager.enableMouseLook = false;
     }
 

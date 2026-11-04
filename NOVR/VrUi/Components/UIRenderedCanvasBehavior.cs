@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace NOVR.VrUi.SpecialBehavior;
@@ -40,7 +39,7 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
     }
 
 
-    protected static Transform FindChildStartingWith(Transform parent, string childNamePrefix)
+    protected static Transform? FindChildStartingWith(Transform parent, string childNamePrefix)
     {
         for (var i = 0; i < parent.childCount; i++)
         {

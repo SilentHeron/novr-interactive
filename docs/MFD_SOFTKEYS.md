@@ -1,5 +1,9 @@
 # FS-20 multifunction display keys
 
+Historical design record for the 0.4.7.x replacement MFDs. Those displays and
+their added cockpit switches have been removed from the current runtime. See
+[verification](VERIFICATION.md) for checks that apply to the current source.
+
 Each FS-20 display has four physical softkeys. Read the adjacent on-screen edge
 labels: their functions change with that display's page. Previous/next page
 controls remain separate, and the minimap remains available as a page.
@@ -47,10 +51,8 @@ aircraft or sensor state changes.
 
 ## Implementation checks
 
-`tools/MfdContextChecks` builds the production four-key matrix and page helpers
-with SDK 8, without Unity, a game installation or native assemblies. It covers
-all pages, availability masks, optical-mode capability combinations, bounds,
-invalid settings, short state labels and re-evaluation after capability loss.
-It runs with the other portable suites through `python tools/verify.py portable`.
-It does not establish physical spacing, native action delivery or headset
-readability; those require runtime validation of the integrated cockpit.
+The retired `tools/MfdContextChecks` harness covered the production four-key
+matrix, availability masks, optical modes, bounds and page helpers. It was
+removed with the replacement displays and is no longer part of portable checks.
+Those earlier checks did not establish physical spacing, native action delivery
+or headset readability.

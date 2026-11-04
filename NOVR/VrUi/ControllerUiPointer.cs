@@ -14,6 +14,9 @@ internal sealed class ControllerUiPointer
     private ControllerButtonGate Trigger => _hands.Trigger;
     private PointerEventData? _event;
     private EventSystem? _system;
+    private Transform? _dragSurface;
+    private Camera? _dragCamera;
+    private Vector3 _dragPointLocal;
     private readonly bool[] _hasPose = new bool[2];
     private readonly Vector3[] _positions = new Vector3[2];
     private readonly Quaternion[] _rotations = new Quaternion[2];
@@ -42,23 +45,47 @@ internal sealed class ControllerUiPointer
             _system = EventSystem.current;
             _event = new PointerEventData(_system) { pointerId = -101, button = PointerEventData.InputButton.Left };
         }
+        // Another menu can remain open when a page or dragged setting is
+        // hidden. Cancel its capture now so holding the trigger cannot resume
+        // the old drag if that page is shown again before the trigger releases.
+        if (Unavailable(_event!.pointerPress) || Unavailable(_event.pointerDrag) ||
+            _dragSurface is not null && (_dragSurface == null || _dragCamera == null))
+            Cancel();
         if (!leftAvailable) _hasPose[0] = false;
         if (!rightAvailable) _hasPose[1] = false;
         var leftRay = leftAvailable ? HandRay(camera, leftHand, 0) : default;
         var rightRay = rightAvailable ? HandRay(camera, rightHand, 1) : default;
-        var leftHit = leftAvailable ? Raycast(leftRay, camera) : default;
-        var rightHit = rightAvailable ? Raycast(rightRay, camera) : default;
         var previousLeft = _hands.Left;
-        _hands.Update(settings.MotionControls.LeftHanded.Value, leftAvailable, leftHand.Trigger, leftHit.gameObject != null,
-            rightAvailable, rightHand.Trigger, rightHit.gameObject != null,
-            TargetPriority(leftHit.gameObject), TargetPriority(rightHit.gameObject));
+        _hands.Update(leftAvailable, leftHand.Trigger, leftHand.Grip, Buttons(leftHand),
+            rightAvailable, rightHand.Trigger, rightHand.Grip, Buttons(rightHand));
         if (previousLeft != _hands.Left) { Release(true); SetHover(null); }
-        if (!(_hands.Left ? leftAvailable : rightAvailable)) { Cancel(); return false; }
+        if (!(_hands.Left ? leftAvailable : rightAvailable))
+        {
+            // Keep observing the other hand's edges while the selected hand is
+            // unavailable. Hover or restored tracking alone cannot take over.
+            Release(true); SetHover(null);
+            OverMap = OverInteractive = false; Scroll = Vector2.zero;
+            return false;
+        }
         var hand = _hands.Left ? leftHand : rightHand;
         Ray = _hands.Left ? leftRay : rightRay;
-        var hit = _hands.Left ? leftHit : rightHit;
+        var hit = Raycast(Ray, camera);
         HitPosition = hit.gameObject != null ? hit.worldPosition : Ray.GetPoint(5);
-        var screen = (Vector2)camera.WorldToScreenPoint(HitPosition, Camera.MonoOrStereoscopicEye.Mono);
+        var eventCamera = hit.module != null ? hit.module.eventCamera ?? camera : camera;
+        var screen = (Vector2)eventCamera.WorldToScreenPoint(HitPosition, Camera.MonoOrStereoscopicEye.Mono);
+        if (_dragSurface != null && _dragCamera != null)
+        {
+            // A centre-eye projection of a different-depth hit (or the 5 m
+            // no-hit fallback) is not the controller ray's slider position.
+            // Keep the press surface, even outside its bounds; UGUI clamps the
+            // value. Store the last local point for parallel/backward rays and
+            // follow the surface if a menu is repositioned while dragging.
+            var plane = new Plane(_dragSurface.forward, _dragSurface.position);
+            if (plane.Raycast(Ray, out var distance) && FlightControlMath.IsFinite(distance) && distance >= .02f && distance <= 20f)
+                _dragPointLocal = _dragSurface.InverseTransformPoint(Ray.GetPoint(distance));
+            HitPosition = _dragSurface.TransformPoint(_dragPointLocal);
+            screen = (Vector2)_dragCamera.WorldToScreenPoint(HitPosition, Camera.MonoOrStereoscopicEye.Mono);
+        }
         var data = _event!;
         data.delta = screen - data.position;
         data.position = screen;
@@ -71,7 +98,7 @@ internal sealed class ControllerUiPointer
         data.scrollDelta = Scroll;
         if (Trigger.Pressed)
         {
-            Press();
+            Press(camera);
             var preview = data.pointerPress != null ? data.pointerPress.GetComponent<FeedbackPreviewButton>() : null;
             if (preview != null) preview.Arm(_hands.Left, hand.Device);
             else if (data.pointerPress != null || data.pointerDrag != null) InteractionHaptics.Pulse(hand.Device, .18f, .025f);
@@ -91,13 +118,23 @@ internal sealed class ControllerUiPointer
         return ExecuteEvents.GetEventHandler<IPointerClickHandler>(target) != null ||
             ExecuteEvents.GetEventHandler<IDragHandler>(target) != null || ExecuteEvents.GetEventHandler<IScrollHandler>(target) != null;
     }
+    private static bool Unavailable(GameObject? target)
+    {
+        // A destroyed Unity object still has a managed reference.
+        if (target is null) return false;
+        if (target == null || !target.activeInHierarchy) return true;
+        var selectable = target.GetComponentInParent<Selectable>();
+        return selectable != null && (!selectable.isActiveAndEnabled || !selectable.IsInteractable());
+    }
     private static bool IsMap(GameObject? target)
     {
         var map = SceneSingleton<DynamicMap>.i;
         return DynamicMap.mapMaximized && target != null && map != null &&
             (target.transform.IsChildOf(map.transform) || target == map.mapBackground?.gameObject);
     }
-    private static int TargetPriority(GameObject? target) => target == null ? 0 : Interactive(target) || IsMap(target) ? 2 : 1;
+    private static uint Buttons(ControllerSample hand) =>
+        (hand.Primary ? 1u : 0) | (hand.Secondary ? 2u : 0) | (hand.Menu ? 4u : 0) |
+        (hand.Shoulder ? 8u : 0) | (hand.Top ? 16u : 0) | (hand.Outside ? 32u : 0) | (hand.StickClick ? 64u : 0);
 
     private Ray HandRay(Camera camera, ControllerSample hand, int index)
     {
@@ -127,7 +164,7 @@ internal sealed class ControllerUiPointer
         }
     }
 
-    private void Press()
+    private void Press(Camera camera)
     {
         var data = _event!;
         var target = data.pointerCurrentRaycast.gameObject;
@@ -146,6 +183,12 @@ internal sealed class ControllerUiPointer
         data.clickTime = Time.unscaledTime;
         data.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(target);
         if (data.pointerDrag != null) ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.initializePotentialDrag);
+        if (data.pointerDrag != null && data.pointerDrag.transform is RectTransform && !IsMap(data.pointerDrag))
+        {
+            _dragSurface = data.pointerDrag.transform;
+            _dragCamera = data.pressEventCamera ?? camera;
+            _dragPointLocal = _dragSurface.InverseTransformPoint(data.pointerPressRaycast.worldPosition);
+        }
     }
 
     private void Drag()
@@ -187,6 +230,7 @@ internal sealed class ControllerUiPointer
         if (data.pointerPress != null) data.pointerPress.GetComponent<FeedbackPreviewButton>()?.Cancel();
         data.eligibleForClick = data.dragging = false;
         data.pointerPress = data.rawPointerPress = data.pointerDrag = null;
+        _dragSurface = null; _dragCamera = null; _dragPointLocal = default;
     }
 
     internal void Cancel()

@@ -67,7 +67,7 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         if (_view == null || _viewport == null) return;
         _view.gameObject.SetActive(true); _view.SetAsLastSibling();
         Layout(_viewport.rect.size);
-        for (var side = 0; side < 2; side++) UpdateHand(side);
+        for (var side = 0; side < 2; side++) UpdateHand(side, right.Valid && right.HasAxis);
         RefreshVisuals();
     }
 
@@ -93,7 +93,7 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         }
     }
 
-    private void UpdateHand(int side)
+    private void UpdateHand(int side, bool canSelect)
     {
         var left = side == 0; var sample = TrackedControllers.Read(left);
         var controls = MotionFlightController.Instance;
@@ -111,11 +111,15 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         var depth = -point.z * metres;
         var near = depth >= -.025f && depth <= .075f;
         var hit = -1;
+        var nearest = float.PositiveInfinity;
         for (var button = 0; button < 2; button++)
         {
             var delta = (Vector2)point - ButtonCenter(button);
-            if (Mathf.Abs(delta.x) <= 26 + .006f / metres && Mathf.Abs(delta.y) <= 26 + .006f / metres)
-            { hit = button + 1; break; }
+            // Expanded touch faces can overlap on small widgets. Resolve to
+            // the nearer key rather than always favoring the first (+) key.
+            if (Mathf.Abs(delta.x) <= 26 + .006f / metres && Mathf.Abs(delta.y) <= 26 + .006f / metres &&
+                delta.sqrMagnitude < nearest)
+            { hit = button + 1; nearest = delta.sqrMagnitude; }
         }
         if (hit < 0 && Mathf.Abs(point.x) <= _size.x * .5f && Mathf.Abs(point.y) <= _size.y * .5f) hit = 0;
         var hover = near ? hit : -1;
@@ -124,7 +128,10 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         _hover[side] = hover; _pointing[side] = hover >= 0;
         for (var item = 0; item < 3; item++)
         {
-            if (!_touch[side, item].Update(true, hit == item, depth) || Time.unscaledTime < _nextTouch) continue;
+            // Zoom remains useful with either hand. Selection requires the
+            // physical right thumbstick, and must be rearmed after tracking
+            // returns instead of inheriting a fingertip already on the map.
+            if (!_touch[side, item].Update(item != 0 || canSelect, hit == item, depth) || Time.unscaledTime < _nextTouch) continue;
             _nextTouch = Time.unscaledTime + .25f;
             var changed = true;
             if (item == 0)

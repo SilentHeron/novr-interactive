@@ -1,6 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
+using HarmonyLib;
 using Rewired;
+using Rewired.Platforms;
 using UnityEngine;
 
 namespace NOVR.Compatibility;
@@ -11,17 +13,18 @@ namespace NOVR.Compatibility;
 internal static class ProtonControllerCompatibility
 {
     private static bool _registered;
-    private static bool _applying;
+    private static bool _enabled;
 
     [DllImport("ntdll.dll", EntryPoint = "wine_get_version", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr WineGetVersion();
 
     internal static void Initialize()
     {
-        if (_registered || !ModConfiguration.Instance.DisableProtonXInput.Value || !IsWine()) return;
+        if (_registered) return;
         _registered = true;
-        ReInput.InitializedEvent += Apply;
-        if (ReInput.isReady) Apply();
+        _enabled = ModConfiguration.Instance.DisableProtonXInput.Value && IsWine();
+        if (_enabled && ReInput.isReady)
+            Debug.LogWarning("[NOVR] Proton compatibility loaded after Rewired initialization. Restart the game to disable legacy XInput safely.");
     }
 
     private static bool IsWine()
@@ -32,22 +35,40 @@ internal static class ProtonControllerCompatibility
         catch (BadImageFormatException) { return false; }
     }
 
-    private static void Apply()
+    internal static void BeforeInitialization(InputManager_Base manager)
     {
-        if (_applying || !ReInput.isReady || !ReInput.configuration.useXInput) return;
-        _applying = true;
+        if (!_enabled || !ModConfiguration.Instance.DisableProtonXInput.Value || ReInput.isReady || manager == null) return;
         try
         {
-            // This is Rewired's supported runtime setting. It retains its other
-            // input backends and does not rewrite the game's saved bindings.
-            // ResetAll may notify InitializedEvent again, hence the reentry guard.
-            ReInput.configuration.useXInput = false;
+            // Awake/OnEnable have not created the platform backend yet. Change
+            // its public startup data in place, without resetting live players
+            // or touching saved bindings. The runtime configuration setter
+            // resets Rewired and is unsafe inside its InitializedEvent callback.
+            var config = manager.userData?.ConfigVars;
+            if (config == null) return;
+            var xinputPrimary = config.windowsStandalonePrimaryInputSource == WindowsStandalonePrimaryInputSource.XInput;
+            if (!config.useXInput && !xinputPrimary) return;
+            config.useXInput = false;
+            if (xinputPrimary) config.windowsStandalonePrimaryInputSource = WindowsStandalonePrimaryInputSource.RawInput;
             Debug.Log("[NOVR] Proton compatibility: legacy Rewired XInput polling disabled; OpenXR motion-controller input retained.");
         }
         catch (Exception exception)
         {
             Debug.LogWarning("[NOVR] Could not disable legacy Proton XInput polling: " + exception);
         }
-        finally { _applying = false; }
     }
+}
+
+[HarmonyPatch(typeof(InputManager_Base), "Awake")]
+internal static class ProtonInputManagerAwakePatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(InputManager_Base __instance) => ProtonControllerCompatibility.BeforeInitialization(__instance);
+}
+
+[HarmonyPatch(typeof(InputManager_Base), "OnEnable")]
+internal static class ProtonInputManagerEnablePatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(InputManager_Base __instance) => ProtonControllerCompatibility.BeforeInitialization(__instance);
 }

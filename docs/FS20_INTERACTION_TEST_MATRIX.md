@@ -1,5 +1,10 @@
 # FS-20 interaction test matrix
 
+Historical record for the retired 0.4.7.5 replacement-panel experiment. The
+replacement MFDs, added switches and their dedicated harnesses are no longer in
+the current runtime. This document preserves that experiment's evidence and
+limitations; use [verification](VERIFICATION.md) for current source checks.
+
 This matrix records implemented coverage and remaining acceptance work for
 0.4.7.5. **Final installed-build runtime evidence: pending.** The final DLL
 identity belongs in the external validation report alongside its results.
@@ -18,9 +23,9 @@ CI, and must not run in multiplayer.
 
 | Source | Implemented coverage | Evidence limit |
 | --- | --- | --- |
-| [ButtonContactGuideChecks](../tests/ButtonContactGuideChecks.cs) and core checks | Production centering, raw press depth, one-shot press, withdrawal, invalid samples, cancellation and disabled-key recovery | No rendered hand, hardware tracking or entire cockpit interaction |
-| [SwitchGrabChecks](../tests/SwitchGrabChecks.cs) and [core input checks](../tests/Program.cs) | Actual cap-volume math, neighbor separation, fresh grip arming, recovery and analog/digital squeeze normalization | No real controller delivery or aircraft action |
-| [MfdContextChecks](../tools/MfdContextChecks/Program.cs) | All page/key descriptors, availability combinations, map/sensor limits, fitted-page navigation and ownership | No physical contact or native dispatch |
+| Retired `ButtonContactGuideChecks` and core checks | Production centering, raw press depth, one-shot press, withdrawal, invalid samples, cancellation and disabled-key recovery | No rendered hand, hardware tracking or entire cockpit interaction |
+| Retired `SwitchGrabChecks` and [core input checks](../tests/Program.cs) | Actual cap-volume math, neighbor separation, fresh grip arming, recovery and analog/digital squeeze normalization | No real controller delivery or aircraft action |
+| Retired `MfdContextChecks` | All page/key descriptors, availability combinations, map/sensor limits, fitted-page navigation and ownership | No physical contact or native dispatch |
 | Private `ButtonSnapLive.cs` | Both-hand production contact/pose paths, rendered fingertip checks, brake hold, cancellation, disabled-key recovery and held-switch exclusion | Tracked samples are simulated; no motor, capacitive sensing or comfort measurement |
 | Private `SoftkeyLive.cs` | Map keys, every page's labels, physical picker navigation and swaps, real widget ownership, picker artwork suppression/restoration and sensor lifecycle | Map hands match their display side; some sensor lifecycle cases call the action API directly |
 | Private `MfdActionLive.cs` | All four Sensor and Weapons keys with each hand on each display; native selections, targets, camera feed, zoom limits and CLEAR recovery | Positive headset readiness is simulated; no live fire/deployment or motor/sound perception |

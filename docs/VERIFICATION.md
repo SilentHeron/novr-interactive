@@ -20,36 +20,42 @@ versions declared in each test project. No game paths are autodetected. Each
 project has isolated build imports; the runner rejects assembly references,
 project references or imports that would silently pull in the game build.
 
-The command runs all eleven suites and returns a nonzero exit code if any suite
-fails. Read individual logs and JSON/Markdown summaries under
-`artifacts/verification/portable/`; use `--verbose` to print passing output too.
+The command runs every suite registered in `tools/verify.py` and returns a
+nonzero exit code if any fails. Read individual logs and JSON/Markdown summaries
+under `artifacts/verification/portable/`; use `--verbose` to print passing output.
+The runner also checks that linked source and embedded resources are present and
+inside this repository. It rejects missing resource globs and binary dependencies.
 
-| Suite | What it covers | Current checks |
-| --- | --- | ---: |
-| Core | Flight-control math, fresh-press gates, input ownership, detent/ejection rules, HUD presentation, texture preparation, sound generation and other portable behavior | 144 |
-| UI lifecycle | Duplicate-open/close handling and mission-launch ownership using offline doubles | 5 |
-| Hand comfort | Per-hand correction bounds, invalid data and continuous bounded sleeve reach | 27 |
-| Arm pose | Elbow singularities, mirrored collective alignment, grip transitions, repeated wrist rotation and smooth reach | 24 |
-| Hand pose | Actual glove controller with transform doubles: grip/gesture transitions, finger isolation, raw contact independence, tracking resets and seam normals on both hands at four frame rates | 10,096 assertions |
-| Sleeve bounds | Animated arm bounds and transformed clothing samples | 6 |
-| Feedback preview | Actual preview component and haptic dispatch with boundary doubles: one-shot hand routing, cancellation, disabled output and shared cues | 21 |
-| MFD context | Four-key page/action matrix, destination availability, optical capability, numeric bounds, short state labels and physical page-picker state | 31 |
-| Mission readiness | Content-load state, completion recognition, late attachment and recovery using boundary doubles | 20 |
-| Startup splash | Loading-state priority, honest progress wording, slow-load help and readiness transitions | 28 |
-| Installer | Fork release selection, package validation, replacement/rollback and settings preservation using temporary directories and mock HTTP | 52 |
+| Area | Coverage |
+| --- | --- |
+| Core and lifecycle | Flight-control math, input ownership, detents, ejection rules, HUD presentation, XR enable/disable and retry, API event subscriptions and UI open/close ownership |
+| Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, controller artwork/callouts/activity, View settings, binding editor, hand option wheel and native-menu handoff |
+| Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry, texture preparation, UI-depth restoration and feedback dispatch |
+| HUD widgets | Per-aircraft layout slots, migration, saved placement, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources and depth handling |
+| Map and flight cues | Minimap borrowing, terrain tint and restoration, map interaction, redundant coordinate suppression, gaze candidates, nozzle/collective visibility and threat-vector bounds |
+| Startup and installer | Mission-content readiness, splash progress, release selection, package validation, replacement/rollback and settings preservation |
 
-Counts describe the current source and may increase. The runner trusts each
-suite's exit status; it does not turn a fixed count or an expected log string
-into a pass. These are executable check programs, so the runner uses `dotnet run`
-rather than `dotnet test`.
+These are executable check programs, so the runner uses `dotnet run` rather than
+`dotnet test`. It trusts exit status, not a fixed assertion count or expected log
+string. Some suites exercise pure math; others compile production components
+against small Unity/game boundary doubles. Profile suites use real temporary
+BepInEx config files. None of those doubles supplies a rendered game scene.
+
+The runner's own registry and isolation checks require only Python:
+
+```sh
+python -m unittest discover -s tools/verification -p "test_*.py"
+```
 
 ## GitHub Actions
 
 `.github/workflows/portable-checks.yml` runs the same command on Ubuntu and
 Windows for pushes, pull requests and manual dispatch. Its sparse checkout
-includes only the source needed by these suites, excluding the repository's
-Unity/native binaries. It uploads verification logs, not build binaries or game
-files. Jobs have read-only repository permission and never deploy the mod.
+includes the source and controller/glove artwork needed by these suites,
+excluding the repository's Unity/native binaries. It runs the Python isolation
+checks before the portable suites. It uploads verification logs, not build
+binaries or game files. Jobs have read-only repository permission and never
+deploy the mod.
 
 A passing Linux run does not prove Windows passed; both matrix results need to
 be checked in GitHub Actions. Local test output cannot establish that a hosted
@@ -78,24 +84,10 @@ part of the SDK 8 portable workflow.
 
 ## Runtime evidence still needed
 
-HUD layout persistence can also be checked independently with
-`dotnet run --project validation/HudWidgets/NOVR.HudWidgets.Tests.csproj -c Release`.
-This uses the production profile model and real temporary BepInEx config files
-to check save/cancel isolation, shared defaults, aircraft overrides, stock-layout migration,
-corner resizing, invalid inputs and default corner reach.
-Native status borrowing/restoration is checked with
-`dotnet run --project tools/CockpitStatusSourceChecks/CockpitStatusSourceChecks.csproj -c Release`,
-using the production adapter with Unity boundary doubles, including inactive
-capacitors, sibling order, missing owners and attachment rollback.
-`dotnet run --project validation/HudStatus/NOVR.HudStatus.Tests.csproj -c Release` checks single-group opacity restoration, empty legacy backplates and compact weapon-safety state using production source and boundary doubles.
-Minimap borrowing, terrain tint and restoration are checked with
-`dotnet run --project tools/CockpitMapChecks/CockpitMapChecks.csproj -c Release`,
-using the production adapter with Unity boundary doubles. This does not verify rendered terrain.
-
-The [FS-20 interaction test matrix](FS20_INTERACTION_TEST_MATRIX.md) lists button,
-MFD and switch acceptance cases, existing source/private-probe coverage and the
-runtime or headset checks still required. It separates test implementation from
-passed evidence and feedback dispatch from physical sensation.
+The [FS-20 interaction matrix](FS20_INTERACTION_TEST_MATRIX.md) is a historical
+record for the retired 0.4.7.5 replacement-panel experiment, not a current runtime
+acceptance checklist. Its private probes and removed MFD harness are not run by
+the portable command.
 
 Portable checks and assembly contracts do not prove stereo appearance, rendered
 occlusion, interaction comfort, haptic feel, multiplayer behavior or frame-time

@@ -1,9 +1,10 @@
 # PC-side dynamic foveated rendering investigation
 
-**Status for 0.4.6.7: not implemented / not active on the tested PC path.**
-Eye-gaze input is now requested through the standard OpenXR interaction profile
-before session creation. Runtime permissions remain in control. No gaze
-coordinates are logged. The EOTS targeting HUD continues to use head direction.
+**Current status: NOVR has no active PC-side dynamic foveated rendering backend.**
+The support page reports runtime capabilities; it does not enable a rendering
+implementation. Steam Frame's foveated streaming is a separate runtime function.
+The technical evidence below records the October 2026 investigation and is not
+a claim about every later runtime or driver version. EOTS was removed in 0.4.8.0.
 
 **View → Comfort & display → VR performance** reports renderer, runtime,
 eye-tracking sample availability and the DFR limitation. Receiving eye tracking
@@ -31,8 +32,8 @@ reduced. No nonfunctional DFR toggle or automatic graphics-backend switch is add
 requires Vulkan/URP for its supported foveation settings. Its requirements and
 standalone results do not imply PC-streaming support.
 
-The [DXVK-NVAPI maintainer's VRS discussion](https://github.com/jp7677/dxvk-nvapi/issues/321)
-remains open. Current upstream D3D11 implementation source does not provide the
+At the time of that investigation, the [DXVK-NVAPI maintainer's VRS discussion](https://github.com/jp7677/dxvk-nvapi/issues/321)
+was open. The inspected D3D11 implementation source did not provide the
 shading-rate entry points used by the usual NVIDIA D3D11 foveation approach;
 entry-point names appearing in a binary's interface table are not proof of support.
 

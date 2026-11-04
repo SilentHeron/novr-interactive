@@ -84,7 +84,14 @@ namespace UnityEngine
     public class CanvasGroup : Component { public float alpha; }
     public readonly record struct Vector2(float x, float y);
     public readonly record struct Vector3(float x, float y, float z)
-    { public static Vector3 zero => new(0, 0, 0); public static Vector3 one => new(1, 1, 1); }
+    {
+        public static Vector3 zero => new(0, 0, 0);
+        public static Vector3 one => new(1, 1, 1);
+        public Vector3 normalized { get { var length = MathF.Sqrt(x * x + y * y + z * z); return this * (1 / length); } }
+        public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static Vector3 operator *(Vector3 a, float b) => new(a.x * b, a.y * b, a.z * b);
+    }
     public readonly record struct Quaternion(float x, float y, float z, float w)
     { public static Quaternion identity => new(0, 0, 0, 1); }
 }

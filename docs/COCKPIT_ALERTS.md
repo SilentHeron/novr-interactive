@@ -1,5 +1,11 @@
 # Compact cockpit alerts — 0.4.6.9 candidate
 
+Historical placement notes for 0.4.6.9. Current builds expose incoming missiles,
+radar/EW, notifications and instructions as adjustable HUD widgets. Position,
+size, visibility and backplate opacity are saved per aircraft; see
+[current controls](CONTROLLER_BINDINGS.md). The fixed placement and notch default
+described below are not the current defaults.
+
 The cockpit alert overlay places warnings below the forward sightline and recent
 kill/reward notifications to the right. It has no background or frame, accepts no
 pointer input, and stays fixed relative to the original cockpit viewpoint. Turning

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -6,8 +5,8 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
-// Native additive HUD shaders deliberately ignore depth. Borrowed cockpit
-// widgets need ordinary world-space UI depth so nearby hands occlude them.
+// Some native HUD font shaders deliberately ignore depth. Borrowed cockpit
+// text needs ordinary world-space UI depth so nearby hands occlude it.
 // Source materials and native HUD/menu graphics are never assigned or edited.
 [DefaultExecutionOrder(240)]
 internal sealed class CockpitWidgetDepthMaterials : MonoBehaviour
@@ -68,7 +67,7 @@ internal sealed class CockpitWidgetDepthMaterial : MonoBehaviour, IMaterialModif
     private Transform? _root;
     private Material? _source, _copy;
     private Shader? _target;
-    private static Shader? _ui, _font;
+    private static Shader? _font;
     internal uint Generation { get; private set; }
 
     internal void Attach(Graphic graphic, Transform root, uint generation)
@@ -98,7 +97,7 @@ internal sealed class CockpitWidgetDepthMaterial : MonoBehaviour, IMaterialModif
             _copy.shader = target;
         }
         _copy.renderQueue = (int)RenderQueue.Transparent;
-        // Both verified native alternatives use unity_GUIZTestMode. Unity
+        // The verified native font alternative uses unity_GUIZTestMode. Unity
         // supplies LEqual for a WorldSpace canvas; do not override its global
         // value (screen-space menus intentionally use a different value).
         if (_copy.HasProperty("_ZTestMode")) _copy.SetInt("_ZTestMode", (int)CompareFunction.LessEqual);
@@ -112,12 +111,14 @@ internal sealed class CockpitWidgetDepthMaterial : MonoBehaviour, IMaterialModif
     private static Shader? Replacement(Shader source)
     {
         if (source == null) return null;
-        var name = source.name;
-        if (name == "UI/AdditiveMasked" || name == "UI/Additive")
-            return _ui != null ? _ui : _ui = Shader.Find("UI/Default");
-        if (name.StartsWith("TextMeshPro/", StringComparison.Ordinal) &&
-            (name.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0 ||
-             name.IndexOf("Overlay", StringComparison.OrdinalIgnoreCase) >= 0))
+        // UI/AdditiveMasked already uses unity_GUIZTestMode, including its
+        // stencil/clip variants. Keep its additive blend: native map-grid
+        // textures have opaque black pixels that must not cover the terrain.
+        // Only these inspected native font shaders hard-code ZTest Always.
+        if (source.name == "TextMeshPro/Distance Field Additive" ||
+            source.name == "TextMeshPro/Mobile/Distance Field Additive" ||
+            source.name == "TextMeshPro/Distance Field Additive with Glow" ||
+            source.name == "TextMeshPro/Distance Field Overlay")
             return _font != null ? _font : _font = Shader.Find("TextMeshPro/Mobile/Distance Field");
         return null;
     }

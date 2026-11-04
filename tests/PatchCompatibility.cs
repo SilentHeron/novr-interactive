@@ -6,14 +6,34 @@ internal static class PatchCompatibility
     {
         using var assembly = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Rewired_Core.dll"));
         var input = assembly.MainModule.Types.Single(t => t.FullName == "Rewired.ReInput");
-        var initialized = input.Events.Single(e => e.Name == "InitializedEvent");
         var ready = input.Properties.Single(p => p.Name == "isReady");
-        var config = input.NestedTypes.Single(t => t.Name == "ConfigHelper");
-        var xinput = config.Properties.Single(p => p.Name == "useXInput");
-        if (initialized.EventType.FullName != "System.Action" || !initialized.AddMethod.IsPublic || !initialized.AddMethod.IsStatic ||
-            ready.PropertyType.FullName != "System.Boolean" || !ready.GetMethod.IsPublic || !ready.GetMethod.IsStatic ||
-            xinput.PropertyType.FullName != "System.Boolean" || xinput.SetMethod?.IsPublic != true || xinput.GetMethod?.IsPublic != true)
-            throw new Exception("Rewired initialization/configuration API changed; Proton compatibility needs review.");
+        var manager = assembly.MainModule.Types.Single(t => t.FullName == "Rewired.InputManager_Base");
+        var userData = manager.Properties.Single(p => p.Name == "userData");
+        var userType = assembly.MainModule.Types.Single(t => t.FullName == "Rewired.Data.UserData");
+        var vars = userType.Properties.Single(p => p.Name == "ConfigVars");
+        var config = assembly.MainModule.Types.Single(t => t.FullName == "Rewired.Data.ConfigVars");
+        var xinput = config.Fields.Single(f => f.Name == "useXInput");
+        var primary = config.Fields.Single(f => f.Name == "windowsStandalonePrimaryInputSource");
+        var backend = assembly.MainModule.Types.Single(t => t.FullName == "Rewired.Platforms.WindowsStandalonePrimaryInputSource");
+        var hooks = new[] { "Awake", "OnEnable" }.Select(name => manager.Methods.Single(m => m.Name == name)).ToArray();
+        if (ready.PropertyType.FullName != "System.Boolean" || !ready.GetMethod.IsPublic || !ready.GetMethod.IsStatic ||
+            userData.GetMethod?.IsPublic != true || userData.PropertyType.FullName != userType.FullName ||
+            vars.GetMethod?.IsPublic != true || vars.PropertyType.FullName != config.FullName ||
+            xinput.FieldType.FullName != "System.Boolean" || !xinput.IsPublic || xinput.IsInitOnly || xinput.IsStatic ||
+            primary.FieldType.FullName != backend.FullName || !primary.IsPublic || primary.IsInitOnly || primary.IsStatic ||
+            !backend.IsEnum || !backend.Fields.Any(f => f.Name == "XInput") || !backend.Fields.Any(f => f.Name == "RawInput") ||
+            hooks.Any(m => m.IsStatic || !m.HasBody || m.Parameters.Count != 0 || m.ReturnType.FullName != "System.Void"))
+            throw new Exception("Rewired pre-initialization configuration API changed; Proton compatibility needs review.");
+        // Confirm the manager still supplies this public configuration object
+        // directly to ReInput's platform initialization path. No game code runs.
+        var initializer = input.Methods.Single(m => m.IsStatic && m.Parameters.Count == 8 &&
+            m.Parameters[0].ParameterType.FullName == manager.FullName &&
+            m.Parameters[2].ParameterType.FullName == config.FullName &&
+            m.Parameters[4].ParameterType.FullName == userType.FullName);
+        if (!manager.Methods.Any(m => m.HasBody &&
+            m.Body.Instructions.Any(i => i.Operand is MethodReference call && call.FullName == vars.GetMethod!.FullName) &&
+            m.Body.Instructions.Any(i => i.Operand is MethodReference call && call.FullName == initializer.FullName)))
+            throw new Exception("Rewired no longer consumes public startup configuration before platform creation.");
     }
 
     public static void Verify(string modPath, string gameManagedDirectory)

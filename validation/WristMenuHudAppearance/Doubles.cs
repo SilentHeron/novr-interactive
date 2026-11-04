@@ -14,6 +14,7 @@ namespace UnityEngine
             { var component = (Component)Activator.CreateInstance(type)!; component.gameObject = this; _components[type] = component; }
         }
         public T GetComponent<T>() => (T)(object)_components[typeof(T)];
+        public Component AddComponent(Type type) { var value=(Component)Activator.CreateInstance(type)!;value.gameObject=this;_components[type]=value;return value; }
         public T AddComponent<T>() where T : Component, new() { var item = new T { gameObject = this }; _components[typeof(T)] = item; return item; }
         public void SetActive(bool value) => activeSelf = value;
     }
@@ -25,12 +26,12 @@ namespace UnityEngine
         public void SetParent(Transform value, bool _) { parent?.children.Remove(this); parent = value; value.children.Add(this); }
         public T GetComponent<T>() => gameObject.GetComponent<T>();
     }
-    public sealed class RectTransform : Transform { public Vector2 anchoredPosition, sizeDelta; }
+    public sealed class RectTransform : Transform { public Vector2 anchoredPosition, sizeDelta, anchorMin, anchorMax; }
     public sealed class CanvasRenderer : Component { }
     public sealed class CanvasGroup : Component { public float alpha = 1; public bool interactable, blocksRaycasts; }
     public readonly record struct Quaternion(float x, float y, float z) { public static Quaternion Euler(float x, float y, float z) => new(x, y, z); }
     public readonly record struct Vector2(float x, float y)
-    { public static Vector2 zero => default; public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x+b.x,a.y+b.y); public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.x-b.x,a.y-b.y); }
+    { public static Vector2 zero => default; public static Vector2 one => new(1,1); public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x+b.x,a.y+b.y); public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.x-b.x,a.y-b.y); }
     public readonly record struct Vector3(float x, float y, float z) { public static Vector3 zero => default; }
     public readonly record struct Color(float r, float g, float b, float a = 1) { public static Color clear => new(0, 0, 0, 0); public static Color white => new(1,1,1,1); }
     public static class Mathf
@@ -38,7 +39,7 @@ namespace UnityEngine
     public static class Time { public static float unscaledTime; }
     public sealed class Font : Object { }
     public static class Resources { public static T GetBuiltinResource<T>(string _) where T : new() => new(); }
-    public enum TextAnchor { MiddleCenter }
+    public enum TextAnchor { MiddleCenter, MiddleLeft, MiddleRight }
 }
 namespace UnityEngine.XR { public readonly record struct InputDevice(int Id); }
 namespace UnityEngine.UI
@@ -47,11 +48,20 @@ namespace UnityEngine.UI
     public sealed class Text : UnityEngine.Component { public string text = ""; public UnityEngine.Font font = null!; public int fontSize; public UnityEngine.TextAnchor alignment; public UnityEngine.Color color; public bool raycastTarget; }
     public sealed class Image : UnityEngine.Component { public UnityEngine.Color color; public bool raycastTarget; public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform; }
     public struct Navigation { public Mode mode; public enum Mode { None } }
+    public sealed class Toggle : UnityEngine.Component
+    {
+        public enum ToggleTransition { None }
+        public ToggleTransition toggleTransition;public Navigation navigation;public Image targetGraphic=null!,graphic=null!;public bool interactable=true;
+        public readonly ChangedEvent onValueChanged=new();private bool _on;
+        public bool isOn {get=>_on;set{var changed=_on!=value;_on=value;if(changed)onValueChanged.Invoke(value);}}
+        public void SetIsOnWithoutNotify(bool value)=>_on=value;
+        public sealed class ChangedEvent {private Action<bool>? _handlers;public void AddListener(Action<bool> action)=>_handlers+=action;public void Invoke(bool value)=>_handlers?.Invoke(value);}
+    }
     public sealed class Slider : UnityEngine.Component
     {
         public enum Direction { LeftToRight }
-        public Direction direction; public bool wholeNumbers, interactable = true; public float minValue, maxValue;
-        public UnityEngine.RectTransform handleRect = null!; public Image targetGraphic = null!; public Navigation navigation;
+        public Direction direction; public bool interactable = true; private bool _wholeNumbers;public bool wholeNumbers {get=>_wholeNumbers;set{if(_wholeNumbers==value)return;_wholeNumbers=value;this.value=_value;}} public float minValue, maxValue;
+        public UnityEngine.RectTransform handleRect = null!, fillRect = null!; public Image targetGraphic = null!; public Navigation navigation;
         public readonly ChangedEvent onValueChanged = new(); private float _value;
         public float value { get => _value; set { var previous = _value; SetValueWithoutNotify(value); if (_value != previous) onValueChanged.Invoke(_value); } }
         public void SetValueWithoutNotify(float input) => _value = Math.Clamp(wholeNumbers ? MathF.Round(input) : input, minValue, maxValue);
@@ -60,6 +70,12 @@ namespace UnityEngine.UI
 }
 namespace NOVR
 {
+    internal sealed class ModConfiguration
+    {
+        internal readonly BepInEx.Configuration.ConfigEntry<bool> FocusedFlightHud=new(false,new(null));
+        internal readonly BepInEx.Configuration.ConfigEntry<float> FlightHudScale=new(.38f,new(new BepInEx.Configuration.AcceptableValueRange<float>(.22f,.75f))),
+            MarkerScale=new(.45f,new(null)),MarkerLabelScale=new(.55f,new(null)),ReticleScale=new(.45f,new(null)),WeaponHudScale=new(.5f,new(null));
+    }
     internal static class LayerHelper { internal static int GetVrUiLayer() => 0; internal static void SetLayerRecursive(UnityEngine.Transform _, int __) { } }
 }
 namespace NOVR.MotionControls
@@ -78,6 +94,7 @@ namespace NOVR.VrUi.SpecialBehavior
     internal struct HudWidgetPose { internal float Scale, Opacity, Background; internal bool Visible; internal UnityEngine.Vector3 Position, Euler; }
     internal static class HudWidgetProfiles
     {
+        internal const float MinScale=.35f,MaxScale=3f,MinOpacity=.25f;
         internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
         internal static string Label(string id) => id;
         internal static HudWidgetPose Sanitize(string id, HudWidgetPose pose) => pose;
@@ -134,13 +151,22 @@ namespace NOVR.VrUi
             _buttons.ToDictionary(b => (b.page, b.label.text), b => (b.label, b.action));
         private readonly List<GameObject> _pages = new();
         private string _building = "";
+        private Transform? _buttonParent;private readonly Font _font=new();
+        private void Section(string title,float y,float width=620,float x=0)=>ViewMenuControls.Section(_buttonParent!,_font,title,y,width,x);
+        private static string Percent(float value)=>$"{value*100:0}%";
+        private static string Degrees(float value)=>$"{value:0.#}°";
+        private Text ActionButton(string title,int column,float y,Action action,bool danger=false)=>AddButton(title,column,(int)y,action);
+        internal Slider Scalar(string title)=>_hudSliders.Single(item=>item.control.Slider.gameObject.Name==title).control.Slider;
+        internal Toggle Visibility=>_hudVisibility!.Toggle;
+        internal void Nudge(string title,float delta){var slider=Scalar(title);if(slider.interactable)slider.value+=delta;}
+        internal void ForceNudge(string title,float delta){var slider=Scalar(title);slider.onValueChanged.Invoke(slider.value+delta);}
         internal Slider Backplate => _hudBackplateSlider!;
         internal Text BackplateLabel => _hudBackplateLabel!;
         internal Text AngleInfo => _hudAngleInfo!;
         internal Text ProfilesInfo => _aircraftProfilesInfo!;
         internal string ActivePage => _pages.Single(page => page.activeSelf).Name;
         internal static int Closes;
-        private GameObject Page(string title) { _building = title; var page = new GameObject(title); _pages.Add(page); return page; }
+        private GameObject Page(string title) { _building = title; var page = new GameObject(title); _buttonParent=page.transform; _pages.Add(page); return page; }
         private Text AddButton(string text, int column, int row, Action? action)
         {
             var button = new GameObject(text, typeof(Button)); var label = Label(button.transform, text, default, default, 20);
@@ -168,4 +194,11 @@ namespace NOVR.VrUi
         internal bool Enabled(string page, string text) => Buttons[(page, text)].label.transform.parent.GetComponent<Button>().interactable;
         internal void ForceCallback(string page, string text) => Buttons[(page, text)].action?.Invoke();
     }
+}
+
+namespace BepInEx.Configuration
+{
+    public sealed class AcceptableValueRange<T> {public T MinValue,MaxValue;public AcceptableValueRange(T min,T max){MinValue=min;MaxValue=max;}}
+    public sealed class ConfigDescription {public object? AcceptableValues;public ConfigDescription(object? values){AcceptableValues=values;}}
+    public sealed class ConfigEntry<T> {public T Value;public ConfigDescription Description;public ConfigEntry(T value,ConfigDescription description){Value=value;Description=description;}}
 }

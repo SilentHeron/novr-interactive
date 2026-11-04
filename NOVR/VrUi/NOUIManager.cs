@@ -13,15 +13,41 @@ public class NOUIManager : NOVRBehaviour
     private Camera? _startupCamera;
     private GameObject? _smoothedForwardReference;
 
-    public static NOUIManager I { get; private set; }
+    public static NOUIManager I { get; private set; } = null!;
 
-    public Camera CockpitHudCamera => _cockpitHudCamera ??= CreateUiCamera("VrCockpitHudCamera", 100);
-    public GameObject CockpitHudReference => _smoothedForwardReference ??= CreateSmoothedForwardReference();
+    public Camera CockpitHudCamera
+    {
+        get
+        {
+            // Unity can destroy the native object while leaving its managed
+            // wrapper alive. A null-coalescing assignment misses that case.
+            if (_cockpitHudCamera == null)
+            {
+                var main = APIBus.MainCamera;
+                RemoveUiCameraFromStack(main);
+                if (_cockpitHudCamera is not null) VrCameraManager.IgnoredCameras.Remove(_cockpitHudCamera);
+                _cockpitHudCamera = CreateUiCamera("VrCockpitHudCamera", 100);
+                var stack = main != null ? main.GetComponent<UniversalAdditionalCameraData>()?.cameraStack : null;
+                if (stack != null && !stack.Contains(_cockpitHudCamera)) stack.Add(_cockpitHudCamera);
+            }
+            return _cockpitHudCamera;
+        }
+    }
+
+    public GameObject CockpitHudReference
+    {
+        get
+        {
+            if (_smoothedForwardReference == null) _smoothedForwardReference = CreateSmoothedForwardReference();
+            return _smoothedForwardReference;
+        }
+    }
 
     internal void SetStartupPresentation(bool visible)
     {
         if (visible && _startupCamera == null)
         {
+            if (_startupCamera is not null) VrCameraManager.IgnoredCameras.Remove(_startupCamera);
             // A scene-independent stereo base camera keeps the startup card visible
             // while a content loader replaces the normal menu/mission cameras.
             // XR owns both eye projections; no FOV, eye matrix or IPD override is used.
@@ -69,7 +95,12 @@ public class NOUIManager : NOVRBehaviour
     private void OnDestroy()
     {
         APIBus.OnMainCameraChanged -= OnMainCameraChanged;
-        if (_startupCamera != null) VrCameraManager.IgnoredCameras.Remove(_startupCamera);
+        RemoveUiCameraFromStack(APIBus.MainCamera);
+        // Remove our wrappers even if Unity has already destroyed their native
+        // camera objects. A different replacement manager keeps its singleton.
+        if (_startupCamera is not null) VrCameraManager.IgnoredCameras.Remove(_startupCamera);
+        if (_cockpitHudCamera is not null) VrCameraManager.IgnoredCameras.Remove(_cockpitHudCamera);
+        if (ReferenceEquals(I, this)) I = null!;
     }
 
     private void Start()
@@ -81,6 +112,9 @@ public class NOUIManager : NOVRBehaviour
         Create<NativeVrUiRoot>(transform);
         gameObject.AddComponent<SpecialBehavior.CockpitAlerts>();
         ConfigureUiCameras();
+        // The main camera may already have been published before this manager
+        // was created. Do not wait for another scene/camera change to attach UI.
+        OnMainCameraChanged(null, APIBus.MainCamera);
     }
 
     protected override void OnSettingChanged()
@@ -133,6 +167,7 @@ public class NOUIManager : NOVRBehaviour
 
     private void OnMainCameraChanged(Camera? previous, Camera? newCam)
     {
+        if (previous != newCam) RemoveUiCameraFromStack(previous);
         if (newCam == null)
         {
             return;
@@ -144,6 +179,12 @@ public class NOUIManager : NOVRBehaviour
         {
             cameraStack.Add(cockpitHudCamera);
         }
+    }
+
+    private void RemoveUiCameraFromStack(Camera? camera)
+    {
+        if (camera == null || _cockpitHudCamera is null) return;
+        camera.GetComponent<UniversalAdditionalCameraData>()?.cameraStack?.Remove(_cockpitHudCamera);
     }
 
     private void ConfigureUiCameras()

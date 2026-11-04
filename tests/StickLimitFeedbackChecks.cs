@@ -29,7 +29,7 @@ internal static class StickLimitFeedbackChecks
             for (var frame = 1; frame < 200; frame++)
                 truth(feedback.Update(true, .71f, -.71f, 0, frame / 90f, frame).strength == 0);
         });
-        check("Overlapping stick impulses stay continuous, bounded and progressively stronger", () =>
+        check("Overlapping stick impulses stay continuous while sustained feedback tapers", () =>
         {
             foreach (var rate in new[] { 72, 90, 120, 144 })
             {
@@ -48,7 +48,8 @@ internal static class StickLimitFeedbackChecks
                         {
                             truth(now - last >= .025f - .000001f);
                             truth(now <= last + priorDuration);
-                            truth(cue.strength >= strength - .000001f);
+                            if (now <= 1f) truth(cue.strength >= strength - .000001f);
+                            if (now >= 1.15f) truth(cue.strength <= strength + .000001f);
                         }
                         truth(feedback.Update(true, position, 0, 0, now, frame).strength == 0);
                         last = now; strength = cue.strength; priorDuration = cue.seconds; count++;
@@ -57,10 +58,10 @@ internal static class StickLimitFeedbackChecks
                     strengths.Add(strength);
                 }
                 truth(strengths.Zip(strengths.Skip(1), (a, b) => b > a).All(x => x));
-                truth(strengths[0] < .06f && strengths[3] > .64f);
+                truth(strengths[0] < .012f && strengths[3] > .129f && strengths[3] < .131f);
             }
         });
-        check("Full travel stays steady under tracking jitter instead of retriggering a stop pulse", () =>
+        check("Tracking jitter cannot retrigger the initial strong cue during a sustained hold", () =>
         {
             var feedback = new StickLimitFeedback(); feedback.Update(true, 1, 0, 0, 0, 0);
             var last = 0f; var strength = 0f;
@@ -69,11 +70,38 @@ internal static class StickLimitFeedbackChecks
                 var now = frame / 90f;
                 var cue = feedback.Update(true, frame % 2 == 0 ? 1 : .99f, 0, 0, now, frame);
                 if (cue.strength == 0) continue;
-                if (now > .5f) { truth(cue.strength > .64f); truth(Math.Abs(cue.strength - strength) < .01f); }
+                if (now > .5f && now <= 1f) truth(cue.strength > .64f);
+                if (now > 1f) truth(Math.Abs(cue.strength - strength) < .025f);
+                if (now > 2.8f) truth(cue.strength > .128f && cue.strength < .132f);
                 if (last > 0) truth(now - last < .065f);
                 last = now; strength = cue.strength;
             }
             truth(last > 2.95f);
+        });
+        check("Withdrawing from the limit rearms a fresh cue while small movements retain the taper", () =>
+        {
+            foreach (var rate in new[] { 72, 90, 120, 144 })
+            {
+                var feedback = new StickLimitFeedback();
+                var frame = 0; var now = 0f; var strength = 0f;
+                void Advance(float magnitude, int frames)
+                {
+                    for (var i = 0; i < frames; i++)
+                    {
+                        now = frame / (float)rate;
+                        var cue = feedback.Update(true, magnitude, 0, 0, now, frame++);
+                        if (cue.strength > 0) strength = cue.strength;
+                    }
+                }
+                Advance(1, rate * 4);
+                truth(strength > .129f && strength < .131f);
+                Advance(.75f, rate / 5); // Inside hysteresis: not a deliberate withdrawal.
+                Advance(1, rate / 2);
+                truth(strength < .131f);
+                Advance(.69f, 2);
+                Advance(1, rate / 2);
+                truth(strength > .64f && strength <= .651f);
+            }
         });
         check("Physical twist shares one resistance cue without stacking saturated axes", () =>
         {

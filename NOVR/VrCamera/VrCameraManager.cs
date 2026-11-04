@@ -91,12 +91,9 @@ public class VrCameraManager: MonoBehaviour
 
         var trackedCamera = trackedCameraObject.AddComponent<Camera>();
         trackedCamera.CopyFrom(rootCamera);
-        var additionalCameraData = AdditionalCameraData.Create(trackedCamera);
-        additionalCameraData?.SetRenderTypeBase();
-        additionalCameraData?.SetAllowXrRendering(true);
-        //additionalCameraData.GetCameraStack().AddRange(rootCamera.GetComponent<AdditionalCameraData>().GetCameraStack());
-
-        var universalAdditionalCameraData = trackedCameraObject.GetComponent<UniversalAdditionalCameraData>();
+        var universalAdditionalCameraData = trackedCameraObject.AddComponent<UniversalAdditionalCameraData>();
+        universalAdditionalCameraData.renderType = CameraRenderType.Base;
+        universalAdditionalCameraData.allowXRRendering = true;
         var rootUniversalAdditionalCameraData = rootCamera.GetComponent<UniversalAdditionalCameraData>();
         
         if (universalAdditionalCameraData != null && rootUniversalAdditionalCameraData != null)

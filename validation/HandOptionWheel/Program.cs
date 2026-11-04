@@ -81,4 +81,5 @@ foreach (var count in new[] { 1, 2, 3, 4, 6, 7, 8, 11, 16 })
 Check(HandOptionWheelGesture.Sector(0, 0, 8) == -1 && HandOptionWheelGesture.Sector(1, 0, 0) == -1, "undefined sector rejected");
 Check(HandOptionWheelGesture.Sector(float.NaN, 1, 8) == -1, "invalid sector rejected");
 LeaseChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} native option-wheel gesture, ownership and lease assertions.");
+PoseChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} native option-wheel gesture, ownership, lease and pose assertions.");

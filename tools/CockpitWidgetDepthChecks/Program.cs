@@ -47,7 +47,18 @@ Check(copy==null&&newCopy!=masked&&Equals(newCopy.Properties["_Stencil"],11),"A 
 var unknown=new Material(custom);
 Check(adapter.GetModifiedMaterial(unknown)==unknown&&newCopy==null,"Unknown mod shader retains its authored rendering and releases unused copy");
 var art=new Material(imageShader);art.Properties["_MainTex"]=atlas;art.Properties["_ColorMask"]=15;
-Check(adapter.GetModifiedMaterial(art).shader==ui&&adapter.GetModifiedMaterial(art).Properties["_MainTex"]==atlas,"Additive image keeps sprite atlas with standard depth-tested UI");
+art.Properties["_Stencil"]=4;art.Properties["_ClipRect"]="map viewport";art.Keywords=new[]{"UNITY_UI_CLIP_RECT"};
+Check(ReferenceEquals(adapter.GetModifiedMaterial(art),art),"Native additive map-grid material is retained exactly, not converted to alpha blending over terrain");
+Check(art.shader==imageShader&&art.Properties["_MainTex"]==atlas&&Equals(art.Properties["_Stencil"],4)&&
+    Equals(art.Properties["_ClipRect"],"map viewport")&&art.Keywords.SequenceEqual(new[]{"UNITY_UI_CLIP_RECT"}),
+    "Grid sprite, authored blending, stencil and rectangular clipping remain native");
+foreach(var name in new[]{"UI/Additive","UI/ProceduralGrid","TextMeshPro/Distance Field","TextMeshPro/Mobile/Distance Field - Masking","TextMeshPro/Sprite","TextMeshPro/Custom Overlay"})
+{
+    var preserved=new Material(new Shader(name));
+    Check(ReferenceEquals(adapter.GetModifiedMaterial(preserved),preserved),"Already depth-aware or unverified shaders retain authored blend/depth: "+name);
+}
+foreach(var name in new[]{"TextMeshPro/Distance Field Additive","TextMeshPro/Distance Field Additive with Glow"})
+    Check(adapter.GetModifiedMaterial(new Material(new Shader(name))).shader==font,"Verified fixed-overlay font still receives hand depth: "+name);
 Check(adapter.GetModifiedMaterial(new Material(overlay)).shader==font,"Native overlay font also respects physical hand depth");
 Check(adapter.GetModifiedMaterial(new Material(ui)).shader==ui,"Already depth-compatible UI is left unchanged");
 var late=MakeGraphic(CockpitHudWidgets.Slots["map"],additive);Call(owner,"LateUpdate");

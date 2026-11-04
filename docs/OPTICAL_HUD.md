@@ -1,5 +1,8 @@
 # Helmet optical targeting HUD (updated 0.4.7.1)
 
+Historical notes: EOTS and inspection zoom were removed in 0.4.8.0. The menu
+actions below are not available in current builds. See [current controls](CONTROLLER_BINDINGS.md).
+
 EOTS means **Electro-optical Targeting System**.
 
 Open **View → EOTS HUD** to toggle the borderless head-following optical image.

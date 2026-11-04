@@ -29,6 +29,17 @@ With left-handed HOTAS, role-based actions follow the stick or throttle. The phy
 
 ## Edit in the headset
 
+**View** groups flight controls, cockpit layout, display settings and feedback.
+Common pages, including **Look direction cue**, open directly from its home page.
+Checkboxes switch settings on or off; drag a slider to change the value shown
+beside its label. Highlighted choices show the current mode. These settings save
+as you change them. Layout placement remains a separate preview with explicit
+**Save** and **Cancel**; viewing a settings page does not change a saved layout.
+One hand owns the menu pointer. Pointing the other hand at a menu does not take
+over; press a button on that hand to switch. Trigger clicks still select the
+pointed control. A press or slider drag stays with its starting hand through
+release, and the last chosen hand is retained when reopening menus.
+
 1. Open **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings → OPEN**. Choose Left or Right, then select a callout beside the controller image to inspect its assignments, or use the action groups below.
 2. Leave **Preset: Auto** for detection, or select Frame / Touch explicitly. Each keeps its own saved bindings.
 3. Choose **Weapons & targets**, **Flight & defense**, or **Menu & map**.
@@ -42,7 +53,7 @@ Existing Frame custom bindings are retained. Switching between controller famili
 
 ## Hand option wheel
 
-Release that hand’s flight handle, then click its thumbstick. The smaller game wheel sits just above the thumbstick, parallel to its top surface, and tilts with the controller. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
+Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
 
 ## Grip and layout
 
@@ -54,7 +65,9 @@ In **View → Flight controls**, choose **Hold** or **Toggle** independently for
 
 For the map, horizontal and vertical corner separation change its width and height independently. This changes the visible area without stretching terrain or unit icons. The shape is saved with the aircraft's selected profile slot.
 
-The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **Aiming & markers → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults.
+The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **View → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults.
 A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.
 
-Stick-limit feedback is a steady vibration that grows stronger near full pitch, roll or twist input. It uses the normal haptic-strength setting.
+Stick-limit feedback grows stronger near full pitch, roll or twist input. Holding near the limit keeps the initial cue for about a second, then smoothly reduces it to a light holding vibration over the next 1.5 seconds. Move away from the limit to rearm the stronger cue. It uses the normal haptic-strength setting.
+
+Physical stick twist now defaults to a separate **15% yaw deadzone** (4.5° at the default 30° yaw range). Pitch/roll retain their 6% default; the horizontal thumbstick keeps its own existing deadzone. Adjust twist deadzone under **View → Flight controls**.

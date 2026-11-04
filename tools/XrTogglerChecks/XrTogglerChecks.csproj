@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors><DefineConstants>MODERN</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrTogglers/VrToggler.cs" Link="VrToggler.cs" />
+    <Compile Include="../../NOVR/VrTogglers/XrPluginToggler.cs" Link="XrPluginToggler.cs" />
+    <Compile Include="../../NOVR/VrTogglers/XrPluginOpenXrToggler.cs" Link="XrPluginOpenXrToggler.cs" />
+    <Compile Include="../../NOVR/VrTogglers/VrTogglerManager.cs" Link="VrTogglerManager.cs" />
+  </ItemGroup>
+</Project>

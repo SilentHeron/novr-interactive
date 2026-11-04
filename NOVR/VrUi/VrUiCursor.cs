@@ -91,6 +91,7 @@ public class VrUiCursor: NOVRBehaviour
     private Quaternion _projectionReferenceRotation = Quaternion.identity;
 
     private bool _hasInitializedEventSystem = false;
+    private bool _reportedMissingUiModule;
     private Mouse? _virtualMouse;
     private Mouse? _realMouse;
     
@@ -189,13 +190,13 @@ public class VrUiCursor: NOVRBehaviour
         {
             if (_laser != null) _laser.enabled = false;
             // A background desktop must not feed mouse clicks into the headset.
-            if (!Application.isFocused) { ReportPointerState("hidden: no tracked pointer and desktop unfocused"); HidePointer(); return; }
+            if (!Application.isFocused) { ReportPointerState("hidden: no tracked pointer and desktop unfocused"); HidePointer(false); return; }
             if (_realMouse == null || !_realMouse.added)
             {
                 _realMouse = null;
                 foreach (var device in InputSystem.devices)
                     if (device is Mouse mouse && mouse != _virtualMouse) { _realMouse = mouse; break; }
-                if (_realMouse == null) { ReportPointerState("hidden: no tracked pointer or mouse"); HidePointer(); return; }
+                if (_realMouse == null) { ReportPointerState("hidden: no tracked pointer or mouse"); HidePointer(false); return; }
             }
             ReportPointerState("mouse fallback active");
             if (wasController) _mouseClick.Reset();
@@ -232,9 +233,11 @@ public class VrUiCursor: NOVRBehaviour
             Debug.Log($"[NOVR] UI pointer geometry: origin={_controllerPointer.Ray.origin}, target={_controllerPointer.HitPosition}, camera={UiCamera?.transform.position}, interactive={_controllerPointer.OverInteractive}.");
     }
 
-    private void HidePointer()
+    private void HidePointer(bool cancelController = true)
     {
-        _controllerPointer.Cancel();
+        // Update already canceled any unavailable capture. Preserve its edge
+        // observation here so an available non-owner can deliberately take over.
+        if (cancelController) _controllerPointer.Cancel();
         _mouseClick.Reset();
         IsControllerPointer = PrimaryHeld = PrimaryPressed = false;
         Scroll = Vector2.zero;
@@ -576,6 +579,7 @@ public class VrUiCursor: NOVRBehaviour
             var uiModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             if (uiModule != null)
             {
+                _reportedMissingUiModule = false;
                 Debug.Log($"[NOVR] Restricting InputSystemUIInputModule actions to VirtualMouse (path: {_virtualMouse.path})");
                 RestrictActionToVirtualMouse(uiModule.point?.action, _virtualMouse.path);
                 RestrictActionToVirtualMouse(uiModule.leftClick?.action, _virtualMouse.path);
@@ -588,7 +592,11 @@ public class VrUiCursor: NOVRBehaviour
             }
             else
             {
-                Debug.LogWarning("[NOVR] InputSystemUIInputModule not found in scene yet, retrying next frame...");
+                if (!_reportedMissingUiModule)
+                {
+                    Debug.LogWarning("[NOVR] InputSystemUIInputModule not found in scene yet; waiting for it to become available.");
+                    _reportedMissingUiModule = true;
+                }
                 return false;
             }
         }

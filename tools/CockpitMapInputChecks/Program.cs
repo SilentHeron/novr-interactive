@@ -45,6 +45,27 @@ routed.Frame(true, false, true, 0, 0, false);
 Check(!routed.Map.Reserved && routed.TargetPresses == 0 && routed.Yaw == 0, "Neutral release hands back flight without inventing a click");
 routed.Frame(true, false, true, .8f, 0, true);
 Check(routed.TargetPresses == 1 && routed.Yaw > .7f, "Next deliberate flight command works after neutral handoff");
+foreach(var residual in new[]{-.179f,-.15f,-.1201f,.1201f,.15f,.179f})
+{
+    var handoff=new RoutedInput();
+    handoff.Frame(true,true,true,0,0,false);
+    handoff.Frame(true,true,true,.7f,0,false);
+    handoff.Frame(true,false,true,residual,0,false);
+    Check(handoff.Map.Reserved&&handoff.Yaw==0,"Deselecting within map deadzone but outside flight deadzone cannot leak residual yaw");
+    handoff.Frame(true,false,true,residual,0,false);
+    Check(handoff.Map.Reserved&&handoff.Yaw==0,"Residual deflection remains reserved on subsequent frames");
+    handoff.Frame(true,false,true,.12f,0,true);
+    Check(handoff.Map.Reserved&&handoff.TargetPresses==0,"Flight-neutral axes still require map-click release");
+    handoff.Frame(true,false,true,.12f,0,false);
+    Check(!handoff.Map.Reserved&&handoff.Yaw==0&&handoff.TargetPresses==0,"Exact flight deadzone boundary returns ownership without yaw or clicks");
+    handoff.Frame(true,false,true,residual,0,false);
+    Check(!handoff.Map.Reserved&&Math.Abs(handoff.Yaw)>0,"New deflection after flight-neutral handoff resumes ordinary yaw");
+}
+var diagonalHandoff=new RoutedInput(); diagonalHandoff.Frame(true,true,true,0,0,false);
+diagonalHandoff.Frame(true,false,false,.1f,.1f,false);
+Check(diagonalHandoff.Map.Reserved,"Diagonal handoff uses radial flight-neutral threshold");
+diagonalHandoff.Frame(true,false,false,.08f,.08f,false);
+Check(!diagonalHandoff.Map.Reserved&&diagonalHandoff.WheelPresses==0,"Centered diagonal release returns free-hand ownership without opening wheel");
 routed.Frame(true, true, true, 0, 0, false);
 routed.Frame(true, true, true, .7f, 0, true);
 routed.Frame(true, true, false, .7f, 0, true);

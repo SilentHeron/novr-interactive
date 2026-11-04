@@ -33,27 +33,27 @@ jobs:
             /tests/
             /tools/verify.py
             /tools/verification/
-            /tools/CockpitProfileChecks/
-            /tools/ControllerRuntimeChecks/
-            /tools/ControllerBindingChecks/
-            /tools/HandComfortChecks/
-            /tools/ArmPoseChecks/
-            /tools/HandPoseChecks/
-            /tools/SleeveBoundsChecks/
-            /tools/FeedbackPreviewChecks/
-            /tools/MfdContextChecks/
-            /validation/MissionReadiness/
-            /validation/StartupSplash/
+            /tools/*Checks/
+            /validation/
             /NOVR.Installer.Tests/
             /NOVR.Installer/InstallerConstants.cs
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
+            /NOVR/APIBus.cs
+            /NOVR/Compatibility/ProtonControllerCompatibility.cs
+            /NOVR/VrCamera/StereoCamera.cs
+            /NOVR/VrCamera/VrCamera.cs
+            /NOVR/VrTogglers/
             /NOVR/MotionControls/
             /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
             /NOVR/Assets/Glove-left.json
             /NOVR/Assets/Glove-right.json
+            /NOVR/Assets/Controllers/*.png
+            /NOVR/VrUi/*.cs
             /NOVR/VrUi/Components/
             /NOVR/VrUi/Native/
+            /NOVR/VrUi/HarmonyPatches/GridAircraftReadoutPatch.cs
+            /NOVR/VrUi/HarmonyPatches/ThreatItemVectorLineRotationSafePatch.cs
             /NOVR.Patcher/PayloadFile.cs
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
@@ -61,6 +61,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
+      - name: Check verification isolation
+        run: python -m unittest discover -s tools/verification -p "test_*.py"
       - name: Verify source-only suites
         run: python tools/verify.py portable
       - name: Retain verification logs

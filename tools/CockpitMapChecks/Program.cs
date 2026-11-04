@@ -72,7 +72,8 @@ using (var f = new Fixture())
     Check(f.Map == null, "Destroyed scene owner cannot orphan native singleton inside widget rig");
 }
 count += NavigationChecks.Run();
-Console.WriteLine($"{count} source-linked map widget lifecycle checks passed.");
+count += InteractionChecks.Run();
+Console.WriteLine($"{count} source-linked map widget lifecycle, navigation and touch checks passed.");
 
 sealed class Fixture : IDisposable
 {

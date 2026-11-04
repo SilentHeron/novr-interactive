@@ -1,36 +1,43 @@
 namespace NOVR.MotionControls;
 
-// Either hand may acquire the pointer. A held interaction (including its release
-// frame) stays with its original hand; held buttons cannot become fresh clicks.
+// Pointer ownership is deliberate: movement, hover, target distance and axis
+// noise never choose a hand. A press/drag owns its release frame as well.
 internal sealed class PointerHandSelection
 {
     private readonly ControllerButtonGate _left = new(), _right = new();
-    private bool _initialized;
-    internal bool Left { get; private set; }
+    private readonly ControllerButtonGate _leftGrip = new(), _rightGrip = new();
+    private uint _leftButtons, _rightButtons;
+    private bool _leftValid, _rightValid;
+    internal bool Left { get; private set; } // Right initially; retain the last chosen hand across menus.
     internal ControllerButtonGate Trigger => Left ? _left : _right;
 
-    internal void Update(bool preferLeft, bool leftAvailable, float leftTrigger, bool leftTarget,
-        bool rightAvailable, float rightTrigger, bool rightTarget, int leftPriority = 1, int rightPriority = 1)
+    internal void Update(bool leftAvailable, float leftTrigger, float leftGrip, uint leftButtons,
+        bool rightAvailable, float rightTrigger, float rightGrip, uint rightButtons)
     {
         _left.Update(leftAvailable, leftTrigger);
         _right.Update(rightAvailable, rightTrigger);
-        if (!_initialized) { Left = preferLeft; _initialized = true; }
+        _leftGrip.Update(leftAvailable, leftGrip);
+        _rightGrip.Update(rightAvailable, rightGrip);
+        var leftPressed = ButtonPressed(leftAvailable, leftButtons, ref _leftValid, ref _leftButtons) || _left.Pressed || _leftGrip.Pressed;
+        var rightPressed = ButtonPressed(rightAvailable, rightButtons, ref _rightValid, ref _rightButtons) || _right.Pressed || _rightGrip.Pressed;
+        // Consume both hands' edges even during capture: a press ignored while
+        // dragging must not become a delayed takeover when the drag ends.
         if (Trigger.Held || Trigger.Released) return;
-        var other = Left ? _right : _left;
-        var available = Left ? leftAvailable : rightAvailable;
-        var target = Left ? leftTarget : rightTarget;
-        var otherAvailable = Left ? rightAvailable : leftAvailable;
-        var otherTarget = Left ? rightTarget : leftTarget;
-        var priority = Left ? leftPriority : rightPriority;
-        var otherPriority = Left ? rightPriority : leftPriority;
-        var otherValue = Left ? rightTrigger : leftTrigger;
-        var otherIdle = FlightControlMath.IsFinite(otherValue) && otherValue <= .35f;
-        if (otherAvailable && (other.Pressed && otherTarget ||
-            !other.Held && otherIdle && (!available || otherTarget && (!target || otherPriority > priority)))) Left = !Left;
+        if (Left ? rightAvailable && rightPressed : leftAvailable && leftPressed) Left = !Left;
+    }
+
+    private static bool ButtonPressed(bool available, uint buttons, ref bool valid, ref uint previous)
+    {
+        var pressed = available && valid && (buttons & ~previous) != 0;
+        previous = buttons;
+        valid = available;
+        return pressed;
     }
 
     internal void Reset()
     {
-        _left.Reset(); _right.Reset(); _initialized = false;
+        _left.Reset(); _right.Reset(); _leftGrip.Reset(); _rightGrip.Reset();
+        _leftValid = _rightValid = false;
+        _leftButtons = _rightButtons = 0;
     }
 }

@@ -21,15 +21,14 @@ internal sealed partial class WristMenu : MonoBehaviour
     private Text? _status;
     private Font? _font;
     private GameObject? _alertsPage;
-    private GameObject? _setupPage, _flightPage, _ejectPage, _controlsPage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _comfortPage, _alignmentPage, _displayPage, _feedbackPage, _brightnessPage, _aimingPage, _lookCuePage;
+    private GameObject? _flightPage, _ejectPage, _controlsPage, _throttlePage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _menuOptionsPage, _displayPage, _feedbackPage, _aimingPage, _lookCuePage;
     private readonly Dictionary<GameObject, string> _pageTitles = new();
     private GameObject? _performancePage, _handPositionPage, _handAnglesPage;
     private bool _fittingLeftHand = true;
-    private string FittedHand => _fittingLeftHand ? "LEFT HAND" : "RIGHT HAND";
     private MenuHistory<GameObject>? _history;
     private Button? _backButton;
     private readonly List<(Text label, Func<string> text)> _liveLabels = new();
-    private Text? _controlsInfo, _bindingHelp, _throttleHelp, _helpFooter;
+    private Text? _bindingHelp, _throttleHelp, _helpFooter;
     private float _nextHelpRefresh;
     private ControllerBindingProfile _menuProfile;
     private bool _menuLeft;
@@ -45,13 +44,6 @@ internal sealed partial class WristMenu : MonoBehaviour
     internal static bool IsPerformancePage => IsOpen && _instance?._performancePage?.activeSelf == true;
     private static bool CollectiveControls => GameManager.GetLocalAircraft(out var aircraft) && MotionFlightController.UsesLiftCollective(aircraft);
     private void Awake() => _instance = this;
-
-    private static void ResizeHud(float amount)
-    {
-        var c = ModConfiguration.Instance; c.FocusedFlightHud.Value = true;
-        c.FlightHudScale.Value += amount; c.MarkerScale.Value += amount;
-        c.MarkerLabelScale.Value += amount; c.ReticleScale.Value += amount; c.WeaponHudScale.Value += amount;
-    }
 
     private void Update()
     {
@@ -78,6 +70,8 @@ internal sealed partial class WristMenu : MonoBehaviour
         }
         if (!IsOpen) return;
         if (_backButton != null) _backButton.interactable = _history?.CanBack == true;
+        foreach (var setting in _settingRefresh)
+            if (setting.page.activeInHierarchy) setting.refresh();
         foreach (var item in _liveLabels)
             if (item.label != null && item.label.gameObject.activeInHierarchy)
             { var text = item.text(); if (item.label.text != text) item.label.text = text; }
@@ -87,13 +81,6 @@ internal sealed partial class WristMenu : MonoBehaviour
         if (_assistButton != null && _flightPage?.activeSelf == true)
             _assistButton.interactable = GameManager.GetLocalAircraft(out var assistAircraft) &&
                 assistAircraft.GetControlsFilter()?.HasFlightAssist() == true;
-        if (_controlsInfo != null && _controlsPage?.activeSelf == true)
-        {
-            var motion = config.MotionControls;
-            var travelLabel = CollectiveControls ? "Collective lift" : "Throttle travel";
-            var direction = CollectiveControls ? "UP increases" : "FORWARD increases";
-            _controlsInfo.text = $"Higher sensitivity = less wrist tilt; yaw unchanged.\nTwist {motion.YawAngle.Value:0}° • Deadzone {motion.Deadzone.Value * 100:0}% • {travelLabel} {motion.ThrottleTravel.Value * 100:0.#} cm\n{direction} • Pedals: turn both yaw options OFF.";
-        }
         if (Time.unscaledTime >= _nextHelpRefresh)
         {
             if (_bindingHelp != null && _helpPage?.activeSelf == true)
@@ -195,11 +182,11 @@ internal sealed partial class WristMenu : MonoBehaviour
         foreach (var page in _pageTitles.Keys) page.SetActive(page == _history!.Current);
         if (_history!.Current != _ejectPage) _ejectAircraft = null;
         if (_history.Current != _resetPage) _resetAircraft = null;
-        _pageTitle = string.Join(" / ", _history.Trail.Select(page => _pageTitles[page]));
+        _pageTitle = _pageTitles[_history.Current];
         _nextHelpRefresh = 0;
     }
     private void ShowFlightPage() { Home(); ShowPage(_flightPage!); }
-    private void ShowSetupPage() { Home(); ShowPage(_setupPage!); }
+    private void ShowSetupPage() { Home(); ShowPage(_seatPage!); }
     private void AskReset()
     {
         CockpitHudWidgets.Instance?.Finish(false);
@@ -235,7 +222,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         _panel.transform.SetParent(transform, false);
         _panel.transform.localScale = Vector3.one * 0.0009f;
         var rect = (RectTransform)_panel.transform;
-        rect.sizeDelta = new Vector2(540, 660);
+        rect.sizeDelta = new Vector2(WristMenuNavigation.PanelWidth, WristMenuNavigation.PanelHeight);
         var canvas = _panel.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = APIBus.CockpitHudCamera;
@@ -243,232 +230,243 @@ internal sealed partial class WristMenu : MonoBehaviour
         canvas.sortingOrder = 500;
         var background = _panel.AddComponent<Image>();
         background.color = new Color(0.025f, 0.045f, 0.055f, 1f);
-        _status = Label(rect, "", new Vector2(0, 265), new Vector2(510, 105), 19);
+        _status = Label(rect, "", new Vector2(0, 279), new Vector2(620, 81), 19);
+        ViewMenuControls.Panel(rect,"Header divider",new Vector2(0,234),new Vector2(620,2),ViewMenuControls.Accent);
+        ViewMenuControls.Panel(rect,"Footer divider",new Vector2(0,-252),new Vector2(620,2),ViewMenuControls.Accent);
         var config = ModConfiguration.Instance;
         var motion = config.MotionControls;
         _homePage = Page("VIEW");
-        AddButton("Flight actions", 0, 0, () => ShowPage(_flightPage!));
-        AddButton("Edit layout", 1, 0, StartOrResumeLayout);
-        AddButton("Flight controls", 0, 1, () => ShowPage(_controlsPage!));
-        AddButton("Comfort & display", 1, 1, () => ShowPage(_comfortPage!));
-        AddButton("Controller bindings", 0, 2, () => ShowPage(_bindingsPage!));
-        AddButton("Recenter view", 1, 2, () => { NOVRHeadsetData.CalibrateTranslation(); NOVRHeadsetData.CalibrateRotation(); Close(); });
-        AddButton("Seat & handles", 0, 3, () => ShowPage(_setupPage!));
-        AddLiveButton(() => "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 3, () => motion.Enabled.Value = !motion.Enabled.Value);
-        AddButton("Aircraft profiles", 0, 4, OpenAircraftProfiles);
-        Label(_homePage.transform, "EDIT LAYOUT · move the HUD, stick and throttle\nSET UP · seat and flight handles\nTUNE · response, hands and feedback", new Vector2(0,-184), new Vector2(510,108), 19);
+        ViewMenuControls.Panel(_homePage.transform,"Flight card",new Vector2(-160,129),new Vector2(300,202),ViewMenuControls.Surface);
+        ViewMenuControls.Panel(_homePage.transform,"Cockpit card",new Vector2(-160,-60),new Vector2(300,202),ViewMenuControls.Surface);
+        ViewMenuControls.Panel(_homePage.transform,"Visual card",new Vector2(160,105),new Vector2(300,250),ViewMenuControls.Surface);
+        ViewMenuControls.Panel(_homePage.transform,"System card",new Vector2(160,-111),new Vector2(300,202),ViewMenuControls.Surface);
+        Section("FLIGHT",215,300,-160);
+        Section("COCKPIT",26,300,-160);
+        Section("VISUALS",215,300,160);
+        Section("FEEL & SYSTEM",-23,300,160);
+        WristMenuNavigation.BuildHome((item, action) =>
+        {
+            var label = AddButton(item.Label, item.Column, item.Row, action);
+            var bounds=WristMenuNavigation.HomeBounds(item);
+            var rect=(RectTransform)label.transform.parent;
+            rect.anchoredPosition=new Vector2(bounds.X,bounds.Y);rect.sizeDelta=new Vector2(bounds.Width,bounds.Height);
+            var labelRect=(RectTransform)label.transform;labelRect.anchoredPosition=new Vector2(-10,0);labelRect.sizeDelta=new Vector2(254,40);
+            label.alignment=TextAnchor.MiddleLeft;
+            NativeButtonFeedback.Configure(rect.GetComponent<Button>(),item.OpensPage?ViewMenuControls.Surface:new Color(.14f,.22f,.25f));
+            if(item.OpensPage) ViewMenuControls.Text(rect,_font!,"›",new Vector2(132,0),new Vector2(24,34),26,TextAnchor.MiddleCenter);
+        },
+            new Dictionary<ViewMenuDestination, Action>
+            {
+                [ViewMenuDestination.FlightActions] = () => ShowPage(_flightPage!),
+                [ViewMenuDestination.FlightControls] = () => ShowPage(_controlsPage!),
+                [ViewMenuDestination.Bindings] = () => ShowPage(_bindingsPage!),
+                [ViewMenuDestination.EditLayout] = StartOrResumeLayout,
+                [ViewMenuDestination.Seat] = () => ShowPage(_seatPage!),
+                [ViewMenuDestination.Profiles] = OpenAircraftProfiles,
+                [ViewMenuDestination.Recenter] = () => { NOVRHeadsetData.CalibrateTranslation(); NOVRHeadsetData.CalibrateRotation(); Close(); },
+                [ViewMenuDestination.LookCue] = () => ShowPage(_lookCuePage!),
+                [ViewMenuDestination.Hud] = () => ShowPage(_displayPage!),
+                [ViewMenuDestination.Widgets] = OpenWidgetAppearance,
+                [ViewMenuDestination.Hands] = () => ShowPage(_handsPage!),
+                [ViewMenuDestination.Feedback] = () => ShowPage(_feedbackPage!),
+                [ViewMenuDestination.Performance] = () => ShowPage(_performancePage!),
+                [ViewMenuDestination.MenuOptions] = () => ShowPage(_menuOptionsPage!)
+            });
+        ViewMenuControls.Text(_homePage.transform,_font!,"SESSION ACTION",new Vector2(-160,-166),new Vector2(300,24),16);
 
-        _setupPage = Page("COCKPIT");
-        AddButton("Seat position", 0, 0, () => ShowPage(_seatPage!));
-        AddLiveButton(() => "Stick hand: " + (motion.LeftHanded.Value ? "LEFT" : "RIGHT"), 0, 1,
-            () => { CockpitHudWidgets.Instance?.Finish(false); motion.LeftHanded.Value = !motion.LeftHanded.Value; Close(); });
-        AddButton("Reset seat & handles…", 1, 1, AskReset);
-        Label(_setupPage.transform, "To move the HUD, stick and throttle together,\nchoose Edit layout on the View home page.\n\nSeat movement leaves the layout in place.\nPlacements are saved for this aircraft.", new Vector2(0,-85), new Vector2(510,220), 20);
-
-        _seatPage = Page("SEAT");
-        AddButton("Seat up", 0, 0, () => CockpitProfiles.Instance?.MoveSeat(Vector3.up * .02f));
-        AddButton("Seat down", 1, 0, () => CockpitProfiles.Instance?.MoveSeat(Vector3.down * .02f));
-        AddButton("Seat left", 0, 1, () => CockpitProfiles.Instance?.MoveSeat(Vector3.left * .02f));
-        AddButton("Seat right", 1, 1, () => CockpitProfiles.Instance?.MoveSeat(Vector3.right * .02f));
-        AddButton("Seat forward", 0, 2, () => CockpitProfiles.Instance?.MoveSeat(Vector3.forward * .02f));
-        AddButton("Seat back", 1, 2, () => CockpitProfiles.Instance?.MoveSeat(Vector3.back * .02f));
-        Label(_seatPage.transform, "Each step moves the viewpoint 2 cm.\nHandles keep their cockpit positions.", new Vector2(0,-92), new Vector2(510,140), 20);
+        _seatPage = Page("SEAT & HANDLES");
+        Section("Seat · 2 cm steps",214);
+        ActionButton("Seat up",0,168,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.up*.02f));
+        ActionButton("Seat down",1,168,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.down*.02f));
+        ActionButton("Seat left",0,120,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.left*.02f));
+        ActionButton("Seat right",1,120,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.right*.02f));
+        ActionButton("Seat forward",0,72,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.forward*.02f));
+        ActionButton("Seat back",1,72,()=>CockpitProfiles.Instance?.MoveSeat(Vector3.back*.02f));
+        Section("Handles & layout",23);
+        Setting("Stick in left hand",()=>motion.LeftHanded.Value,value=>{CockpitHudWidgets.Instance?.Finish(false);motion.LeftHanded.Value=value;Close();},0,-24);
+        ActionButton("Edit layout",0,-74,StartOrResumeLayout);
+        ActionButton("Aircraft profiles  ›",1,-74,OpenAircraftProfiles);
+        ActionButton("Reset seat & handles…",0,-126,AskReset,true);
+        Note("Seat adjustments leave handles and HUD fixed.\nPlacements belong to this aircraft's profile.",-198,70);
 
         _resetPage = Page("RESET SETUP");
         Label(_resetPage.transform, "Restore the default seat, stick and throttle\nfor this aircraft and handedness?\n\nYour saved handle positions will be replaced.\nOriginal cockpit instruments stay in place.", new Vector2(0,45), new Vector2(510,180), 21);
         AddButton("Keep my setup", 0, 4, Back);
-        AddButton("Reset seat & handles", 1, 4, ConfirmReset);
+        ActionButton("Reset seat & handles",1,-51,ConfirmReset,true);
 
-        _flightPage = Page("FLIGHT");
-        AddButton("Next weapon", 0, 0, () => ControllerActions.Instance?.QueueWristAction("Next Weapon"));
-        AddButton("Next countermeasure", 1, 0, () => ControllerActions.Instance?.QueueWristAction("Next Countermeasure"));
-        AddButton("Unlock last target", 0, 1, () => { SceneSingleton<CombatHUD>.i?.DeselectLast(); Close(); });
-        AddButton("Clear targets", 1, 1, () => { SceneSingleton<CombatHUD>.i?.DeselectAll(); Close(); });
-        AddButton("Toggle gear", 0, 2, () => ControllerActions.Instance?.QueueWristAction("Gear"));
-        AddButton("Toggle radar", 1, 2, () => ControllerActions.Instance?.QueueWristAction("Radar"));
-        AddButton("Toggle engine", 0, 3, () => ControllerActions.Instance?.QueueWristAction("Toggle Engine"));
-        AddButton("Tactical map", 1, 3, ControllerActions.ToggleMap);
-        var assistLabel = AddButton("Flight assist", 0, 4, () => ControllerActions.Instance?.QueueWristAction("Flight Assist"));
+        _flightPage = Page("FLIGHT ACTIONS");
+        Section("Aircraft commands",214);
+        ActionButton("Next weapon", 0, 168, () => ControllerActions.Instance?.QueueWristAction("Next Weapon"));
+        ActionButton("Next countermeasure", 1, 168, () => ControllerActions.Instance?.QueueWristAction("Next Countermeasure"));
+        ActionButton("Unlock last target", 0, 120, () => { SceneSingleton<CombatHUD>.i?.DeselectLast(); Close(); });
+        ActionButton("Clear targets", 1, 120, () => { SceneSingleton<CombatHUD>.i?.DeselectAll(); Close(); });
+        ActionButton("Toggle gear", 0, 72, () => ControllerActions.Instance?.QueueWristAction("Gear"));
+        ActionButton("Toggle radar", 1, 72, () => ControllerActions.Instance?.QueueWristAction("Radar"));
+        ActionButton("Toggle engine", 0, 24, () => ControllerActions.Instance?.QueueWristAction("Toggle Engine"));
+        ActionButton("Tactical map", 1, 24, ControllerActions.ToggleMap);
+        var assistLabel = ActionButton("Flight assist", 0, -24, () => ControllerActions.Instance?.QueueWristAction("Flight Assist"));
         _assistButton = assistLabel.transform.parent.GetComponent<Button>();
         _liveLabels.Add((assistLabel, () => GameManager.GetLocalAircraft(out var a) && a.GetControlsFilter()?.HasFlightAssist() == true ? "Toggle flight assist" : "Assist: not switchable"));
-        var hoverLabel = AddButton("Hover assist", 1, 4, () => ControllerActions.Instance?.QueueWristAction("Auto Hover"));
+        var hoverLabel = ActionButton("Hover assist", 1, -24, () => ControllerActions.Instance?.QueueWristAction("Auto Hover"));
         _hoverButton = hoverLabel.transform.parent.GetComponent<Button>();
         _liveLabels.Add((hoverLabel, () => !GameManager.GetLocalAircraft(out var a) || a.GetControlsFilter()?.HasAutoHover() != true
             ? "Hover: not fitted" : a.radarAlt < 1f ? "Hover: ground locked" : $"Hover assist: {(a.IsAutoHoverEnabled() ? "ON" : "OFF")}"));
-        AddButton("Eject…", 0, 6, AskToEject);
+        Section("Emergency",-158);
+        ActionButton("Eject…",0,-213,AskToEject,true);
         _ejectPage = Page("EJECT");
         Label(_ejectPage.transform, "Eject from this aircraft?\nThis starts the game's ejection sequence.", new Vector2(0,65), new Vector2(510,120), 24);
         AddButton("Cancel", 0, 4, Back);
-        AddButton("Confirm eject", 1, 4, ConfirmEject);
+        ActionButton("Confirm eject",1,-51,ConfirmEject,true);
 
-        _controlsPage = Page("CONTROLS");
-        AddLiveButton(() => "Stick grip: " + (motion.StickTapGrip.Value ? "TOGGLE" : "HOLD"), 0, 0,
-            () => { motion.StickTapGrip.Value = !motion.StickTapGrip.Value; MotionFlightController.Instance?.ResetGrips(); });
-        AddLiveButton(() => (CollectiveControls ? "Collective: " : "Throttle grip: ") + (motion.ThrottleTapGrip.Value ? "TOGGLE" : "HOLD"), 1, 0,
-            () => { motion.ThrottleTapGrip.Value = !motion.ThrottleTapGrip.Value; MotionFlightController.Instance?.ResetGrips(); });
-        StickSensitivitySlider.Create(_controlsPage.transform, new Vector2(0, 120), 510, _font!, 18);
-        AddButton("Deadzone −", 0, 2, () => motion.Deadzone.Value -= .01f);
-        AddButton("Deadzone +", 1, 2, () => motion.Deadzone.Value += .01f);
-        AddLiveButton(() => CollectiveControls ? "Shorter lift (1 cm)" : "Shorter travel (1 cm)", 0, 3, () => motion.ThrottleTravel.Value -= .01f);
-        AddLiveButton(() => CollectiveControls ? "Longer lift (1 cm)" : "Longer travel (1 cm)", 1, 3, () => motion.ThrottleTravel.Value += .01f);
-        AddLiveButton(() => "Twist yaw: " + (motion.TwistYaw.Value ? "ON" : "OFF"), 0, 4,
-            () => { motion.TwistYaw.Value = !motion.TwistYaw.Value; MotionFlightController.Instance?.ResetGrips(); });
-        AddLiveButton(() => "Thumbstick yaw: " + (motion.ThumbstickYaw.Value ? "ON" : "OFF"), 1, 4, () => motion.ThumbstickYaw.Value = !motion.ThumbstickYaw.Value);
-        AddLiveButton(() => "MIL detent: " + (motion.MilDetent.Value ? "ON" : "OFF"), 0, 5, () => motion.MilDetent.Value = !motion.MilDetent.Value);
-        AddButton("Reset response", 1, 5, () => { motion.StickAngle.Value = 25; motion.YawAngle.Value = 30; motion.Deadzone.Value = .06f; motion.ResponseExponent.Value = 1.5f; motion.ThrottleTravel.Value = .12f; });
-        AddButton("Button bindings", 0, 6, () => ShowPage(_bindingsPage!));
-        AddButton("Controller guide", 1, 6, () => ShowPage(_helpPage!));
-        _controlsInfo = Label(_controlsPage.transform, "", new Vector2(0,-225), new Vector2(510,65), 16);
+        _controlsPage = Page("FLIGHT CONTROLS");
+        Section("Grip & steering", 214);
+        Setting("Motion controls", motion.Enabled, 0, 170);
+        Setting("Twist for yaw", motion.TwistYaw, 1, 170, () => MotionFlightController.Instance?.ResetGrips());
+        Setting("Toggle stick grip", motion.StickTapGrip, 0, 123, () => MotionFlightController.Instance?.ResetGrips());
+        Setting("Thumbstick for yaw", motion.ThumbstickYaw, 1, 123);
+        Section("Stick response", 77);
+        Setting("Stick sensitivity", 23, 0, 1,
+            () => Mathf.InverseLerp(MotionControlSettings.MaximumStickAngle, MotionControlSettings.MinimumStickAngle, motion.StickAngle.Value),
+            value => motion.StickAngle.Value = Mathf.Round(Mathf.Lerp(MotionControlSettings.MaximumStickAngle, MotionControlSettings.MinimumStickAngle, value)*2)*.5f,
+            _ => $"{MotionControlSettings.DefaultStickAngle/motion.StickAngle.Value:0.00}× / {motion.StickAngle.Value:0.#}°");
+        Setting("Pitch / roll deadzone", motion.Deadzone, -45, Percent, .01f);
+        Setting("Twist yaw deadzone", motion.YawDeadzone, -113, Percent, .01f);
+        ActionButton("Throttle / collective  ›", 0, -175, () => ShowPage(_throttlePage!));
+        ActionButton("Controller guide  ›", 1, -175, () => ShowPage(_helpPage!));
+        ActionButton("Reset response", 0, -223, () => { motion.StickAngle.Value = 25; motion.YawAngle.Value = 30; motion.Deadzone.Value = .06f; motion.YawDeadzone.Value = MotionControlSettings.DefaultYawDeadzone; motion.ResponseExponent.Value = 1.5f; motion.ThrottleTravel.Value = .12f; });
+        ViewMenuControls.Text(_controlsPage.transform,_font!,"Pedals: turn both yaw options off.",new Vector2(160,-223),new Vector2(300,42),16);
+
+        _throttlePage = Page("THROTTLE / COLLECTIVE");
+        Section("Handle behavior",214);
+        Setting("Toggle throttle grip",motion.ThrottleTapGrip,0,168,()=>MotionFlightController.Instance?.ResetGrips());
+        Setting("MIL power detent",motion.MilDetent,1,168);
+        Setting("Throttle travel / collective lift",motion.ThrottleTravel,94,Centimeters,.005f);
+        Note("Move forward to increase throttle; lift up for collective.\nMIL detent applies to afterburning aircraft.",19,60);
+        Section("Placement",-47);
+        Note("Use Edit layout to reposition the handle.\nGrip modes use one squeeze to hold, another to release.\nWith toggle grip off, keep squeezing to hold.",-113,95);
+        ActionButton("Edit layout",0,-202,StartOrResumeLayout);
         CreateBindingPages();
         _helpPage = Page("GUIDE");
         _bindingHelp = Label(_helpPage.transform, "", new Vector2(-132, 12), new Vector2(248, 390), 18);
         _throttleHelp = Label(_helpPage.transform, "", new Vector2(132, 12), new Vector2(248, 390), 18);
         _helpFooter = Label(_helpPage.transform, "", new Vector2(0, -217), new Vector2(510, 77), 16);
 
-        _comfortPage = Page("COMFORT");
-        AddButton("Hands & arms", 0, 0, () => ShowPage(_handsPage!));
-        AddButton("HUD & display", 1, 0, () => ShowPage(_displayPage!));
-        AddButton("Sound & haptics", 0, 1, () => ShowPage(_feedbackPage!));
-        AddButton("VR performance", 0, 2, () => ShowPage(_performancePage!));
-        AddLiveButton(() => "Brow NV: " + (motion.HelmetNightVision.Value ? "ON" : "OFF"), 1, 1, () => motion.HelmetNightVision.Value = !motion.HelmetNightVision.Value);
-        AddLiveButton(() => "Menu: " + (motion.ViewMenuFollowsHand.Value ? "FOLLOW HAND" : "STEADY"), 0, 3, () => motion.ViewMenuFollowsHand.Value = !motion.ViewMenuFollowsHand.Value);
-        AddButton("Bring menu forward", 1, 3, () => _anchored = false);
-        Label(_comfortPage.transform, "Either controller can point and click.\n\nBrow NV: raise a free hand to your forehead,\nthen press its trigger to toggle night vision.", new Vector2(0,-149), new Vector2(510,160), 20);
+        _menuOptionsPage = Page("MENU OPTIONS");
+        Section("Menu placement",214);
+        Setting("Follow View hand",motion.ViewMenuFollowsHand,0,167);
+        ActionButton("Bring menu forward",1,167,()=>_anchored=false);
+        Note("Off: keep this menu steady in front of your seat.\nOn: attach it to the controller assigned to View.",99,64);
+        Section("Controller input",31);
+        ActionButton("Controller guide  ›",0,-16,()=>ShowPage(_helpPage!));
+        Note("Either controller can point and click.\nPress a button on the other controller to switch.\nView closes this menu.",-100,100);
 
-        _handsPage = Page("HANDS");
-        AddLiveButton(() => "Gloves: " + (motion.RiggedGloves.Value ? "ON" : "OFF"), 0, 0, () => motion.RiggedGloves.Value = !motion.RiggedGloves.Value);
-        AddLiveButton(() => "Sleeves: " + (motion.PilotArms.Value ? "ON" : "OFF"), 1, 0, () => motion.PilotArms.Value = !motion.PilotArms.Value);
-        AddButton("Slimmer sleeves", 0, 1, () => motion.SleeveThickness.Value -= .05f);
-        AddButton("Wider sleeves", 1, 1, () => motion.SleeveThickness.Value += .05f);
-        AddButton("Fit left hand", 0, 2, () => { _fittingLeftHand = true; ShowPage(_alignmentPage!); });
-        AddButton("Fit right hand", 1, 2, () => { _fittingLeftHand = false; ShowPage(_alignmentPage!); });
-        var handInfo = Label(_handsPage.transform, "", new Vector2(0,-97), new Vector2(510,235), 20);
-        _liveLabels.Add((handInfo, () => $"Sleeve width: {motion.SleeveThickness.Value*100:0}%\n\nFree hands follow your controllers.\nHeld hands wrap around and follow the handle.\nFit each free hand independently.\n\nSleeves soften near their reach limit."));
+        _handsPage = Page("HANDS & ARMS");
+        Section("Pilot appearance",214);
+        Setting("Show gloves",motion.RiggedGloves,0,168);
+        Setting("Show sleeves",motion.PilotArms,1,168);
+        Setting("Sleeve width",motion.SleeveThickness,94,Percent,.01f);
+        Section("Hand fit & helmet gesture",22);
+        ActionButton("Fit left hand  ›",0,-29,()=>{_fittingLeftHand=true;ShowPage(_handPositionPage!);});
+        ActionButton("Fit right hand  ›",1,-29,()=>{_fittingLeftHand=false;ShowPage(_handPositionPage!);});
+        Setting("Brow night vision",motion.HelmetNightVision,0,-80);
+        var browHint=ViewMenuControls.Text(_handsPage.transform,_font!,"Raise a free hand to your brow,\nthen press its trigger.",new Vector2(160,-80),new Vector2(300,44),17);
+        browHint.color=ViewMenuControls.Muted;
+        Note("Free hands follow your controllers.\nHeld hands wrap around and follow the handle.\nFit corrections leave held grip poses unchanged.\nSleeves soften near their reach limit.",-172,112);
 
-        _alignmentPage = Page("HAND FIT");
-        AddButton("Position", 0, 0, () => ShowPage(_handPositionPage!));
-        AddButton("Wrist & palm angle", 1, 0, () => ShowPage(_handAnglesPage!));
-        AddLiveButton(() => _fittingLeftHand ? "Switch to right hand" : "Switch to left hand", 0, 1, () => _fittingLeftHand = !_fittingLeftHand);
-        AddButton("Reset this hand", 1, 1, () => motion.ResetFreeHand(_fittingLeftHand));
-        var alignmentInfo = Label(_alignmentPage.transform, "", new Vector2(0,-64), new Vector2(510,285), 20);
-        _liveLabels.Add((alignmentInfo, () => $"{FittedHand}\n\nHold this controller comfortably, thumb up.\nUse the other controller to adjust its glove.\nMatch the wrist first, then the fingertips.\n\nReset restores your previous shared fit.\nChanges save automatically for this hand.\nHeld grips and flight inputs stay fixed."));
-
-        _handPositionPage = Page("POSITION");
-        AddButton("Hand left", 0, 0, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.left * .005f));
-        AddButton("Hand right", 1, 0, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.right * .005f));
-        AddButton("Hand lower", 0, 1, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.down * .005f));
-        AddButton("Hand higher", 1, 1, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.up * .005f));
-        AddButton("Hand nearer", 0, 2, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.back * .005f));
-        AddButton("Hand farther", 1, 2, () => motion.MoveFreeHand(_fittingLeftHand, Vector3.forward * .005f));
-        AddButton("Wrist & palm angle", 0, 3, () => { Back(); ShowPage(_handAnglesPage!); });
-        AddButton("Reset position", 1, 3, () => (_fittingLeftHand ? motion.LeftGloveOffset : motion.RightGloveOffset).Value = Vector3.zero);
-        var handPositionInfo = Label(_handPositionPage.transform, "", new Vector2(0,-130), new Vector2(510,190), 19);
-        _liveLabels.Add((handPositionInfo, () => {
-            var p = motion.FreeHandOffset(_fittingLeftHand) * 100;
-            return $"{FittedHand} · 5 mm per press\nLeft/right {p.x:0.#} · Up/down {p.y:0.#} cm\nForward/back {p.z:0.#} cm\n\nDirections follow the upright controller.\nPhysical touch follows the visible fingertip.\nMenu pointer and handle placement stay fixed.";
-        }));
+        _handPositionPage = Page("HAND POSITION");
+        Section("Free-hand position correction",214);
+        HandPositionSetting("Left / right",0,159);
+        HandPositionSetting("Down / up",1,89);
+        HandPositionSetting("Nearer / farther",2,19);
+        Choice("Hand",new[]{"Left hand","Right hand"},()=>_fittingLeftHand?0:1,value=>_fittingLeftHand=value==0,-54);
+        ActionButton("Wrist & palm angle  ›",0,-125,()=>{Back();ShowPage(_handAnglesPage!);});
+        ActionButton("Reset position",1,-125,()=> (_fittingLeftHand?motion.LeftGloveOffset:motion.RightGloveOffset).Value=Vector3.zero);
+        ActionButton("Reset this hand",0,-177,()=>motion.ResetFreeHand(_fittingLeftHand));
+        Note("Hold thumb up; adjust with the other hand. Changes save\nautomatically. Held grips and input stay unchanged.",-223,44);
 
         _handAnglesPage = Page("WRIST & PALM");
-        AddButton("Palm upright", 0, 0, () => motion.SetFreeHandPalm(_fittingLeftHand, true));
-        AddButton("Palm down", 1, 0, () => motion.SetFreeHandPalm(_fittingLeftHand, false));
-        AddButton("Wrist tips down", 0, 1, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.right * 5));
-        AddButton("Wrist tips up", 1, 1, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.left * 5));
-        AddButton("Turn left", 0, 2, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.down * 5));
-        AddButton("Turn right", 1, 2, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.up * 5));
-        AddButton("Palm roll −", 0, 3, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.back * 5));
-        AddButton("Palm roll +", 1, 3, () => motion.TurnFreeHand(_fittingLeftHand, Vector3.forward * 5));
-        AddButton("Position", 0, 4, () => { Back(); ShowPage(_handPositionPage!); });
-        AddButton("Reset angle", 1, 4, () => (_fittingLeftHand ? motion.LeftGloveRotation : motion.RightGloveRotation).Value = Vector3.zero);
-        var handAngleInfo = Label(_handAnglesPage.transform, "", new Vector2(0,-172), new Vector2(510,140), 19);
-        _liveLabels.Add((handAngleInfo, () => {
-            var a = motion.FreeHandAngles(_fittingLeftHand);
-            return $"{FittedHand} · 5° per press\nTilt {a.x:0}° · Turn {a.y:0}° · Roll {a.z:0}°\n\nPalms upright = thumbs up, like a handshake.\nGrip a handle to use its fitted pose.";
-        }));
+        Section("Free-hand angle correction",214);
+        HandAngleSetting("Wrist tilt",0,159);
+        HandAngleSetting("Hand turn",1,89);
+        HandAngleSetting("Palm roll",2,19);
+        Choice("Palm preset",new[]{"Upright · thumbs up","Down"},()=>WristMenuSettingsActions.PalmPreset(motion.FreeHandAngles(_fittingLeftHand),_fittingLeftHand),
+            value=>motion.SetFreeHandPalm(_fittingLeftHand,value==0),-54);
+        Choice("Hand",new[]{"Left hand","Right hand"},()=>_fittingLeftHand?0:1,value=>_fittingLeftHand=value==0,-130);
+        var positionLink=ActionButton("Position  ›",0,-213,()=>{Back();ShowPage(_handPositionPage!);});
+        var angleReset=ActionButton("Reset angle",1,-213,()=> (_fittingLeftHand?motion.LeftGloveRotation:motion.RightGloveRotation).Value=Vector3.zero);
+        var fullReset=ActionButton("Reset hand",0,-213,()=>motion.ResetFreeHand(_fittingLeftHand));
+        CompactAction(positionLink,0,3);CompactAction(angleReset,1,3);CompactAction(fullReset,2,3);
 
-        _displayPage = Page("DISPLAY");
-        AddButton("Flight HUD smaller", 0, 0, () => ResizeHud(-.04f));
-        AddButton("Flight HUD larger", 1, 0, () => ResizeHud(.04f));
-        AddButton("Widget appearance", 0, 1, OpenWidgetAppearance);
-        AddButton("Threats & feed", 1, 1, () => ShowPage(_alertsPage!));
-        AddLiveButton(() => "Backplates: " + (config.HudContrast.Value ? "ON" : "OFF"), 0, 2, () => config.HudContrast.Value = !config.HudContrast.Value);
-        AddLiveButton(() => "Declutter: " + (config.HudDeclutter.Value ? "ON" : "OFF"), 1, 2, () => config.HudDeclutter.Value = !config.HudDeclutter.Value);
-        AddButton("Brightness", 0, 3, () => ShowPage(_brightnessPage!));
-        AddButton("Aiming & markers", 1, 3, () => ShowPage(_aimingPage!));
-        AddButton("Reset HUD", 0, 4, () => { config.FocusedFlightHud.Value = true; config.FlightHudScale.Value = .38f; config.MarkerScale.Value = .45f; config.MarkerLabelScale.Value = .55f; config.ReticleScale.Value = .45f; config.WeaponHudScale.Value = .5f; config.HudPanelScale.Value = 1.15f; config.HudPanelDistance.Value = 4; config.HudContrast.Value = true; config.HudDeclutter.Value = false; });
-        var displayInfo = Label(_displayPage.transform, "", new Vector2(0,-210), new Vector2(510,76), 18);
-        _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nMove things: Edit layout on View home.\nWorld aim points stay aligned."));
+        _displayPage = Page("HUD & MARKERS");
+        Section("Flight instruments",214);
+        Setting("Flight HUD size",config.FlightHudScale,159,Percent,.01f,value=>WristMenuSettingsActions.FlightHudSize(config,value));
+        Setting("Instrument brightness",config.InstrumentBrightness,89,Percent,.01f);
+        Setting("Status backplates",config.HudContrast,0,27);
+        Setting("Declutter status",config.HudDeclutter,1,27);
+        Section("Individual elements",-22);
+        ActionButton("Symbols & labels  ›",0,-70,()=>ShowPage(_aimingPage!));
+        ActionButton("Threats & feed  ›",1,-70,()=>ShowPage(_alertsPage!));
+        ActionButton("Widget appearance  ›",0,-120,OpenWidgetAppearance);
+        ActionButton("Look direction cue  ›",1,-120,()=>ShowPage(_lookCuePage!));
+        ActionButton("Day · 100%",0,-168,()=>config.InstrumentBrightness.Value=1);
+        ActionButton("Night · 50%",1,-168,()=>config.InstrumentBrightness.Value=.5f);
+        ActionButton("Reset HUD",0,-217,()=>{config.FocusedFlightHud.Value=true;config.FlightHudScale.Value=.38f;config.MarkerScale.Value=.45f;config.MarkerLabelScale.Value=.55f;config.ReticleScale.Value=.45f;config.WeaponHudScale.Value=.5f;config.HudPanelScale.Value=1.15f;config.HudPanelDistance.Value=4;config.HudContrast.Value=true;config.HudDeclutter.Value=false;});
+        ViewMenuControls.Text(_displayPage.transform,_font!,"Screen brightness stays native.",new Vector2(160,-217),new Vector2(300,42),16);
 
         _alertsPage = Page("THREATS & FEED");
         var alerts = config.CockpitAlerts;
-        AddLiveButton(() => "Compact: " + (alerts.Enabled.Value ? "ON" : "OFF"), 0, 0, () => alerts.Enabled.Value = !alerts.Enabled.Value);
-        AddLiveButton(() => "Kill feed: " + (alerts.Feed.Value ? "ON" : "OFF"), 1, 0, () => alerts.Feed.Value = !alerts.Feed.Value);
-        AddButton("Widget appearance", 0, 1, OpenWidgetAppearance);
-        AddLiveButton(() => "World notch: " + (alerts.WorldNotch.Value ? "ON" : "OFF"), 1, 1, () => alerts.WorldNotch.Value = !alerts.WorldNotch.Value);
-        Label(_alertsPage.transform, "Move things: Edit layout on View home.\nChange size and transparency: Widget appearance.\n\nM = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nWidget visibility also applies.", new Vector2(0, -100), new Vector2(510, 250), 18);
+        Section("Cockpit overlays",214);
+        Setting("Compact alerts",alerts.Enabled,0,167);
+        Setting("Kill feed",alerts.Feed,1,167);
+        Setting("World notch cue",alerts.WorldNotch,0,119);
+        Section("Appearance & placement",64);
+        ActionButton("Widget appearance  ›",0,15,OpenWidgetAppearance);
+        ActionButton("Edit layout",1,15,StartOrResumeLayout);
+        Note("M = missile · R = radar · J = jamming\n12h is the aircraft nose; 6h is behind.\nNOTCH is an evasion direction, not a threat bearing.\nQuiet scope disappears. Latest 3 feed entries only.\nWidget visibility also applies.",-117,158);
 
         CreateHudLayoutPages();
 
-        _aimingPage = Page("AIMING & MARKERS");
-        AddButton("Symbols smaller", 0, 0, () => config.MarkerScale.Value -= .05f);
-        AddButton("Symbols larger", 1, 0, () => config.MarkerScale.Value += .05f);
-        AddButton("Labels smaller", 0, 1, () => config.MarkerLabelScale.Value -= .05f);
-        AddButton("Labels larger", 1, 1, () => config.MarkerLabelScale.Value += .05f);
-        AddButton("Reticle smaller", 0, 2, () => config.ReticleScale.Value -= .05f);
-        AddButton("Reticle larger", 1, 2, () => config.ReticleScale.Value += .05f);
-        AddButton("Range UI smaller", 0, 3, () => config.WeaponHudScale.Value -= .05f);
-        AddButton("Range UI larger", 1, 3, () => config.WeaponHudScale.Value += .05f);
-        AddButton("Look direction cue", 0, 4, () => ShowPage(_lookCuePage!));
-        var aimingInfo = Label(_aimingPage.transform, "", new Vector2(0, -175), new Vector2(510, 100), 19);
-        _liveLabels.Add((aimingInfo, () => $"Symbols {config.MarkerScale.Value*100:0}% • Labels {config.MarkerLabelScale.Value*100:0}%\nReticle {config.ReticleScale.Value*100:0}% • Range {config.WeaponHudScale.Value*100:0}%\nAim points stay aligned with the world."));
+        _aimingPage = Page("SYMBOLS & LABELS");
+        Section("World-aligned HUD elements",214);
+        Setting("Target & location symbols",config.MarkerScale,159,Percent,.01f);
+        Setting("Marker labels",config.MarkerLabelScale,89,Percent,.01f);
+        Setting("Crosshair & bomb pipper",config.ReticleScale,19,Percent,.01f);
+        Setting("Weapon range readouts",config.WeaponHudScale,-51,Percent,.01f);
+        Note("Size changes preserve each element's aim point.",-116,42);
+        ActionButton("Look direction cue  ›",0,-185,()=>ShowPage(_lookCuePage!));
 
-        _lookCuePage = Page("LOOK DIRECTION");
+        _lookCuePage = Page("LOOK DIRECTION CUE");
         var cue = config.LookCue;
-        AddButton("Cue smaller", 0, 0, () => cue.Size.Value = cue.Scale - .1f);
-        AddButton("Cue larger", 1, 0, () => cue.Size.Value = cue.Scale + .1f);
-        AddButton("More transparent", 0, 1, () => cue.Opacity.Value = cue.Alpha - .05f);
-        AddButton("More opaque", 1, 1, () => cue.Opacity.Value = cue.Alpha + .05f);
-        AddLiveButton(() => "Shape: " + cue.CurrentShape, 0, 2,
-            () => cue.Shape.Value = (GazeCueShape)(((int)cue.CurrentShape + 1) % 4));
-        AddLiveButton(() => "Show: " + (config.TargetCue.Value == TargetCueMode.Context ? "Near targets" : config.TargetCue.Value.ToString()), 1, 2,
-            () => config.TargetCue.Value = (TargetCueMode)(((int)config.TargetCue.Value + 1) % 3));
-        GazeCuePositionSlider.Create(_lookCuePage.transform, new Vector2(0, 6), 510, _font!, 18);
-        AddButton("Reset cue", 0, 4, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; });
-        AddButton("Centre cue", 1, 4, () => cue.VerticalDegrees.Value = 0);
-        var cueInfo = Label(_lookCuePage.transform, "", new Vector2(0, -177), new Vector2(510, 125), 18);
-        _liveLabels.Add((cueInfo, () => $"Size {cue.Scale*100:0}% · Opacity {cue.Alpha*100:0}%\n" +
-            (config.TargetCue.Value == TargetCueMode.Context ? "Appears near selectable targets." :
-             config.TargetCue.Value == TargetCueMode.Always ? "Visible throughout cockpit flight." : "Look direction cue is hidden.") +
-            "\nPosition is relative to the centre of vision.\nClose View to inspect. Target selection is unchanged."));
-
-        _brightnessPage = Page("BRIGHTNESS");
-        AddButton("HUD dimmer", 0, 0, () => config.InstrumentBrightness.Value -= .1f);
-        AddButton("HUD brighter", 1, 0, () => config.InstrumentBrightness.Value += .1f);
-        AddButton("Day preset", 0, 3, () => { config.InstrumentBrightness.Value = 1; });
-        AddButton("Night preset", 1, 3, () => { config.InstrumentBrightness.Value = .5f; });
-        var lightInfo = Label(_brightnessPage.transform, "", new Vector2(0,-137), new Vector2(510,215), 19);
-        _liveLabels.Add((lightInfo, () => $"HUD instruments {config.InstrumentBrightness.Value*100:0}%\n\nHUD: flight instruments, compass and pitch ladder.\nTarget markers and missile alerts keep native brightness.\nOriginal cockpit displays use the game settings.\nClose View to inspect the displays."));
+        Section("Appearance",214);
+        Setting("Size",cue.Size,159,Percent,.05f);
+        Setting("Opacity",cue.Opacity,89,Percent,.01f);
+        Choice("Shape",new[]{"Circle","Dot","Crosshair","Brackets"},()=> (int)cue.CurrentShape,value=>cue.Shape.Value=(GazeCueShape)value,17);
+        Choice("Show cue",new[]{"Near targets","Always","Off"},()=> (int)config.TargetCue.Value,value=>config.TargetCue.Value=(TargetCueMode)value,-59);
+        Setting("Vertical position",cue.VerticalDegrees,-140,_=>cue.PositionLabel,.25f);
+        ActionButton("Reset cue",0,-213,()=>{cue.Reset();config.TargetCue.Value=TargetCueMode.Context;});
+        ActionButton("Centre cue",1,-213,()=>cue.VerticalDegrees.Value=0);
 
         _performancePage = Page("VR PERFORMANCE");
         var performanceInfo = Label(_performancePage.transform, "", new Vector2(0, -12), new Vector2(510, 390), 18);
         _liveLabels.Add((performanceInfo, () => PcVrCapabilities.Report));
 
-        _feedbackPage = Page("FEEDBACK");
-        AddButton("Quieter sounds", 0, 0, () => motion.InteractionVolume.Value -= .1f);
-        AddButton("Louder sounds", 1, 0, () => motion.InteractionVolume.Value += .1f);
-        AddButton("Weaker haptics", 0, 1, () => motion.HapticStrength.Value -= .1f);
-        AddButton("Stronger haptics", 1, 1, () => motion.HapticStrength.Value += .1f);
-        AddFeedbackPreview("Try touch", 0, 2, InteractionCue.Touch);
-        AddFeedbackPreview("Try grab", 1, 2, InteractionCue.Grab);
-        AddFeedbackPreview("Try switch", 0, 3, InteractionCue.Switch);
-        AddFeedbackPreview("Try MIL detent", 1, 3, InteractionCue.Detent);
-        var feedbackInfo = Label(_feedbackPage.transform, "", new Vector2(0,-133), new Vector2(510,190), 20);
-        _liveLabels.Add((feedbackInfo, () => $"Sounds {motion.InteractionVolume.Value*100:0}% · Haptics {motion.HapticStrength.Value*100:0}%\n\nPoint + trigger: one sample in that hand.\nZero disables sound or haptics independently.\nSamples do not operate aircraft controls."));
+        _feedbackPage = Page("SOUND & HAPTICS");
+        Section("Interaction feedback",214);
+        Setting("Sound volume",motion.InteractionVolume,159,Percent,.01f);
+        Setting("Haptic strength",motion.HapticStrength,89,Percent,.01f);
+        Section("Try a sample",17);
+        AddFeedbackPreview("Touch",0,3,InteractionCue.Touch);
+        AddFeedbackPreview("Grab",1,3,InteractionCue.Grab);
+        AddFeedbackPreview("Switch",0,4,InteractionCue.Switch);
+        AddFeedbackPreview("MIL detent",1,4,InteractionCue.Detent);
+        Note("Point and press the trigger for a sample in that hand.\nSamples never operate aircraft controls.\nZero disables sound or haptics independently.",-159,100);
 
         _history = new MenuHistory<GameObject>(_homePage);
         _buttonParent = rect;
         _backButton = AddButton("Back", 0, 8, Back, 3).transform.parent.GetComponent<Button>();
         AddButton("Home", 1, 8, Home, 3);
-        AddButton("Close", 2, 8, Close, 3);
+        var closeButton=AddButton("Close", 2, 8, Close, 3).transform.parent.GetComponent<Button>();
+        NativeButtonFeedback.Configure(closeButton,new Color(.19f,.25f,.28f));
         Home();
         LayerHelper.SetLayerRecursive(_panel.transform, LayerHelper.GetVrUiLayer());
     }
@@ -487,6 +485,8 @@ internal sealed partial class WristMenu : MonoBehaviour
     private void AddFeedbackPreview(string text, int column, int row, InteractionCue cue)
     {
         var button = AddButton(text, column, row, null).transform.parent.GetComponent<Button>();
+        ((RectTransform)button.transform).anchoredPosition = new Vector2(column==0?-160:160,row==3?-32:-82);
+        ((RectTransform)button.transform).sizeDelta = new Vector2(300,42);
         var preview = button.gameObject.AddComponent<FeedbackPreviewButton>();
         preview.Cue = cue;
         button.onClick.AddListener(preview.Play);
@@ -497,15 +497,15 @@ internal sealed partial class WristMenu : MonoBehaviour
         var go = new GameObject(text, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         var rect = (RectTransform)go.transform;
         rect.SetParent(_buttonParent, false);
-        var width = columns == 3 ? 160f : 248f;
-        rect.sizeDelta = new Vector2(width, 49);
-        rect.anchoredPosition = new Vector2((column - (columns - 1) * .5f) * (width + 16), 177 - row * 57);
+        var bounds = WristMenuNavigation.ButtonBounds(column, row, columns);
+        rect.sizeDelta = new Vector2(bounds.Width, bounds.Height);
+        rect.anchoredPosition = new Vector2(bounds.X, bounds.Y);
         var button = go.GetComponent<Button>();
         button.targetGraphic = go.GetComponent<Image>();
         button.navigation = new Navigation { mode = Navigation.Mode.None };
         if (action != null) button.onClick.AddListener(() => action());
         NativeButtonFeedback.Configure(button, new Color(0.10f, 0.24f, 0.29f));
-        return Label(rect, text, Vector2.zero, new Vector2(width - 10, 45), 20);
+        return Label(rect, text, Vector2.zero, new Vector2(bounds.Width - 10, 45), 20);
     }
 
     private Text Label(Transform parent, string text, Vector2 position, Vector2 size, int fontSize)

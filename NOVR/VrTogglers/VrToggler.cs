@@ -1,5 +1,3 @@
-﻿using BepInEx.Configuration;
-
 namespace NOVR.VrTogglers;
 
 public abstract class VrToggler
@@ -14,13 +12,14 @@ public abstract class VrToggler
 
     public void SetVrEnabled(bool nextVrEnabled)
     {
-        if (!_isSetUp)
-        {
-            _isSetUp = SetUp();
-        }
-
+        if (nextVrEnabled == IsVrEnabled) return;
         if (nextVrEnabled)
         {
+            if (!_isSetUp)
+            {
+                _isSetUp = SetUp();
+                if (!_isSetUp) return;
+            }
             IsVrEnabled = EnableVr();
         }
         else if (DisableVr())

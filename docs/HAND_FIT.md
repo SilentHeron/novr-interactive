@@ -1,13 +1,14 @@
 # Hand fit and sleeve reach
 
-Open **View → Comfort & display → Hands & arms**, then choose **Fit left hand** or
+Open **View → Hands & arms**, then choose **Fit left hand** or
 **Fit right hand**. Hold the hand being fitted comfortably, with its thumb up,
 and use the other controller to make adjustments.
 
-- **Position:** move the glove in 5 mm steps, along the controller's left/right,
+- **Position:** use the sliders to move the glove in 5 mm steps along the controller's left/right,
   up/down or forward/back axes. Start with the wrist, then check the fingertips.
-- **Wrist & palm angle:** adjust tilt, turn and roll in 5° steps. **Palm upright**
-  gives the handshake pose; **Palm down** gives the horizontal-palm pose.
+- **Wrist & palm angle:** use the sliders to adjust tilt, turn and roll in 1°
+  steps. The **Upright · thumbs up** preset gives the handshake pose; **Down**
+  gives the horizontal-palm pose.
 - Changes save automatically for that physical hand, across aircraft and stick
   handedness. Changing the left hand never changes the right hand.
 - **Reset this hand**, **Reset position** and **Reset angle** remove only the new

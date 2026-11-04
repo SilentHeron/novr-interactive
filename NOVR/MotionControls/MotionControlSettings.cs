@@ -6,12 +6,13 @@ namespace NOVR.MotionControls;
 public sealed class MotionControlSettings
 {
     internal const float MinimumStickAngle = 5f, MaximumStickAngle = 60f, DefaultStickAngle = 25f;
+    internal const float DefaultYawDeadzone = .15f;
     public readonly ConfigEntry<bool> Enabled;
     public readonly ConfigEntry<bool> LeftHanded, ViewMenuFollowsHand;
     public readonly ConfigEntry<Vector3> StickPosition;
     public readonly ConfigEntry<Vector3> ThrottlePosition;
     public readonly ConfigEntry<float> StickAngle;
-    public readonly ConfigEntry<float> Deadzone;
+    public readonly ConfigEntry<float> Deadzone, YawDeadzone;
     public readonly ConfigEntry<float> ResponseExponent;
     public readonly ConfigEntry<float> ThrottleTravel;
     public readonly ConfigEntry<float> GrabRadius;
@@ -31,7 +32,8 @@ public sealed class MotionControlSettings
         StickPosition = config.Bind(section, "Stick Position", new Vector3(0.22f, -0.36f, 0.32f), "Neutral grip position in cockpit meters, relative to the recentered eye position. F8 places controls at your hands.");
         ThrottlePosition = config.Bind(section, "Throttle Position", new Vector3(-0.24f, -0.36f, 0.32f), "Center of throttle travel in cockpit meters. F8 places controls at your hands.");
         StickAngle = Float(config, "Stick Angle", DefaultStickAngle, MinimumStickAngle, MaximumStickAngle, "Degrees of wrist tilt for full pitch or roll. Lower angles increase motion-stick sensitivity; yaw is unchanged. Adjust the slider in View > Flight controls or Settings > Controls.");
-        Deadzone = Float(config, "Stick Deadzone", 0.06f, 0f, 0.4f, "Fraction of stick travel ignored around center.");
+        Deadzone = Float(config, "Stick Deadzone", 0.06f, 0f, 0.4f, "Fraction of pitch/roll travel ignored around center. Stick twist has a separate yaw deadzone.");
+        YawDeadzone = Float(config, "Stick Yaw Deadzone", DefaultYawDeadzone, 0f, .4f, "Fraction of physical stick twist ignored around neutral; 15% is 4.5 degrees at the default 30-degree yaw range. Does not change pitch/roll or thumbstick yaw.");
         ResponseExponent = Float(config, "Stick Response", 1.5f, 1f, 3f, "Response curve; higher values make small movements less sensitive.");
         ThrottleTravel = Float(config, "Throttle Travel", 0.12f, 0.05f, 0.6f, "Total meters from minimum to maximum, including the MIL shelf: lift the collective in helicopters; slide the throttle forward in other aircraft.");
         RiggedGloves = config.Bind(section, "Rigged Gloves", true, "Show rigged gloves using the installed pilot material. Grip curls three fingers and thumb; trigger curls the index. Uses controller input, not optical finger tracking.");
@@ -39,7 +41,7 @@ public sealed class MotionControlSettings
         PilotArms = config.Bind(section, "Pilot Sleeves", true, "Render-only two-bone arm posing using installed pilot sleeve geometry. Sleeves gently extend and fade near their reach limit; tracked gloves remain visible.");
         GloveOffset = config.Bind(section, "Glove Wrist Offset", new Vector3(0,-.015f,-.055f), "Baseline free-hand wrist offset from the runtime grip pose in meters. X mirrors for the right hand. Per-hand fit corrections are added to this baseline. Visible fingertips and physical cockpit touch points stay aligned; held grips, pointers and flight inputs are unchanged.");
         GloveRotation = config.Bind(section, "Glove Wrist Rotation", new Vector3(0,0,90), "Baseline free-hand glove rotation relative to the controller's forward aim in degrees; Y/Z mirror for the right hand. Per-hand fit corrections are added to this baseline. Direct touch follows the glove; held grips, pointers and flight inputs are unchanged.");
-        LeftGloveOffset = config.Bind(section, "Left Hand Fit Position", Vector3.zero, "Independent left free-hand correction in controller-local meters, added to the legacy wrist offset. Zero preserves the existing fit. Adjust in View > Comfort > Hands > Fit left hand.");
+        LeftGloveOffset = config.Bind(section, "Left Hand Fit Position", Vector3.zero, "Independent left free-hand correction in controller-local meters, added to the legacy wrist offset. Zero preserves the existing fit. Adjust in View > Hands & arms > Fit left hand.");
         RightGloveOffset = config.Bind(section, "Right Hand Fit Position", Vector3.zero, "Independent right free-hand correction in controller-local meters, added after the legacy wrist offset is mirrored. Zero preserves the existing fit.");
         LeftGloveRotation = config.Bind(section, "Left Hand Fit Rotation", Vector3.zero, "Independent left free-hand angle correction in degrees, added to the legacy wrist angles. Zero preserves the existing fit.");
         RightGloveRotation = config.Bind(section, "Right Hand Fit Rotation", Vector3.zero, "Independent right free-hand angle correction in degrees, added after the legacy wrist angles are mirrored. Zero preserves the existing fit.");
@@ -82,7 +84,7 @@ public sealed class MotionControlSettings
         StickTapGrip = config.Bind(section, "Stick Tap Grip", false, "Toggle grip: squeeze once to hold the stick, squeeze again to release. Off requires continuous grip pressure. Moving more than 40 cm away, tracking loss or menus releases the handle.");
         ThrottleTapGrip = config.Bind(section, "Throttle Tap Grip", false, "Toggle grip for the throttle/collective: squeeze once to hold, squeeze again to release. Off requires continuous pressure. The saved legacy key is retained.");
         TwistYaw = config.Bind(section, "Stick Twist Yaw", true, "Twist the held or latched stick left/right for native rudder and nosewheel steering. The orientation when grabbed is neutral. Disable both yaw sources to keep pedals in control.");
-        YawAngle = Float(config, "Stick Yaw Angle", 30f, 5f, 60f, "Degrees of stick twist for full rudder/nosewheel input. Uses the stick deadzone and response curve.");
+        YawAngle = Float(config, "Stick Yaw Angle", 30f, 5f, 60f, "Degrees of stick twist for full rudder/nosewheel input. Uses the separate yaw deadzone and the stick response curve.");
         ThumbstickYaw = config.Bind(section, "Thumbstick Yaw", true, "Also allow the horizontal stick-hand thumbstick for yaw while holding the virtual stick. Adds to twist yaw and clamps to full input. Disable both yaw sources to keep pedals in control.");
     }
 
