@@ -50,6 +50,7 @@ namespace UnityEngine
     public static class Mathf
     {
         public static float Min(float a, float b) => Math.Min(a, b);
+        public static int Clamp(int value, int min, int max) => Math.Min(max, Math.Max(min, value));
     }
 }
 namespace UnityEngine.SceneManagement

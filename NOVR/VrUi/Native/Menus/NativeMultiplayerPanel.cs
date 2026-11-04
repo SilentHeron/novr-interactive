@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeMultiplayerPanel : MonoBehaviour
+public partial class NativeMultiplayerPanel : MonoBehaviour
 {
     private const int PageSize = 10;
     private const int HostMissionPageSize = 9;
@@ -115,7 +115,7 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
         if (visible && !_wasVisible)
         {
-            _selectedIndex = -1;
+            ResetLobbySelection();
             _page = 0;
             SetStatus("Refreshing multiplayer lobbies.");
             _actions?.TryRefreshMultiplayerLobbies();
@@ -367,44 +367,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
         ApplyFiltersAndSort();
     }
 
-    private void ApplyFiltersAndSort()
-    {
-        _visibleLobbies.Clear();
-        for (var index = 0; index < _lobbies.Count; index++)
-        {
-            var lobby = _lobbies[index];
-            if (!MatchesFilters(lobby))
-                continue;
-
-            _visibleLobbies.Add(lobby);
-        }
-
-        _visibleLobbies.Sort(CompareLobbies);
-        _page = Mathf.Clamp(_page, 0, GetLastPage());
-        if (_selectedIndex >= _visibleLobbies.Count)
-        {
-            _selectedIndex = _visibleLobbies.Count - 1;
-        }
-
-        UpdateFilterLabels();
-        RefreshList();
-        if (_selectedIndex >= 0)
-        {
-            SelectLobby(_selectedIndex);
-        }
-        else
-        {
-            SelectLobby(_visibleLobbies.Count > 0 ? 0 : -1);
-        }
-
-        if (_statusText != null)
-        {
-            _statusText.text = _visibleLobbies.Count == 0
-                ? $"No lobbies match current filters. Total lobbies visible in game: {_lobbies.Count}."
-                : $"{_visibleLobbies.Count} lobbies shown. Click a column header to sort; click again to reverse.";
-        }
-    }
-
     private bool MatchesFilters(NativeLobbyEntry lobby)
     {
         var missionMatches = lobby.MissionType switch
@@ -506,13 +468,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
         }
 
         ReapplyFiltersFromFirstPage();
-    }
-
-    private void ReapplyFiltersFromFirstPage()
-    {
-        _page = 0;
-        _selectedIndex = -1;
-        ApplyFiltersAndSort();
     }
 
     private void UpdateFilterLabels()
@@ -651,45 +606,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
         {
             _pageText.text = $"{_page + 1} / {GetLastPage() + 1}";
         }
-    }
-
-    private void SelectLobby(int index)
-    {
-        if (index < 0 || index >= _visibleLobbies.Count)
-        {
-            _selectedIndex = -1;
-            if (_titleText != null)
-                _titleText.text = "";
-            if (_summaryText != null)
-                _summaryText.text = "";
-            if (_descriptionText != null)
-                _descriptionText.text = "";
-            if (_joinButton != null)
-                _joinButton.interactable = false;
-            RefreshList();
-            return;
-        }
-
-        _selectedIndex = index;
-        var lobby = _visibleLobbies[_selectedIndex];
-        if (_titleText != null)
-            _titleText.text = lobby.LobbyName;
-        if (_summaryText != null)
-        {
-            _summaryText.text = $"{lobby.MissionName}\n{lobby.MapName}   {lobby.PlayerCountText}   {lobby.PingText}   {lobby.StatusText}";
-        }
-
-        if (_descriptionText != null)
-        {
-            _descriptionText.text = lobby.Description;
-        }
-
-        if (_joinButton != null)
-        {
-            _joinButton.interactable = !lobby.IsFull;
-        }
-
-        RefreshList();
     }
 
     private void RefreshClicked()
@@ -917,7 +833,7 @@ public class NativeMultiplayerPanel : MonoBehaviour
             return;
         }
 
-        var password = _hostPasswordEnabled ? _hostPasswordInput?.text?.Trim() : null;
+        var password = _hostPasswordEnabled ? _hostPasswordInput?.text : null;
         if (_hostPasswordEnabled && string.IsNullOrEmpty(password))
         {
             SetHostStatus("Enter a password or disable password hosting.");
@@ -1042,28 +958,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
         }
     }
 
-    private void JoinSelectedLobby()
-    {
-        if (_selectedIndex < 0 || _selectedIndex >= _visibleLobbies.Count)
-            return;
-
-        var lobby = _visibleLobbies[_selectedIndex];
-        if (lobby.HasPassword)
-        {
-            ShowPasswordPanel(lobby);
-            return;
-        }
-
-        if (_actions?.TryJoinLobby(lobby.Lobby, null, promptIfPasswordNeeded: false) == true)
-        {
-            SetStatus($"Joining {lobby.LobbyName}.");
-        }
-        else
-        {
-            SetStatus($"Could not join {lobby.LobbyName}.");
-        }
-    }
-
     private void ShowPasswordPanel(NativeLobbyEntry lobby)
     {
         _pendingPasswordLobby = lobby;
@@ -1096,44 +990,6 @@ public class NativeMultiplayerPanel : MonoBehaviour
         if (_passwordPanel != null)
         {
             _passwordPanel.gameObject.SetActive(false);
-        }
-    }
-
-    private void SubmitJoinPassword()
-    {
-        if (!_pendingPasswordLobby.HasValue)
-            return;
-
-        var lobby = _pendingPasswordLobby.Value;
-        var password = _joinPasswordInput?.text?.Trim();
-        if (string.IsNullOrEmpty(password))
-        {
-            if (_passwordStatusText != null)
-            {
-                _passwordStatusText.text = "Enter the server password.";
-            }
-
-            return;
-        }
-
-        if (!LobbyPassword.TestShortPassword(lobby.Lobby, password))
-        {
-            if (_passwordStatusText != null)
-            {
-                _passwordStatusText.text = "Password incorrect.";
-            }
-
-            return;
-        }
-
-        HidePasswordPanel();
-        if (_actions?.TryJoinLobby(lobby.Lobby, password, promptIfPasswordNeeded: false) == true)
-        {
-            SetStatus($"Joining {lobby.LobbyName}.");
-        }
-        else
-        {
-            SetStatus($"Could not join {lobby.LobbyName}.");
         }
     }
 
