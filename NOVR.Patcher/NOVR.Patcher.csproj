@@ -15,7 +15,6 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="AssetsTools.NET" Version="2.0.9" />
         <Reference Include="$(NuclearOptionFallbackLibDir)/*.dll">
             <Private>False</Private>
         </Reference>
@@ -28,9 +27,6 @@
 
     <ItemGroup>
         <Content Include="CopyToGame\**" >
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="classdata.tpk">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
