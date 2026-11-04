@@ -32,7 +32,12 @@ release packaging. To create a local package:
 dotnet build NOVR.Build/NOVR.Build.csproj -c Release -p:DeployToGame=false
 ```
 
+For a custom Steam library, pass the same `-p:NuclearOptionGameDir="/path/to/Nuclear Option"`
+to the package command, or set `NUCLEAR_OPTION_GAME_DIR` before building.
+
 Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
+After removing dependencies or payload assets, delete the generated `build-output`
+directory before packaging so stale files cannot enter the archive.
 Its version comes from the compiled plugin and must match `NOVR/NOVRPlugin.cs`.
 An optional `-p:NovrReleaseVersion=X.Y.Z` must match too; old staged metadata is
 always replaced. Building does not install it. Close the game before installing a local package,

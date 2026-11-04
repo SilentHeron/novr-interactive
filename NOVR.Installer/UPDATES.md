@@ -26,7 +26,9 @@ edits to those same two assemblies.
 
 ## Update recovery
 
-The installer acquires an exclusive update lock, validates the ZIP and stages both owned directories inside `BepInEx/.novr-update`. It writes a recovery journal before moving the old directories aside. Both replacements must succeed before the transaction is marked committed; errors or cancellation restore the previous pair. If the installer was interrupted, a subsequent install attempt recovers the previous transaction first. A failed recovery retains its backup directory and reports its location instead of deleting the old files.
+Install, update and removal share an exclusive `.novr-install.lock` in the game directory, outside the BepInEx tree that may be removed. An additional legacy lock check rejects an already-running older updater. Full BepInEx removal closes that inner handle before deleting its tree so Windows can finish removing it; the game-root lock stays held. Older versions do not honor the root lock, so they must not run concurrently with removal.
+
+The installer validates the ZIP and stages both owned directories inside `BepInEx/.novr-update`. It writes a recovery journal before moving the old directories aside. Both replacements must succeed before the transaction is marked committed; errors or cancellation restore the previous pair. If the installer was interrupted, a subsequent install attempt recovers the previous transaction first. A failed recovery retains its backup directory and reports its location instead of deleting the old files.
 
 The two directory replacements are not one indivisible filesystem operation, which is why the game must be closed. Process-interruption recovery is covered by tests; power loss, disk corruption and antivirus/file-lock behavior on a real Windows installation have not been tested. Initial BepInEx bootstrap installation is separate from the NOVR directory transaction.
 

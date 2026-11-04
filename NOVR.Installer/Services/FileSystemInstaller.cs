@@ -11,6 +11,8 @@ public sealed class FileSystemInstaller
         progress.Report("Installing BepInEx...");
         await Task.Run(() =>
         {
+            using var gameLock = AcquireGameLock(game);
+            using var legacyLock = AcquireLegacyLock(game);
             ZipFile.ExtractToDirectory(bepInExZip, game.GameDir, overwriteFiles: true);
         }, cancellationToken);
     }
@@ -28,9 +30,10 @@ public sealed class FileSystemInstaller
     {
         // Validate before touching the live installation. Staging beside it keeps directory moves on one volume.
         NovrPackage.Validate(zip, release);
+        using var gameLock = AcquireGameLock(game);
         EnsureNormalPath(game.BepInExDir);
         Directory.CreateDirectory(game.BepInExDir);
-        using var installLock = new FileStream(Path.Combine(game.BepInExDir, ".novr-install.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using var installLock = AcquireLegacyLock(game);
         var transaction = Path.Combine(game.BepInExDir, TransactionFolder);
         EnsureNormalPath(transaction);
         EnsureNormalPath(Path.GetDirectoryName(game.PluginDir)!);
@@ -129,11 +132,25 @@ public sealed class FileSystemInstaller
             throw new IOException("NOVR cannot update a linked mod directory: " + path);
     }
 
+    private static FileStream AcquireGameLock(GameInstallInfo game) =>
+        new(Path.Combine(game.GameDir, ".novr-install.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+    private static FileStream? AcquireLegacyLock(GameInstallInfo game)
+    {
+        EnsureNormalPath(game.BepInExDir);
+        if (!Directory.Exists(game.BepInExDir)) return null;
+        // Also coordinate with older installers that only lock inside BepInEx.
+        return new FileStream(Path.Combine(game.BepInExDir, ".novr-install.lock"),
+            FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+    }
+
     public async Task UninstallNovrAsync(GameInstallInfo game, IProgress<string> progress, CancellationToken cancellationToken)
     {
         progress.Report("Removing NOVR files...");
         await Task.Run(() =>
         {
+            using var gameLock = AcquireGameLock(game);
+            using var legacyLock = AcquireLegacyLock(game);
             TryDeleteDirectory(game.PluginDir);
             TryDeleteDirectory(game.PatcherDir);
         }, cancellationToken);
@@ -144,6 +161,12 @@ public sealed class FileSystemInstaller
         progress.Report("Removing BepInEx...");
         await Task.Run(() =>
         {
+            using var gameLock = AcquireGameLock(game);
+            // Reject an active legacy updater, then close this handle before
+            // deleting its tree. Windows can keep deleted files pending while
+            // handles remain open, preventing removal of the parent directory.
+            // The stable game-root lock protects all current installer versions.
+            AcquireLegacyLock(game)?.Dispose();
             TryDeleteDirectory(game.BepInExDir);
             TryDeleteFile(Path.Combine(game.GameDir, "winhttp.dll"));
             TryDeleteFile(Path.Combine(game.GameDir, "doorstop_config.ini"));

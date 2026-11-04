@@ -136,6 +136,67 @@ try
         await Reject(() => installer.InstallOrUpdateNovrAsync(locked, zip, "0.4.7.3", messages, default), "concurrent update rejected");
     Check(IsOld(locked.PluginDir, "NOVR.dll"), "concurrent update leaves live files untouched");
 
+    var updateDuringRemoval = FixtureGame(root, "uninstall-during-update");
+    var attemptedRemoval = false;
+    await installer.InstallOrUpdateNovrAsync(updateDuringRemoval, zip, "0.4.7.3", new ImmediateProgress(message =>
+    {
+        if (!message.StartsWith("Installing validated")) return;
+        attemptedRemoval = true;
+        var secondInstaller = new FileSystemInstaller();
+        Reject(() => secondInstaller.UninstallNovrAsync(updateDuringRemoval, messages, default), "second installer cannot remove NOVR during an active update").GetAwaiter().GetResult();
+        Reject(() => secondInstaller.UninstallBepInExAsync(updateDuringRemoval, messages, default), "second installer cannot remove BepInEx during an active update").GetAwaiter().GetResult();
+    }), default);
+    Check(attemptedRemoval && File.ReadAllText(Path.Combine(updateDuringRemoval.PluginDir, "NOVR.dll")) == "new-plugin" &&
+          File.ReadAllText(Path.Combine(updateDuringRemoval.PatcherDir, "NOVR.Patcher.dll")) == "new-patcher", "active update completes with its plugin and patcher intact after blocked removals");
+
+    var bootstrapZip = Path.Combine(root, "bepinex-fixture.zip");
+    using (var archive = ZipFile.Open(bootstrapZip, ZipArchiveMode.Create))
+    {
+        using var writer = new StreamWriter(archive.CreateEntry("winhttp.dll").Open());
+        writer.Write("new bootstrap");
+    }
+    foreach (var legacy in new[] { false, true })
+    {
+        var busy = FixtureGame(root, legacy ? "legacy-lock" : "game-root-lock");
+        var bootstrap = Path.Combine(busy.GameDir, "winhttp.dll");
+        File.WriteAllText(bootstrap, "old bootstrap");
+        var lockDirectory = legacy ? busy.BepInExDir : busy.GameDir;
+        using (var held = new FileStream(Path.Combine(lockDirectory, ".novr-install.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        {
+            var label = legacy ? "legacy updater lock" : "game-root operation lock";
+            await Reject(() => installer.InstallOrUpdateNovrAsync(busy, zip, "0.4.7.3", messages, default), label + " rejects update");
+            await Reject(() => installer.UninstallNovrAsync(busy, messages, default), label + " rejects NOVR removal");
+            await Reject(() => installer.UninstallBepInExAsync(busy, messages, default), label + " rejects full BepInEx removal");
+            await Reject(() => installer.InstallBepInExAsync(busy, bootstrapZip, messages, default), label + " rejects bootstrap replacement");
+        }
+        Check(IsOld(busy.PluginDir, "NOVR.dll") && IsOld(busy.PatcherDir, "NOVR.Patcher.dll") &&
+              File.ReadAllText(bootstrap) == "old bootstrap" &&
+              File.ReadAllText(Path.Combine(busy.BepInExDir, "config", "deltawing.novr.cfg")) == "user settings", "blocked mutations preserve all installed content for " + lockDirectory);
+        using var rootLock = new FileStream(Path.Combine(busy.GameDir, ".novr-install.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using var oldLock = new FileStream(Path.Combine(busy.BepInExDir, ".novr-install.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        Check(true, "failed operation releases both locks for a later attempt");
+    }
+
+    var removeMod = FixtureGame(root, "remove-novr");
+    await installer.UninstallNovrAsync(removeMod, messages, default);
+    Check(!Directory.Exists(removeMod.PluginDir) && !Directory.Exists(removeMod.PatcherDir), "NOVR removal succeeds with the operation lock held");
+    Check(File.ReadAllText(Path.Combine(removeMod.BepInExDir, "config", "deltawing.novr.cfg")) == "user settings" &&
+          File.Exists(Path.Combine(removeMod.BepInExDir, "plugins", "AnotherMod", "Other.dll")), "NOVR removal retains settings and other mods");
+    var removeAll = FixtureGame(root, "remove-bepinex");
+    File.WriteAllText(Path.Combine(removeAll.GameDir, "winhttp.dll"), "bootstrap");
+    File.WriteAllText(Path.Combine(removeAll.GameDir, "doorstop_config.ini"), "bootstrap config");
+    File.WriteAllText(Path.Combine(removeAll.GameDir, "NuclearOption.exe"), "game");
+    await installer.UninstallBepInExAsync(removeAll, messages, default);
+    Check(!Directory.Exists(removeAll.BepInExDir) && !File.Exists(Path.Combine(removeAll.GameDir, "winhttp.dll")) &&
+          !File.Exists(Path.Combine(removeAll.GameDir, "doorstop_config.ini")), "BepInEx removal completes without a pending legacy-lock handle in its tree");
+    Check(File.ReadAllText(Path.Combine(removeAll.GameDir, "NuclearOption.exe")) == "game" &&
+          File.Exists(Path.Combine(removeAll.GameDir, ".novr-install.lock")), "full removal preserves the game and stable operation-lock path");
+    using (var released = new FileStream(Path.Combine(removeAll.GameDir, ".novr-install.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        Check(true, "full removal releases the surviving game-root lock");
+    await installer.UninstallNovrAsync(removeAll, messages, default);
+    await installer.UninstallBepInExAsync(removeAll, messages, default);
+    Check(!Directory.Exists(removeAll.BepInExDir), "repeated removal does not recreate BepInEx for its legacy lock");
+
     var bytes = File.ReadAllBytes(zip);
     var hash = Convert.ToHexString(SHA256.HashData(bytes));
     var releaseName = "NOVR-steam-frame-0.4.7.3.zip";
