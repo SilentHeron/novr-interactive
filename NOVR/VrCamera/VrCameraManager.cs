@@ -16,11 +16,15 @@ public class VrCameraManager: MonoBehaviour
     private static readonly string[] TrackedChildNames = {"cockpitRenderer", "postProcessingRenderer"};
 
     public static HashSet<Camera> IgnoredCameras = new();
+    private static readonly System.Predicate<Camera> IsDestroyedCamera = camera => camera == null;
     private Camera[] _cameraBuffer = System.Array.Empty<Camera>();
     private int _cameraCount;
     
     private void Update() // Todo: Make me behave on events if possible
     {
+        // Scene cameras leave managed wrappers behind after Unity destroys them.
+        // Retain live owners (including disabled cameras), not every old scene.
+        IgnoredCameras.RemoveWhere(IsDestroyedCamera);
         // Keep discovering scene/menu cameras every frame, but reuse storage
         // instead of allocating an array for every headset frame.
         var capacity = Camera.allCamerasCount;
@@ -153,7 +157,7 @@ public class VrCameraManager: MonoBehaviour
     {
         foreach (var child in parentCamera.GetComponentsInChildren<Camera>())
         {
-            if (child != parentCamera && !IgnoredCameras.Contains(child)) 
+            if (child != parentCamera && !IgnoredCameras.Contains(child) && child.GetComponent<StereoCamera>() == null)
                 child.gameObject.AddComponent<StereoCamera>();
         }
     }

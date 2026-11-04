@@ -23,6 +23,7 @@ PORTABLE = (
     ("api-lifecycle", "tools/ApiBusChecks/ApiBusChecks.csproj"),
     ("configuration-lifecycle", "tools/ModConfigurationChecks/ModConfigurationChecks.csproj"),
     ("xr-toggle-lifecycle", "tools/XrTogglerChecks/XrTogglerChecks.csproj"),
+    ("camera-manager", "tools/CameraManagerChecks/CameraManagerChecks.csproj"),
     ("cockpit-profiles", "tools/CockpitProfileChecks/CockpitProfileChecks.csproj"),
     ("controller-runtime", "tools/ControllerRuntimeChecks/ControllerRuntimeChecks.csproj"),
     ("controller-pointer", "tools/ControllerPointerChecks/ControllerPointerChecks.csproj"),

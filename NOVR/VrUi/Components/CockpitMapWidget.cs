@@ -23,6 +23,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         private readonly Vector3 _position, _scale;
         private readonly Quaternion _rotation;
         private readonly Image _terrain;
+        private Sprite? _lastTerrainSprite;
         private readonly Material _material;
         private Color _nativeColor, _appliedColor;
         private bool _applied;
@@ -42,7 +43,8 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             _anchorsMin = Root.anchorMin; _anchorsMax = Root.anchorMax;
             _pivot = Root.pivot; _size = Root.sizeDelta;
             _position = Root.localPosition; _scale = Root.localScale; _rotation = Root.localRotation;
-            _terrain = terrain; _material = terrain.material; _nativeColor = terrain.color;
+            _terrain = terrain; _lastTerrainSprite = terrain.sprite;
+            _material = terrain.material; _nativeColor = terrain.color;
             _nativeHeight = Root.rect.height;
             _background = map.mapBackground != null ? map.mapBackground.transform as RectTransform : null;
             _backgroundSize = _background != null ? _background.sizeDelta : Vector2.zero;
@@ -89,6 +91,15 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             }
             if (_forwardReference != null) _forwardReference.enabled = false;
             if (_terrain == null) return;
+            // A new terrain can arrive without replacing this map or aircraft.
+            // Return to ownship instead of carrying a selected point from the
+            // previous terrain. Keep the live sprite and lease during loading.
+            var sprite = _terrain.sprite;
+            if (sprite != _lastTerrainSprite)
+            {
+                _lastTerrainSprite = sprite;
+                Navigation?.Deactivate();
+            }
             // Native theme/map loading may update the color while borrowed.
             // Remember that new value, rather than multiplying our last result.
             if (!_applied || _terrain.color != _appliedColor) _nativeColor = _terrain.color;
@@ -179,7 +190,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             var terrain = map.mapImage.GetComponent<Image>();
             if (terrain == null || map.transform.parent == null) return;
             _lease = new Lease(map, content, terrain);
-            try { _lease.Attach(); _nextLayers = 0; }
+            try { _lease.Attach(); _nextLayers = Time.unscaledTime + .5f; }
             catch (Exception e)
             {
                 Release(); _failed = true;

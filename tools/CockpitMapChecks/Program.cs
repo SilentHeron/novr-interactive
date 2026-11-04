@@ -71,6 +71,60 @@ using (var f = new Fixture())
     f.Tick(); Object.Destroy(f.Parent.gameObject); CockpitMapWidget.ReleaseAll();
     Check(f.Map == null, "Destroyed scene owner cannot orphan native singleton inside widget rig");
 }
+using (var f = new Fixture())
+{
+    f.Tick();
+    var navigation = CockpitMapWidget.Navigation!;
+    navigation.Activate(); navigation.Pan(new(1, .5f), .05f);
+    var aircraft = GameManager.Aircraft!;
+    aircraft.transform.position = new(350, 20, -170);
+    aircraft.transform.rotation = Quaternion.Euler(0, 65, 0);
+    var terrain = new Sprite();
+    var nativeTint = new Color(.2f, .35f, .6f, .7f);
+    f.Terrain.sprite = terrain; f.Terrain.color = nativeTint;
+    f.Terrain.rectTransform.sizeDelta = new(1200, 800);
+    f.Tick();
+    Check(!navigation.Selected, "Loading different terrain in the same lease cancels the previous map selection");
+    Check(CockpitMapWidget.Navigation == navigation, "Terrain change keeps the existing map lease and navigation");
+    var ownship = aircraft.GlobalPosition().AsVector3() * f.Map.mapDisplayFactor;
+    var ownshipInPanel = f.Slot.InverseTransformPoint(f.Terrain.transform.TransformPoint(new(ownship.x, ownship.z, 0)));
+    Check((ownshipInPanel - (Vector3)f.Slot.rect.center).sqrMagnitude < .00001f, "New terrain returns to current ownship instead of the old panned coordinate");
+    Check(f.Terrain.sprite == terrain && f.Terrain.rectTransform.sizeDelta == new Vector2(1200, 800), "Native terrain sprite and dimensions are not replaced by refresh");
+    navigation.Activate(); f.Tick(); f.Tick();
+    Check(navigation.Selected, "An unchanged terrain sprite does not repeatedly cancel a fresh selection");
+    CockpitMapWidget.ReleaseAll();
+    Check(f.Terrain.sprite == terrain && f.Terrain.color == nativeTint && f.Terrain.material == f.Material,
+        "Release retains the new native terrain and tint while restoring its material");
+    Check(f.Terrain.rectTransform.sizeDelta == new Vector2(1200, 800), "Release retains new terrain dimensions");
+}
+using (var f = new Fixture())
+{
+    f.Tick(); var navigation = CockpitMapWidget.Navigation!; navigation.Activate();
+    f.Terrain.sprite = null; f.Tick();
+    Check(!CockpitMapWidget.Available && !navigation.Selected, "Missing terrain safely releases selection and availability");
+    var scans = f.Map.transform.ChildrenQueries;
+    f.Tick(); f.Tick();
+    Check(CockpitMapWidget.Navigation == navigation && f.Map.transform.ChildrenQueries == scans,
+        "Repeated missing-sprite frames do not reborrow the map or rescan its hierarchy");
+    var replacement = new Sprite(); f.Terrain.sprite = replacement; f.Tick();
+    Check(CockpitMapWidget.Available && !navigation.Selected, "A new sprite after loading restores availability without stale selection");
+    Check(navigation.Activate(), "New terrain can be selected again");
+    f.Tick(); Check(navigation.Selected, "Recovered terrain selection stays active on subsequent frames");
+    CockpitMapWidget.ReleaseAll(); Check(f.Terrain.sprite == replacement, "Null-to-new terrain survives lease release");
+}
+using (var f = new Fixture())
+{
+    f.Tick();
+    Check(f.Map.transform.ChildrenQueries == 1, "Attach performs exactly one initial hierarchy scan");
+    var icon = new GameObject("late icon") { layer = 5 }; icon.transform.SetParent(f.Terrain.transform, false);
+    f.Tick(.49f);
+    Check(f.Map.transform.ChildrenQueries == 1 && icon.layer == 5, "Initial scan is not repeated before the refresh interval");
+    f.Tick(.5f);
+    Check(f.Map.transform.ChildrenQueries == 2 && icon.layer == f.Slot.gameObject.layer, "Scheduled refresh still adopts newly created icons");
+    f.Tick(.75f); Check(f.Map.transform.ChildrenQueries == 2, "Stable frames do not perform extra hierarchy scans");
+    icon.layer = 6; f.Tick(1f);
+    Check(f.Map.transform.ChildrenQueries == 3 && icon.layer == f.Slot.gameObject.layer, "Next scheduled refresh still repairs native layer resets");
+}
 count += NavigationChecks.Run();
 count += InteractionChecks.Run();
 Console.WriteLine($"{count} source-linked map widget lifecycle, navigation and touch checks passed.");

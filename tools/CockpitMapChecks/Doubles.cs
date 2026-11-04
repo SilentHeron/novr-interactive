@@ -26,12 +26,14 @@ namespace UnityEngine
     }
     public class Component : Object
     {
+        internal int ChildrenQueries;
         public GameObject gameObject = null!;
         public Transform transform => gameObject.transform;
         public string name => gameObject.name;
         public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
         {
+            ChildrenQueries++;
             void Visit(Transform root)
             {
                 if (!includeInactive && !root.gameObject.activeInHierarchy) return;

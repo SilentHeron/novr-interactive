@@ -44,6 +44,7 @@ jobs:
             /NOVR/Compatibility/ProtonControllerCompatibility.cs
             /NOVR/VrCamera/StereoCamera.cs
             /NOVR/VrCamera/VrCamera.cs
+            /NOVR/VrCamera/VrCameraManager.cs
             /NOVR/VrTogglers/
             /NOVR/MotionControls/
             /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
