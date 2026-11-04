@@ -11,7 +11,7 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeGameActionAdapter
+public partial class NativeGameActionAdapter
 {
     private const string TopLevelMainMenuPathFragment = "Prejoin menu/LeftPanel/Container/MenuButtonsPanel";
     private const int MaxButtonsToDescribe = 20;
@@ -84,26 +84,6 @@ public class NativeGameActionAdapter
 
         Debug.LogWarning($"[NOVR] Native UI action '{action}' could not find an original menu button. Candidates: {string.Join(", ", candidateLabels)}. Available buttons: {DescribeButtons(buttons)}");
         return false;
-    }
-
-    public bool IsTopLevelMainMenuAvailable
-    {
-        get
-        {
-            if (_originalMainCanvas == null) return false;
-            if (!_mainMenuActionLabels.TryGetValue(NativeGameAction.SinglePlayer, out var singlePlayerLabels)) return false;
-
-            var buttons = GetButtons(includeInactive: false);
-            for (var index = 0; index < buttons.Length; index++)
-            {
-                if (IsTopLevelMainMenuButton(buttons[index]) && ButtonMatches(buttons[index], singlePlayerLabels))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     public void QuitGame()
@@ -315,13 +295,6 @@ public class NativeGameActionAdapter
 
         joinMethod.Invoke(lobbyPopup, null);
         return true;
-    }
-
-    private Button[] GetButtons(bool includeInactive)
-    {
-        return _originalMainCanvas != null
-            ? _originalMainCanvas.GetComponentsInChildren<Button>(includeInactive)
-            : new Button[0];
     }
 
     private static T? GetPrivateField<T>(object instance, string fieldName)

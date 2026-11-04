@@ -7,5 +7,7 @@
     <Compile Include="../../NOVR/VrUi/Native/NativeStockMenuHandoff.cs" Link="NativeStockMenuHandoff.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeMissionSelection.cs" Link="NativeMissionSelection.cs" />
     <Compile Include="../../NOVR/VrUi/Native/NativeMainCanvasDiscovery.cs" Link="NativeMainCanvasDiscovery.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/NativeSettingsPanel.CaptureLifetime.cs" Link="NativeSettingsPanel.CaptureLifetime.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/NativeGameActionAdapter.Availability.cs" Link="NativeGameActionAdapter.Availability.cs" />
   </ItemGroup>
 </Project>

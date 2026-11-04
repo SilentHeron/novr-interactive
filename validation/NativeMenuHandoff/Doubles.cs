@@ -10,7 +10,8 @@ namespace UnityEngine
         public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
     }
     public class MonoBehaviour : Object { public GameObject gameObject = new(); }
-    public sealed class Canvas : MonoBehaviour { }
+    public sealed class Canvas : MonoBehaviour { public bool enabled = true; }
+    public sealed class CanvasGroup : MonoBehaviour { public float alpha = 1; public bool interactable = true, blocksRaycasts = true; }
     public sealed class GameObject : Object
     {
         public string name = "";
@@ -19,7 +20,12 @@ namespace UnityEngine
         public GameObject? Parent;
         public bool activeInHierarchy => activeSelf && (Parent?.activeInHierarchy ?? true);
         public readonly List<MonoBehaviour> Components = new();
-        public T[] GetComponentsInChildren<T>(bool includeInactive) => Components.OfType<T>().ToArray();
+        public int HierarchySearches;
+        public T[] GetComponentsInChildren<T>(bool includeInactive)
+        {
+            HierarchySearches++;
+            return Components.Where(item => !item.Destroyed && (includeInactive || item.gameObject.activeInHierarchy)).OfType<T>().ToArray();
+        }
     }
     public static class Resources
     {

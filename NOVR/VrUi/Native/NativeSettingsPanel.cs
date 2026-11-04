@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace NOVR.VrUi.Native;
 
-public class NativeSettingsPanel : MonoBehaviour
+public partial class NativeSettingsPanel : MonoBehaviour
 {
     private const float RowStartY = 350f;
     private const float RowSpacing = 42f;
@@ -1298,33 +1298,6 @@ public class NativeSettingsPanel : MonoBehaviour
     {
         _bindingStatus = "Replacing conflicting binding.";
         eventData.responseCallback(InputMapper.ConflictResponse.Replace);
-    }
-
-    private void CancelBindingCapture(string? status)
-    {
-        _queuedBinding = null;
-        if (_inputMapper != null)
-        {
-            var mapper = _inputMapper;
-            _inputMapper = null;
-            _activeBinding = null;
-            mapper.RemoveAllEventListeners();
-            mapper.Clear();
-        }
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            _bindingStatus = status!;
-        }
-    }
-
-    private void ReleaseInputMapper()
-    {
-        if (_inputMapper == null) return;
-
-        _inputMapper.RemoveAllEventListeners();
-        _inputMapper = null;
-        _activeBinding = null;
     }
 
     private static void SaveRewiredBindings()
