@@ -1,16 +1,10 @@
-﻿#if CPP
-using System;
-#endif
-
 using BepInEx.Configuration;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace NOVR;
 
 public class NOVRBehaviour : MonoBehaviour
 {
-    
     public static T Create<T>(Transform parent) where T: NOVRBehaviour
     {
         return new GameObject(typeof(T).Name)
@@ -24,63 +18,21 @@ public class NOVRBehaviour : MonoBehaviour
         }.AddComponent<T>();
     }
     
-    protected virtual void Awake()
-    {
-#if CPP
-        _onBeforeRenderAction = OnBeforeRender;
-#endif
-    }
+    protected virtual void Awake() {}
 
     protected virtual void OnEnable()
     {
-#if CPP
-        try
-        {
-            Application.add_onBeforeRender(_onBeforeRenderAction);
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"Failed to listen to BeforeRender: {exception}");
-        }
-#else
-        // TODO: This doesn't exist for unity <2017
         Application.onBeforeRender += OnBeforeRender;
-#endif
-
-#if MODERN
-        RenderPipelineManager.beginFrameRendering += OnBeginFrameRendering;
-        RenderPipelineManager.endFrameRendering += OnEndFrameRendering;
-#endif
-
         ModConfiguration.Instance.Config.SettingChanged += ConfigOnSettingChanged;
     }
 
     protected virtual void OnDisable()
     {
-#if CPP
-        try
-        {
-            Application.remove_onBeforeRender(_onBeforeRenderAction);
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"Failed to unlisten from BeforeRender: {exception}");
-        }
-#else
-        // TODO: This might not exist?
         Application.onBeforeRender -= OnBeforeRender;
-#endif
-        
-#if MODERN
-        // TODO: This might not exist? maybe ok for modern though.
-        RenderPipelineManager.beginFrameRendering -= OnBeginFrameRendering;
-        RenderPipelineManager.endFrameRendering -= OnEndFrameRendering;
-#endif
-        
         ModConfiguration.Instance.Config.SettingChanged -= ConfigOnSettingChanged;
     }
 
-    private void ConfigOnSettingChanged(object sender, SettingChangedEventArgs e)
+    private void ConfigOnSettingChanged(object? sender, SettingChangedEventArgs e)
     {
         OnSettingChanged();
     }
@@ -88,20 +40,4 @@ public class NOVRBehaviour : MonoBehaviour
     protected virtual void OnBeforeRender() {}
 
     protected virtual void OnSettingChanged() {}
-
-#if MODERN
-    private void OnBeginFrameRendering(ScriptableRenderContext arg1, Camera[] arg2)
-    {
-        OnBeginFrameRendering();
-    }
-
-    private void OnEndFrameRendering(ScriptableRenderContext arg1, Camera[] arg2)
-    {
-        OnEndFrameRendering();
-    }
-    
-    protected virtual void OnBeginFrameRendering() {}
-    
-    protected virtual void OnEndFrameRendering() {}
-#endif
 }

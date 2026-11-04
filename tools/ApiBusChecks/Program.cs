@@ -123,7 +123,7 @@ Check(NOUIManager.I is null&&APIBus.CockpitHudCamera is null&&APIBus.CockpitHudR
 
 VrCamera Stereo(Camera camera)
 {
-    var vr=camera.gameObject.AddComponent<VrCamera>();Invoke(vr,"Awake");return vr;
+    var vr=camera.gameObject.AddComponent<VrCamera>();Invoke(vr,"Awake");Invoke(vr,"OnEnable");return vr;
 }
 var missingCamera=new GameObject("no camera").AddComponent<VrCamera>();Invoke(missingCamera,"Awake");Invoke(missingCamera,"Update");
 Check(VrCamera.HighestDepthVrCamera is null,"A VR component without a camera cannot become the active reference");
@@ -136,18 +136,20 @@ highCamera.enabled=true;Invoke(high,"Update");Invoke(low,"Update");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,high),"An enabled higher-depth camera takes precedence and is stable");
 highCamera.enabled=false;Invoke(low,"Update");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,low),"Disabling only the selected Camera refreshes the reference on the next live camera update");
+var renderSubscribers=Application.Subscribers;var configSubscribers=ModConfiguration.Instance.Config.Subscribers;
 highCamera.enabled=true;Invoke(high,"Update");high.enabled=false;Invoke(high,"OnDisable");
 Check(VrCamera.HighestDepthVrCamera is null,"Disabling the selected VR behaviour clears its static reference");
-Check(high.DisableCallbacks==1,"VR behaviour disable invokes inherited NOVRBehaviour event cleanup exactly once");
+Check(Application.Subscribers==renderSubscribers-1&&ModConfiguration.Instance.Config.Subscribers==configSubscribers-1,"VR behaviour disable releases its real inherited render/config subscriptions");
 Invoke(low,"Update");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,low),"The remaining camera becomes reference after selected behaviour disable");
 var inactiveCamera=SceneCamera("inactive camera");inactiveCamera.depth=100;inactiveCamera.activeInHierarchy=false;var inactive=Stereo(inactiveCamera);Invoke(inactive,"Update");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,low),"Inactive camera objects cannot become reference");
 lowCamera.Destroyed=true;var recoveryCamera=SceneCamera("camera recovery");recoveryCamera.depth=0;var recovery=Stereo(recoveryCamera);Invoke(recovery,"Update");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,recovery),"Destroyed selected cameras do not block lower-depth recovery");
+renderSubscribers=Application.Subscribers;configSubscribers=ModConfiguration.Instance.Config.Subscribers;
 Invoke(low,"OnDisable");
-Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,recovery)&&low.DisableCallbacks==1,"Nonselected camera cleanup leaves the replacement reference intact");
-Invoke(recovery,"OnDisable");
+Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,recovery)&&Application.Subscribers==renderSubscribers-1&&ModConfiguration.Instance.Config.Subscribers==configSubscribers-1,"Nonselected camera cleanup releases callbacks and leaves the replacement reference intact");
+Invoke(recovery,"OnDisable");Invoke(inactive,"OnDisable");
 Reset();
 // Exercise the real canvas component against real manager recreation rather
 // than assuming its first Awake always runs after the HUD camera exists.
@@ -187,3 +189,4 @@ foreach(var type in new[]{typeof(NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehavio
     Check(ReferenceEquals(nativeCanvas.worldCamera,manager.CockpitHudCamera),"Derived position update preserves camera rebinding: "+type.Name);
 }
 DestroyUi(manager);Reset();Console.WriteLine($"{checks} source-linked camera bus and UI lifecycle checks passed.");
+HeadsetChecks.Run();

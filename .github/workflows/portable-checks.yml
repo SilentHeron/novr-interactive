@@ -40,6 +40,9 @@ jobs:
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
             /NOVR/APIBus.cs
+            /NOVR/NOVRBehaviour.cs
+            /NOVR/NOVRHeadsetData.cs
+            /NOVR/NOVRPoseDriver.cs
             /NOVR/ModConfiguration.cs
             /NOVR/Compatibility/ProtonControllerCompatibility.cs
             /NOVR/VrCamera/StereoCamera.cs
