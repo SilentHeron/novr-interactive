@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUN_DIRECTORY = ROOT / "tools" / "verification"
 PORTABLE = (
     ("core", "tests/NOVR.Tests.csproj"),
+    ("patcher-payload", "tools/PatcherPayloadChecks/PatcherPayloadChecks.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
     ("ui-patching", "tools/UiBehaviorPatcherChecks/UiBehaviorPatcherChecks.csproj"),
     ("api-lifecycle", "tools/ApiBusChecks/ApiBusChecks.csproj"),

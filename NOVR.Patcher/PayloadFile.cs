@@ -11,7 +11,7 @@ internal static class PayloadFile
         return true;
     }
 
-    private static bool SameContents(string first, string second)
+    internal static bool SameContents(string first, string second)
     {
         using var a = File.OpenRead(first);
         using var b = File.OpenRead(second);

@@ -24,9 +24,23 @@ public class Patcher
             "openvr_api", "openxr_loader", "UnityOpenXR", "ucrtbased.dll", "XRSDKOpenVR"
         };
 
-    public static IEnumerable<string> TargetDLLs { get; } = new[] { "Assembly-CSharp.dll", "Unity.XR.OpenXR.dll" };
+    private static string? _managedPayloadDirectory;
+    private static string? _managedInstallDirectory;
+    public static IEnumerable<string> TargetDLLs { get; } = new[] { "Assembly-CSharp.dll", "Unity.XR.Management.dll", "Unity.XR.OpenXR.dll" };
     
-    public static void Patch(AssemblyDefinition assembly)
+    public static void Patch(ref AssemblyDefinition assembly)
+    {
+        if (_managedPayloadDirectory != null && _managedInstallDirectory != null && ManagedPayloadUpgrade.IsOwned(assembly.Name.Name))
+        {
+            var file = assembly.Name.Name + ".dll";
+            if (ManagedPayloadUpgrade.Apply(ref assembly, Path.Combine(_managedPayloadDirectory, file),
+                    Path.Combine(_managedInstallDirectory, file), Console.WriteLine, prepare: PatchManagedAssembly))
+                return;
+        }
+        PatchManagedAssembly(assembly);
+    }
+
+    private static void PatchManagedAssembly(AssemblyDefinition assembly)
     {
         if (assembly.Name.Name == "Unity.XR.OpenXR")
         {
@@ -221,6 +235,8 @@ public class Patcher
     private static void CopyFilesToGame(string patcherPath, string dataPath)
     {
         var copyToGameFolderPath = Path.Combine(patcherPath, "CopyToGame");
+        _managedPayloadDirectory = Path.Combine(copyToGameFolderPath, "Data", "Managed");
+        _managedInstallDirectory = Path.Combine(dataPath, "Managed");
 
         Console.WriteLine($"Installing changed NOVR runtime files. Payload source: {copyToGameFolderPath}");
 
@@ -288,6 +304,9 @@ public class Patcher
         foreach (var file in dir.GetFiles())
         {
             var targetFilePath = Path.Combine(destinationDir, file.Name);
+            if (_managedPayloadDirectory != null && _managedInstallDirectory != null &&
+                ManagedPayloadUpgrade.DeferExisting(file.FullName, targetFilePath, _managedPayloadDirectory, _managedInstallDirectory))
+                continue;
             PayloadFile.CopyIfChanged(file.FullName, targetFilePath);
         }
 

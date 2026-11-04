@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <!-- 0.10's synthetic assembly creator rejects a .NET 8 host; 0.11 keeps
+         the same reader/ref/disposal APIs and can emit these portable fixtures. -->
+    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+    <Compile Include="../../NOVR.Patcher/ManagedPayloadUpgrade.cs" Link="ManagedPayloadUpgrade.cs" />
+    <Compile Include="../../NOVR.Patcher/PayloadFile.cs" Link="PayloadFile.cs" />
+  </ItemGroup>
+</Project>

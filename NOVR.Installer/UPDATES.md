@@ -16,6 +16,14 @@ The package must contain nonempty `plugins/NOVR/NOVR.dll` and `patchers/NOVR/NOV
 
 Only `plugins/NOVR` and `patchers/NOVR` are installed. Package documentation is not copied into the game, and package defaults cannot overwrite `BepInEx/config`. Other mods remain untouched.
 
+At startup, NOVR's patcher installs its runtime payload. BepInEx opens managed
+assemblies before initializing patchers, so updates to the two NOVR-supplied XR
+assemblies use its supported replacement hook. Validation finishes before the
+old reader is released. A blocked disk replacement keeps the updated in-memory
+assembly usable and logs an offline recovery instruction. These are complete
+XR-library replacements; an upgrade cannot preserve earlier third-party preloader
+edits to those same two assemblies.
+
 ## Update recovery
 
 The installer acquires an exclusive update lock, validates the ZIP and stages both owned directories inside `BepInEx/.novr-update`. It writes a recovery journal before moving the old directories aside. Both replacements must succeed before the transaction is marked committed; errors or cancellation restore the previous pair. If the installer was interrupted, a subsequent install attempt recovers the previous transaction first. A failed recovery retains its backup directory and reports its location instead of deleting the old files.
