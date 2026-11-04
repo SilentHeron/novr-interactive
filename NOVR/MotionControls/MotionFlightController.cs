@@ -225,9 +225,10 @@ public sealed class MotionFlightController : MonoBehaviour
             ResetGrips();
         }
 
-        // The engine registry can finish initializing after the cockpit appears.
+        // The engine registry can finish initializing after the cockpit appears,
+        // including another engine with an earlier afterburner boundary.
         // Never change the command mapping in the middle of a held throttle.
-        if (_milPower >= 1f && !_throttleGrip.Held && Time.unscaledTime >= _nextMilCheck)
+        if (!_throttleGrip.Held && Time.unscaledTime >= _nextMilCheck)
         { _nextMilCheck = Time.unscaledTime + 2f; _milPower = MilitaryPower.Find(aircraft, out _afterburnerStart); }
 
         // NOVR's headset recentering changes the mapping from tracked hands into the cockpit.

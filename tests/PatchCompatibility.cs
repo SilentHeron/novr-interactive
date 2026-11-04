@@ -71,10 +71,19 @@ internal static class PatchCompatibility
             }
             verified++;
         }
-        // Native guidance is mirrored read-only. Verify the private fields used
-        // by that bridge as well as the Harmony-injected fields above.
+        // Native guidance and engine limits are read-only. Verify their private
+        // fields as well as the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
         foreach (var contract in new[] {
+            (owner: "Turbojet", field: "nozzles", type: "JetNozzle[]"),
+            (owner: "Turbofan", field: "nozzles", type: "JetNozzle[]"),
+            (owner: "JetNozzle", field: "afterburners", type: "JetNozzle/Afterburner[]"),
+            (owner: "JetNozzle/Afterburner", field: "throttleStart", type: "System.Single"),
+            (owner: "JetNozzle/Afterburner", field: "throttleEnd", type: "System.Single"),
+            (owner: "JetNozzle/Afterburner", field: "thrust", type: "System.Single"),
+            (owner: "ThrottleGauge", field: "afterburner", type: "System.Boolean"),
+            (owner: "ThrottleGauge", field: "throttleRegions", type: "ThrottleGauge/ThrottleRegion[]"),
+            (owner: "ThrottleGauge/ThrottleRegion", field: "start", type: "System.Single"),
             (owner: "CombatHUD", field: "weaponState", type: "HUDWeaponState"),
             (owner: "CombatHUD", field: "markers", type: "System.Collections.Generic.List`1<HUDUnitMarker>"),
             (owner: "CombatHUD", field: "targetText", type: "TMPro.TextMeshProUGUI"),
@@ -120,7 +129,7 @@ internal static class PatchCompatibility
             (owner: "KillDisplay", field: "rankBackground", type: "UnityEngine.UI.Image"),
             (owner: "HUDLaserGuidedState", field: "hint", type: "TMPro.TextMeshProUGUI") })
         {
-            var field = game.MainModule.Types.Single(t => t.FullName == contract.owner).Fields.SingleOrDefault(f => f.Name == contract.field);
+            var field = AllTypes(game.MainModule.Types).Single(t => t.FullName == contract.owner).Fields.SingleOrDefault(f => f.Name == contract.field);
             if (field?.FieldType.FullName != contract.type) failures.Add($"Native readout field mismatch {contract.owner}.{contract.field}");
         }
         using var urp = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Unity.RenderPipelines.Universal.Runtime.dll"));

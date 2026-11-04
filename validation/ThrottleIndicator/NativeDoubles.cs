@@ -26,7 +26,16 @@ public sealed class ThrottleGauge
     public GaugeRegion[] throttleRegions = Array.Empty<GaugeRegion>();
 }
 public sealed class GaugeRegion(float threshold) { public float start = threshold; }
-public sealed class Turbojet { public JetNozzle[] nozzles = Array.Empty<JetNozzle>(); }
+public class Turbojet { public JetNozzle[] nozzles = Array.Empty<JetNozzle>(); }
+public class Turbofan
+{
+    // The game keeps this field private; derived/modded engines still use it.
+    private readonly JetNozzle[] nozzles;
+    public Turbofan(params JetNozzle[] sources) => nozzles = sources;
+}
+public sealed class ModdedTurbofan(params JetNozzle[] sources) : Turbofan(sources);
+public sealed class ModdedTurbojet : Turbojet;
+public sealed class DuctedThrustSystem { public JetNozzle[] nozzles = Array.Empty<JetNozzle>(); }
 public sealed class JetNozzle { public Burner[] afterburners = Array.Empty<Burner>(); }
 public sealed class Burner(float threshold, float maximum = 1, float force = 35000)
 {

@@ -1,10 +1,17 @@
 using System;
+using System.Reflection;
 using HarmonyLib;
 
 namespace NOVR.MotionControls;
 
 internal static class MilitaryPower
 {
+    private static readonly FieldInfo? TurbojetNozzles = AccessTools.Field(typeof(Turbojet), "nozzles");
+    private static readonly FieldInfo? TurbofanNozzles = AccessTools.Field(typeof(Turbofan), "nozzles");
+    private static readonly FieldInfo? NozzleBurners = AccessTools.Field(typeof(JetNozzle), "afterburners");
+    private static readonly FieldInfo? GaugeAfterburner = AccessTools.Field(typeof(ThrottleGauge), "afterburner");
+    private static readonly FieldInfo? GaugeRegions = AccessTools.Field(typeof(ThrottleGauge), "throttleRegions");
+
     // Read the actual nozzle threshold, not a guessed universal percentage.
     // Ducted engines disable their afterburners and helicopters use a collective.
     internal static float Find(Aircraft aircraft) => Find(aircraft, out _);
@@ -15,11 +22,13 @@ internal static class MilitaryPower
         // registry remains authoritative after that reparenting.
         foreach (var state in aircraft.engineStates)
         {
-            if (state is not Turbojet engine) continue;
-            if (AccessTools.Field(typeof(Turbojet), "nozzles")?.GetValue(engine) is not JetNozzle[] nozzles) continue;
+            // Both native jet engine families pass the pilot's normalized
+            // throttle to their afterburners. DuctedThrustSystem does not.
+            var field = state is Turbojet ? TurbojetNozzles : state is Turbofan ? TurbofanNozzles : null;
+            if (field?.GetValue(state) is not JetNozzle[] nozzles) continue;
             foreach (var nozzle in nozzles)
             {
-                if (nozzle == null || AccessTools.Field(typeof(JetNozzle), "afterburners")?.GetValue(nozzle) is not Array burners) continue;
+                if (nozzle == null || NozzleBurners?.GetValue(nozzle) is not Array burners) continue;
                 foreach (var burner in burners)
                 {
                     if (burner == null) continue;
@@ -42,8 +51,8 @@ internal static class MilitaryPower
             if (extras != null)
                 foreach (var gauge in extras.GetComponentsInChildren<ThrottleGauge>(true))
                 {
-                    if (AccessTools.Field(typeof(ThrottleGauge), "afterburner")?.GetValue(gauge) is not true ||
-                        AccessTools.Field(typeof(ThrottleGauge), "throttleRegions")?.GetValue(gauge) is not Array regions || regions.Length == 0) continue;
+                    if (GaugeAfterburner?.GetValue(gauge) is not true ||
+                        GaugeRegions?.GetValue(gauge) is not Array regions || regions.Length == 0) continue;
                     // Native ThrottleGauge itself uses the final region's start
                     // for its afterburner boundary, independent of display names.
                     var region = regions.GetValue(regions.Length - 1);

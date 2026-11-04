@@ -69,4 +69,38 @@ shelf = MilitaryPower.Find(aircraft, out nativeOnset);
 Check(nativeOnset == .85f && shelf < .85f, "Earliest active burner wins; disabled/invalid burners are ignored");
 aircraft.engineStates = Array.Empty<object>();
 Check(MilitaryPower.Find(aircraft, out nativeOnset) == 1 && nativeOnset == 1, "Aircraft without afterburner gets no artificial MIL detent");
+
+JetNozzle Burning(float start) => new() { afterburners = new[] { new Burner(start) } };
+foreach (var engine in new object[]
+{
+    new Turbofan(Burning(.9f), Burning(.95f)),
+    new ModdedTurbofan(Burning(.9f)),
+    new ModdedTurbojet { nozzles = new[] { Burning(.9f) } }
+})
+{
+    aircraft.engineStates = new[] { engine };
+    shelf = MilitaryPower.Find(aircraft, out nativeOnset);
+    Check(nativeOnset == .9f && shelf < .9f, "Both jet engine families and their subclasses receive a dry MIL shelf");
+}
+aircraft.engineStates = new object[]
+{
+    new Turbojet { nozzles = new[] { Burning(.9f) } },
+    new Turbofan(Burning(.85f))
+};
+shelf = MilitaryPower.Find(aircraft, out nativeOnset);
+Check(nativeOnset == .85f && shelf < .85f, "A later registered turbofan can lower an already discovered turbojet boundary");
+aircraft.parameters.HUDExtras = new() { gauges = new[] { new ThrottleGauge { throttleRegions = new[] { new GaugeRegion(.9f) } } } };
+Check(MilitaryPower.Find(aircraft, out nativeOnset) < .85f && nativeOnset == .85f,
+    "A later cockpit gauge boundary cannot move an engine's detent into afterburner");
+foreach (var engine in new object[]
+{
+    new Turbofan(), new Turbofan(new JetNozzle()),
+    new Turbofan(new JetNozzle { afterburners = new[] { new Burner(.9f, force:0), new Burner(float.NaN), new Burner(.9f, maximum:.8f) } }),
+    new DuctedThrustSystem { nozzles = new[] { Burning(.9f) } }
+})
+{
+    aircraft.engineStates = new[] { engine };
+    Check(MilitaryPower.Find(aircraft, out nativeOnset) == 1 && nativeOnset == 1,
+        "Dry/invalid/ducted engines do not get a detent from a reused afterburner gauge alone");
+}
 Console.WriteLine($"Throttle indicator and native MIL boundary checks passed: {assertions} assertions.");
