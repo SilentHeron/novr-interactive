@@ -8,6 +8,7 @@ StickLimitFeedbackChecks.Run(Check, True);
 HandleReachFeedbackChecks.Run(Check, True);
 ControlMirrorChecks.Run(Check, True);
 ControlOutlineChecks.Run(Check, True);
+LayoutMenuShortcutChecks.Run(Check, True);
 FrameActionQueueChecks.Run(Check, True);
 NativeControllerActionChecks.Run(Check, True);
 

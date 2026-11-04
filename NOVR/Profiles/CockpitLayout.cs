@@ -37,8 +37,8 @@ internal sealed class CockpitLayout : MonoBehaviour
     internal static Vector3? ThrottlePreview => Active ? Instance!._throttle : null;
     internal static string Hint => Unified
         ? HandlesEnabled
-            ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
-            : "EDIT LAYOUT  •  GRIP HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
+            ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  CLICK EITHER THUMBSTICK FOR MENU"
+            : "EDIT LAYOUT  •  GRIP HUD WIDGETS TO MOVE  •  CLICK EITHER THUMBSTICK FOR MENU"
         : "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
     internal static bool Held(Element element) => Active && HandlesEnabled && (Instance!._hands[0].Element == element || Instance._hands[1].Element == element);
     internal static bool Hovered(Element element) => Active && HandlesEnabled && (Instance!._hands[0].Hover == element || Instance._hands[1].Hover == element);

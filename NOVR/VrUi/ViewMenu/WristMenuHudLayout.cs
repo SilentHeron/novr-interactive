@@ -238,7 +238,7 @@ internal sealed partial class WristMenu
         if (_layoutInfo != null && _layoutPage?.activeSelf == true)
             _layoutInfo.text = !available ? "Enter a cockpit to arrange its layout." : manager?.CanSaveProfile != true ?
                 "Aircraft loading. All widgets can be previewed.\nSaving becomes available when its profile is ready." :
-                "Grip any HUD widget, stick or throttle to move it.\nTilt a held widget for pitch / yaw; roll stays level.\nUse both corners to move, tilt and resize together.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
+                "Grip HUD widgets or enabled handles to move.\nTilt a held widget for pitch / yaw; roll stays level.\nUse both corners to move, tilt and resize together.\nClick either thumbstick to reopen this menu.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
         if (_hudWidgetInfo != null && _hudWidgetPage?.activeSelf == true && manager != null)
         {
             var pose = manager.GetPose(SelectedHudId);

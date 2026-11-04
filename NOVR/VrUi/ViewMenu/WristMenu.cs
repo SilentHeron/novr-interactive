@@ -17,6 +17,7 @@ internal sealed partial class WristMenu : MonoBehaviour
     private const CursorFlags WristCursorFlag = (CursorFlags)(1 << 28);
     private static WristMenu? _instance;
     private readonly ControllerButtonGate _toggle = new();
+    private readonly LayoutMenuShortcut _layoutShortcut = new();
     private GameObject? _panel;
     private Text? _status;
     private Font? _font;
@@ -65,7 +66,13 @@ internal sealed partial class WristMenu : MonoBehaviour
         _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && !NativeHandOptionWheel.OwnsHand(menuLeft) &&
             !CockpitMapInteraction.ReservesButton(menuLeft, menuBinding.Button, hand.NativeFrame) && (cockpit || recoveryMap),
             ControllerButtonNames.Resolve(menuBinding.Button, hand.NativeFrame) == ControllerButton.Trigger ? 0 : ControllerBindings.Read(hand, menuBinding.Button));
-        if (_toggle.Pressed || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
+        var leftHand = menuLeft ? hand : TrackedControllers.Read(true);
+        var rightHand = menuLeft ? TrackedControllers.Read(false) : hand;
+        var reopenLayout = _layoutShortcut.Update(CockpitHudWidgets.Editing,
+            cockpit && TrackedControllers.Available && config.ControllerBindings.PointerEnabled.Value &&
+            !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu), IsOpen,
+            leftHand.Valid, leftHand.StickClick, rightHand.Valid, rightHand.StickClick);
+        if (_toggle.Pressed || reopenLayout || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
         {
             // Outside a usable cockpit, View offers the recovery map instead
             // of a cockpit-only setup menu which cannot stay open there.
@@ -193,6 +200,7 @@ internal sealed partial class WristMenu : MonoBehaviour
 
     private void Open()
     {
+        _layoutShortcut.Reset();
         if (DynamicMap.mapMaximized)
             SceneSingleton<DynamicMap>.i?.Minimize();
         if (!GameManager.GetLocalAircraft(out _openAircraft))
@@ -209,6 +217,7 @@ internal sealed partial class WristMenu : MonoBehaviour
 
     internal static void Close()
     {
+        _instance?._layoutShortcut.Reset();
         if (_instance?._resetPage?.activeSelf == true)
             _instance.ShowSetupPage();
         if (_instance?._ejectPage?.activeSelf == true)

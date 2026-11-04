@@ -16,6 +16,7 @@
     <Compile Include="../../NOVR/Hands/DeferredTextureJob.cs" Link="DeferredTextureJob.cs" />
     <Compile Include="../../NOVR/Feedback/InteractionSoundWave.cs" Link="InteractionSoundWave.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/MenuHistory.cs" Link="MenuHistory.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/LayoutMenuShortcut.cs" Link="LayoutMenuShortcut.cs" />
     <Compile Include="../../NOVR/Input/Gestures/HelmetGestureMath.cs" Link="HelmetGestureMath.cs" />
     <Compile Include="../../NOVR/Input/Gestures/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
     <Compile Include="../../NOVR/FlightControls/ThrottleDetent.cs" Link="ThrottleDetent.cs" />

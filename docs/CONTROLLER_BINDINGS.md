@@ -22,6 +22,7 @@ Flight buttons require the assigned handle held or toggle-latched. Target select
 | Native option wheel, free hand | Thumbstick click | Thumbstick click |
 | Tactical map | B with stick released | B with stick released |
 | View menu | Left View, or wheel → VR MENU | Physical left Menu, or wheel → VR MENU |
+| Reopen menu during Edit layout | Either thumbstick click | Either thumbstick click |
 
 The map remains available after a crash; View opens the recovery map outside a usable cockpit. F9 is the keyboard fallback. Grip, trigger pointer clicks, thumbstick yaw and throttle VTOL-angle axes retain their existing behavior.
 
@@ -64,6 +65,8 @@ The floating map has **+ / −** buttons operated by fingertip contact. Touch th
 In **View → Flight controls**, choose **Hold** or **Toggle** independently for stick and throttle. Toggle holds after one squeeze and releases on the next. Tracking loss, menus or moving far from a handle releases it.
 
 **Aircraft profiles** contains three slots for the current aircraft’s seat, handles and HUD widgets. Existing layouts stay in Slot 1. Load a slot, edit, then save to the named aircraft and chosen slot. Cancel discards the preview. There are no cross-aircraft shared profiles. During a two-corner widget grab, move and tilt both hands while changing their separation to translate, rotate and resize together; roll remains locked.
+
+During **Edit layout**, click either thumbstick to reopen **Save / Cancel / Continue moving** directly. This replaces the wheel while editing, works while holding a widget, and keeps your unsaved positions. It also works with virtual motion controls off.
 
 For the map, horizontal and vertical corner separation change its width and height independently. This changes the visible area without stretching terrain or unit icons. The shape is saved with the aircraft's selected profile slot.
 
