@@ -22,6 +22,7 @@
     <Compile Include="../../NOVR/FlightControls/FlightGrip.cs" Link="FlightGrip.cs" />
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/FlightControls/ControlMirrorMath.cs" Link="ControlMirrorMath.cs" />
+    <Compile Include="../../NOVR/FlightControls/ControlOutlineGeometry.cs" Link="ControlOutlineGeometry.cs" />
     <Compile Include="../../NOVR/Feedback/StickLimitFeedback.cs" Link="StickLimitFeedback.cs" />
     <Compile Include="../../NOVR/Feedback/HandleReachFeedback.cs" Link="HandleReachFeedback.cs" />
     <Compile Include="../../NOVR/FlightControls/ThrottleBindingProfiles.cs" Link="ThrottleBindingProfiles.cs" />

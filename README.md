@@ -36,7 +36,7 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | VR View menu | Left View | Left Menu, or wheel → VR MENU | Either grip state for button; free hand for wheel |
 | Quick wheel | Either thumbstick click | Either thumbstick click | That hand free |
 
-Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. Grip grabs a handle; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** VR settings.
+Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** VR settings.
 
 **Quick wheel:** deflect to highlight; return to center to select. Click again to cancel. Trigger changes Options / Weapons pages. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings, including when Steam Link consumes the Quest Menu button. Eject requires a centered stick-click hold for 1.2 seconds; release to reset, or tilt / press trigger to cancel.
 

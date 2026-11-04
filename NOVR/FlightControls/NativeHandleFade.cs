@@ -225,7 +225,7 @@ internal sealed class NativeHandleFade : IDisposable
     }
     internal void SyncPropertyBlocks()
     {
-        // Keep native tint and the hover/grab highlight continuous across the seam.
+        // Keep native material property overrides continuous across the seam.
         foreach (var item in _renderers)
         {
             item.solid.GetPropertyBlock(_block);

@@ -7,6 +7,7 @@ public sealed class MotionControlSettings
 {
     internal const float MinimumStickAngle = 5f, MaximumStickAngle = 60f, DefaultStickAngle = 25f;
     internal const float DefaultYawDeadzone = .15f;
+    internal const float DefaultGrabRadius = .15f;
     public readonly ConfigEntry<bool> Enabled;
     public readonly ConfigEntry<bool> LeftHanded, ViewMenuFollowsHand;
     public readonly ConfigEntry<Vector3> StickPosition;
@@ -48,8 +49,8 @@ public sealed class MotionControlSettings
         MilDetent = config.Bind(section, "MIL Throttle Detent", true, "Afterburning jets only: a 1.6 cm shelf at the installed engine's military-power boundary. Push through for afterburner; no timer or extra button.");
         InteractionVolume = Float(config, "Interaction Sound Volume", .4f, 0f, 1f, "Volume of spatial button, grip, detent, guard and helmet cues. Zero mutes them without disabling haptics. Uses the aircraft audio mixer when available.");
         HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief handle-reach, grab, release, widget, detent and stick-limit feedback. Zero disables these cues.");
+        GrabRadius = Float(config, "Grab Radius", DefaultGrabRadius, 0.03f, 0.3f, "Maximum hand distance from a handle when pressing grip. A white outline and brief haptic cue indicate when it is within reach.");
         MotionControlMigrations.Apply(config, this);
-        GrabRadius = Float(config, "Grab Radius", 0.12f, 0.03f, 0.3f, "Maximum hand distance from a handle when pressing grip.");
         StickTapGrip = config.Bind(section, "Stick Tap Grip", false, "Toggle grip: squeeze once to hold the stick, squeeze again to release. Off requires continuous grip pressure. Moving more than 40 cm away, tracking loss or menus releases the handle.");
         ThrottleTapGrip = config.Bind(section, "Throttle Tap Grip", false, "Toggle grip for the throttle/collective: squeeze once to hold, squeeze again to release. Off requires continuous pressure. The saved legacy key is retained.");
         TwistYaw = config.Bind(section, "Stick Twist Yaw", true, "Twist the held or latched stick left/right for native rudder and nosewheel steering. The orientation when grabbed is neutral. Disable both yaw sources to keep pedals in control.");

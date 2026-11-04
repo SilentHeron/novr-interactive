@@ -17,9 +17,7 @@ internal sealed class NativeControlModel : IDisposable
     private readonly Transform _root;
     private readonly List<(Renderer renderer, bool hidden)> _originals = new();
     private readonly List<MeshRenderer> _copies = new();
-    private readonly List<MaterialPropertyBlock> _originalBlocks = new();
-    private readonly MaterialPropertyBlock _highlight = new();
-    private int _lastHighlight = -1;
+    private ControlHoverOutline? _outline;
     private bool _visible;
     private NativeHandleFade? _fade;
     private MirroredControlGeometry? _mirror;
@@ -90,7 +88,6 @@ internal sealed class NativeControlModel : IDisposable
                 renderer.GetPropertyBlock(block);
                 copy.SetPropertyBlock(block);
                 model._copies.Add(copy);
-                model._originalBlocks.Add(block);
             }
             if (model._copies.Count == 0)
             {
@@ -129,7 +126,9 @@ internal sealed class NativeControlModel : IDisposable
                 }
                 catch (Exception e) { Debug.LogWarning("[NOVR] Shaft fade unavailable; opaque native handle retained: " + e.Message); }
             }
-            // Include the ghost shaft meshes as well as the opaque grip. Their
+            // Only solid copies get an outline; the faded shaft remains transparent.
+            model._outline = ControlHoverOutline.TryCreate(model._root, model._copies);
+            // Include the ghost shaft and outline meshes as well as the opaque grip. Their
             // positions, winding and tangent handedness must reflect together.
             model._mirror = new MirroredControlGeometry(model._root, model._root.GetComponentsInChildren<MeshFilter>(true));
             foreach (var source in sources)
@@ -243,36 +242,22 @@ internal sealed class NativeControlModel : IDisposable
     internal void SetVisible(bool visible)
     {
         _visible = visible;
+        if (!visible)
+            _outline?.SetVisible(false);
         foreach (var original in _originals)
             if (original.renderer != null)
                 original.renderer.forceRenderingOff = visible || original.hidden;
     }
     internal void SetMirrored(bool mirrored) => _mirror?.SetMirrored(mirrored);
-    internal void Highlight(int state)
-    {
-        if (_lastHighlight == state)
-            return;
-        _lastHighlight = state;
-        for (var i = 0; i < _copies.Count; i++)
-        {
-            var renderer = _copies[i];
-            renderer.SetPropertyBlock(_originalBlocks[i]);
-            if (state == 0)
-                continue;
-            renderer.GetPropertyBlock(_highlight);
-            var material = renderer.sharedMaterial;
-            var baseColor = material != null && material.HasProperty("_BaseColor") ? material.GetColor("_BaseColor") : Color.white;
-            _highlight.SetColor("_BaseColor", Color.Lerp(baseColor, state == 2 ? new Color(.25f, 1, .5f) : new Color(1, .75f, .2f), .4f));
-            renderer.SetPropertyBlock(_highlight);
-        }
-        _fade?.SyncPropertyBlocks();
-    }
+    internal void Highlight(int state) => _outline?.SetVisible(_visible && state == 1);
     public void Dispose()
     {
         if (_visible)
             SetVisible(false);
         _mirror?.Dispose();
         _mirror = null;
+        _outline?.Dispose();
+        _outline = null;
         _fade?.Dispose();
         _fade = null;
         if (_root != null)

@@ -75,7 +75,7 @@ cannot pull the selection toward a different off-centre target. Moving the cue
 up or down moves the targeting ray with it; size, shape and opacity do not change aim.
 Native target filters, paint selection and tactical-map selection are unchanged.
 
-A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.
+A white outline and brief pulse mark entry into the stick or throttle grab range; the stronger grab cue confirms attachment and the outline disappears. Default grab reach is 15 cm (formerly 12 cm); custom distances are retained. MIL detent holds just below the native afterburner boundary.
 
 MIL detection covers the game's turbojet and turbofan engines, including mods based on those engine types. Engines without an afterburner have no MIL notch. Helicopter collective travel stays continuous: lift to increase the command and lower to decrease it. The complete lever pivots beneath and behind its grip; the saved grip position and configured lift distance remain unchanged.
 

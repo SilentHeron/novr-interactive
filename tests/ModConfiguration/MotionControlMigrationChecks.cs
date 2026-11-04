@@ -8,7 +8,7 @@ internal static class MotionControlMigrationChecks
     private static readonly string[] Flags =
     {
         "Stronger Haptics Applied", "Mechanical Audio Defaults Applied", "Frame Comfort Defaults Applied",
-        "Compact Travel Defaults Applied", "Upright Glove Defaults Applied"
+        "Compact Travel Defaults Applied", "Upright Glove Defaults Applied", "Wider Handle Reach Applied"
     };
 
     internal static void Run(Action<bool, string> check)
@@ -43,9 +43,21 @@ internal static class MotionControlMigrationChecks
                 settings.ThrottleTravel.Value == .18f && settings.GloveRotation.Value == customWrist,
                 "Custom and disabled feedback, travel and wrist settings survive migration.");
         }
+        foreach (var radius in new[] { .03f, .10f, .12f, .15f, .18f, .3f })
+        {
+            var config = new ConfigFile();
+            config.Seed(Section, "Grab Radius", radius);
+            var settings = new MotionControlSettings(config);
+            check(settings.GrabRadius.Value == (radius == .12f ? .15f : radius),
+                "Only the old stock handle reach migrates; custom small/large grab distances survive.");
+            settings.GrabRadius.Value = .12f;
+            var reloaded = new MotionControlSettings(config);
+            check(reloaded.GrabRadius.Value == .12f,
+                "Returning to the old reach after the upgrade remains a deliberate saved preference.");
+        }
         var stock = new MotionControlSettings(new ConfigFile());
         check(stock.HapticStrength.Value == 1.5f && stock.InteractionVolume.Value == .4f &&
-            stock.ThrottleTravel.Value == .12f && stock.GloveRotation.Value == new Vector3(0, 0, 90),
+            stock.ThrottleTravel.Value == .12f && stock.GloveRotation.Value == new Vector3(0, 0, 90) && stock.GrabRadius.Value == .15f,
             "A new configuration retains current defaults.");
     }
 

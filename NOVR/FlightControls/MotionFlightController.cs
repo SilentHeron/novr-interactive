@@ -182,10 +182,13 @@ public sealed class MotionFlightController : MonoBehaviour
     {
         if (!_ready || _visuals == null)
             return;
+        var flightHover = !VrUi.WristMenu.IsOpen && !CockpitHudWidgets.Editing && !CockpitLayout.Active;
         _visuals.Update(StickPosition, ThrottlePosition, Settings.ThrottleTravel.Value,
             Settings.StickAngle.Value, Pitch, Roll, Throttle, StickHeld, ThrottleHeld,
-            CockpitLayout.Active ? CockpitLayout.Hovered(CockpitLayout.Element.Stick) : IsNearStick(),
-            CockpitLayout.Active ? CockpitLayout.Hovered(CockpitLayout.Element.Throttle) : IsNearThrottle(), _stickHand.Valid, _stickHand.Position,
+            CockpitLayout.Active ? CockpitLayout.Hovered(CockpitLayout.Element.Stick) :
+                flightHover && !NativeHandOptionWheel.OwnsHand(Settings.LeftHanded.Value) && IsNearStick(),
+            CockpitLayout.Active ? CockpitLayout.Hovered(CockpitLayout.Element.Throttle) :
+                flightHover && !NativeHandOptionWheel.OwnsHand(!Settings.LeftHanded.Value) && IsNearThrottle(), _stickHand.Valid, _stickHand.Position,
             _throttleHand.Valid, _throttleHand.Position, _stickGrip.Latched, _throttleGrip.Latched,
             Settings.StickTapGrip.Value, Settings.ThrottleTapGrip.Value, _aircraft != null && _aircraft.GetInputs().brake > .05f,
             _aircraft?.IsAutoHoverEnabled() == true ? "HOVER INPUT" :

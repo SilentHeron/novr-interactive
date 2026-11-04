@@ -15,6 +15,18 @@ internal static class MotionControlMigrations
         UpgradeFrameComfort(config, settings);
         UpgradeCompactTravel(config, settings);
         UpgradeUprightWrist(config, settings);
+        UpgradeGrabReach(config, settings);
+    }
+
+    private static void UpgradeGrabReach(ConfigFile config, MotionControlSettings settings)
+    {
+        var applied = config.Bind(Section, "Wider Handle Reach Applied", false,
+            "Migrates the former stock 12 cm handle grab radius to 15 cm once, preserving custom distances.");
+        if (applied.Value)
+            return;
+        if (Mathf.Abs(settings.GrabRadius.Value - .12f) < .0001f)
+            settings.GrabRadius.Value = MotionControlSettings.DefaultGrabRadius;
+        applied.Value = true;
     }
 
     private static void UpgradeHaptics(ConfigFile config, MotionControlSettings settings)

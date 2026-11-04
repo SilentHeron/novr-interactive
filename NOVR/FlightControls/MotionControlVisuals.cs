@@ -26,8 +26,8 @@ internal sealed class MotionControlVisuals : IDisposable
     private readonly Transform _indicatorTrack, _indicatorFill, _indicatorCursor;
     private readonly TextMesh _throttleReadout;
     private readonly Transform[] _railTicks = new Transform[5];
-    private readonly Renderer _stickGrip, _throttleGrip, _collectiveGrip;
-    private readonly Material _baseMaterial, _idleMaterial, _hoverMaterial, _heldMaterial, _handMaterial, _textMaterial, _indicatorGrey, _indicatorWhite;
+    private ControlHoverOutline? _stickOutline, _throttleOutline, _collectiveOutline;
+    private readonly Material _baseMaterial, _idleMaterial, _handMaterial, _textMaterial, _indicatorGrey, _indicatorWhite;
     private readonly Font _font;
     private NativeControlModel? _nativeStick, _nativeThrottle;
     private MirroredControlGeometry? _fallbackStickMirror, _fallbackThrottleMirror;
@@ -57,8 +57,6 @@ internal sealed class MotionControlVisuals : IDisposable
             Font.textureRebuilt += RefreshFontTexture;
             _baseMaterial = CockpitMaterials.Opaque("NOVR flight control", new Color(0.12f, 0.15f, 0.19f));
             _idleMaterial = CockpitMaterials.Opaque("NOVR flight control", new Color(0.35f, 0.65f, 0.8f));
-            _hoverMaterial = CockpitMaterials.Opaque("NOVR flight control", new Color(1f, 0.75f, 0.18f));
-            _heldMaterial = CockpitMaterials.Opaque("NOVR flight control", new Color(0.2f, 1f, 0.5f));
             _handMaterial = CockpitMaterials.Opaque("NOVR flight control", new Color(0.85f, 0.9f, 1f));
             _indicatorGrey = CockpitMaterials.Opaque("NOVR throttle rail grey", new Color(.25f, .25f, .25f));
             _indicatorWhite = CockpitMaterials.Opaque("NOVR throttle rail white", new Color(.9f, .9f, .9f));
@@ -67,7 +65,7 @@ internal sealed class MotionControlVisuals : IDisposable
             Shape("Base", PrimitiveType.Cylinder, _stickBase, Vector3.zero, new Vector3(0.12f, 0.015f, 0.12f), _baseMaterial);
             _stickPivot = Child("Pivot", _stickBase);
             Shape("Shaft", PrimitiveType.Cylinder, _stickPivot, new Vector3(0, 0.05f, 0), new Vector3(0.025f, 0.05f, 0.025f), _idleMaterial);
-            _stickGrip = Shape("Grip", PrimitiveType.Capsule, _stickPivot, new Vector3(0, 0.12f, 0), new Vector3(0.05f, 0.04f, 0.05f), _idleMaterial);
+            Shape("Grip", PrimitiveType.Capsule, _stickPivot, new Vector3(0, 0.12f, 0), new Vector3(0.05f, 0.04f, 0.05f), _idleMaterial);
             Shape("Top", PrimitiveType.Sphere, _stickPivot, new Vector3(0, 0.155f, 0), new Vector3(0.025f, 0.012f, 0.025f), _baseMaterial);
 
             _throttleBase = Child("Throttle", Root);
@@ -75,11 +73,11 @@ internal sealed class MotionControlVisuals : IDisposable
             _throttleHandle = Child("Handle", _throttleBase);
             _sliderParts = Child("Sliding throttle", _throttleHandle);
             Shape("Post", PrimitiveType.Cube, _sliderParts, new Vector3(0, -0.025f, 0), new Vector3(0.025f, 0.05f, 0.025f), _idleMaterial);
-            _throttleGrip = Shape("Grip", PrimitiveType.Cube, _sliderParts, Vector3.zero, new Vector3(0.1f, 0.045f, 0.05f), _idleMaterial);
+            Shape("Grip", PrimitiveType.Cube, _sliderParts, Vector3.zero, new Vector3(0.1f, 0.045f, 0.05f), _idleMaterial);
             _collectiveParts = Child("Collective grip", _throttleHandle);
-            _collectiveGrip = Shape("Grip", PrimitiveType.Capsule, _collectiveParts, Vector3.zero,
+            var collectiveGrip = Shape("Grip", PrimitiveType.Capsule, _collectiveParts, Vector3.zero,
                 new Vector3(.045f, .055f, .045f), _idleMaterial);
-            _collectiveGrip.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            collectiveGrip.transform.localRotation = Quaternion.Euler(90, 0, 0);
             Shape("Grip head", PrimitiveType.Cube, _collectiveParts, new Vector3(0, .012f, .047f),
                 new Vector3(.065f, .035f, .035f), _baseMaterial);
             _collectiveJoint = Shape("Collective hinge", PrimitiveType.Cylinder, _throttleBase, Vector3.zero,
@@ -107,6 +105,11 @@ internal sealed class MotionControlVisuals : IDisposable
             _throttleReadout.lineSpacing = 1.1f;
             _stickHand = Shape("Stick Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
             _throttleHand = Shape("Throttle Hand", PrimitiveType.Sphere, Root, Vector3.zero, Vector3.one * 0.025f, _handMaterial).transform;
+            // Capture the hulls before mirroring, so the same winding correction
+            // applies to both hands without negative-scale render transforms.
+            _stickOutline = ControlHoverOutline.TryCreate(_stickBase, _stickPivot.GetComponentsInChildren<Renderer>(true));
+            _throttleOutline = ControlHoverOutline.TryCreate(_throttleBase, _sliderParts.GetComponentsInChildren<Renderer>(true));
+            _collectiveOutline = ControlHoverOutline.TryCreate(_throttleBase, _collectiveParts.GetComponentsInChildren<Renderer>(true));
             _fallbackStickMirror = new MirroredControlGeometry(_stickBase, _stickBase.GetComponentsInChildren<MeshFilter>(true));
             // Indicators choose the inboard side explicitly and must not be
             // reflected again by the geometry-only handedness mirror.
@@ -138,6 +141,12 @@ internal sealed class MotionControlVisuals : IDisposable
     internal void SetVisible(bool visible)
     {
         Root.gameObject.SetActive(visible);
+        if (!visible)
+        {
+            _stickOutline?.SetVisible(false);
+            _throttleOutline?.SetVisible(false);
+            _collectiveOutline?.SetVisible(false);
+        }
         _nativeStick?.SetVisible(visible);
         _nativeThrottle?.SetVisible(visible);
     }
@@ -211,11 +220,13 @@ internal sealed class MotionControlVisuals : IDisposable
             _collectiveShaft.localScale = new Vector3(.023f, length * .5f, .023f);
             _throttleHandle.localRotation = Quaternion.FromToRotation(neutralArm, arm);
         }
-        _nativeStick?.Highlight(stickHeld || CockpitLayout.Held(CockpitLayout.Element.Stick) ? 2 : stickNear ? 1 : 0);
-        _nativeThrottle?.Highlight(throttleHeld || CockpitLayout.Held(CockpitLayout.Element.Throttle) ? 2 : throttleNear ? 1 : 0);
-        _stickGrip.sharedMaterial = stickHeld ? _heldMaterial : stickNear ? _hoverMaterial : _idleMaterial;
-        _throttleGrip.sharedMaterial = throttleHeld ? _heldMaterial : throttleNear ? _hoverMaterial : _idleMaterial;
-        _collectiveGrip.sharedMaterial = _throttleGrip.sharedMaterial;
+        var stickState = stickHeld || CockpitLayout.Held(CockpitLayout.Element.Stick) ? 2 : stickNear ? 1 : 0;
+        var throttleState = throttleHeld || CockpitLayout.Held(CockpitLayout.Element.Throttle) ? 2 : throttleNear ? 1 : 0;
+        _nativeStick?.Highlight(stickState);
+        _nativeThrottle?.Highlight(throttleState);
+        _stickOutline?.SetVisible(_nativeStick == null && stickState == 1);
+        _throttleOutline?.SetVisible(_nativeThrottle == null && !collective && throttleState == 1);
+        _collectiveOutline?.SetVisible(_nativeThrottle == null && collective && throttleState == 1);
         _stickHand.gameObject.SetActive(stickTracked && !PilotHandVisuals.Visible(ModConfiguration.Instance.MotionControls.LeftHanded.Value));
         _stickHand.localPosition = stickHand;
         _throttleHand.gameObject.SetActive(throttleTracked && !PilotHandVisuals.Visible(!ModConfiguration.Instance.MotionControls.LeftHanded.Value));
@@ -341,6 +352,9 @@ internal sealed class MotionControlVisuals : IDisposable
             _active = null;
         _fallbackStickMirror?.Dispose();
         _fallbackThrottleMirror?.Dispose();
+        _stickOutline?.Dispose();
+        _throttleOutline?.Dispose();
+        _collectiveOutline?.Dispose();
         _nativeStick?.Dispose();
         _nativeThrottle?.Dispose();
         Font.textureRebuilt -= RefreshFontTexture;
@@ -351,8 +365,6 @@ internal sealed class MotionControlVisuals : IDisposable
         _shadedMeshes.Clear();
         Object.Destroy(_baseMaterial);
         Object.Destroy(_idleMaterial);
-        Object.Destroy(_hoverMaterial);
-        Object.Destroy(_heldMaterial);
         Object.Destroy(_handMaterial);
         Object.Destroy(_textMaterial);
         Object.Destroy(_indicatorGrey);
