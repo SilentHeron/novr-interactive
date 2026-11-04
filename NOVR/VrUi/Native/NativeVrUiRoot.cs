@@ -992,21 +992,21 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private static float GetNativeMenuScale()
     {
-        return Mathf.Clamp(ModConfiguration.Instance?.NativeMenuScale.Value ?? DefaultMenuScale, 0.75f, 2.0f);
+        return Mathf.Clamp(ModConfiguration.Current?.NativeMenuScale.Value ?? DefaultMenuScale, 0.75f, 2.0f);
     }
 
     private static float GetNativeMenuDistance()
     {
-        return Mathf.Clamp(ModConfiguration.Instance?.NativeMenuDistance.Value ?? DefaultMenuDistanceMeters, 1.5f, 6.0f);
+        return Mathf.Clamp(ModConfiguration.Current?.NativeMenuDistance.Value ?? DefaultMenuDistanceMeters, 1.5f, 6.0f);
     }
 
     private static float GetNativeMenuHeightOffset()
     {
-        return Mathf.Clamp(ModConfiguration.Instance?.NativeMenuHeightOffset.Value ?? DefaultMenuHeightOffsetMeters, MinimumMenuCenterHeightBelowHeadMeters, 1.0f);
+        return Mathf.Clamp(ModConfiguration.Current?.NativeMenuHeightOffset.Value ?? DefaultMenuHeightOffsetMeters, MinimumMenuCenterHeightBelowHeadMeters, 1.0f);
     }
 
     private static bool IsNativeMenuUiEnabled =>
-        ModConfiguration.Instance?.EnableNativeMenuUi.Value == true;
+        ModConfiguration.Current?.EnableNativeMenuUi.Value == true;
 
     private enum UtilityWidgetMode
     {

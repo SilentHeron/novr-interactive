@@ -40,6 +40,15 @@ namespace UnityEngine
         public object? targetTexture;
         public Rect rect;
     }
+    public enum RenderMode { ScreenSpaceOverlay, WorldSpace }
+    public sealed class Canvas:Component
+    {
+        private Camera? _worldCamera;
+        public int CameraAssignments;
+        public Camera? worldCamera { get=>_worldCamera; set { _worldCamera=value;CameraAssignments++; } }
+        public RenderMode renderMode;
+        public float planeDistance;
+    }
     public sealed class GameObject:Object
     {
         private readonly List<Component> _components=new();
@@ -53,13 +62,16 @@ namespace UnityEngine
     public sealed class Transform:Component
     {
         public Transform? parent;
-        public Vector3 position,localPosition;
+        public Vector3 position,localPosition,localScale;
         public Quaternion rotation,localRotation;
+        private readonly List<Transform> _children=new();
+        public int childCount=>_children.Count;
+        public Transform GetChild(int index)=>_children[index];
         public void SetParent(Transform value)=>parent=value;
     }
     public readonly record struct Vector3(float x,float y,float z);
     public readonly record struct Quaternion(float x,float y,float z,float w)
-    { public static Quaternion Slerp(Quaternion a,Quaternion b,float t)=>b; }
+    { public static Quaternion identity=>new(0,0,0,1); public static Quaternion Slerp(Quaternion a,Quaternion b,float t)=>b; }
     public readonly record struct Color(float r,float g,float b,float a)
     { public static Color clear=>new(0,0,0,0); }
     public readonly record struct Rect(float x,float y,float width,float height);
@@ -99,7 +111,12 @@ namespace NOVR
         {var go=new UnityEngine.GameObject(typeof(T).Name);go.transform.SetParent(parent);return go.AddComponent<T>();}
     }
     public sealed class NOVRPoseDriver:NOVRBehaviour { }
-    public static class LayerHelper { public static int GetVrUiLayer()=>30; }
+    public static class LayerHelper
+    {
+        public static int LayerAssignments;
+        public static int GetVrUiLayer()=>30;
+        public static void SetLayerRecursive(UnityEngine.Transform root,int layer)=>LayerAssignments++;
+    }
     public sealed class ModConfiguration
     {
         public static readonly ModConfiguration Instance=new();

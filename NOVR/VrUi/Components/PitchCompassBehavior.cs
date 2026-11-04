@@ -9,59 +9,54 @@ namespace NOVR.VrUi.SpecialBehavior;
 public class PitchCompassBehavior : MonoBehaviour
 {
     private const int FullPitchStepCount = 36;
-    private const int SliceCount = FullPitchStepCount + 1;
     private const float PitchRangeDegrees = 180f;
     private const float PitchStepDegrees = PitchRangeDegrees / FullPitchStepCount;
     private const string SliceRootName = "NOVR_PitchCompassSlices";
 
-    private static readonly FieldInfo PitchCompassField = AccessTools.Field(typeof(global::FlightHud), "pitchCompass");
-    private static readonly FieldInfo CockpitTransformField = AccessTools.Field(typeof(global::FlightHud), "cockpitTransform");
+    private static readonly FieldInfo? PitchCompassField = AccessTools.Field(typeof(global::FlightHud), "pitchCompass");
+    private static readonly FieldInfo? CockpitTransformField = AccessTools.Field(typeof(global::FlightHud), "cockpitTransform");
 
-    private RawImage _sourcePitchCompass;
-    private RectTransform _sliceRoot;
-    private float _fullTextureDisplayHeight;
-    private bool _hasBuiltSlices;
-    
-    
-    private FlightHud _flightHud;
-    private Transform _cockpitTransform;
+    private RawImage? _sourcePitchCompass;
+    private Texture? _sourceTexture;
+    private RectTransform? _sliceRoot;
+    private FlightHud? _flightHud;
+    private bool _suppressedSource, _sourceWasEnabled;
 
-    private void Start()
-    {
-        BuildSlices();
-    }
-
-    private void OnEnable()
-    {
-        BuildSlices();
-    }
+    private void OnEnable() => BuildSlices();
 
     private void LateUpdate()
     {
-        if (!_hasBuiltSlices) return;
-        RefreshCockpitTransform();
-        if (_sliceRoot == null || _cockpitTransform == null) return;
-        
-        if (NOUIManager.I == null) return;
-        _sliceRoot.transform.position = APIBus.CockpitHudCamera.transform.position;
-        
-        
-        var inverseCockpitRotation = Quaternion.Inverse(_cockpitTransform.rotation);
+        // Native SetAircraft can happen after OnEnable/Start. Retry until its
+        // serialized source is ready, and rebuild only if that source changes.
+        BuildSlices();
+        var root = _sliceRoot;
+        var source = _sourcePitchCompass;
+        var cockpit = _flightHud != null ? CockpitTransformField?.GetValue(_flightHud) as Transform : null;
+        var camera = APIBus.CockpitHudCamera;
+        if (root == null || source == null || cockpit == null || camera == null ||
+            !source.gameObject.activeInHierarchy || (!_suppressedSource && !source.enabled))
+        {
+            SuspendSlices();
+            return;
+        }
+
+        root.gameObject.SetActive(true);
+        root.position = camera.transform.position;
+        var inverseCockpitRotation = Quaternion.Inverse(cockpit.rotation);
         var targetUp = inverseCockpitRotation * Vector3.up;
-        var planeReference = Vector3.forward;
-        
-        var targetRight = Vector3.Cross(targetUp, planeReference).normalized;
+        var targetRight = Vector3.Cross(targetUp, Vector3.forward).normalized;
+        // Avoid a zero LookRotation vector at exactly vertical pitch.
+        if (targetRight.sqrMagnitude < .000001f) targetRight = Vector3.right;
         var targetForward = Vector3.Cross(targetUp, targetRight).normalized;
-        
-        _sliceRoot.transform.rotation = Quaternion.LookRotation(targetForward, targetUp);
-        
+        root.rotation = Quaternion.LookRotation(targetForward, targetUp);
+
         var focused = ModConfiguration.Instance.FocusedFlightHud.Value;
         var size = focused ? ModConfiguration.Instance.FlightHudScale.Value : 1f;
-        for (var i = 0; i < _sliceRoot.childCount; i++)
+        for (var i = 0; i < root.childCount; i++)
         {
-            var slice = _sliceRoot.GetChild(i);
+            var slice = root.GetChild(i);
             slice.localScale = Vector3.one * (.8f * size);
-            var direction = slice.position - APIBus.CockpitHudCamera.transform.position;
+            var direction = slice.position - camera.transform.position;
             var yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
             var pitch = Mathf.Atan2(direction.y, new Vector2(direction.x, direction.z).magnitude) * Mathf.Rad2Deg;
             // Clip the ladder to the aircraft's forward instrument window, not
@@ -69,111 +64,82 @@ public class PitchCompassBehavior : MonoBehaviour
             slice.gameObject.SetActive(!focused || direction.z > 0 &&
                 Mathf.Abs(yaw) <= 16f * size / .38f && Mathf.Abs(pitch) <= 10f * size / .38f);
         }
-        _sourcePitchCompass.enabled = false;
+        if (!_suppressedSource)
+        {
+            _sourceWasEnabled = source.enabled;
+            _suppressedSource = true;
+        }
+        source.enabled = false;
     }
-    
 
-    
     private void BuildSlices()
     {
-        if (_hasBuiltSlices)
-        {
-            return;
-        }
-        _flightHud = GetComponent<global::FlightHud>();
-        if (_flightHud == null)
-        {
-            Debug.LogWarning($"{nameof(PitchCompassBehavior)}: Could not find FlightHud on {name}");
-            return;
-        }
+        if (_flightHud == null) _flightHud = GetComponent<global::FlightHud>();
+        var source = _flightHud != null ? PitchCompassField?.GetValue(_flightHud) as RawImage : null;
+        var texture = source != null ? source.texture : null;
+        if (_sliceRoot != null && source != null && texture != null &&
+            source == _sourcePitchCompass && texture == _sourceTexture) return;
+        ReleaseSlices();
+        if (_flightHud == null || source == null || texture == null) return;
+        var sourceRect = source.rectTransform;
+        var height = sourceRect.rect.height / source.uvRect.height;
+        if (source.uvRect.height <= Mathf.Epsilon || sourceRect.rect.width <= 0 ||
+            height <= 0 || float.IsNaN(height) || float.IsInfinity(height)) return;
 
-        if (!RefreshCockpitTransform())
-        {
-            Debug.LogWarning($"{nameof(PitchCompassBehavior)}: Could not find cockpitTransform");
-            return;
-        }
-
-        _sourcePitchCompass = PitchCompassField.GetValue(_flightHud) as RawImage;
-        if (_sourcePitchCompass == null)
-        {
-            Debug.LogWarning($"{nameof(PitchCompassBehavior)}: Could not find pitchCompass RawImage");
-            return;
-        }
-
-        var sourceTexture = _sourcePitchCompass.texture;
-        if (sourceTexture == null)
-        {
-            Debug.LogWarning($"{nameof(PitchCompassBehavior)}: pitchCompass has no texture");
-            return;
-        }
-
-        var sourceRectTransform = _sourcePitchCompass.rectTransform;
-        _fullTextureDisplayHeight = sourceRectTransform.rect.height / _sourcePitchCompass.uvRect.height;
-        _sliceRoot = CreateSliceRoot(sourceRectTransform);
-        InstrumentBrightness.Add(_sliceRoot);
-
+        _sourcePitchCompass = source;
+        _sourceTexture = texture;
+        var root = CreateSliceRoot(_flightHud, sourceRect, height);
+        _sliceRoot = root;
+        InstrumentBrightness.Add(root);
         for (var sliceIndex = 0; sliceIndex < FullPitchStepCount; sliceIndex++)
         {
-            var slice = CreateSliceImage(sourceTexture, sliceIndex);
-            
+            var slice = CreateSliceImage(source, texture, sliceIndex, root, height);
             var pitchDegrees = 90f - sliceIndex * PitchStepDegrees;
-            var oppositePitchDegrees = pitchDegrees + 180;
             var opposite = Instantiate(slice);
-            
             slice.transform.Rotate(Vector3.right, pitchDegrees);
             slice.transform.Rotate(Vector3.forward, 180, Space.Self);
             slice.transform.position = slice.transform.forward * 1000f;
-            
-            opposite.transform.Rotate(Vector3.right, oppositePitchDegrees);
+            opposite.transform.Rotate(Vector3.right, pitchDegrees + 180);
             opposite.transform.Rotate(Vector3.forward, 180, Space.Self);
             opposite.transform.position = opposite.transform.forward * 1000f;
-            
-            slice.transform.SetParent(_sliceRoot, true);
-            opposite.transform.SetParent(_sliceRoot, true);
-
-            slice.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
-            opposite.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+            slice.transform.SetParent(root, true);
+            opposite.transform.SetParent(root, true);
+            slice.transform.localScale = Vector3.one * .8f;
+            opposite.transform.localScale = Vector3.one * .8f;
         }
-        
-        LayerHelper.SetLayerRecursive(_sliceRoot, LayerHelper.GetVrUiLayer());
-
-        _hasBuiltSlices = true;
-        Debug.Log($"{nameof(PitchCompassBehavior)}: Split pitch compass into {SliceCount} slices");
+        LayerHelper.SetLayerRecursive(root, LayerHelper.GetVrUiLayer());
+        // Wait for a current cockpit and HUD camera before replacing the source.
+        root.gameObject.SetActive(false);
     }
 
-    private bool RefreshCockpitTransform()
+    private void SuspendSlices()
     {
-        if (_flightHud == null)
-        {
-            return false;
-        }
-
-        var cockpitTransform = CockpitTransformField.GetValue(_flightHud) as Transform;
-        if (cockpitTransform == null)
-        {
-            return false;
-        }
-
-        _cockpitTransform = cockpitTransform;
-        return true;
+        if (_sliceRoot != null) _sliceRoot.gameObject.SetActive(false);
+        if (_suppressedSource && _sourcePitchCompass != null) _sourcePitchCompass.enabled = _sourceWasEnabled;
+        _suppressedSource = false;
     }
 
-    private RectTransform CreateSliceRoot(RectTransform sourceRectTransform)
+    private void ReleaseSlices()
     {
-        var existing = _flightHud.transform.parent.Find(SliceRootName);
-        if (existing != null)
-        {
-            Destroy(existing.gameObject);
-        }
+        SuspendSlices();
+        if (_sliceRoot != null) Destroy(_sliceRoot.gameObject);
+        _sliceRoot = null;
+        _sourcePitchCompass = null;
+        _sourceTexture = null;
+    }
 
+    private void OnDisable() => SuspendSlices();
+    private void OnDestroy() => ReleaseSlices();
+
+    private static RectTransform CreateSliceRoot(FlightHud hud, RectTransform sourceRectTransform, float height)
+    {
         var root = new GameObject(SliceRootName, typeof(RectTransform)).GetComponent<RectTransform>();
-        
-        root.SetParent(_flightHud.transform, false);
+        root.SetParent(hud.transform, false);
         root.anchorMin = sourceRectTransform.anchorMin;
         root.anchorMax = sourceRectTransform.anchorMax;
         root.pivot = sourceRectTransform.pivot;
         root.anchoredPosition = sourceRectTransform.anchoredPosition;
-        root.sizeDelta = new Vector2(sourceRectTransform.rect.width, _fullTextureDisplayHeight);
+        root.sizeDelta = new Vector2(sourceRectTransform.rect.width, height);
         root.localScale = sourceRectTransform.localScale;
         root.localRotation = sourceRectTransform.localRotation;
         root.SetSiblingIndex(sourceRectTransform.GetSiblingIndex() + 1);
@@ -181,11 +147,11 @@ public class PitchCompassBehavior : MonoBehaviour
         return root;
     }
 
-    private GameObject CreateSliceImage(Texture sourceTexture, int sliceIndex)
+    private static GameObject CreateSliceImage(RawImage source, Texture sourceTexture, int sliceIndex, RectTransform root, float height)
     {
         if (sliceIndex == 0)
         {
-            return CreateWrappedEndCapSliceImage(sourceTexture);
+            return CreateWrappedEndCapSliceImage(source, sourceTexture, root, height);
         }
 
         var normalizedPitchCenter = sliceIndex / (float)FullPitchStepCount;
@@ -196,24 +162,24 @@ public class PitchCompassBehavior : MonoBehaviour
 
         var sliceObject = new GameObject($"PitchCompassSlice_{pitchDegrees:+00;-00;000}", typeof(RectTransform), typeof(RawImage));
         var sliceTransform = sliceObject.GetComponent<RectTransform>();
-        sliceTransform.SetParent(_sliceRoot, false);
+        sliceTransform.SetParent(root, false);
         sliceTransform.anchorMin = new Vector2(0.5f, 0f);
         sliceTransform.anchorMax = new Vector2(0.5f, 0f);
         sliceTransform.pivot = new Vector2(0.5f, 0.5f);
-        sliceTransform.anchoredPosition = new Vector2(0f, normalizedSliceBottom * _fullTextureDisplayHeight);
-        sliceTransform.sizeDelta = new Vector2(_sourcePitchCompass.rectTransform.rect.width, normalizedSliceHeight * _fullTextureDisplayHeight);
+        sliceTransform.anchoredPosition = new Vector2(0f, normalizedSliceBottom * height);
+        sliceTransform.sizeDelta = new Vector2(source.rectTransform.rect.width, normalizedSliceHeight * height);
 
         var sliceImage = sliceObject.GetComponent<RawImage>();
         sliceImage.texture = sourceTexture;
-        sliceImage.color = _sourcePitchCompass.color;
-        sliceImage.material = _sourcePitchCompass.material;
+        sliceImage.color = source.color;
+        sliceImage.material = source.material;
         sliceImage.raycastTarget = false;
         sliceImage.uvRect = new Rect(0f, normalizedSliceBottom, 1f, normalizedSliceHeight);
         return sliceObject;
  
     } 
 
-    private GameObject CreateWrappedEndCapSliceImage(Texture sourceTexture)
+    private static GameObject CreateWrappedEndCapSliceImage(RawImage source, Texture sourceTexture, RectTransform root, float height)
     {
         const int sliceIndex = 0;
         var normalizedSliceHeight = 1f / FullPitchStepCount;
@@ -222,21 +188,23 @@ public class PitchCompassBehavior : MonoBehaviour
 
         var sliceObject = new GameObject($"PitchCompassSlice_{pitchDegrees:+00;-00;000}_Wrapped", typeof(RectTransform));
         var sliceTransform = sliceObject.GetComponent<RectTransform>();
-        sliceTransform.SetParent(_sliceRoot, false);
+        sliceTransform.SetParent(root, false);
         sliceTransform.anchorMin = new Vector2(0.5f, 0f);
         sliceTransform.anchorMax = new Vector2(0.5f, 0f);
         sliceTransform.pivot = new Vector2(0.5f, 0.5f);
         sliceTransform.anchoredPosition = Vector2.zero;
-        sliceTransform.sizeDelta = new Vector2(_sourcePitchCompass.rectTransform.rect.width, normalizedSliceHeight * _fullTextureDisplayHeight);
+        sliceTransform.sizeDelta = new Vector2(source.rectTransform.rect.width, normalizedSliceHeight * height);
 
-        CreateWrappedEndCapHalf(sourceTexture, sliceTransform, "Top", 0f, 1f - normalizedHalfHeight, normalizedHalfHeight);
-        CreateWrappedEndCapHalf(sourceTexture, sliceTransform, "Bottom", normalizedHalfHeight, 0f, normalizedHalfHeight);
+        CreateWrappedEndCapHalf(source, sourceTexture, height, sliceTransform, "Top", 0f, 1f - normalizedHalfHeight, normalizedHalfHeight);
+        CreateWrappedEndCapHalf(source, sourceTexture, height, sliceTransform, "Bottom", normalizedHalfHeight, 0f, normalizedHalfHeight);
 
         return sliceObject;
     }
 
-    private void CreateWrappedEndCapHalf(
+    private static void CreateWrappedEndCapHalf(
+        RawImage source,
         Texture sourceTexture,
+        float height,
         RectTransform parent,
         string nameSuffix,
         float normalizedLocalBottom,
@@ -249,13 +217,13 @@ public class PitchCompassBehavior : MonoBehaviour
         halfTransform.anchorMin = new Vector2(0f, 0f);
         halfTransform.anchorMax = new Vector2(1f, 0f);
         halfTransform.pivot = new Vector2(0.5f, 0f);
-        halfTransform.anchoredPosition = new Vector2(0f, normalizedLocalBottom * _fullTextureDisplayHeight);
-        halfTransform.sizeDelta = new Vector2(0f, normalizedHalfHeight * _fullTextureDisplayHeight);
+        halfTransform.anchoredPosition = new Vector2(0f, normalizedLocalBottom * height);
+        halfTransform.sizeDelta = new Vector2(0f, normalizedHalfHeight * height);
 
         var halfImage = halfObject.GetComponent<RawImage>();
         halfImage.texture = sourceTexture;
-        halfImage.color = _sourcePitchCompass.color;
-        halfImage.material = _sourcePitchCompass.material;
+        halfImage.color = source.color;
+        halfImage.material = source.material;
         halfImage.raycastTarget = false;
         halfImage.uvRect = new Rect(0f, normalizedUvBottom, 1f, normalizedHalfHeight);
     }

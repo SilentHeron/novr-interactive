@@ -1,13 +1,14 @@
-﻿using System.ComponentModel;
+using System;
 using BepInEx.Configuration;
-using UnityEngine;
 
 namespace NOVR;
 
 public class ModConfiguration
 {
-    public static ModConfiguration Instance;
-    
+    private static ModConfiguration? _instance;
+    public static ModConfiguration Instance => _instance ??
+        throw new InvalidOperationException("NOVR configuration has not finished initializing.");
+    internal static ModConfiguration? Current => _instance;
 
     public readonly ConfigFile Config;
     internal readonly ConfigEntry<bool> DisableProtonXInput;
@@ -29,9 +30,7 @@ public class ModConfiguration
 
     public ModConfiguration(ConfigFile config)
     {
-        Instance = this;
-
-        Config = config;
+        Config = config ?? throw new ArgumentNullException(nameof(config));
         DisableProtonXInput = config.Bind("Compatibility", "Disable Legacy XInput on Proton", true,
             "Avoid a Proton XInput controller-polling deadlock. Applies only under Wine/Proton and requires a restart. OpenXR motion controls are unaffected. Xbox-style gamepads may need alternate bindings; disable this option if legacy XInput is required.");
         MotionControls = new MotionControls.MotionControlSettings(config);
@@ -86,5 +85,8 @@ public class ModConfiguration
             "Native Menu Height Offset",
             0.0f,
             "Vertical offset in meters applied when NOVR's native VR menu UI is opened or recentered. Values from -0.25 to 1.0 are supported.");
+
+        // Binding can invoke callbacks or fail. Only expose a complete settings object.
+        _instance = this;
     }
 }

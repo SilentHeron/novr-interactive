@@ -37,12 +37,11 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
 
         if (!gameObject.TryGetComponent<Fs20HudPresentation>(out _)) gameObject.AddComponent<Fs20HudPresentation>();
 
-        // var velocityVector = FindChildStartingWith(transform, "velocityVector");
-        // if (velocityVector != null) velocityVector.gameObject.AddComponent(typeof(NOVRVelocityVectorBehavior));
     }
     
-    private void Update()
+    protected override void Update()
     {
+        base.Update();
         transform.position = new Vector3(0f, 0f, 1000f);
         transform.rotation = Quaternion.identity;
     }

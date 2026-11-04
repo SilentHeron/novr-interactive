@@ -19,8 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../NOVR/NOVR.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="../NOVR.Patcher/NOVR.Patcher.csproj" ReferenceOutputAssembly="false" />
+    <!-- These single-target projects supply package files, not assemblies for this build tool. -->
+    <ProjectReference Include="../NOVR/NOVR.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../NOVR.Patcher/NOVR.Patcher.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
   <Target Name="CreateReleaseZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">

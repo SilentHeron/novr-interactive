@@ -40,6 +40,7 @@ jobs:
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
             /NOVR/APIBus.cs
+            /NOVR/ModConfiguration.cs
             /NOVR/Compatibility/ProtonControllerCompatibility.cs
             /NOVR/VrCamera/StereoCamera.cs
             /NOVR/VrCamera/VrCamera.cs
@@ -54,6 +55,7 @@ jobs:
             /NOVR/VrUi/Native/
             /NOVR/VrUi/HarmonyPatches/GridAircraftReadoutPatch.cs
             /NOVR/VrUi/HarmonyPatches/ThreatItemVectorLineRotationSafePatch.cs
+            /NOVR/VrUi/HarmonyPatches/AirbaseOverlayViewPositionPatch.cs
             /NOVR.Patcher/PayloadFile.cs
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:

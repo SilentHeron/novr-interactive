@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace NOVR.VrUi.SpecialBehavior;
@@ -5,6 +6,7 @@ namespace NOVR.VrUi.SpecialBehavior;
 public class UIRenderedCanvasBehavior : MonoBehaviour
 {
     private bool _initialized;
+    private Canvas? _canvas;
     
     protected virtual bool ShouldInitializeCanvas => true;
 
@@ -12,27 +14,33 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
 
     public virtual void OnEnable() => Initialize();
 
+    protected virtual void Update() => RefreshCanvasCamera();
+
     private void Initialize()
     {
         if (!ShouldInitializeCanvas) return;
-        if (_initialized) return;
-        _initialized = true;
-        
-        
-        ApplyVrUiLayerRecursive(transform);
-        transform.localPosition = transform.localPosition with { z = 0 };
-        var canvas = gameObject.GetComponent<Canvas>();
-        if (canvas == null) return;
-        
-        
-        canvas.renderMode = RenderMode.WorldSpace;
-        Debug.Log($"{GetType().Name}: Set canvas render mode of {canvas.gameObject.name}. Is currently:  {canvas.renderMode}");
-        canvas.worldCamera = APIBus.CockpitHudCamera;
-        Debug.Log($"{GetType().Name}: Set canvas world camera of {canvas.gameObject.name}. Is currently:  {canvas.worldCamera}");
-        canvas.planeDistance = 1f;
+        if (!_initialized)
+        {
+            _initialized = true;
+            ApplyVrUiLayerRecursive(transform);
+            transform.localPosition = transform.localPosition with { z = 0 };
+        }
+        _canvas = gameObject.GetComponent<Canvas>();
+        if (_canvas == null) return;
+        _canvas.renderMode = RenderMode.WorldSpace;
+        _canvas.planeDistance = 1f;
+        RefreshCanvasCamera();
     }
-    
-    
+
+    private void RefreshCanvasCamera()
+    {
+        if (_canvas == null) return;
+        // The UI manager can arrive after Awake or recreate its camera during
+        // a scene change. Rebind without replaying the canvas/layout setup.
+        var camera = APIBus.CockpitHudCamera;
+        if (!ReferenceEquals(_canvas.worldCamera, camera)) _canvas.worldCamera = camera;
+    }
+
     private static void ApplyVrUiLayerRecursive(Transform root)
     {
         LayerHelper.SetLayerRecursive(root, LayerHelper.GetVrUiLayer());
@@ -44,7 +52,7 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
         for (var i = 0; i < parent.childCount; i++)
         {
             var child = parent.GetChild(i);
-            if (child.name.StartsWith(childNamePrefix))
+            if (child.name.StartsWith(childNamePrefix, StringComparison.Ordinal))
             {
                 return child;
             }

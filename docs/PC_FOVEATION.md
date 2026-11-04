@@ -6,7 +6,7 @@ implementation. Steam Frame's foveated streaming is a separate runtime function.
 The technical evidence below records the October 2026 investigation and is not
 a claim about every later runtime or driver version. EOTS was removed in 0.4.8.0.
 
-**View → Comfort & display → VR performance** reports renderer, runtime,
+**View → VR performance** reports renderer, runtime,
 eye-tracking sample availability and the DFR limitation. Receiving eye tracking
 is necessary for gaze-driven rendering, but is not proof that rendering work is
 reduced. No nonfunctional DFR toggle or automatic graphics-backend switch is added.
@@ -46,6 +46,22 @@ multi-resolution renderer. The latter must preserve asymmetric eye projections,
 full-resolution HUD/MFD text, transparency and post-processing, and restore full
 resolution immediately when gaze is invalid. None is shipped as a working backend
 in this build. Native Windows NVIDIA VRS is a separate compatibility target.
+
+## Follow-up on 3 November 2026
+
+The live SteamVR 2.19.1 session still reported Direct3D 11, eye-gaze support,
+no Unity foveation capabilities and no active PC rendering backend. The game's
+build settings also include Vulkan and Direct3D 12; the observed process had
+neither forcing argument, so that session does not establish that either
+alternative failed. The installed NVIDIA driver exposes Vulkan attachment
+fragment shading rate. Those capabilities justify a separate native rendering
+prototype, but do not establish support inside the game's active device.
+
+The current investigation includes Direct3D 12 shading-rate commands through
+Unity's native rendering interface and a patched DXVK fallback. Neither is
+part of the release package. Compare enabled/disabled GPU frame time at fixed
+resolution, refresh rate, scene and camera pose before making a performance
+claim. Preserve full-rate cockpit overlays and test gaze loss explicitly.
 
 Before enabling a backend, validate live gaze permission, per-eye focus position,
 tracking loss, camera-stack exclusions, and actual GPU frame-time savings while

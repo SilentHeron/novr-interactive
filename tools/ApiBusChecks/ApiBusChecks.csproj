@@ -5,5 +5,8 @@
     <Compile Include="../../NOVR/VrUi/NOUIManager.cs" Link="NOUIManager.cs" />
     <Compile Include="../../NOVR/VrCamera/StereoCamera.cs" Link="StereoCamera.cs" />
     <Compile Include="../../NOVR/VrCamera/VrCamera.cs" Link="VrCamera.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/UIRenderedCanvasBehavior.cs" Link="UIRenderedCanvasBehavior.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/NOVRGameplayUIBehaviour.cs" Link="NOVRGameplayUIBehaviour.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/NoVrHudBehavior.cs" Link="NoVrHudBehavior.cs" />
   </ItemGroup>
 </Project>

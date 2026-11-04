@@ -19,7 +19,9 @@ RUN_DIRECTORY = ROOT / "tools" / "verification"
 PORTABLE = (
     ("core", "tests/NOVR.Tests.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
+    ("ui-patching", "tools/UiBehaviorPatcherChecks/UiBehaviorPatcherChecks.csproj"),
     ("api-lifecycle", "tools/ApiBusChecks/ApiBusChecks.csproj"),
+    ("configuration-lifecycle", "tools/ModConfigurationChecks/ModConfigurationChecks.csproj"),
     ("xr-toggle-lifecycle", "tools/XrTogglerChecks/XrTogglerChecks.csproj"),
     ("cockpit-profiles", "tools/CockpitProfileChecks/CockpitProfileChecks.csproj"),
     ("controller-runtime", "tools/ControllerRuntimeChecks/ControllerRuntimeChecks.csproj"),
@@ -47,6 +49,7 @@ PORTABLE = (
     ("grid-readout", "validation/GridAircraftReadout/GridAircraftReadout.csproj"),
     ("gaze-cue", "validation/GazeCue/GazeCue.csproj"),
     ("nozzle-hud", "validation/NozzleHud/NozzleHud.csproj"),
+    ("hud-projection-lifecycle", "tools/HudProjectionLifecycleChecks/HudProjectionLifecycleChecks.csproj"),
     ("throttle-indicator", "validation/ThrottleIndicator/ThrottleIndicator.csproj"),
     ("threat-vector", "validation/ThreatVectorLine/ThreatVectorLine.csproj"),
     ("native-menu-handoff", "validation/NativeMenuHandoff/NativeMenuHandoff.csproj"),

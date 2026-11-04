@@ -148,4 +148,42 @@ Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,recovery),"Destroyed selecte
 Invoke(low,"OnDisable");
 Check(ReferenceEquals(VrCamera.HighestDepthVrCamera,recovery)&&low.DisableCallbacks==1,"Nonselected camera cleanup leaves the replacement reference intact");
 Invoke(recovery,"OnDisable");
-Reset();Console.WriteLine($"{checks} source-linked camera bus and UI lifecycle checks passed.");
+Reset();
+// Exercise the real canvas component against real manager recreation rather
+// than assuming its first Awake always runs after the HUD camera exists.
+var uiObject=new GameObject("late camera canvas");
+var canvas=uiObject.AddComponent<Canvas>();
+uiObject.transform.localPosition=new Vector3(3,4,9);
+var canvasBehavior=uiObject.AddComponent<NOVR.VrUi.SpecialBehavior.UIRenderedCanvasBehavior>();
+canvasBehavior.Awake();canvasBehavior.OnEnable();
+Check(canvas.worldCamera is null&&canvas.renderMode==RenderMode.WorldSpace,"Canvas can initialize before its camera exists");
+Check(uiObject.transform.localPosition==new Vector3(3,4,0),"One-time initialization preserves horizontal/vertical layout");
+owner=Create();Camera.main=SceneCamera("late menu");owner.Update();
+manager=CreateUi();hud=manager.CockpitHudCamera;
+Invoke(canvasBehavior,"Update");
+Check(ReferenceEquals(canvas.worldCamera,hud),"Already-initialized canvas binds a late UI camera");
+uiObject.transform.localPosition=new Vector3(6,7,8);
+var layerWrites=LayerHelper.LayerAssignments;var cameraWrites=canvas.CameraAssignments;
+for(var i=0;i<1000;i++)Invoke(canvasBehavior,"Update");
+Check(canvas.CameraAssignments==cameraWrites&&LayerHelper.LayerAssignments==layerWrites,"Stable camera binding avoids repeated property and layer writes");
+Check(uiObject.transform.localPosition==new Vector3(6,7,8),"Camera maintenance does not reset relocated canvas geometry");
+hud.Destroyed=true;Invoke(canvasBehavior,"Update");
+Check(canvas.worldCamera!=null&&!ReferenceEquals(canvas.worldCamera,hud),"Destroyed UI camera is rebound without re-enabling the canvas");
+DestroyUi(manager);Invoke(canvasBehavior,"Update");
+Check(canvas.worldCamera is null,"Manager loss clears the stale camera reference");
+manager=CreateUi();Invoke(canvasBehavior,"Update");
+Check(ReferenceEquals(canvas.worldCamera,manager.CockpitHudCamera),"Replacement UI manager rebinds existing canvas");
+canvasBehavior.OnEnable();
+Check(uiObject.transform.localPosition==new Vector3(6,7,8),"Re-enabling canvas retains user placement");
+var noCanvas=new GameObject("non-canvas subtree").AddComponent<NOVR.VrUi.SpecialBehavior.UIRenderedCanvasBehavior>();
+noCanvas.Awake();Invoke(noCanvas,"Update");
+Check(noCanvas.GetComponent<Canvas>()==null,"Non-canvas subtree does not create unnecessary canvas components");
+foreach(var type in new[]{typeof(NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour),typeof(NOVR.VrUi.SpecialBehavior.NoVrHudBehavior)})
+{
+    var go=new GameObject(type.Name);var nativeCanvas=go.AddComponent<Canvas>();
+    var behavior=(NOVR.VrUi.SpecialBehavior.UIRenderedCanvasBehavior)Activator.CreateInstance(type)!;
+    behavior.gameObject=go;behavior.Awake();
+    manager.CockpitHudCamera.Destroyed=true;Invoke(behavior,"Update");
+    Check(ReferenceEquals(nativeCanvas.worldCamera,manager.CockpitHudCamera),"Derived position update preserves camera rebinding: "+type.Name);
+}
+DestroyUi(manager);Reset();Console.WriteLine($"{checks} source-linked camera bus and UI lifecycle checks passed.");
