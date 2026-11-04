@@ -16,8 +16,8 @@ and use the other controller to make adjustments.
   settings. The other hand is unaffected.
 
 The visible free hand and the physical cockpit touch point use the same fit.
-Menu pointers, flight input, placed control positions, and fitted stick/throttle
-or switch grips keep their existing anchors. Releasing a handle returns the hand
+Menu pointers, flight input, placed control positions, and fitted stick, throttle
+and collective grips keep their existing anchors. Releasing a handle returns the hand
 to its calibrated free pose.
 
 The previous `Glove Wrist Offset` and `Glove Wrist Rotation` settings remain the
@@ -37,8 +37,9 @@ unchanged. Unsupported material shaders retain their original appearance.
 
 ## Animation and materials
 
-Version 0.4.7.6 stabilizes the elbow bend through wrist turns and distributes
-wrist rotation into the forearm. Collective cuffs still face toward the shoulder.
+The arm solver stabilizes the elbow bend through wrist turns and shares sleeve
+roll across the upper arm and forearm to reduce twisting at the elbow.
+Collective cuffs face upward toward the shoulder.
 Grip entry takes 120 ms; release and touch-gesture changes take 90 ms. Once
 attached, hands stay fixed to the control. These visual transitions do not delay
 flight input or move the tracked contact points.
@@ -52,8 +53,13 @@ worker; GPU readback and upload still occur on Unity's main thread.
 
 ## Validation
 
-Run `dotnet run --project tools/HandComfortChecks/HandComfortChecks.csproj -c Release`.
-The standalone checks cover correction bounds, invalid data, ordinary reach,
+From the repository root:
+
+```sh
+python tools/verify.py portable --suite hand-comfort --suite hand-pose --suite arm-pose
+```
+
+The focused checks cover fitted poses, arm geometry, correction bounds, invalid data, ordinary reach,
 continuous fade through the former reach cutoff, bounded extension, and 2,001
 samples across the transition. They do not prove headset comfort or shader
 appearance; those require the in-game integration checks.

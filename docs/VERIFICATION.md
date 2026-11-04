@@ -74,7 +74,7 @@ binaries or game files. Jobs have read-only repository permission and never
 deploy the mod.
 
 A separate **SDK 10 package-safety job** runs on both operating systems using
-`python NOVR.Installer.Tests/check_build.py`. Its smaller sparse checkout contains
+`python tests/Installer/check_build.py`. Its smaller sparse checkout contains
 only build definitions/task source, the fixture and package notices. It creates
 synthetic assemblies in a temporary directory to check current-output staging,
 generated XR payloads, missing-game diagnostics, deployment and installer
@@ -107,7 +107,7 @@ private game files or hardcoded installation paths to CI to make this check run.
 the complete core/assembly contract program.
 
 The SDK 10 package-safety check can also run locally with
-`python NOVR.Installer.Tests/check_build.py /path/to/sdk10/dotnet`. It remains
+`python tests/Installer/check_build.py /path/to/sdk10/dotnet`. It remains
 separate from the SDK 8 portable command and the local assembly contracts.
 
 ## Runtime evidence still needed

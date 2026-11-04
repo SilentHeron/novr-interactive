@@ -31,7 +31,7 @@ The development copy inspected on 2026-10-30 had SHA-256 `a2cec71bda003824695b5c
 From the repository root:
 
 ```sh
-dotnet run --project validation/MissionReadiness/NOVR.MissionReadiness.Tests.csproj -c Release
+python tools/verify.py portable --suite mission-readiness
 ```
 
 The 20 portable checks compile the production state, coroutine wrapper, completion recognizer, and adapter against narrow boundary doubles. They cover no-loader startup, early registration, unknown/late attachment, exact log source/level/message, stale events, normal completion, early termination, exceptions, cancellation, retry, unchanged yield ordering, culture, and subscription cleanup. They do not simulate the Unity player, actual Harmony patch execution, or a headset.

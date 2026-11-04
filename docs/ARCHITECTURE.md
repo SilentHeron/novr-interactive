@@ -28,7 +28,7 @@ to rename its runtime identity or persisted configuration keys.
 
 ## Input ordering and context
 
-[`TrackedControllers`](../NOVR/MotionControls/TrackedControllers.cs) caches one
+[`TrackedControllers`](../NOVR/Input/TrackedControllers.cs) caches one
 validated sample per hand per frame. Availability requires active, focused XR,
 tracked headset state and presence when supplied by the runtime. Each consumer
 adds its own context checks; there is no single global "cockpit ready" gate.
@@ -39,15 +39,15 @@ Ownership checks and release gates matter as much as numeric order.
 | Component | Order / phase | Context and ownership |
 | --- | --- | --- |
 | `CockpitProfiles` | -1300 / Update | Selects the current aircraft/slot and placement state before consumers. |
-| [`CockpitHudWidgets`](../NOVR/VrUi/Components/CockpitHudWidgets.cs) | -1260 / Update | Requires a valid cockpit/camera space to show widgets; tracked focus, unpaused input and closed menus additionally gate editing. Claims widget/corner/appearance hands before handle placement. |
-| [`CockpitLayout`](../NOVR/MotionControls/CockpitLayout.cs), [`NativeHandOptionWheel`](../NOVR/MotionControls/NativeHandOptionWheel.cs) | -1250 / Update | Layout yields a hand already editing a widget. The wheel requires a free hand, live cockpit and no layout/menu/full-map conflict; ownership persists through cancellation/neutral handoff. These equal-order components must not rely on ordering between themselves. |
-| [`CockpitMapInteraction`](../NOVR/VrUi/Components/CockpitMapInteraction.cs) | -1240 / Update | Direct fingertip contacts require a visible cockpit map and free interaction context. Thumbstick reservation survives until neutral handoff; navigation is updated again by `ControllerActions` after current-frame grip sampling. |
-| [`MotionFlightController`](../NOVR/MotionControls/MotionFlightController.cs) | -1200 / Update | Requires enabled motion controls, a live local pilot, attached cockpit, tracked camera/headset and enabled flight input. Menus/layout suspend grips. NOVR's one-hand wheel can coexist with the other flight hand. |
-| [`HelmetNightVision`](../NOVR/MotionControls/HelmetNightVision.cs) | -1175 / Update | A free hand at the brow may own trigger input; held handles, wheel, editing, menus, pause and the full map exclude it. |
-| [`WristMenu`](../NOVR/VrUi/WristMenu.cs) | -1100 / Update | Opens View in cockpit context; outside it, the same request can open the recovery map. Respects wheel/map reservations. |
-| [`ControllerActions`](../NOVR/MotionControls/ControllerActions.cs) | -1050 / Update | Grip-bound actions respect wheel/map ownership and binding changes. Recovery-map availability deliberately does not require a surviving aircraft or held handle. Queued native actions have a separate, stricter flight context. |
-| [`VrUiCursor`](../NOVR/VrUi/VrUiCursor.cs) / [`ControllerUiPointer`](../NOVR/VrUi/ControllerUiPointer.cs) | -1000 / Update | Runs for interactive UI, including native menus outside flight. Pointer ownership changes on actual input, not ray hover; helmet/wheel hands are excluded. Cancel captures when their page or target disappears. |
-| [`PilotHandVisuals`](../NOVR/MotionControls/PilotHandVisuals.cs), `PilotHandUiDepth` | 10000, 11000 / LateUpdate | Render poses, arm solving and depth handling follow input sampling. They do not decide flight or contact input. |
+| [`CockpitHudWidgets`](../NOVR/VrUi/Widgets/CockpitHudWidgets.cs) | -1260 / Update | Requires a valid cockpit/camera space to show widgets; tracked focus, unpaused input and closed menus additionally gate editing. Claims widget/corner/appearance hands before handle placement. |
+| [`CockpitLayout`](../NOVR/Profiles/CockpitLayout.cs), [`NativeHandOptionWheel`](../NOVR/VrUi/RadialMenu/NativeHandOptionWheel.cs) | -1250 / Update | Layout yields a hand already editing a widget. The wheel requires a free hand, live cockpit and no layout/menu/full-map conflict; ownership persists through cancellation/neutral handoff. These equal-order components must not rely on ordering between themselves. |
+| [`CockpitMapInteraction`](../NOVR/VrUi/Map/CockpitMapInteraction.cs) | -1240 / Update | Direct fingertip contacts require a visible cockpit map and free interaction context. Thumbstick reservation survives until neutral handoff; navigation is updated again by `ControllerActions` after current-frame grip sampling. |
+| [`MotionFlightController`](../NOVR/FlightControls/MotionFlightController.cs) | -1200 / Update | Requires enabled motion controls, a live local pilot, attached cockpit, tracked camera/headset and enabled flight input. Menus/layout suspend grips. NOVR's one-hand wheel can coexist with the other flight hand. |
+| [`HelmetNightVision`](../NOVR/Input/Gestures/HelmetNightVision.cs) | -1175 / Update | A free hand at the brow may own trigger input; held handles, wheel, editing, menus, pause and the full map exclude it. |
+| [`WristMenu`](../NOVR/VrUi/ViewMenu/WristMenu.cs) | -1100 / Update | Opens View in cockpit context; outside it, the same request can open the recovery map. Respects wheel/map reservations. |
+| [`ControllerActions`](../NOVR/Input/ControllerActions.cs) | -1050 / Update | Grip-bound actions respect wheel/map ownership and binding changes. Recovery-map availability deliberately does not require a surviving aircraft or held handle. Queued native actions have a separate, stricter flight context. |
+| [`VrUiCursor`](../NOVR/VrUi/Input/VrUiCursor.cs) / [`ControllerUiPointer`](../NOVR/VrUi/Input/ControllerUiPointer.cs) | -1000 / Update | Runs for interactive UI, including native menus outside flight. Pointer ownership changes on actual input, not ray hover; helmet/wheel hands are excluded. Cancel captures when their page or target disappears. |
+| [`PilotHandVisuals`](../NOVR/Hands/PilotHandVisuals.cs), `PilotHandUiDepth` | 10000, 11000 / LateUpdate | Render poses, arm solving and depth handling follow input sampling. They do not decide flight or contact input. |
 
 When changing a gate, check held-input recovery, tracking loss, aircraft changes,
 pause and ownership transfer. Cancellation must not synthesize a release action.
@@ -61,19 +61,19 @@ examples of state that must be discarded when its original context disappears.
   Use the aim pose for menu rays and raw mapped contact points for direct input.
 - Game and cockpit-UI cameras have different rig roots. Convert through those
   roots rather than treating their world positions/depth buffers as interchangeable.
-  [`CockpitWidgetSpace`](../NOVR/VrUi/Components/CockpitWidgetSpace.cs) uses the
+  [`CockpitWidgetSpace`](../NOVR/VrUi/Widgets/CockpitWidgetSpace.cs) uses the
   pilot viewpoint's rigid pose, ignoring imported bone scale. Saved layout offsets
   stay aircraft-fixed when the player recenters or changes their seat.
-- [`RiggedGlove`](../NOVR/MotionControls/RiggedGlove.cs) blends visual attachments;
+- [`RiggedGlove`](../NOVR/Hands/RiggedGlove.cs) blends visual attachments;
   `PilotHandVisuals` then stabilizes free hands and solves sleeves. Snapped/smoothed
   meshes and capacitive finger animation must never feed back into contact tests,
   grip acquisition or button presses.
 
 ## Borrowed native UI
 
-[`CockpitStatusSources`](../NOVR/VrUi/Components/CockpitStatusSources.cs),
-[`CockpitMapWidget`](../NOVR/VrUi/Components/CockpitMapWidget.cs) and
-[`NativeRadialMenuLease`](../NOVR/MotionControls/NativeRadialMenuLease.cs) borrow
+[`CockpitStatusSources`](../NOVR/VrUi/Status/CockpitStatusSources.cs),
+[`CockpitMapWidget`](../NOVR/VrUi/Map/CockpitMapWidget.cs) and
+[`NativeRadialMenuLease`](../NOVR/VrUi/RadialMenu/NativeRadialMenuLease.cs) borrow
 live game objects rather than duplicating their events or action lists. Capture
 original parents, sibling order, transforms, layers and affected visibility before
 mutation. Restore surviving sources on release, invalidation, context changes
@@ -84,10 +84,10 @@ whole native HUD roots to hide one borrowed leaf.
 ## Common changes
 
 **A controller binding:** add its identity, defaults, label and collision/context
-rules in [`ControllerBindingModel`](../NOVR/MotionControls/ControllerBindingModel.cs).
-Wire persistence in [`ControllerProfileBindings`](../NOVR/MotionControls/ControllerProfileBindings.cs)
+rules in [`ControllerBindingModel`](../NOVR/Input/ControllerBindingModel.cs).
+Wire persistence in [`ControllerProfileBindings`](../NOVR/Input/ControllerProfileBindings.cs)
 without renaming existing keys. Add dispatch/gates in `ControllerActions`; use
-[`NativeControllerAction`](../NOVR/MotionControls/NativeControllerAction.cs) for
+[`NativeControllerAction`](../NOVR/Input/NativeControllerAction.cs) for
 game input intents, translating strings only at the Rewired boundary. The binding
 editor consumes the shared model. Check both hardware profiles and handedness:
 
@@ -96,7 +96,7 @@ python tools/verify.py portable --suite controller-bindings --suite controller-r
 ```
 
 **A HUD widget:** add stable ID, defaults and presentation to
-[`HudWidgetCatalog`](../NOVR/VrUi/Components/HudWidgetCatalog.cs), then supply its
+[`HudWidgetCatalog`](../NOVR/VrUi/Widgets/HudWidgetCatalog.cs), then supply its
 content through the appropriate source owner. Catalog metadata does not acquire
 or restore native objects. Preserve saved IDs and test missing/destroyed sources:
 
@@ -104,11 +104,11 @@ or restore native objects. Preserve saved IDs and test missing/destroyed sources
 python tools/verify.py portable --suite hud-widgets --suite cockpit-status-sources
 ```
 
-**Hand fit:** adjust [`Fs20HandPoses`](../NOVR/MotionControls/Fs20HandPoses.cs),
-[`CollectiveHandPoses`](../NOVR/MotionControls/CollectiveHandPoses.cs) or
-[`FreeHandPose`](../NOVR/MotionControls/FreeHandPose.cs) at the relevant boundary.
+**Hand fit:** adjust [`Fs20HandPoses`](../NOVR/Hands/Fs20HandPoses.cs),
+[`CollectiveHandPoses`](../NOVR/Hands/CollectiveHandPoses.cs) or
+[`FreeHandPose`](../NOVR/Hands/FreeHandPose.cs) at the relevant boundary.
 Keep grip sockets, mirroring and finger transitions coherent; use
-[`ArmPoseMath`](../NOVR/MotionControls/ArmPoseMath.cs) for arm geometry changes.
+[`ArmPoseMath`](../NOVR/Hands/ArmPoseMath.cs) for arm geometry changes.
 Read [hand fit](HAND_FIT.md), then check the shared source before rendered review:
 
 ```sh

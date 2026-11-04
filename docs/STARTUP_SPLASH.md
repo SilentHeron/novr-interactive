@@ -24,7 +24,7 @@ If a temporary scene lacks an EventSystem, NOVR supplies one for the loading con
 ## Portable validation
 
 ```sh
-dotnet run --project validation/StartupSplash/NOVR.StartupSplash.Tests.csproj -c Release
+python tools/verify.py portable --suite startup-splash
 ```
 
 The 28 checks compile production lifecycle state and cover early/absent loader handling, persistent loading, success-event-plus-coroutine completion, failure, confirmation cancellation, unknown loaders, VR enable/disable, temporary offline scenes, and exclusion from flight/multiplayer. The network predicate distinguishes an inactive server’s default Listening flag from an active connection, including the loader’s offline host/client shutdown sequence. They do not verify headset comfort or Unity rendering.

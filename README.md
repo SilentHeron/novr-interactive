@@ -24,7 +24,7 @@ This replaces upstream NOVR; do not install both. On Linux/Proton, add `WINEDLLO
 
 **View → Edit layout:** reach a widget with your fingertip and grip to move it; throttle and stick placement uses the same edit mode. Tilt a held widget to adjust pitch/yaw; roll stays locked. Grab opposite corners with both hands to move, tilt and resize together. Labels, outlines and corner handles appear only while editing. Touch the eye to hide/show a widget, or its pencil for the backplate opacity slider; surrounding widgets dim temporarily. Reopen View to save or cancel everything together. Each aircraft has three independent slots for its seat, handles and HUD layout. Existing layouts stay in Slot 1.
 
-[Controls](https://github.com/SilentHeron/novr-interactive/blob/main/docs/CONTROLLER_BINDINGS.md) · [Changes](https://github.com/SilentHeron/novr-interactive/blob/main/docs/RELEASE_0.4.8.10.md)
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.10.md)
 
 ## Build
 
@@ -35,7 +35,9 @@ dotnet build NOVR/NOVR.csproj -c Release -p:DeployToGame=false
 dotnet build NOVR.Patcher/NOVR.Patcher.csproj -c Release -p:DeployToGame=false
 ```
 
-The full solution needs SDK 10. [Verification instructions](https://github.com/SilentHeron/novr-interactive/blob/main/docs/VERIFICATION.md) · [Contributing](https://github.com/SilentHeron/novr-interactive/blob/main/CONTRIBUTING.md).
+The full solution needs SDK 10. Building does not install the mod. Optional installer executables require `-p:PublishInstallers=true`.
+
+[Contributing](CONTRIBUTING.md) · [Code architecture](docs/ARCHITECTURE.md) · [Verification](docs/VERIFICATION.md).
 
 ## Credits and license
 

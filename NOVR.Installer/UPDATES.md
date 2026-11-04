@@ -51,9 +51,9 @@ The installer pins `Tmds.DBus.Protocol` to the compatible 0.21.3 backport for [t
 Run the portable installer checks without game files or network access:
 
 ```sh
-dotnet run --project NOVR.Installer.Tests/NOVR.Installer.Tests.csproj -c Release
+dotnet run --project tests/Installer/NOVR.Installer.Tests.csproj -c Release
 ```
 
 An optional ZIP argument validates a real release package without installing it. Tests cover four-part versions, malformed archives, settings/other-mod preservation, forced second-swap failure, cancellation, interrupted-update recovery, concurrent updates, mocked release selection and checksums. Temporary fixture files are removed on completion.
 
-With SDK 10 and Python available, `python3 NOVR.Installer.Tests/check_build.py /path/to/dotnet` also verifies deployment settings, compiled release identity, stale metadata/binary rejection, missing payloads and generated checksums in temporary directories. It compiles tiny fake plugin fixtures, without building or deploying the runtime plugin.
+With SDK 10 and Python available, `python3 tests/Installer/check_build.py /path/to/dotnet` also verifies deployment settings, compiled release identity, stale metadata/binary rejection, missing payloads and generated checksums in temporary directories. It compiles tiny fake plugin fixtures, without building or deploying the runtime plugin.

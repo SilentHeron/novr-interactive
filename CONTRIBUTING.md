@@ -68,19 +68,25 @@ and retain a backup of the previous plugin, patcher and settings.
 
 | Area | Responsibility |
 | --- | --- |
-| `NOVR/MotionControls` | Controller samples, input ownership, flight controls, hand poses and cockpit profiles |
-| `NOVR/VrUi/Components` | Floating widgets, native UI borrowing, HUD presentation and direct map interaction |
-| `NOVR/VrUi/Native` | Main menu, mission loading, settings and startup splash |
+| `NOVR/Input`, `NOVR/FlightControls` | Controller samples, input ownership, bindings and virtual HOTAS |
+| `NOVR/Hands`, `NOVR/Feedback`, `NOVR/Profiles` | Hand and sleeve poses, audio/haptics and per-aircraft placement |
+| `NOVR/VrUi/Widgets`, `Map`, `Status` | Adjustable HUD widgets, borrowed native status UI and map interaction |
+| `NOVR/VrUi/Hud`, `Targeting`, `SceneAdapters` | HUD scaling, targeting cues and native scene presentation |
+| `NOVR/VrUi/ViewMenu`, `Bindings`, `Input`, `RadialMenu` | View settings, binding editor, pointers and native hand wheel |
+| `NOVR/VrUi/Native` | Main/mission menus, settings, content readiness and startup splash |
 | `NOVR/VrUi/HarmonyPatches` | Small adapters for native game UI behavior |
-| `NOVR/VrCamera` | Stereo camera setup and cockpit/tracking-space conversion |
+| `NOVR/VrCamera`, `NOVR/Compatibility` | Stereo/cockpit spaces and platform compatibility |
 | `NOVR.Patcher`, `NOVR.XR.*` | Early XR payload installation and Unity XR integrations |
-| `tests`, `tools/*Checks`, `validation` | Executable checks that compile production code with narrow boundary doubles |
+| `tests/<feature>` | Source-only suites, including `Core` and `Installer`, isolated from game references |
+| `tools` | Verification runner and asset-preparation utilities |
 
-Put new source-only suites in `tests/<feature>/`; `tools/` is for verification
-and asset-preparation utilities. Register each suite in `tools/verify.py`, preserve
-the empty build-import files that isolate it from game references, and include
-its linked inputs in the CI sparse checkout. Existing checks in the older roots
-remain supported while they are consolidated.
+See [architecture](docs/ARCHITECTURE.md) for startup, input ownership and the
+native UI lifetime rules. Folders group features; existing CLR namespaces and
+persisted configuration keys remain stable for compatibility.
+
+Put new source-only suites in `tests/<feature>/`. Register each suite in
+`tools/verify.py`, preserve the empty build-import files that isolate it from game
+references, and include its linked inputs in the CI sparse checkout.
 
 The Unity XR projects contain inherited vendor source. See the
 [XR source boundary](docs/XR_VENDORING.md) before changing or updating them.
@@ -92,6 +98,10 @@ contact points. Visual stabilization and snapped poses must not feed back into
 contact detection.
 
 ## Making a change
+
+Follow `.editorconfig` in maintained code. Format changed C# files with
+`dotnet format whitespace . --folder --include path/to/changed.cs`; keep formatting
+separate from behavior changes and leave imported `NOVR.XR.*` source in its existing style.
 
 - Include the trigger, expected behavior and observed behavior. For VR issues,
   include the build, game version, aircraft, headset/controllers, streaming path
