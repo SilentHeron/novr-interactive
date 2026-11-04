@@ -5,8 +5,7 @@ using UnityEngine.XR;
 
 namespace NOVR.MotionControls;
 
-// Preserve the native designator transform used by selection. Only replace its
-// visual: a readable hollow circle, brightening when a candidate is in range.
+// A readable hollow circle whose adjusted centre defines the selection ray.
 [DefaultExecutionOrder(110)]
 internal sealed class TargetAcquisitionCue : MonoBehaviour
 {
@@ -72,8 +71,7 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         EnsureView(camera);
         _canvas!.worldCamera = camera;
         _group!.alpha = _opacity;
-        // Only this decorative cue follows the centre of vision. Native
-        // designator transforms still drive candidate detection and selection.
+        // GazeRingGraphic applies the same local offset used by GazeCueRay.
         _view!.transform.SetPositionAndRotation(camera.transform.position + camera.transform.forward * GazeCueSettings.ViewDepthMeters, camera.transform.rotation);
         _view.SetActive(true);
     }

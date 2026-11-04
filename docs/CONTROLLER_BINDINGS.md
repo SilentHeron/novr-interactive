@@ -12,7 +12,7 @@ Flight buttons require the assigned handle held or toggle-latched. Target select
 | --- | --- | --- |
 | Guns | Right trigger | Right trigger |
 | Selected missile / bomb release | A | A |
-| Select target under gaze cue | Right thumbstick click | Right thumbstick click |
+| Select target nearest cue | Right thumbstick click | Right thumbstick click |
 | Unselect latest target | B | B |
 | Next weapon | Y on stick hand | Y on throttle hand |
 | Countermeasures | Left D-pad down | X |
@@ -67,7 +67,14 @@ In **View → Flight controls**, choose **Hold** or **Toggle** independently for
 
 For the map, horizontal and vertical corner separation change its width and height independently. This changes the visible area without stretching terrain or unit icons. The shape is saved with the aircraft's selected profile slot.
 
-The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **View → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults. In Near targets mode, already-selected targets do not activate the cue; it appears only when another selectable target is nearby.
+The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **View → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and adjusts both the cue and the target-selection ray. Reset restores the defaults. In Near targets mode, already-selected targets do not activate the cue; it appears only when another selectable target is nearby.
+
+In VR cockpit view, a target-select click chooses the eligible marker closest to
+the centre of the cue within the acquisition cone. Threat and range priority
+cannot pull the selection toward a different off-centre target. Moving the cue
+up or down moves the targeting ray with it; size, shape and opacity do not change aim.
+Native target filters, paint selection and tactical-map selection are unchanged.
+
 A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.
 
 MIL detection covers the game's turbojet and turbofan engines, including mods based on those engine types. Engines without an afterburner have no MIL notch. Helicopter collective travel stays continuous: lift to increase the command and lower to decrease it. The complete lever pivots beneath and behind its grip; the saved grip position and configured lift distance remain unchanged.

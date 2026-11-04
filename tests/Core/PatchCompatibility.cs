@@ -163,6 +163,22 @@ internal static class PatchCompatibility
             i.Next?.Operand is MethodReference call && call.DeclaringType.Name == "FastMath" && call.Name == "InRange");
         if (acquisitionSites != 1)
             failures.Add("Native optical selection acquisition-circle IL contract changed.");
+        var combatHud = game.MainModule.Types.Single(t => t.Name == "CombatHUD");
+        var selectTarget = combatHud.Methods.Single(m => m.Name == "TargetSelect");
+        var selectUnit = combatHud.Methods.Single(m => m.Name == "SelectUnit");
+        if (selectTarget.ReturnType.FullName != "System.Void" || selectTarget.Parameters.Count != 1 ||
+            selectTarget.Parameters[0].ParameterType.FullName != "System.Boolean" || selectTarget.Parameters[0].Name != "paint" ||
+            !selectUnit.IsPublic || selectUnit.Parameters.Count != 1 || selectUnit.Parameters[0].ParameterType.FullName != "Unit")
+            failures.Add("Native gaze-selection method contract changed.");
+        var selectCalls = selectUnit.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>().ToArray();
+        if (!selectCalls.Any(m => m.DeclaringType.Name == "HUDUnitMarker" && m.Name == "SelectMarker") ||
+            !selectCalls.Any(m => m.DeclaringType.Name == "WeaponManager" && m.Name == "AddTargetList") ||
+            !selectCalls.Any(m => m.DeclaringType.Name == "SoundManager" && m.Name == "PlayInterfaceOneShot"))
+            failures.Add("Native SelectUnit no longer applies marker, weapon-target and sound updates together.");
+        var addTarget = game.MainModule.Types.Single(t => t.Name == "WeaponManager").Methods.Single(m => m.Name == "AddTargetList");
+        if (!addTarget.Body.Instructions.Any(i => i.Operand is MethodReference m &&
+            m.DeclaringType.Name == "WeaponManager" && m.Name == "TargetListChanged"))
+            failures.Add("Native AddTargetList no longer notifies weapon/network target state.");
         if (failures.Count != 0)
             throw new Exception(string.Join(Environment.NewLine, failures));
         Console.WriteLine($"Verified {verified} declared patch targets (metadata only; no game code executed).");

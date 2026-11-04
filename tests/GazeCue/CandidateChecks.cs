@@ -1,38 +1,45 @@
+using NOVR;
 using NOVR.MotionControls;
 using UnityEngine;
 using UnityEngine.UI;
 
 internal static class CandidateChecks
 {
+    internal static HUDUnitMarker Marker(Vector3 position)
+    {
+        var image = new GameObject("Native unit marker").AddComponent<Image>();
+        image.transform.position = position;
+        return new HUDUnitMarker { unit = new Unit(), image = image };
+    }
+    internal static CombatHUD Hud(params HUDUnitMarker[] markers)
+    {
+        var hud = new CombatHUD { targetDesignator = new GameObject("Native designator").AddComponent<Image>() };
+        hud.Add(markers);
+        return hud;
+    }
+    internal static void ResetContext()
+    {
+        Time.unscaledTime = 1;
+        ModConfiguration.Instance.LookCue.VerticalDegrees.Value = 0;
+        SceneSingleton<TargetListSelector>.i = new TargetListSelector();
+        APIBus.CockpitHudCamera = new GameObject("Actual HUD camera").AddComponent<Camera>();
+        UnityEngine.XR.XRSettings.enabled = true;
+        CameraStateManager.cameraMode = CameraMode.cockpit;
+        DynamicMap.mapMaximized = false;
+        NOVR.VrUi.NOUIManager.I = new();
+    }
     internal static void Run(Action<bool, string> check)
     {
-        HUDUnitMarker Marker(float distance = 20)
-        {
-            var image = new GameObject("Native unit marker").AddComponent<Image>();
-            image.transform.position = new Vector3(distance, 0, 0);
-            return new HUDUnitMarker { unit = new Unit(), image = image };
-        }
-        CombatHUD Hud(params HUDUnitMarker[] markers)
-        {
-            var hud = new CombatHUD { targetDesignator = new GameObject("Native designator").AddComponent<Image>() };
-            hud.Add(markers);
-            return hud;
-        }
         CombatHUD Fresh(out HUDUnitMarker marker)
         {
-            TargetCueCandidates.Nearby(null);
-            Time.unscaledTime = 1;
-            SceneSingleton<TargetListSelector>.i = new TargetListSelector();
-            marker = Marker();
+            ResetContext();
+            marker = Marker(new Vector3(0, 0, 1000));
             return Hud(marker);
         }
-
         var hud = Fresh(out var marker);
-        check(TargetCueCandidates.Nearby(hud), "nearby unlocked native marker enables cue");
+        check(TargetCueCandidates.Nearest(hud) == marker && TargetCueCandidates.Nearby(hud), "centred unlocked native marker enables cue");
         hud.aircraft!.weaponManager!.Targets.Add(marker.unit!);
-        Time.unscaledTime += .01f;
-        check(!marker.selected && !TargetCueCandidates.Nearby(hud),
-            "authoritative lock list invalidates cached positive before marker.selected catches up");
+        check(!marker.selected && !TargetCueCandidates.Nearby(hud), "authoritative lock excludes target before presentation catches up");
         for (var index = 0; index < 4; index++)
         {
             hud = Fresh(out marker);
@@ -43,30 +50,22 @@ internal static class CandidateChecks
         }
 
         hud = Fresh(out marker);
-        var alternative = Marker(40);
+        var alternative = Marker(new Vector3(40, 0, 1000));
         hud.Add(alternative);
-        check(TargetCueCandidates.Nearby(hud), "first unlocked marker warms candidate cache");
+        check(TargetCueCandidates.Nearest(hud) == marker, "nearest marker is selected before an off-centre alternative");
         hud.aircraft!.weaponManager!.Targets.Add(marker.unit!);
-        Time.unscaledTime += .01f;
-        check(TargetCueCandidates.Nearby(hud), "newly locked cached marker yields to nearby unlocked alternative immediately");
+        check(TargetCueCandidates.Nearest(hud) == alternative, "newly locked marker yields to nearby unlocked alternative immediately");
         hud.aircraft.weaponManager.Targets.Add(alternative.unit!);
-        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(hud), "all nearby multi-lock entries suppress the cue");
         hud.aircraft.weaponManager.Targets.Remove(marker.unit!);
-        Time.unscaledTime += .01f;
-        check(!TargetCueCandidates.Nearby(hud), "unlock respects existing bounded negative-cache interval");
-        Time.unscaledTime += .09f;
-        check(TargetCueCandidates.Nearby(hud), "unlocked candidate returns after negative cache expires");
-
+        check(TargetCueCandidates.Nearest(hud) == marker, "unlock returns immediately without waiting for a negative cache");
         hud = Fresh(out marker);
         hud.Targets.Add(marker.unit!);
         check(TargetCueCandidates.Nearby(hud), "live weapon-manager list takes precedence over stale HUD list");
         hud.aircraft!.weaponManager = null;
-        Time.unscaledTime += .01f;
-        check(!TargetCueCandidates.Nearby(hud), "HUD target-list fallback still excludes selected unit without weapon manager");
+        check(!TargetCueCandidates.Nearby(hud), "HUD list fallback still excludes selected unit without weapon manager");
         hud.Targets.Clear();
-        Time.unscaledTime += .09f;
-        check(TargetCueCandidates.Nearby(hud), "HUD fallback unlock also resumes after cache expiry");
+        check(TargetCueCandidates.Nearby(hud), "HUD fallback unlock resumes immediately");
 
         foreach (var invalidate in new Action<CombatHUD, HUDUnitMarker>[]
         {
@@ -75,46 +74,76 @@ internal static class CandidateChecks
             (_, m) => m.image!.enabled = false,
             (_, m) => m.image!.gameObject.SetActive(false),
             (_, m) => m.image!.canvasRenderer.Alpha = .01f,
-            (_, m) => m.image!.transform.position = new Vector3(100, 0, 0),
+            (_, m) => m.image!.canvasRenderer.Alpha = float.NaN,
             (_, m) => SceneSingleton<TargetListSelector>.i!.Excluded.Add(m.unit!),
             (_, m) => m.image = null,
             (_, m) => m.unit = null
         })
         {
             hud = Fresh(out marker);
-            check(TargetCueCandidates.Nearby(hud), "valid candidate warms positive cache");
+            check(TargetCueCandidates.Nearby(hud), "candidate exists before native eligibility changes");
             invalidate(hud, marker);
-            Time.unscaledTime += .01f;
-            check(!TargetCueCandidates.Nearby(hud), "cached candidates retain native selection/visibility/distance/exclusion filters");
+            check(!TargetCueCandidates.Nearby(hud), "selection, visibility and exclusions apply on every scan");
         }
 
-        foreach (var (x, y, z, expected) in new[]
-        {
-            (99.99f, 0f, 0f, true), (100f, 0f, 0f, false), (100.01f, 0f, 0f, false),
-            (60f, 80f, 0f, false), (60f, 79f, 0f, true), (0f, 0f, 100f, false)
-        })
-        {
-            hud = Fresh(out marker);
-            hud.targetDesignator!.transform.position = new Vector3(250, -30, 10);
-            marker.image!.transform.position = new Vector3(250 + x, -30 + y, 10 + z);
-            check(TargetCueCandidates.Nearby(hud) == expected,
-                "native strict100-unit three-dimensional distance stays relative to designator");
-        }
+        foreach (var scale in new[] { .01f, 1f, 100f })
+            foreach (var (direction, expected) in new[]
+            {
+                (new Vector3(0, 0, 1), true),
+                (new Vector3(.099f, 0, .9951f), true),
+                (new Vector3(.101f, 0, .9949f), false),
+                (new Vector3(0, 0, -1), false),
+                (new Vector3(1, 0, 0), false),
+                (Vector3.zero, false),
+                (new Vector3(float.NaN, 0, 1), false),
+                (new Vector3(0, float.PositiveInfinity, 1), false)
+            })
+            {
+                hud = Fresh(out marker);
+                marker.image!.transform.position = direction * scale;
+                check(TargetCueCandidates.Nearby(hud) == expected, "angular cone rejects outside/behind/nonfinite points independently of marker depth");
+            }
 
+        // x² + z² is exactly 40000 at float precision, so z/length is
+        // exactly the production .995f cutoff rather than an approximate angle.
         hud = Fresh(out marker);
-        check(TargetCueCandidates.Nearby(hud), "old HUD has cached positive");
-        var otherHud = Hud();
-        Time.unscaledTime += .01f;
-        check(!TargetCueCandidates.Nearby(otherHud), "switching HUD cannot reuse old HUD candidate");
-        check(TargetCueCandidates.Nearby(hud), "switching back rescans actual HUD immediately");
+        marker.image!.transform.position = new Vector3(MathF.Sqrt(399), 0, 199);
+        check(!TargetCueCandidates.Nearby(hud), "exact .995 alignment remains outside the strict native angular cone");
+
+        foreach (var reversed in new[] { false, true })
+        {
+            ResetContext();
+            var centredFar = Marker(new Vector3(0, 0, 10000));
+            var offsetNear = Marker(new Vector3(4, 0, 100));
+            hud = reversed ? Hud(centredFar, offsetNear) : Hud(offsetNear, centredFar);
+            check(TargetCueCandidates.Nearest(hud) == centredFar, "nearest angle wins regardless of list order or world/radial distance");
+            var tied = Marker(new Vector3(0, 0, 2000));
+            hud = Hud(centredFar, tied);
+            check(TargetCueCandidates.Nearest(hud) == centredFar, "exact angular ties retain stable marker order");
+        }
+
+        foreach (var yaw in new[] { -145f, -45f, 0f, 85f, 175f })
+        {
+            ResetContext();
+            var camera = APIBus.CockpitHudCamera!.transform;
+            camera.position = new Vector3(1230, -450, 770);
+            camera.rotation = Quaternion.Euler(15, yaw, 8);
+            marker = Marker(camera.position + camera.rotation * new Vector3(0, 0, 1000));
+            alternative = Marker(camera.position + camera.rotation * new Vector3(70, 0, 1000));
+            hud = Hud(alternative, marker);
+            hud.targetDesignator.transform.position = new Vector3(-5000, 4000, 20);
+            check(TargetCueCandidates.Nearest(hud) == marker, "translated/rotated camera chooses the rendered centre independent of stale designator");
+            camera.rotation = Quaternion.Euler(15, yaw + 4, 8);
+            check(TargetCueCandidates.Nearest(hud) == alternative, "head turn immediately replaces a still-eligible prior candidate with the nearest one");
+        }
+        hud = Fresh(out marker);
+        check(TargetCueCandidates.Nearby(hud) && !TargetCueCandidates.Nearby(Hud()), "switching HUD uses only its current marker set");
         var otherAircraft = new Aircraft();
         otherAircraft.weaponManager!.Targets.Add(marker.unit!);
         hud.aircraft = otherAircraft;
-        Time.unscaledTime += .01f;
-        check(!TargetCueCandidates.Nearby(hud), "new aircraft target list replaces cached aircraft ownership");
+        check(!TargetCueCandidates.Nearby(hud), "switching aircraft immediately uses its authoritative target list");
         hud.aircraft = new Aircraft();
-        Time.unscaledTime += .01f;
-        check(TargetCueCandidates.Nearby(hud), "new aircraft is not held back by previous aircraft's negative cache");
+        check(TargetCueCandidates.Nearby(hud), "new aircraft cannot inherit a previous negative result");
 
         foreach (var invalidate in new Action<CombatHUD>[]
         {
@@ -122,16 +151,17 @@ internal static class CandidateChecks
             h => h.aircraft!.disabled = true,
             h => h.targetDesignator = null!,
             h => h.targetDesignator!.gameObject.SetActive(false),
-            _ => SceneSingleton<TargetListSelector>.i = null
+            _ => SceneSingleton<TargetListSelector>.i = null,
+            _ => APIBus.CockpitHudCamera = null,
+            _ => APIBus.CockpitHudCamera!.transform.position = new Vector3(float.NaN, 0, 0),
+            _ => APIBus.CockpitHudCamera!.transform.rotation = new Quaternion(float.NaN, 0, 0, 1)
         })
         {
             hud = Fresh(out marker);
             check(TargetCueCandidates.Nearby(hud), "candidate exists before native context loss");
             invalidate(hud);
-            Time.unscaledTime += .01f;
-            check(!TargetCueCandidates.Nearby(hud), "lost native context cannot leave cached cue active");
+            check(!TargetCueCandidates.Nearby(hud), "lost or invalid native context fails closed");
         }
-        check(!TargetCueCandidates.Nearby(null), "missing HUD fails closed and clears cache");
-        SceneSingleton<TargetListSelector>.i = null;
+        check(!TargetCueCandidates.Nearby(null), "missing HUD fails closed");
     }
 }

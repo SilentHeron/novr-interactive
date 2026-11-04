@@ -26,7 +26,15 @@ namespace UnityEngine
     {
         public Transform? parent;
         public Vector3 position;
+        public Quaternion rotation = Quaternion.identity;
+        public Vector3 forward => rotation * Vector3.forward;
+        public Vector3 TransformDirection(Vector3 direction) => rotation * direction;
         public void SetParent(Transform value, bool worldPositionStays) => parent = value;
+        public void SetPositionAndRotation(Vector3 value, Quaternion orientation)
+        {
+            position = value;
+            rotation = orientation;
+        }
     }
     public class RectTransform : Transform
     {
@@ -62,8 +70,42 @@ namespace UnityEngine
     }
     public readonly record struct Vector3(float x, float y, float z)
     {
+        public static Vector3 zero => default;
+        public static Vector3 forward => new(0, 0, 1);
+        public float sqrMagnitude => SqrMagnitude(this);
+        public float magnitude => MathF.Sqrt(sqrMagnitude);
+        public Vector3 normalized => magnitude > 0 ? this / magnitude : zero;
+        public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
+        public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
+        public static Vector3 operator *(Vector3 a, float b) => new(a.x * b, a.y * b, a.z * b);
+        public static Vector3 operator /(Vector3 a, float b) => new(a.x / b, a.y / b, a.z / b);
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
         public static float SqrMagnitude(Vector3 value) => value.x * value.x + value.y * value.y + value.z * value.z;
+    }
+    public readonly record struct Quaternion(float x, float y, float z, float w)
+    {
+        public static Quaternion identity => new(0, 0, 0, 1);
+        public static Quaternion Euler(float pitch, float yaw, float roll)
+        {
+            var value = System.Numerics.Quaternion.CreateFromYawPitchRoll(yaw * MathF.PI / 180, pitch * MathF.PI / 180, roll * MathF.PI / 180);
+            return new(value.X, value.Y, value.Z, value.W);
+        }
+        public static Vector3 operator *(Quaternion rotation, Vector3 point)
+        {
+            var value = System.Numerics.Vector3.Transform(new(point.x, point.y, point.z), new System.Numerics.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+            return new(value.X, value.Y, value.Z);
+        }
+    }
+    public class Camera : Component
+    {
+    }
+    public class MonoBehaviour : Component
+    {
+    }
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class DefaultExecutionOrder(int order) : Attribute
+    {
+        public int Order => order;
     }
     public static class Time
     {
@@ -82,6 +124,7 @@ namespace UnityEngine
     public static class Mathf
     {
         public const float PI = MathF.PI;
+        public static float Sqrt(float value) => MathF.Sqrt(value);
         public static float Min(float a, float b) => Math.Min(a, b);
         public static float Max(float a, float b) => Math.Max(a, b);
         public static float Cos(float a) => MathF.Cos(a);

@@ -27,7 +27,7 @@ internal sealed class GazeCueSettings
         Shape = config.Bind("VR HUD", "Look Cue Shape", GazeCueShape.Circle,
             "Look-direction symbol: hollow circle, small dot, open-centre crosshair, or corner brackets.");
         VerticalDegrees = config.Bind("VR HUD", "Look Cue Vertical Position", DefaultVerticalDegrees,
-            new ConfigDescription("Visual cue position in degrees relative to the centre of vision. Negative moves down, positive moves up. Does not change targeting or the selection ray.",
+            new ConfigDescription("Cue and targeting position in degrees relative to the centre of vision. Negative moves down, positive moves up. Target selection follows the centre of the cue.",
                 new AcceptableValueRange<float>(MinVerticalDegrees, MaxVerticalDegrees)));
     }
     internal float Scale => SafeRange(Size.Value, MinSize, MaxSize, DefaultSize);

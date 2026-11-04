@@ -1,10 +1,20 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine.UI;
+using UnityEngine;
 
 namespace HarmonyLib
 {
-    // Only the field-ref lookup used by TargetCueCandidates; no patch dispatcher.
+    // Exact field-ref lookup and attribute shapes only; no Harmony dispatcher.
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+    public sealed class HarmonyPatch(Type type, string method) : Attribute
+    {
+        public Type Type => type; public string Method => method;
+    }
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class HarmonyPrefix : Attribute
+    {
+    }
     public static class AccessTools
     {
         public delegate ref TField FieldRef<T, TField>(T instance);
@@ -28,6 +38,12 @@ public class Unit
 public sealed class Aircraft : Unit
 {
     public WeaponManager? weaponManager = new();
+    public Cockpit? cockpit = new();
+}
+public sealed class Cockpit
+{
+    public bool Detached;
+    public bool IsDetached() => Detached;
 }
 public sealed class WeaponManager
 {
@@ -48,6 +64,16 @@ public sealed class CombatHUD
     public readonly List<Unit> Targets = new();
     public void Add(params HUDUnitMarker[] values) => markers.AddRange(values);
     public List<Unit> GetTargetList() => Targets;
+    public readonly List<Unit> SelectedCalls = new();
+    // Native endpoint boundary: preserve its immediate marker + manager state,
+    // but do not simulate native sound, map icons or networking.
+    public void SelectUnit(Unit? unit)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+        SelectedCalls.Add(unit);
+        markers.First(marker => marker.unit == unit).selected = true;
+        aircraft!.weaponManager!.Targets.Insert(0, unit);
+    }
 }
 public sealed class TargetListSelector
 {
@@ -57,4 +83,61 @@ public sealed class TargetListSelector
 public static class SceneSingleton<T> where T : class
 {
     public static T? i;
+}
+
+public enum CameraMode
+{
+    cockpit, orbit
+}
+public static class CameraStateManager
+{
+    public static CameraMode cameraMode = CameraMode.cockpit;
+}
+public static class DynamicMap
+{
+    public static bool mapMaximized;
+}
+namespace UnityEngine.XR
+{
+    public static class XRSettings
+    {
+        public static bool enabled = true;
+    }
+}
+namespace NOVR
+{
+    public static class APIBus
+    {
+        public static Camera? CockpitHudCamera;
+    }
+}
+namespace NOVR.VrUi
+{
+    public class NOUIManager
+    {
+        public static NOUIManager? I = new();
+    }
+}
+namespace NOVR.VrUi.SpecialBehavior
+{
+    public class UIRenderedCanvasBehavior : MonoBehaviour
+    {
+    }
+}
+namespace NOVR.MotionControls
+{
+    public static class FlightControlMath
+    {
+        public static bool IsFinite(float value) => float.IsFinite(value);
+    }
+}
+
+namespace NOVR.VrUi.HarmonyPatches
+{
+    // Projection rendering is outside this fixture. The real designator uses
+    // this unchanged production projection distance; candidate geometry is real.
+    internal static class VrHudProjection
+    {
+        internal const float HudDistance = 1000;
+    }
 }

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace NOVR.MotionControls;
 
 // At the unchanged 3 m depth / .001 canvas scale, the default 60-unit circle
-// spans about 1.15 degrees. Appearance never changes the actual selection ray.
+// spans about 1.15 degrees. Its centre also defines the selection ray.
 internal sealed class GazeRingGraphic : MaskableGraphic
 {
     private GazeCueShape _shape;
@@ -14,8 +14,7 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         var go = new GameObject("Look direction cue", typeof(RectTransform));
         var rect = (RectTransform)go.transform;
         rect.SetParent(parent, false);
-        // Position is visual-only and measured in view-relative degrees.
-        // The native designator and selection ray remain untouched.
+        // Position is measured in view-relative degrees, shared with GazeCueRay.
         rect.sizeDelta = Vector2.one * GazeCueSettings.Diameter;
         var ring = go.AddComponent<GazeRingGraphic>();
         ring.RefreshAppearance();

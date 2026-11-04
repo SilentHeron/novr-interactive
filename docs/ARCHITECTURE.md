@@ -81,6 +81,16 @@ gesture geometry remain in the main component; neither path owns profile storage
 
 ## Borrowed native UI
 
+[`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) ranks eligible
+native markers by angle from the adjusted cue ray. `GazeCueRay` derives this ray
+from the tracked HUD camera and the same sanitized canvas offset as the visible
+symbol. The cue and VR single-target
+selection share this fresh scan; visible marker positions preserve native known-
+position rules. `GazeTargetSelectionPatch` delegates the chosen unit to native
+`CombatHUD.SelectUnit`, retaining weapon/network notifications. Paint selection,
+the full tactical map and desktop mode retain their native paths. Cue position
+changes targeting alignment; size, shape and opacity change only appearance.
+
 [`CockpitStatusSources`](../NOVR/VrUi/Status/CockpitStatusSources.cs),
 [`CockpitMapWidget`](../NOVR/VrUi/Map/CockpitMapWidget.cs) and
 [`NativeRadialMenuLease`](../NOVR/VrUi/RadialMenu/NativeRadialMenuLease.cs) borrow
@@ -90,6 +100,14 @@ mutation. Restore surviving sources on release, invalidation, context changes
 and disable/destroy; unwind partial attachment failures too. Release the map
 before native full-map transitions. Do not edit shared game materials or disable
 whole native HUD roots to hide one borrowed leaf.
+
+`NativeVrUiRoot.Lifetime` releases discovery, callbacks and pending recenter input
+when its presentation ends, while suspended panels keep their selections.
+`NativePlayerSettingsAccess` owns native preference writes and apply calls; menu
+rows only bind controls to it. `VirtualMouseBindingOwnership` borrows the native
+UI actions, restoring each override tuple only if it still matches NOVR's change.
+Module replacement and cursor disable/destroy release ownership before removing
+the virtual device; unrelated external rebindings are preserved.
 
 ## Asynchronous native menus
 
