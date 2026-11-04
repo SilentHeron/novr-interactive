@@ -25,16 +25,15 @@ foreach (var left in new[] { false, true })
         using var glove = new RiggedGlove(left, tracking, new Material(), default);
         var sample = new ControllerSample { Valid = true, Position = new Vector3(.15f, -.1f, .2f), Rotation = Quaternion.Euler(12, 30, 9), HasAimPose = true, AimRotation = Quaternion.Euler(12, 30, 9) * Quaternion.Euler(42.8091f, 0, 0), Profile = ControllerHardwareProfile.SteamFrame };
         var grip = new Pose(new Vector3(3.1f, 1.25f, -3.6f), Quaternion.Euler(10, -15, 7));
-        var button = new Pose(new Vector3(3.23f, 1.16f, -3.45f), Quaternion.Euler(2, -15, 45));
-        void Frame(Pose? attachment = null, bool stick = false, bool collective = false, Pose? cockpit = null, bool pointing = false, bool pinching = false)
+        void Frame(Pose? attachment = null, bool stick = false, bool collective = false, Pose? cornerPinch = null, bool pointing = false)
         {
             Time.unscaledTime += Time.unscaledDeltaTime;
-            glove.Pose(sample, attachment, stick, collective, cockpit, pointing, pinching);
+            glove.Pose(sample, attachment, stick, collective, cornerPinch, pointing);
         }
-        void Settle(Pose? attachment = null, bool stick = false, bool collective = false, Pose? cockpit = null, bool pointing = false, bool pinching = false)
+        void Settle(Pose? attachment = null, bool stick = false, bool collective = false, Pose? cornerPinch = null, bool pointing = false)
         {
             for (var i = 0; i < fps; i++)
-                Frame(attachment, stick, collective, cockpit, pointing, pinching);
+                Frame(attachment, stick, collective, cornerPinch, pointing);
         }
         void CheckFree()
         {
@@ -79,22 +78,6 @@ foreach (var left in new[] { false, true })
         for (var i = 0; i < Math.Ceiling(.09f * fps) + 1; i++)
             Frame();
         CheckFree();
-        previous = glove.Root.localPosition;
-        Frame(cockpit: button, pointing: true);
-        Near(glove.Root.localPosition, previous, "Button guide entry snapped wrist");
-        Settle(cockpit: button, pointing: true);
-        Near(glove.Renderer.bones[10].position, button.position, "Button guide failed to settle exact fingertip contact");
-        Near(glove.FreeTouchPoint(sample, true), rawTip, "Button guide fed back into raw fingertip");
-        Near(glove.FreeTouchPoint(sample, false), rawPalm, "Button guide fed back into raw palm");
-        previous = glove.Root.localPosition;
-        Frame();
-        Near(glove.Root.localPosition, previous, "Leaving button guide snapped wrist");
-        Settle();
-        CheckFree();
-        Settle(cockpit: button, pinching: true);
-        Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, button.position, "Pinch midpoint contact changed");
-        Near(glove.FreeTouchPoint(sample, true), rawTip, "Pinch fed back into raw fingertip");
-
         // The layout editor uses the same visual contact contract: an exact
         // thumb/index midpoint at the live corner, with the user's glove approach
         // preserved relative to the widget. The corner can move during resizing.
@@ -105,18 +88,18 @@ foreach (var left in new[] { false, true })
         previousRotation = glove.Root.localRotation;
         previousBones = glove.Renderer.bones.Select(b => b.localRotation).ToArray();
         var untouchedSample = sample;
-        Frame(cockpit: corner, pinching: true);
+        Frame(cornerPinch: corner);
         Near(glove.Root.localPosition, previous, "Widget corner acquisition snapped the wrist");
         SameRotation(glove.Root.localRotation, previousRotation, "Widget corner acquisition snapped wrist orientation");
         for (var i = 0; i < previousBones.Length; i++)
             SameRotation(glove.Renderer.bones[i].localRotation, previousBones[i], "Widget corner acquisition snapped a finger");
-        Settle(cockpit: corner, pinching: true);
+        Settle(cornerPinch: corner);
         Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, corner.position,
             "Widget corner failed to attach at the thumb/index midpoint");
         SameRotation(glove.Root.rotation, corner.rotation, "Widget corner changed the user's glove approach");
         corner = new Pose(corner.position + new Vector3(.08f, .04f, -.05f),
             Quaternion.Euler(13, -18, 0) * corner.rotation);
-        Frame(cockpit: corner, pinching: true);
+        Frame(cornerPinch: corner);
         Near((glove.Renderer.bones[5].position + glove.Renderer.bones[10].position) * .5f, corner.position,
             "Settled pinch lagged a resized or tilted widget corner");
         SameRotation(glove.Root.rotation, corner.rotation, "Corner pinch did not follow the widget angle");
@@ -144,6 +127,26 @@ foreach (var left in new[] { false, true })
         Frame(pointing: true);
         CheckFree();
         sample.Position = beforeSliderReach;
+        Settle(pointing: true);
+        // Changing between the editor's two live gestures must blend the last
+        // rendered wrist and fingers, just like grabbing or releasing a handle.
+        foreach (var toCorner in new[] { true, false })
+        {
+            previous = glove.Root.localPosition;
+            previousRotation = glove.Root.localRotation;
+            previousBones = glove.Renderer.bones.Select(b => b.localRotation).ToArray();
+            Frame(cornerPinch: toCorner ? corner : null, pointing: !toCorner);
+            Near(glove.Root.localPosition, previous, "Changing widget gesture snapped the wrist");
+            SameRotation(glove.Root.localRotation, previousRotation, "Changing widget gesture snapped wrist orientation");
+            for (var i = 0; i < previousBones.Length; i++)
+                SameRotation(glove.Renderer.bones[i].localRotation, previousBones[i], "Changing widget gesture snapped a finger");
+            Settle(cornerPinch: toCorner ? corner : null, pointing: !toCorner);
+            if (toCorner)
+                Near((glove.Renderer.bones[GloveBones.ThumbTip].position + glove.Renderer.bones[GloveBones.IndexTip].position) * .5f,
+                    corner.position, "Pointing-to-pinch transition lost the live corner");
+            else
+                CheckFree();
+        }
         Settle();
         CheckFree();
 

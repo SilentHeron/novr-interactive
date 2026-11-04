@@ -30,7 +30,7 @@ internal sealed class RiggedGlove : IDisposable
     internal readonly Transform Root;
     internal readonly SkinnedMeshRenderer Renderer;
     private readonly Transform[] _bones;
-    private readonly Quaternion[] _open, _closed, _fs20Throttle, _fs20Stick, _throttleThumb, _stickThumb, _stickThumbPress, _stickTrigger, _fireTouch, _firePress, _switchPinch;
+    private readonly Quaternion[] _open, _closed, _fs20Throttle, _fs20Stick, _throttleThumb, _stickThumb, _stickThumbPress, _stickTrigger, _fireTouch, _firePress, _cornerPinch;
     private readonly Quaternion[] _collective, _collectiveThumb, _collectiveTrigger;
     private enum FingerGroup
     {
@@ -58,10 +58,7 @@ internal sealed class RiggedGlove : IDisposable
         Stick,
         Throttle,
         Collective,
-        AnchoredPinch,
-        AnchoredGrip,
-        ButtonContact,
-        FreePinch,
+        CornerPinch,
         Pointing
     }
 
@@ -113,7 +110,7 @@ internal sealed class RiggedGlove : IDisposable
             _firePress = new Quaternion[_bones.Length];
             _stickTrigger = new Quaternion[_bones.Length];
             _stickThumbPress = new Quaternion[_bones.Length];
-            _switchPinch = new Quaternion[_bones.Length];
+            _cornerPinch = new Quaternion[_bones.Length];
             _attachmentFromBones = new Quaternion[_bones.Length];
             _collective = new Quaternion[_bones.Length];
             _collectiveThumb = new Quaternion[_bones.Length];
@@ -134,7 +131,7 @@ internal sealed class RiggedGlove : IDisposable
                 _stickTrigger[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], triggerPressure: 1);
                 _throttleThumb[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i], true);
                 _stickThumb[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], true);
-                _switchPinch[i] = Fs20HandPoses.SwitchPinchJoint(i, left, _open[i], _closed[i]);
+                _cornerPinch[i] = Fs20HandPoses.CornerPinchJoint(i, left, _open[i], _closed[i]);
                 _collective[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i]);
                 _collectiveThumb[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], thumbContact: true);
                 _collectiveTrigger[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], trigger: true);
@@ -210,7 +207,7 @@ internal sealed class RiggedGlove : IDisposable
     private Quaternion BaseJointPose(int bone, bool pinching, bool fittedCollective, bool fitted, bool stick)
     {
         if (pinching)
-            return _switchPinch[bone];
+            return _cornerPinch[bone];
         if (fittedCollective)
             return _collective[bone];
         if (fitted)
@@ -226,8 +223,8 @@ internal sealed class RiggedGlove : IDisposable
     }
 
     // Compute interaction points from the real tracked pose, even when the
-    // rendered glove is snapped to a switch. Visual attachment never feeds back
-    // into the input used to move/release that switch.
+    // rendered glove is pinching a widget corner. Visual attachment never feeds
+    // back into the input used to move or release that corner.
     internal Vector3 FreeTouchPoint(ControllerSample sample, bool fingertip)
     {
         var settings = ModConfiguration.Instance.MotionControls;
@@ -246,21 +243,17 @@ internal sealed class RiggedGlove : IDisposable
     }
 
     private static AttachmentKind ChooseAttachment(
-        bool anchored, bool buttonContact, bool held, bool stick, bool collective, bool pinching, bool pointing)
+        bool pinching, bool held, bool stick, bool collective, bool pointing)
     {
         // Direct widget contact takes priority over handles; free gestures come last.
-        if (anchored && !buttonContact)
-            return pinching ? AttachmentKind.AnchoredPinch : AttachmentKind.AnchoredGrip;
+        if (pinching)
+            return AttachmentKind.CornerPinch;
         if (held)
             return stick ? AttachmentKind.Stick : collective ? AttachmentKind.Collective : AttachmentKind.Throttle;
-        if (buttonContact)
-            return AttachmentKind.ButtonContact;
-        if (pinching)
-            return AttachmentKind.FreePinch;
         return pointing ? AttachmentKind.Pointing : AttachmentKind.Free;
     }
 
-    internal void Pose(ControllerSample sample, Pose? attachment, bool stick, bool collective, Pose? cockpitGrip = null, bool pointing = false, bool pinching = false)
+    internal void Pose(ControllerSample sample, Pose? attachment, bool stick, bool collective, Pose? cornerPinch = null, bool pointing = false)
     {
         Root.gameObject.SetActive(sample.Valid);
         if (!sample.Valid)
@@ -278,14 +271,14 @@ internal sealed class RiggedGlove : IDisposable
         if (_hasRenderedPose && ((sample.Position - _lastTrackedPosition).sqrMagnitude > .18f * .18f || Quaternion.Angle(sample.Rotation, _lastTrackedRotation) > 55 || Time.unscaledDeltaTime > .1f))
             ResetAttachmentTransition();
         var held = attachment.HasValue;
-        var buttonContact = cockpitGrip.HasValue && pointing && !pinching && !held;
-        var attachmentKind = ChooseAttachment(cockpitGrip.HasValue, buttonContact, held, stick, collective, pinching, pointing);
+        var pinching = cornerPinch.HasValue;
+        var attachmentKind = ChooseAttachment(pinching, held, stick, collective, pointing);
         if (attachmentKind != _attachmentKind)
         {
             _attachmentKind = attachmentKind;
             _transitioning = _hasRenderedPose;
             var attaching = attachmentKind is AttachmentKind.Stick or AttachmentKind.Throttle or
-                AttachmentKind.Collective or AttachmentKind.AnchoredPinch or AttachmentKind.AnchoredGrip;
+                AttachmentKind.Collective or AttachmentKind.CornerPinch;
             _attachmentTransitionSeconds = attaching ? AttachmentEntrySeconds : AttachmentReleaseSeconds;
             if (_transitioning)
             {
@@ -300,11 +293,11 @@ internal sealed class RiggedGlove : IDisposable
             }
         }
 
-        var fitted = held && !collective && !cockpitGrip.HasValue && MotionControlVisuals.HasFittedHandle(stick);
-        var fittedCollective = held && collective && !stick && !cockpitGrip.HasValue && MotionControlVisuals.HasFittedCollective;
-        if (cockpitGrip.HasValue && !buttonContact)
+        var fitted = held && !collective && !pinching && MotionControlVisuals.HasFittedHandle(stick);
+        var fittedCollective = held && collective && !stick && !pinching && MotionControlVisuals.HasFittedCollective;
+        if (cornerPinch.HasValue)
         {
-            var socket = cockpitGrip.Value;
+            var socket = cornerPinch.Value;
             Root.SetPositionAndRotation(socket.position - socket.rotation * new Vector3(0, -.019f, .043f), socket.rotation);
         }
         else if (held)
@@ -339,9 +332,9 @@ internal sealed class RiggedGlove : IDisposable
         _indexContact = Mathf.Lerp(_indexContact, sample.Trigger > .02f ? Mathf.Lerp(.85f, 1, Mathf.Clamp01(sample.Trigger)) : sample.TriggerTouched ? .85f : 0, amount);
         // Leave space for a roughly 5 cm grip instead of crushing a full fist
         // through the handle. The index moves a little with the real trigger.
-        _grip = Mathf.Lerp(_grip, pinching ? .45f : cockpitGrip.HasValue ? .75f : pointing ? .75f : held ? .5f : Mathf.Max(Mathf.Clamp01(sample.Grip), sample.GripTouched ? .32f : 0), amount);
-        _trigger = Mathf.Lerp(_trigger, pinching ? .35f : pointing ? 0f : cockpitGrip.HasValue ? .65f : held ? Mathf.Lerp(.48f, .62f, Mathf.Clamp01(sample.Trigger)) : Mathf.Max(Mathf.Clamp01(sample.Trigger), sample.TriggerTouched ? .2f : 0), amount);
-        _thumb = Mathf.Lerp(_thumb, pinching ? .45f : pointing ? .7f : cockpitGrip.HasValue ? .85f : held ? .65f : thumbPressed ? 1 : thumbTouch ? .65f : _grip * .3f, amount);
+        _grip = Mathf.Lerp(_grip, pinching ? .45f : pointing ? .75f : held ? .5f : Mathf.Max(Mathf.Clamp01(sample.Grip), sample.GripTouched ? .32f : 0), amount);
+        _trigger = Mathf.Lerp(_trigger, pinching ? .35f : pointing ? 0f : held ? Mathf.Lerp(.48f, .62f, Mathf.Clamp01(sample.Trigger)) : Mathf.Max(Mathf.Clamp01(sample.Trigger), sample.TriggerTouched ? .2f : 0), amount);
+        _thumb = Mathf.Lerp(_thumb, pinching ? .45f : pointing ? .7f : held ? .65f : thumbPressed ? 1 : thumbTouch ? .65f : _grip * .3f, amount);
         for (var i = 0; i < _bones.Length; i++)
         {
             var pose = BaseJointPose(i, pinching, fittedCollective, fitted, stick);
@@ -379,21 +372,13 @@ internal sealed class RiggedGlove : IDisposable
         }
 
         _wasFittedStick = fitted && stick;
-        if (pinching && cockpitGrip.HasValue)
-            Root.position += cockpitGrip.Value.position - (_bones[GloveBones.ThumbTip].position + _bones[GloveBones.IndexTip].position) * .5f;
-        if (buttonContact)
-        {
-            // Solve the pointing fingers first, then align the actual fingertip
-            // to the cap. The wrist never occupies the button contact point.
-            Root.rotation = cockpitGrip!.Value.rotation;
-            Root.position += cockpitGrip.Value.position - _bones[GloveBones.IndexTip].position;
-        }
-
+        if (cornerPinch.HasValue)
+            Root.position += cornerPinch.Value.position - (_bones[GloveBones.ThumbTip].position + _bones[GloveBones.IndexTip].position) * .5f;
         if (_transitioning)
         {
             // Solve the live target first, then ease from the last visible
-            // wrist and joints. This also covers release, pointing/pinch changes,
-            // and leaving a button. The fitted socket is exact after entry.
+            // wrist and joints. This also covers release and pointing/pinch
+            // changes. The fitted socket is exact after entry.
             var progress = Mathf.Clamp01((Time.unscaledTime - _attachmentEntryTime) / _attachmentTransitionSeconds);
             if (progress >= 1)
             {

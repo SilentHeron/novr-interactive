@@ -184,9 +184,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         var collective = false;
         if (controls != null && controls.TryGetHeldHandPose(left, out var gripPose, out stick, out collective))
             attachment = gripPose;
-        Pose? cockpitGrip = null;
+        Pose? cornerPinch = null;
         var pointing = false;
-        var pinching = false;
         if (CockpitHudWidgets.TryGetCornerHandPose(left, out var corner, out var cornerRotation))
         {
             // Corner targets are the midpoint of the posed thumb/index
@@ -194,29 +193,21 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             // the live corner without changing raw tracking or hit tests.
             attachment = null;
             stick = collective = pointing = false;
-            cockpitGrip = new Pose(corner, cornerRotation);
-            pinching = true;
+            cornerPinch = new Pose(corner, cornerRotation);
         }
-        else if (attachment.HasValue)
-        {
-            cockpitGrip = null;
-            pointing = pinching = false;
-        }
-        else if (CockpitHudWidgets.AppearancePointing(left) || CockpitMapInteraction.Pointing(left))
+        else if (!attachment.HasValue && (CockpitHudWidgets.AppearancePointing(left) || CockpitMapInteraction.Pointing(left)))
         {
             // Inline sliders use direct fingertip contact. Extend the
             // index without anchoring or moving the tracked wrist.
-            cockpitGrip = null;
-            pinching = false;
             pointing = true;
         }
 
-        _gloves[side]?.Pose(sample, attachment, stick, collective, cockpitGrip, pointing, pinching);
+        _gloves[side]?.Pose(sample, attachment, stick, collective, cornerPinch, pointing);
         // Render only, after raw tracking has posed the glove. Contact and
         // grip sockets stay exact; input hit testing still uses the sample.
         if (_gloves[side] != null)
         {
-            var freelyTracked = sample.Valid && !attachment.HasValue && !cockpitGrip.HasValue &&
+            var freelyTracked = sample.Valid && !attachment.HasValue && !cornerPinch.HasValue &&
                 !pointing && !_gloves[side]!.IsTransitioning;
             _handStabilizers[side].Apply(_gloves[side]!.Root, freelyTracked, Time.unscaledDeltaTime);
         }

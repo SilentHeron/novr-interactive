@@ -55,11 +55,11 @@ internal static class Fs20HandPoses
         return pressed && bone == GloveBones.ThumbProximal ? Quaternion.AngleAxis(-.8f, Vector3.right) * pose : pose;
     }
 
-    internal static Quaternion SwitchPinchJoint(int bone, bool left, Quaternion open, Quaternion closed)
+    internal static Quaternion CornerPinchJoint(int bone, bool left, Quaternion open, Quaternion closed)
     {
         // A precision pinch: an arched index meets an opposed thumb at their
-        // tips, with a roughly 28 mm gap for the switch cap. The other fingers
-        // stay loosely curled. This pose never changes tracked touch points.
+        // tips, with a roughly 28 mm gap around the widget corner. The other
+        // fingers stay loosely curled. This never changes tracked touch points.
         var curl = bone switch
         {
             GloveBones.ThumbMetacarpal => .49375f,
