@@ -96,7 +96,15 @@ Multiplayer rows refresh independently of user input. Selection follows the
 Steam lobby identity, including when refreshed rows use new native objects.
 A missing selected server leaves JOIN disabled; it must not select another row
 implicitly. Password prompts retain their original lobby and the exact entered
-password, including spaces. These boundaries have source-linked tests:
+password, including spaces.
+
+Hosting retains the mission, scene and native service context that accepted the
+request. Hiding the menu does not cancel it, but a context change prevents an old
+Steam completion from starting a host. Apply the selected mission only after
+lobby creation succeeds. Failed requests may release only their own idle lobby;
+`NativeLobbyOwnership` checks the native service and lobby identity before calling
+the game's shared leave operation. Its private-field assumptions are also checked
+by the optional assembly contracts. These boundaries have source-linked tests:
 
 ```sh
 python tools/verify.py portable --suite native-menu-handoff --suite native-workshop

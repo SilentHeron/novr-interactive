@@ -74,10 +74,15 @@ internal static class PatchCompatibility
                 }
                 verified++;
             }
-        // Native guidance and engine limits are read-only. Verify their private
-        // fields as well as the Harmony-injected fields above.
+        // Read-only native guidance, engine limits and lobby ownership use
+        // private fields in addition to the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
         foreach (var contract in new[] {
+            (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_hostedLobby", type: "NuclearOption.Networking.Lobbies.HostedLobbyInstance"),
+            (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_joinedLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
+            (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "joinPendingLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
+            (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_initialized", type: "System.Boolean"),
+            (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "HostLobbyCompletion", type: "Cysharp.Threading.Tasks.UniTaskCompletionSource`1<Steamworks.LobbyCreated_t>"),
             (owner: "Turbojet", field: "nozzles", type: "JetNozzle[]"),
             (owner: "Turbofan", field: "nozzles", type: "JetNozzle[]"),
             (owner: "JetNozzle", field: "afterburners", type: "JetNozzle/Afterburner[]"),

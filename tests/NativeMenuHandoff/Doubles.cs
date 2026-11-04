@@ -95,8 +95,8 @@ public sealed class CustomizeMissionMenu : UnityEngine.MonoBehaviour
 }
 namespace NuclearOption.SavedMission
 {
-    public readonly record struct MissionKey(string Name);
-    public sealed class Mission
+    public readonly partial record struct MissionKey(string Name);
+    public sealed partial class Mission
     {
         public string Name = "", Description = "";
     }

@@ -128,7 +128,7 @@ namespace NuclearOption.Networking.Lobbies
 {
     // Native metadata/Steam boundary only. The refresh, identity matching,
     // selection, detail updates and join routing are the production partial.
-    public sealed class LobbyInstance
+    public sealed partial class LobbyInstance
     {
         public readonly CSteamID LobbyId;
         public string Name;
@@ -143,7 +143,7 @@ namespace NuclearOption.Networking.Lobbies
         }
     }
 
-    public static class LobbyPassword
+    public static partial class LobbyPassword
     {
         // Native SHA-256/Steam metadata stays outside this fixture. Its exact
         // string comparison contract must not normalize the submitted password.
@@ -166,7 +166,7 @@ namespace NOVR.VrUi.Native
         }
     }
 
-    public partial class NativeMultiplayerPanel
+    public partial class NativeMultiplayerPanel : UnityEngine.MonoBehaviour
     {
         private const int PageSize = 10;
         private readonly List<NativeLobbyEntry> _lobbies = new(), _visibleLobbies = new();
