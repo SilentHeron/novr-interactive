@@ -430,12 +430,14 @@ internal sealed partial class WristMenu : MonoBehaviour
             () => cue.Shape.Value = (GazeCueShape)(((int)cue.CurrentShape + 1) % 4));
         AddLiveButton(() => "Show: " + (config.TargetCue.Value == TargetCueMode.Context ? "Near targets" : config.TargetCue.Value.ToString()), 1, 2,
             () => config.TargetCue.Value = (TargetCueMode)(((int)config.TargetCue.Value + 1) % 3));
-        AddButton("Reset cue", 0, 3, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; });
-        var cueInfo = Label(_lookCuePage.transform, "", new Vector2(0, -135), new Vector2(510, 190), 19);
+        GazeCuePositionSlider.Create(_lookCuePage.transform, new Vector2(0, 6), 510, _font!, 18);
+        AddButton("Reset cue", 0, 4, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; });
+        AddButton("Centre cue", 1, 4, () => cue.VerticalDegrees.Value = 0);
+        var cueInfo = Label(_lookCuePage.transform, "", new Vector2(0, -177), new Vector2(510, 125), 18);
         _liveLabels.Add((cueInfo, () => $"Size {cue.Scale*100:0}% · Opacity {cue.Alpha*100:0}%\n" +
             (config.TargetCue.Value == TargetCueMode.Context ? "Appears near selectable targets." :
              config.TargetCue.Value == TargetCueMode.Always ? "Visible throughout cockpit flight." : "Look direction cue is hidden.") +
-            "\nHUD brightness still applies.\n\nClose View to inspect the cue.\nTarget markers and weapon sights stay unchanged."));
+            "\nPosition is relative to the centre of vision.\nClose View to inspect. Target selection is unchanged."));
 
         _brightnessPage = Page("BRIGHTNESS");
         AddButton("HUD dimmer", 0, 0, () => config.InstrumentBrightness.Value -= .1f);

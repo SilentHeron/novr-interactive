@@ -52,14 +52,16 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         if (Vector3.Dot(direction, camera.transform.forward) <= 0) { Hide(); return; }
         EnsureView(camera);
         _canvas!.worldCamera = camera; _group!.alpha = _opacity;
-        _view!.transform.SetPositionAndRotation(camera.transform.position + direction.normalized * 3, camera.transform.rotation);
+        // Only this decorative cue follows the centre of vision. Native
+        // designator transforms still drive candidate detection and selection.
+        _view!.transform.SetPositionAndRotation(camera.transform.position + camera.transform.forward * GazeCueSettings.ViewDepthMeters, camera.transform.rotation);
         _view.SetActive(true);
     }
     private void EnsureView(Camera camera)
     {
         if (_view != null) return;
         _view = new GameObject("NOVR contextual target cue", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup));
-        _view.transform.SetParent(transform, false); _view.transform.localScale = Vector3.one * .001f;
+        _view.transform.SetParent(transform, false); _view.transform.localScale = Vector3.one * GazeCueSettings.CanvasScale;
         _canvas = _view.GetComponent<Canvas>(); _canvas.renderMode = RenderMode.WorldSpace;
         _canvas.worldCamera = camera; _canvas.overrideSorting = true; _canvas.sortingOrder = 180;
         _group = _view.GetComponent<CanvasGroup>(); _group.blocksRaycasts = false;

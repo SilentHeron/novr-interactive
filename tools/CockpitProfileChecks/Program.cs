@@ -124,4 +124,25 @@ Console.WriteLine("PASS collective defaults lower once, custom placement retaine
     Yes(CockpitProfiles.ActiveSlot == 1); Near(CockpitProfiles.SeatOffset, Vector3.zero);
     Console.WriteLine("PASS three independent aircraft slots, active-slot reload, factory isolation, cancel and save-as seat previews");
 }
+{
+    var profiles=Start(false);profiles.Refresh();
+    Yes(profiles.SaveSlot(1,seat,stick,throttle));
+    GameManager.Current!.definition=new AircraftDefinition{jsonKey="",name=" "};profiles.Refresh();
+    Yes(profiles.AircraftIdentity=="" && profiles.AircraftName=="Aircraft loading");
+    Yes(!profiles.SelectSlot(2) && !profiles.SaveSlot(1,seat,stick,throttle));
+    GameManager.Current.definition.jsonKey="third-party/late-plane";profiles.Refresh();
+    Yes(profiles.AircraftIdentity=="third-party/late-plane" && profiles.SelectSlot(3));
+    Yes(profiles.SaveSlot(3,seat,stick,throttle));
+    GameManager.Current.definition=new AircraftDefinition{jsonKey="",name=""};profiles.Refresh();
+    Yes(profiles.AircraftIdentity=="" && !profiles.SaveSlot(1,seat,stick,throttle));
+    GameManager.Current.definition=new AircraftDefinition{jsonKey="another-author/plane",name=""};profiles.Refresh();
+    Yes(profiles.AircraftIdentity=="another-author/plane" && CockpitProfiles.ActiveSlot==1);
+    Near(CockpitProfiles.SeatOffset,Vector3.zero);
+    GameManager.Current.definition.jsonKey="third-party/late-plane";profiles.Refresh();
+    Yes(CockpitProfiles.ActiveSlot==3);Near(CockpitProfiles.SeatOffset,seat);
+    Yes(AircraftLayoutIdentity.Resolve(null,null)=="" && AircraftLayoutIdentity.Resolve(" ","\t")=="");
+    Yes(AircraftLayoutIdentity.Resolve("", "ModPrefab") == "ModPrefab");
+    Yes(AircraftLayoutIdentity.Resolve("author/new-key", "ModPrefab") == "author/new-key");
+    Console.WriteLine("PASS late mod identities initialize independent slots; unnamed definitions cannot save shared fallback profiles");
+}
 Console.WriteLine(assertions + " profile migration and slot assertions passed.");

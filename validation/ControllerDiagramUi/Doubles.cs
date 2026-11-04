@@ -1,7 +1,8 @@
 #pragma warning disable CS0649
 namespace UnityEngine
 {
-    public class Object { }
+    public class Object { public static void Destroy(Object value) { } }
+    public class MonoBehaviour : Component { }
     public class Component : Object { public GameObject gameObject = null!; public Transform transform => gameObject.transform; }
     public class GameObject : Object
     {
@@ -26,7 +27,12 @@ namespace UnityEngine
         public T GetComponent<T>() => gameObject.GetComponent<T>();
     }
     public class RectTransform : Transform { public Vector2 anchoredPosition, sizeDelta; public Rect rect => new(sizeDelta.x, sizeDelta.y); }
-    public readonly record struct Rect(float width, float height);
+    public readonly record struct Rect(float x, float y, float width, float height) { public Rect(float width,float height) : this(0,0,width,height) { } }
+    public class Texture : Object { public string name = ""; }
+    public class Texture2D : Texture { public int width,height; public FilterMode filterMode; public TextureWrapMode wrapMode; public Texture2D(int width,int height,TextureFormat format,bool mipmap) { this.width=width;this.height=height; } }
+    public enum TextureFormat { RGBA32 } public enum FilterMode { Bilinear } public enum TextureWrapMode { Clamp }
+    public static class ImageConversion { public static bool LoadImage(Texture2D texture,byte[] data,bool markNonReadable) { if(data.Length<24 || data[0]!=137 || data[1]!=80) return false; texture.width=System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(16,4)); texture.height=System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(20,4)); return true; } }
+    public static class Debug { public static readonly List<string> Warnings = new(); public static void LogWarning(string message) => Warnings.Add(message); }
     public class CanvasRenderer : Component { }
     public class Font : Object { }
     public readonly record struct Vector2(float x, float y)
@@ -44,9 +50,10 @@ namespace UnityEngine
 }
 namespace UnityEngine.UI
 {
-    public class Graphic : UnityEngine.Component { public bool raycastTarget; public UnityEngine.Color color; public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform; }
-    public class MaskableGraphic : Graphic { protected virtual void Awake() { } protected virtual void OnPopulateMesh(VertexHelper vh) { } }
+    public class Graphic : UnityEngine.Component { public bool enabled = true; public bool raycastTarget; public UnityEngine.Color color; public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform; }
+    public class MaskableGraphic : Graphic { protected virtual void Awake() { } protected virtual void OnPopulateMesh(VertexHelper vh) { } protected void SetVerticesDirty() { } }
     public class Image : Graphic { }
+    public class RawImage : Graphic { public UnityEngine.Texture? texture; public UnityEngine.Rect uvRect; }
     public class Text : Graphic { public UnityEngine.Font font = null!; public int fontSize; public string text=""; public UnityEngine.TextAnchor alignment; }
     public class Button : UnityEngine.Component
     {
@@ -70,14 +77,14 @@ namespace NOVR
 namespace NOVR.VrUi.Native
 {
     internal static class NativeButtonFeedback
-    { internal static void Configure(UnityEngine.UI.Button button,UnityEngine.Color color) { } internal static void SetNormalColor(UnityEngine.UI.Button button,UnityEngine.Color color) { } }
+    { internal static void Configure(UnityEngine.UI.Button button,UnityEngine.Color color) { button.targetGraphic.color=color; } internal static void SetNormalColor(UnityEngine.UI.Button button,UnityEngine.Color color) { button.targetGraphic.color=color; } }
 }
 namespace NOVR.MotionControls
 {
     internal static class TrackedControllers
-    { internal static ControllerHardwareProfile Left, Right; internal static ControllerHardwareProfile Profile(bool left) => left ? Left : Right; }
+    { internal static ControllerHardwareProfile Left, Right; internal static ControllerHardwareProfile Profile(bool left) => left ? Left : Right; internal static ControllerSample LeftSample, RightSample; internal static ControllerSample Read(bool left) => left ? LeftSample : RightSample; }
     internal struct ControllerSample
-    { internal bool NativeFrame, Primary, Secondary, Top, Outside, StickClick, Menu, Shoulder; internal float Trigger; }
+    { internal bool Valid, NativeFrame, Primary, Secondary, Top, Outside, StickClick, Menu, Shoulder, PrimaryTouched, SecondaryTouched, TopTouched, OutsideTouched, ThumbstickTouched, TriggerTouched, GripTouched; internal float Trigger, Grip; }
     internal sealed class ControllerActions { internal static ControllerActions? Instance; internal void ResetButtons() { } }
     internal sealed class ModConfiguration
     { internal static readonly ModConfiguration Instance = new(); internal readonly MotionControlsConfig MotionControls = new(); internal ControllerBindings ControllerBindings = null!; }

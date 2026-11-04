@@ -34,6 +34,7 @@ internal sealed class CockpitProfiles : MonoBehaviour
     internal static Vector3 StickPosition => CockpitLayout.StickPreview ?? Instance?._current?.Stick.Value ?? (Vector3)ModConfiguration.Instance.MotionControls.StickPosition.DefaultValue;
     internal static Vector3 ThrottlePosition => CockpitLayout.ThrottlePreview ?? Instance?._current?.Throttle.Value ?? (Vector3)ModConfiguration.Instance.MotionControls.ThrottlePosition.DefaultValue;
     internal string AircraftName { get; private set; } = "No aircraft";
+    internal string AircraftIdentity => _key ?? "";
 
     private void Awake() => Instance = this;
     private void Update() => Refresh();
@@ -45,8 +46,13 @@ internal sealed class CockpitProfiles : MonoBehaviour
             AircraftName = "No aircraft";
             return;
         }
-        var identity = aircraft.definition.jsonKey;
-        if (string.IsNullOrEmpty(identity)) identity = aircraft.definition.name;
+        var identity = AircraftLayoutIdentity.Resolve(aircraft.definition.jsonKey, aircraft.definition.name);
+        if (identity.Length == 0)
+        {
+            _current = null; _slots = null; _key = null; _seatPreview = null;
+            AircraftName = "Aircraft loading";
+            return;
+        }
         var leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         if (_key == identity)
         {

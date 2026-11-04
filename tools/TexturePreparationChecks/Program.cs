@@ -6,3 +6,5 @@ TexturePreparationChecks.Run((name, action) =>
     passed++;
 }, condition => { if (!condition) throw new InvalidOperationException("Texture check failed"); });
 Console.WriteLine($"{passed} texture preparation checks passed.");
+
+BindingChecks.Run();

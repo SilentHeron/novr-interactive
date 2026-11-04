@@ -5,6 +5,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../NOVR/MotionControls/PilotTorsoMath.cs" Link="PilotTorsoMath.cs" />
     <Compile Include="../../NOVR/MotionControls/ArmPoseMath.cs" Link="ArmPoseMath.cs" />
     <Compile Include="../../NOVR/MotionControls/ArmReachMath.cs" Link="ArmReachMath.cs" />
     <Compile Include="../../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />

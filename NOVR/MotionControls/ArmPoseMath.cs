@@ -61,7 +61,11 @@ internal sealed class ArmPoseMath
             // can guide a compatible bend but cannot reverse the anatomical
             // hemisphere. Weight vanishes smoothly for an opposing cuff.
             var compatible = Smooth((Vector.Dot(hint, projected.Unit) + .2f) / .65f);
-            bend = (hint * (1 - .8f * confidence * compatible) + projected.Unit * (.8f * confidence * compatible)).Unit;
+            // The shoulder/upper arm primarily determines the elbow plane.
+            // An 80% cuff weight let a wrist-only gesture swing the elbow
+            // through more than fifty degrees; keep that guidance modest.
+            var cuffWeight = .35f * confidence * compatible;
+            bend = (hint * (1 - cuffWeight) + projected.Unit * cuffWeight).Unit;
         }
         transitionProgress=FlightControlMath.IsFinite(transitionProgress) ? FlightControlMath.Clamp(transitionProgress,0,1) : 1;
         if (transitionProgress<1 && _hasBend)

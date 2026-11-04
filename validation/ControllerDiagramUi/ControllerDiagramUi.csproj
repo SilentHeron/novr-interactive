@@ -4,6 +4,10 @@
     <Compile Include="../../NOVR/VrUi/ControllerBindingPanel.cs" Link="ControllerBindingPanel.cs" />
     <Compile Include="../../NOVR/VrUi/ControllerBindingPanelView.cs" Link="ControllerBindingPanelView.cs" />
     <Compile Include="../../NOVR/VrUi/ControllerDiagramView.cs" Link="ControllerDiagramView.cs" />
+    <Compile Include="../../NOVR/VrUi/ControllerDiagramLayout.cs" Link="ControllerDiagramLayout.cs" />
+    <Compile Include="../../NOVR/VrUi/ControllerDiagramActivity.cs" Link="ControllerDiagramActivity.cs" />
+    <Compile Include="../../NOVR/VrUi/ControllerDiagramImages.cs" Link="ControllerDiagramImages.cs" />
+    <EmbeddedResource Include="../../NOVR/Assets/Controllers/*.png"><LogicalName>NOVR.Controllers.%(Filename)%(Extension)</LogicalName></EmbeddedResource>
     <Compile Include="../../NOVR/MotionControls/ControllerDiagramModel.cs" Link="ControllerDiagramModel.cs" />
     <Compile Include="../../NOVR/MotionControls/ControllerBindings.cs" Link="ControllerBindings.cs" />
     <Compile Include="../../NOVR/MotionControls/ControllerProfileBindings.cs" Link="ControllerProfileBindings.cs" />

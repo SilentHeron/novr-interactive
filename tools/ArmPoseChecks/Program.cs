@@ -20,16 +20,18 @@ var neutral=new V(-.35f,-.5f,-.2f).Unit.OnPlane(direction).Unit;
 var free=new ArmPoseMath();
 Check(Angle(free.Bend(true,direction,neutral,false),neutral)<.05f,"Aligned free-hand cuff preserves the natural elbow plane");
 Check(V.Dot(free.Bend(true,direction,neutral*-1,false),neutral)>.999f,"An inverted free wrist cannot pull its elbow through the anatomical plane");
-var freeSweep=true;var maxFreeStep=0f;V last=default;
+var freeSweep=true;var maxFreeStep=0f;var maxElbowSwivel=0f;V last=default;
 for(var i=0;i<=3600;i++)
 {
     var cuff=Rotate(neutral,direction,i*.1f);
     var bend=free.Bend(true,direction,cuff,false);
     freeSweep &= bend.Finite && Math.Abs(bend.Length-1)<.0001f && Math.Abs(V.Dot(bend,direction))<.0001f && V.Dot(bend,neutral)>.2f;
+    maxElbowSwivel=Math.Max(maxElbowSwivel,Angle(neutral,bend));
     if(i>0)maxFreeStep=Math.Max(maxFreeStep,Angle(last,bend));last=bend;
 }
 Check(freeSweep,"3,601 wrist orientations retain a finite perpendicular elbow outside the torso-facing hemisphere");
 Check(maxFreeStep<1,"Free wrist rotation has no elbow reversal or branch-cut snap");
+Check(maxElbowSwivel<22,$"Wrist-only flexion cannot swing the elbow more than 22 degrees (measured {maxElbowSwivel:F2})");
 
 foreach(var collective in new[]{false,true})
 {
@@ -145,4 +147,18 @@ for(var i=0;i<=6800;i++)
 Check(reachGood,"6,801 reaches preserve both bone lengths through rigid reach, smooth extension and fade");
 Check(maxVelocityChange<.05f,"Elbow velocity changes smoothly at the sleeve-extension threshold");
 Check(!ArmReachMath.Triangle(.3f,.27f,float.NaN,out _,out _) && !ArmReachMath.Triangle(.3f,.27f,.7f,out _,out _),"Invalid and impossible IK triangles are rejected before transforms change");
+// Torso translation is independent of the user's exact seat adjustment.
+var torsoContinuous=true;var torsoPrevious=0f;var torsoMirror=true;
+for(var i=0;i<=1000;i++)
+{
+    var displacement=new V(i*.001f,.03f,-.025f);
+    var lean=PilotTorsoMath.Lean(displacement);
+    torsoContinuous &= lean.Finite && lean.Length<=.120001f && lean.X>=torsoPrevious && lean.X-torsoPrevious<.00036f;
+    torsoMirror &= (Mirror(lean)-PilotTorsoMath.Lean(Mirror(displacement))).Length<.000001f;
+    torsoPrevious=lean.X;
+}
+Check(torsoContinuous,"Head lean moves shoulders smoothly with bounded travel instead of dragging the whole chest");
+Check(torsoMirror,"Torso follow is identical for left/right lean");
+Check(PilotTorsoMath.Lean(new V(0,0,0)).Length==0 && PilotTorsoMath.Lean(new V(float.NaN,0,0)).Length==0,"Recenter/invalid head lean cannot displace the torso");
+Check(PilotTorsoMath.Lean(new V(.1f,0,0)).X>.03f && PilotTorsoMath.Lean(new V(.1f,0,0)).X<.035f,"Ordinary head movement has modest shoulder follow rather than a fixed body or head-glued shoulders");
 Console.WriteLine($"{passed} arm pose checks passed.");

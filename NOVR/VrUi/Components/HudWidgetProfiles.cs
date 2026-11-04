@@ -8,8 +8,9 @@ using UnityEngine;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
-// Coordinates use the original pilot viewpoint. Moving the VR seat must never
-// be included in these values: the widgets remain fixed in the aircraft.
+// Persisted coordinates use the original pilot viewpoint. Factory offsets are
+// first centered on the tracked seated user; the result is then aircraft-fixed.
+// Later seat adjustments and recentering never translate a saved layout.
 internal struct HudWidgetPose
 {
     internal Vector3 Position, Euler;
@@ -105,7 +106,7 @@ internal sealed class HudWidgetProfiles
         profile = new AircraftProfile
         {
             Override = _config.Bind(section, "Use aircraft layout", false,
-                "Saved HUD layout for " + key + ", slot " + slot + ". False uses untouched factory positions for this slot only."),
+                "Saved HUD layout for " + key + ", slot " + slot + ". False initializes reachable defaults around the tracked seated user for this slot only."),
             Poses = BindPoses(section)
         };
         _aircraft.Add((key, slot), profile);

@@ -37,7 +37,7 @@
           DestinationFiles="@(ReleasePluginFiles->'$(ReleasePackageStagingDir)/plugins/NOVR/%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(ReleasePatcherFiles)"
           DestinationFiles="@(ReleasePatcherFiles->'$(ReleasePackageStagingDir)/patchers/NOVR/%(RecursiveDir)%(Filename)%(Extension)')" />
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)../README.md;$(MSBuildThisFileDirectory)../LICENSE"
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../README.md;$(MSBuildThisFileDirectory)../LICENSE;$(MSBuildThisFileDirectory)../docs/THIRD_PARTY_NOTICES.md"
           DestinationFolder="$(ReleasePackageStagingDir)" />
     <Delete Files="$(ReleasePackagePath)" />
     <ZipDirectory SourceDirectory="$(ReleasePackageStagingDir)" DestinationFile="$(ReleasePackagePath)" Overwrite="true" />

@@ -28,7 +28,7 @@ foreach (var controller in new XRController[] { new DerivedTouch(), new MetaQues
              new MetaQuestTouchProControllerProfile.QuestProTouchController() })
 foreach (var left in new[] { true, false })
 {
-    foreach (var name in new[] { "primaryButton", "secondaryButton", "thumbstickClicked", "menu", "primaryTouched", "triggerTouched" }) button(controller, name);
+    foreach (var name in new[] { "primaryButton", "secondaryButton", "thumbstickClicked", "menu", "primaryTouched", "secondaryTouched", "triggerTouched" }) button(controller, name);
     controller.Controls["grip"] = new AxisControl { Value = .72f };
     controller.Controls["trigger"] = new AxisControl { Value = .43f };
     controller.Controls["thumbstick"] = new Vector2Control { Value = new Vector2(.2f, -.6f) };
@@ -39,7 +39,7 @@ foreach (var left in new[] { true, false })
     yes(sample.Primary && sample.Secondary && sample.StickClick && sample.HasAxis);
     yes(sample.Menu == left && !sample.Shoulder && !sample.Top && !sample.Outside);
     near(sample.Grip, .72f); near(sample.Trigger, .43f); near(sample.Axis.y, -.6f);
-    yes(sample.PrimaryTouched && sample.TriggerTouched && sample.HasThumbTouch && sample.HasTriggerTouch);
+    yes(sample.PrimaryTouched && sample.SecondaryTouched && !sample.TopTouched && !sample.OutsideTouched && sample.TriggerTouched && sample.HasThumbTouch && sample.HasTriggerTouch);
 }
 
 var touch = new DerivedTouch();
@@ -66,7 +66,7 @@ button(touch, "gripPressed"); button(touch, "triggerPressed"); Time.frameCount++
 var clicks = TrackedControllers.Read(true); near(clicks.Grip, 1); near(clicks.Trigger, 1);
 
 var frame = new DerivedFrame();
-foreach (var name in new[] { "faceButtonBottom", "faceButtonInside", "faceButtonTop", "faceButtonOutside", "shoulder", "menu", "thumbstickClicked", "gripPressed" }) button(frame, name);
+foreach (var name in new[] { "faceButtonBottom", "faceButtonInside", "faceButtonTop", "faceButtonOutside", "shoulder", "menu", "thumbstickClicked", "gripPressed", "faceButtonBottomTouched", "faceButtonInsideTouched", "faceButtonTopTouched", "faceButtonOutsideTouched" }) button(frame, name);
 var frameState = tracking().Set(CommonUsages.primaryButton, false).Set(CommonUsages.secondaryButton, false)
     .Set(CommonUsages.primary2DAxisClick, false).Set(CommonUsages.menuButton, false).Set(CommonUsages.grip, .1f).Set(CommonUsages.gripButton, false);
 install(false, frame, frameState);
@@ -74,6 +74,21 @@ var frameSample = TrackedControllers.Read(false);
 yes(frameSample.NativeFrame && frameSample.Profile == ControllerHardwareProfile.SteamFrame);
 yes(frameSample.Primary && frameSample.Secondary && frameSample.Top && frameSample.Outside && frameSample.Shoulder && frameSample.Menu && frameSample.StickClick);
 near(frameSample.Grip, 1);
+yes(frameSample.PrimaryTouched && frameSample.SecondaryTouched && frameSample.TopTouched && frameSample.OutsideTouched && frameSample.ButtonTouched);
+
+// Aim validity is explicit so free gloves can use a stable hardware fallback.
+yes(!frameSample.HasAimPose);
+var pointer = new UnityEngine.XR.OpenXR.Input.PoseControl();
+pointer.isTracked.Value=1;pointer.trackingState.Value=3;
+pointer.position.Value=new Vector3(.21f,1.12f,-.25f);
+pointer.rotation.Value=new Quaternion(.3f,0,0,.9539392f);
+frame.Controls["pointer"]=pointer;Time.frameCount++;
+var aimedFrame=TrackedControllers.Read(false);
+yes(aimedFrame.HasAimPose && aimedFrame.Valid);near(aimedFrame.AimRotation.x,.3f);
+pointer.isTracked.Value=0;Time.frameCount++;
+yes(!TrackedControllers.Read(false).HasAimPose);
+pointer.isTracked.Value=1;pointer.rotation.Value=new Quaternion(float.NaN,0,0,1);Time.frameCount++;
+yes(!TrackedControllers.Read(false).HasAimPose && TrackedControllers.Read(false).Valid);
 
 touch.Controls.Clear();
 var invalid = tracking().Set(CommonUsages.trigger, float.NaN);

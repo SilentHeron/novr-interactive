@@ -4,6 +4,8 @@
     <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../NOVR/MotionControls/AircraftLayoutIdentity.cs" Link="AircraftLayoutIdentity.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/HudWidgetDefaultPlacement.cs" Link="HudWidgetDefaultPlacement.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />

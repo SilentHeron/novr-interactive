@@ -55,6 +55,7 @@ public class NativeSettingsPanel : MonoBehaviour
     private float _nextRowY;
     private bool _wasVisible;
     private ControllerBindingPanel? _vrBindings;
+    private bool _lookCueSettings;
 
     public void Initialize(NativeGameActionAdapter actions, RectTransform root)
     {
@@ -146,6 +147,7 @@ public class NativeSettingsPanel : MonoBehaviour
         }
 
         _currentTab = tab;
+        _lookCueSettings = false;
         SetActiveTabButtonColors();
         RenderCurrentTab();
     }
@@ -188,8 +190,8 @@ public class NativeSettingsPanel : MonoBehaviour
                 RenderBindingsTab();
                 break;
             case SettingsTab.Hud:
-                CreateContentTitle("HUD");
-                RenderHudTab();
+                CreateContentTitle(_lookCueSettings ? "LOOK DIRECTION CUE" : "HUD");
+                if (_lookCueSettings) RenderLookCueSettings(); else RenderHudTab();
                 break;
             case SettingsTab.Chat:
                 CreateContentTitle("CHAT");
@@ -603,6 +605,7 @@ public class NativeSettingsPanel : MonoBehaviour
 
     private void RenderHudTab()
     {
+        AddActionRow("VR Look Direction Cue", "OPEN", () => { _lookCueSettings = true; RenderCurrentTab(); });
         var hmdWidthMax = Mathf.Max(1080f, 1080f * Screen.width / Mathf.Max(1f, Screen.height));
         var hmdSideDistMax = Mathf.Max(100f, PlayerSettings.hmdWidth * 0.5f);
         var hmdTopHeightMax = Mathf.Max(100f, PlayerSettings.hmdHeight * 0.5f);
@@ -621,6 +624,28 @@ public class NativeSettingsPanel : MonoBehaviour
         AddFloatRow("HUD Text Size", () => PlayerSettings.hudTextSize, value => SetHudFloat("HUDTextSize", value, static assigned => PlayerSettings.hudTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
         AddFloatRow("HMD Text Size", () => PlayerSettings.hmdTextSize, value => SetHudFloat("HMDTextSize", value, static assigned => PlayerSettings.hmdTextSize = assigned), 20f, 80f, 2f, value => $"{value:0}");
         AddFloatRow("Overlay Text Size", () => PlayerSettings.overlayTextSize, value => SetHudFloat("OverlayTextSize", value, static assigned => PlayerSettings.overlayTextSize = assigned), 16f, 80f, 2f, value => $"{value:0}");
+    }
+
+    private void RenderLookCueSettings()
+    {
+        var config = ModConfiguration.Instance; var cue = config.LookCue;
+        AddActionRow("HUD Settings", "BACK", () => { _lookCueSettings = false; RenderCurrentTab(); });
+        AddFloatRow("Cue Size", () => cue.Scale, value => cue.Size.Value = value,
+            MotionControls.GazeCueSettings.MinSize, MotionControls.GazeCueSettings.MaxSize, .1f, value => $"{value * 100:0}%");
+        AddFloatRow("Cue Opacity", () => cue.Alpha, value => cue.Opacity.Value = value,
+            MotionControls.GazeCueSettings.MinOpacity, 1, .05f, value => $"{value * 100:0}%");
+        AddOptionRow("Cue Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets" }, () => (int)cue.CurrentShape,
+            value => cue.Shape.Value = (MotionControls.GazeCueShape)value);
+        AddOptionRow("Show Cue", new[] { "Near targets", "Always", "Off" }, () => (int)config.TargetCue.Value,
+            value => config.TargetCue.Value = (MotionControls.TargetCueMode)value);
+        if (_contentRoot != null)
+        {
+            GazeCuePositionSlider.Create(_contentRoot, new Vector2(0, ConsumeRowY() - 12), 1000, _font!, 18);
+            ConsumeRowY();
+        }
+        AddActionRow("Centre of Vision", "CENTRE", () => { cue.VerticalDegrees.Value = 0; RenderCurrentTab(); });
+        AddActionRow("Look Cue Defaults", "RESET", () => { cue.Reset(); config.TargetCue.Value = MotionControls.TargetCueMode.Context; RenderCurrentTab(); });
+        AddReadOnlyRow("Position moves only the visible cue. Target selection and weapon sights are unchanged.");
     }
 
     private void RenderChatTab()

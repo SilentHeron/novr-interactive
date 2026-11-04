@@ -31,8 +31,7 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private PilotHandMaterials? _materials;
     private float _nextRetry;
     private float _sleeveThickness = -1;
-    private Vector3[]? _sleeveVertices;
-    private Matrix4x4[]? _bindPoses;
+    private readonly PilotSleeveGeometry?[] _sleeveGeometry = new PilotSleeveGeometry?[2];
     private int _attempts;
     internal static bool Visible(bool left) => _instance?._gloves[left?0:1]?.Root.gameObject.activeInHierarchy==true;
     internal static Vector3 TouchPoint(bool left, ControllerSample sample, Transform tracking, bool fingertip = false)
@@ -43,7 +42,7 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     internal static Quaternion HandRotation(bool left, ControllerSample sample, Transform tracking) =>
         _instance?._gloves[left ? 0 : 1]?.Root.rotation ?? tracking.rotation * sample.Rotation;
     internal static Quaternion FreeHandRotation(bool left, ControllerSample sample, Transform tracking) =>
-        tracking.rotation * sample.Rotation * Quaternion.Euler(ModConfiguration.Instance.MotionControls.FreeHandAngles(left));
+        tracking.rotation * FreeHandPose.Rotation(sample, ModConfiguration.Instance.MotionControls.FreeHandAngles(left));
     private void Awake()=>_instance=this;
     private void LateUpdate()
     {
@@ -73,9 +72,11 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         }
         if (_sleeveThickness != settings.SleeveThickness.Value) ResizeSleeves(settings.SleeveThickness.Value);
         var controls=MotionFlightController.Instance;
-        var head=_root.TransformPoint(NOVRHeadsetData.Translation+CockpitProfiles.SeatOffset);
-        // Translate the body with the seated viewer; independent cockpit controls keep their physical anchors.
-        var shift=head-aircraft.cockpitViewPoint.position;
+        var lean=PilotTorsoMath.Lean(PoseVector(NOVRHeadsetData.Translation-NOVRHeadsetData.TranslationAnchor));
+        var torsoHead=_root.TransformPoint(NOVRHeadsetData.TranslationAnchor+CockpitProfiles.SeatOffset+new Vector3(lean.X,lean.Y,lean.Z));
+        // Seat adjustment remains exact; ordinary head lean moves the shoulders
+        // only partly. The tracked glove and fixed cockpit sockets stay exact.
+        var shift=torsoHead-aircraft.cockpitViewPoint.position;
         if(_source!=null)
         {
             for(var i=0;i<_copies.Length;i++) { _copies[i].position=_sourceBones[i].position+shift;_copies[i].rotation=_sourceBones[i].rotation;_copies[i].localScale=_sourceBones[i].lossyScale; }
@@ -150,55 +151,51 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private void CreateSleeves(Mesh source,BoneWeight[] weights,Vector2[] uv)
     {
         if(source.vertexCount>20000 || weights.Length!=source.vertexCount || uv.Length!=source.vertexCount)return;
-        var vertices=PilotMeshData.ReadVectors(source,VertexAttribute.Position);var normals=PilotMeshData.ReadVectors(source,VertexAttribute.Normal);if(vertices==null)return;
+        var vertices=PilotMeshData.ReadVectors(source,VertexAttribute.Position);if(vertices==null)return;
+        var normals=PilotMeshData.ReadVectors(source,VertexAttribute.Normal) ?? Array.Empty<Vector3>();
         var indices=PilotMeshData.Indices(source);
-        _sleeveVertices=vertices; _bindPoses=source.bindposes; _sleeveThickness=-1;
-        _copies=new Transform[_sourceBones.Length];
+        var points=Array.ConvertAll(vertices,SleeveVector);var sourceNormals=Array.ConvertAll(normals,SleeveVector);
+        var coordinates=Array.ConvertAll(uv,v=>new SleeveVector2(v.x,v.y));
+        var skin=Array.ConvertAll(weights,w=>new PilotSleeveGeometry.Skin(w.boneIndex0,w.boneIndex1,w.boneIndex2,w.boneIndex3,w.weight0,w.weight1,w.weight2,w.weight3));
+        var scale=_source!.transform.lossyScale;var metersPerUnit=Mathf.Max(Mathf.Abs(scale.x),Mathf.Max(Mathf.Abs(scale.y),Mathf.Abs(scale.z)));
+        _sleeveThickness=-1;_copies=new Transform[_sourceBones.Length];
         for(var i=0;i<_copies.Length;i++){_copies[i]=new GameObject("Sleeve "+_sourceBones[i].name).transform;_copies[i].SetParent(_root,false);}
         for(var side=0;side<2;side++)
         {
             var upper=_arm[side,0];var fore=_arm[side,1];var hand=_arm[side,2];if(upper<0||fore<0||hand<0)continue;
-            var keep=new bool[weights.Length];
-            for(var i=0;i<keep.Length;i++)keep[i]=Weight(weights[i],upper)+Weight(weights[i],fore)>.45f && Weight(weights[i],hand)<.55f;
-            // Measure clothing thickness once from the selected sleeve vertices,
-            // not the unused whole-body vertices retained in the shared index space.
-            var shoulder=source.bindposes[upper].inverse.MultiplyPoint3x4(Vector3.zero);
-            var elbow=source.bindposes[fore].inverse.MultiplyPoint3x4(Vector3.zero);
-            var wrist=source.bindposes[hand].inverse.MultiplyPoint3x4(Vector3.zero);
-            _sleeveBindRadius[side]=0;
-            for(var i=0;i<keep.Length;i++) if(keep[i])
-                _sleeveBindRadius[side]=Mathf.Max(_sleeveBindRadius[side],Mathf.Min(
-                    Vector3.Distance(vertices[i],Closest(shoulder,elbow,vertices[i])),
-                    Vector3.Distance(vertices[i],Closest(elbow,wrist,vertices[i]))));
-            var mesh=new Mesh{name="Installed pilot sleeve",vertices=vertices,uv=uv,boneWeights=weights,bindposes=source.bindposes,subMeshCount=indices.Length};_ownedMeshes.Add(mesh);
-            for(var s=0;s<indices.Length;s++){var tris=new List<int>();for(var j=0;j+2<indices[s].Length;j+=3)if(keep[indices[s][j]]&&keep[indices[s][j+1]]&&keep[indices[s][j+2]]){tris.Add(indices[s][j]);tris.Add(indices[s][j+1]);tris.Add(indices[s][j+2]);}mesh.SetTriangles(tris,s);}
-            if(normals!=null)mesh.normals=normals;else mesh.RecalculateNormals();mesh.RecalculateTangents();
+            var wrist=source.bindposes[hand].inverse;
+            var frame=new PilotSleeveGeometry.Frame(SleeveVector(wrist.MultiplyPoint3x4(Vector3.zero)),
+                SleeveVector(wrist.MultiplyVector(Vector3.right)),SleeveVector(wrist.MultiplyVector(Vector3.up)),SleeveVector(wrist.MultiplyVector(Vector3.forward)));
+            var geometry=new PilotSleeveGeometry(points,sourceNormals,coordinates,skin,indices,upper,fore,hand,
+                SleeveVector(source.bindposes[upper].inverse.MultiplyPoint3x4(Vector3.zero)),
+                SleeveVector(source.bindposes[fore].inverse.MultiplyPoint3x4(Vector3.zero)),frame,metersPerUnit);
+            _sleeveGeometry[side]=geometry;_sleeveBindRadius[side]=geometry.Radius;
+            var mesh=new Mesh{name="Fitted pilot sleeve",vertices=Array.ConvertAll(geometry.Positions,UnityVector),
+                normals=Array.ConvertAll(geometry.Normals,UnityVector),uv=Array.ConvertAll(geometry.UV,v=>new Vector2(v.X,v.Y)),
+                boneWeights=Array.ConvertAll(geometry.Weights,w=>new BoneWeight{boneIndex0=w.A,boneIndex1=w.B,boneIndex2=w.C,boneIndex3=w.D,weight0=w.X,weight1=w.Y,weight2=w.Z,weight3=w.W}),
+                bindposes=source.bindposes,subMeshCount=geometry.Triangles.Length};_ownedMeshes.Add(mesh);
+            for(var sub=0;sub<geometry.Triangles.Length;sub++)mesh.SetTriangles(geometry.Triangles[sub],sub);
+            mesh.RecalculateTangents();
             var go=new GameObject(side==0?"Pilot left sleeve":"Pilot right sleeve");go.transform.SetParent(_root,false);go.layer=(int)LayerHelper.Layers.Cockpit;
-            var r=go.AddComponent<SkinnedMeshRenderer>();r.sharedMesh=mesh;r.bones=_copies;r.rootBone=_copies[0];r.sharedMaterials=Array.ConvertAll(_source!.sharedMaterials,m=>_materials!.Sleeve(m));r.shadowCastingMode=ShadowCastingMode.Off;r.receiveShadows=true;
-            r.localBounds=source.bounds;r.updateWhenOffscreen=false;_sleeves[side]=r;
-            _sleeveFades[side] = new PilotSleeveFade(r.sharedMaterials);
+            var renderer=go.AddComponent<SkinnedMeshRenderer>();renderer.sharedMesh=mesh;renderer.bones=_copies;renderer.rootBone=_copies[0];
+            renderer.sharedMaterials=Array.ConvertAll(_source.sharedMaterials,m=>_materials!.Sleeve(m));renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=true;
+            renderer.localBounds=source.bounds;renderer.updateWhenOffscreen=false;_sleeves[side]=renderer;
+            _sleeveFades[side]=new PilotSleeveFade(renderer.sharedMaterials);
         }
     }
     private void ResizeSleeves(float thickness)
     {
         _sleeveThickness=thickness;
-        if(_sleeveVertices==null || _bindPoses==null)return;
         for(var side=0;side<2;side++)
         {
-            var renderer=_sleeves[side];if(renderer==null)continue;
-            Vector3 Bind(int index)=>_bindPoses[_arm[side,index]].inverse.MultiplyPoint3x4(Vector3.zero);
-            var shoulder=Bind(0);var elbow=Bind(1);var wrist=Bind(2);var vertices=new Vector3[_sleeveVertices.Length];
-            for(var i=0;i<vertices.Length;i++)
-            {
-                var point=_sleeveVertices[i];var upper=Closest(shoulder,elbow,point);var fore=Closest(elbow,wrist,point);
-                var center=(point-upper).sqrMagnitude<(point-fore).sqrMagnitude?upper:fore;
-                vertices[i]=center+(point-center)*thickness;
-            }
-            var mesh=renderer.sharedMesh;mesh.vertices=vertices;mesh.RecalculateNormals();mesh.RecalculateTangents();
+            var renderer=_sleeves[side];var geometry=_sleeveGeometry[side];if(renderer==null||geometry==null)continue;
+            geometry.Resize(thickness);
+            var mesh=renderer.sharedMesh;mesh.vertices=Array.ConvertAll(geometry.Positions,UnityVector);
+            mesh.normals=Array.ConvertAll(geometry.Normals,UnityVector);mesh.RecalculateTangents();
         }
     }
-    private static Vector3 Closest(Vector3 a,Vector3 b,Vector3 p)
-    { var direction=b-a;return a+direction*Mathf.Clamp01(Vector3.Dot(p-a,direction)/Mathf.Max(.000000001f,direction.sqrMagnitude)); }
+    private static SleeveVector3 SleeveVector(Vector3 value)=>new(value.x,value.y,value.z);
+    private static Vector3 UnityVector(SleeveVector3 value)=>new(value.X,value.Y,value.Z);
     private void UpdateSleeveBounds(int side)
     {
         var sleeve=_sleeves[side];if(sleeve==null || _source==null)return;
@@ -291,11 +288,11 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private void ReleaseVisuals()
     {
         ResetHandStabilizers();
-        for(var i=0;i<2;i++){_gloves[i]?.Dispose();_gloves[i]=null;_sleeves[i]=null;_sleeveFades[i]=null;}
+        for(var i=0;i<2;i++){_gloves[i]?.Dispose();_gloves[i]=null;_sleeves[i]=null;_sleeveFades[i]=null;_sleeveGeometry[i]=null;}
         foreach(var mesh in _ownedMeshes)Object.Destroy(mesh);_ownedMeshes.Clear();
         _materials?.Dispose();_materials=null;
         if(_fallback!=null)Object.Destroy(_fallback);_fallback=null;
-        if(_root!=null)Object.Destroy(_root.gameObject);_root=null;_source=null;_copies=Array.Empty<Transform>();_sourceBones=Array.Empty<Transform>();_sleeveVertices=null;_bindPoses=null;_sleeveThickness=-1;
+        if(_root!=null)Object.Destroy(_root.gameObject);_root=null;_source=null;_copies=Array.Empty<Transform>();_sourceBones=Array.Empty<Transform>();_sleeveThickness=-1;
     }
     private void Release(){ReleaseVisuals();_aircraft=null;}
     private void OnDisable(){ResetHandStabilizers();if(_root!=null)_root.gameObject.SetActive(false);}

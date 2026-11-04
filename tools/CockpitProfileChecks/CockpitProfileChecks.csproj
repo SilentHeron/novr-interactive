@@ -7,6 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../NOVR/MotionControls/AircraftLayoutIdentity.cs" Link="AircraftLayoutIdentity.cs" />
     <Compile Include="../../NOVR/MotionControls/CockpitProfiles.cs" Link="CockpitProfiles.cs" />
   </ItemGroup>
 </Project>

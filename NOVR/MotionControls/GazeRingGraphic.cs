@@ -14,9 +14,8 @@ internal sealed class GazeRingGraphic : MaskableGraphic
         var go = new GameObject("Look direction cue", typeof(RectTransform));
         var rect = (RectTransform)go.transform;
         rect.SetParent(parent, false);
-        // A small visual-only drop: 26.2 mm at 3 m is about half a degree.
-        // Leave the native designator, selection ray and optical camera untouched.
-        rect.anchoredPosition = new Vector2(0, -26.2f);
+        // Position is visual-only and measured in view-relative degrees.
+        // The native designator and selection ray remain untouched.
         rect.sizeDelta = Vector2.one * GazeCueSettings.Diameter;
         var ring = go.AddComponent<GazeRingGraphic>();
         ring.RefreshAppearance(); ring.raycastTarget = false;
@@ -28,6 +27,8 @@ internal sealed class GazeRingGraphic : MaskableGraphic
     private void RefreshAppearance()
     {
         var settings = ModConfiguration.Instance.LookCue;
+        var position = new Vector2(0, settings.CanvasOffsetY);
+        if (rectTransform.anchoredPosition != position) rectTransform.anchoredPosition = position;
         var size = Vector2.one * (GazeCueSettings.Diameter * settings.Scale);
         if (rectTransform.sizeDelta != size) rectTransform.sizeDelta = size;
         var shape = settings.CurrentShape;

@@ -10,9 +10,9 @@ namespace NOVR.MotionControls;
 
 internal struct ControllerSample
 {
-    public bool Valid, HasAxis, StickClick, Primary, Secondary, Menu, Shoulder, Top, Outside, NativeFrame;
+    public bool Valid, HasAxis, HasAimPose, StickClick, Primary, Secondary, Menu, Shoulder, Top, Outside, NativeFrame;
     // Presence is visual-only and never aliases a button press or flight action.
-    public bool HasThumbTouch, HasTriggerTouch, ThumbstickTouched, ButtonTouched, PrimaryTouched, ThumbrestTouched, TriggerTouched, GripTouched;
+    public bool HasThumbTouch, HasTriggerTouch, ThumbstickTouched, ButtonTouched, PrimaryTouched, SecondaryTouched, TopTouched, OutsideTouched, ThumbrestTouched, TriggerTouched, GripTouched;
     public InputDevice Device;
     public ControllerHardwareProfile Profile;
     public float Grip, Trigger;
@@ -149,10 +149,13 @@ internal static class TrackedControllers
         var triggerTouch = Touch("triggerTouched", out var hasTriggerTouch);
         var primaryTouch = Touch(nativeFrame ? "faceButtonBottomTouched" : "primaryTouched", out var hasButtonTouch);
         var secondaryTouch = Button(nativeFrame ? "faceButtonInsideTouched" : "secondaryTouched");
-        var faceTouch = primaryTouch || secondaryTouch || nativeFrame && (Button("faceButtonTopTouched") || Button("faceButtonOutsideTouched"));
+        var topTouch = nativeFrame && Button("faceButtonTopTouched");
+        var outsideTouch = nativeFrame && Button("faceButtonOutsideTouched");
+        var faceTouch = primaryTouch || secondaryTouch || topTouch || outsideTouch;
         var restTouch = Touch("thumbrestTouched", out var hasRestTouch);
         var aimPosition = position;
         var aimRotation = rotation;
+        var hasAimPose = false;
         // Use the runtime's aim pose, which differs from the grip pose on Frame.
         var pointer = inputDevice?.TryGetChildControl<UnityEngine.XR.OpenXR.Input.PoseControl>("pointer");
         if (pointer != null && pointer.isTracked.isPressed && (pointer.trackingState.ReadValue() & 3) == 3 &&
@@ -160,11 +163,12 @@ internal static class TrackedControllers
         {
             aimPosition = pointer.position.ReadValue();
             aimRotation = pointer.rotation.ReadValue();
+            hasAimPose = true;
         }
         return new ControllerSample
         {
             Valid = FlightControlMath.IsFinite(grip) && FlightControlMath.IsFinite(trigger),
-            Device = device, Grip = grip, Trigger = trigger, HasAxis = hasAxis,
+            Device = device, Grip = grip, Trigger = trigger, HasAxis = hasAxis, HasAimPose = hasAimPose,
             Axis = hasAxis ? axis : Vector2.zero,
             StickClick = nativeFrame ? Button("thumbstickClicked") : stickClick,
             Primary = nativeFrame ? Button("faceButtonBottom") : primary,
@@ -173,7 +177,8 @@ internal static class TrackedControllers
             Shoulder = Button("shoulder"), Top = Button("faceButtonTop"), Outside = Button("faceButtonOutside"),
             NativeFrame = nativeFrame, Profile = profile,
             HasThumbTouch = hasStickTouch || hasButtonTouch || hasRestTouch, HasTriggerTouch = hasTriggerTouch,
-            ThumbstickTouched = stickTouch, ButtonTouched = faceTouch, PrimaryTouched = primaryTouch, ThumbrestTouched = restTouch,
+            ThumbstickTouched = stickTouch, ButtonTouched = faceTouch, PrimaryTouched = primaryTouch,
+            SecondaryTouched = secondaryTouch, TopTouched = topTouch, OutsideTouched = outsideTouch, ThumbrestTouched = restTouch,
             TriggerTouched = triggerTouch, GripTouched = Button("gripTouched"),
             Position = MapPosition(position), Rotation = NOVRHeadsetData.RotationCalibrationOffset * rotation,
             AimPosition = MapPosition(aimPosition), AimRotation = NOVRHeadsetData.RotationCalibrationOffset * aimRotation

@@ -150,7 +150,13 @@ internal sealed class MotionControlVisuals : IDisposable
     {
         SetMirrored(ModConfiguration.Instance.MotionControls.LeftHanded.Value);
         _stickBase.localPosition = stick - Vector3.up * 0.12f;
-        _stickPivot.localRotation = Quaternion.Euler(pitch * angle, 0f, -roll * angle) * Quaternion.Euler(0f, yawDegrees, 0f);
+        var stickRotation = Quaternion.Euler(pitch * angle, 0f, -roll * angle) * Quaternion.Euler(0f, yawDegrees, 0f);
+        // Swing the complete grip/socket assembly around a point 4 cm farther
+        // down the shaft. The neutral grip and saved layout stay in place, and
+        // the fitted glove travels with the handle throughout the arc.
+        var pivotDrop = Vector3.up * .04f;
+        _stickPivot.localPosition = stickRotation * pivotDrop - pivotDrop;
+        _stickPivot.localRotation = stickRotation;
         _throttleBase.localPosition = throttle;
         var side = ThrottleIndicatorMath.InboardSide(stick.x, throttle.x);
         if (_lastTravel != travel || _lastCollective != collective || _lastSide != side)

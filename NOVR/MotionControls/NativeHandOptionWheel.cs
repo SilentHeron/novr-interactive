@@ -114,21 +114,45 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         var hand = TrackedControllers.Read(Owner == 0);
         if (camera == null || !hand.Valid) { Cancel(); return; }
         var trackingRoot = camera.transform.parent;
-        var handPosition = trackingRoot != null ? trackingRoot.TransformPoint(hand.Position) : hand.Position;
-        // Above the controller, upright towards the viewer. Tracking remains
-        // untouched and moving the aircraft/seat does not leave the wheel behind.
-        var position = handPosition + camera.transform.up * .22f + camera.transform.forward * .035f;
-        var facing = position - camera.transform.position;
-        if (facing.sqrMagnitude < .0001f) facing = camera.transform.forward;
-        _view.transform.SetPositionAndRotation(position, Quaternion.LookRotation(facing, camera.transform.up));
+        var origin = trackingRoot != null ? trackingRoot.position : Vector3.zero;
+        var basis = trackingRoot != null ? trackingRoot.rotation : Quaternion.identity;
+        var gripPosition = origin + basis * hand.Position;
+        var gripRotation = basis * hand.Rotation;
+        ThumbstickSurface(Owner == 0, hand.NativeFrame, out var cap, out var normal, out var forward);
+        // The wheel lies over the thumbstick's top face and rotates with the
+        // physical controller. Glove-fit settings and head motion cannot tilt it.
+        // UI fronts face local -Z; local +Y follows thumbstick-forward selection.
+        _view.transform.SetPositionAndRotation(gripPosition + gripRotation * (cap + normal * .055f),
+            gripRotation * Quaternion.LookRotation(-normal, forward));
         _canvas!.worldCamera = camera;
+    }
+
+    private static void ThumbstickSurface(bool left, bool frame, out Vector3 cap, out Vector3 normal, out Vector3 forward)
+    {
+        // Derived from the installed controller render models' openxr_grip and
+        // thumbstick transforms, converted from OpenVR to Unity coordinates.
+        // Frame's button deck is canted relative to grip-up, and mirrored in X.
+        var side = left ? 1f : -1f;
+        if (frame)
+        {
+            cap = new Vector3(side * .027826f, .0110762f, .0537274f);
+            normal = new Vector3(side * .1654186f, .7774802f, .6067629f).normalized;
+            forward = new Vector3(side * .1007780f, -.6253439f, .7738145f).normalized;
+        }
+        else
+        {
+            // Current Touch / Quest controllers share this grip-relative deck.
+            cap = new Vector3(-side * .006413f, -.0166453f, .0537527f);
+            normal = new Vector3(0, .7358035f, .6771951f).normalized;
+            forward = new Vector3(0, -.6771951f, .7358035f).normalized;
+        }
     }
     private void EnsureView()
     {
         if (_view != null) return;
         _view = new GameObject("NOVR Native Hand Wheel", typeof(RectTransform), typeof(Canvas));
         // Deliberately independent of scaled aircraft/helmet bones.
-        _view.transform.localScale = Vector3.one * .0011f;
+        _view.transform.localScale = Vector3.one * .00065f;
         ((RectTransform)_view.transform).sizeDelta = new Vector2(320, 380);
         _view.layer = (int)LayerHelper.GetVrUiLayer();
         _canvas = _view.GetComponent<Canvas>(); _canvas.renderMode = RenderMode.WorldSpace;

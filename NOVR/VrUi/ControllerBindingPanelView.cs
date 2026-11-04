@@ -40,7 +40,7 @@ internal sealed partial class ControllerBindingPanel
     }
     internal void Refresh()
     {
-        if (_root == null || !_root.activeInHierarchy) return;
+        if (_root == null || !_root.activeInHierarchy) { _diagram?.ClearActivity(); return; }
         foreach (var item in _liveLabels)
             if (item.label != null && item.label.gameObject.activeInHierarchy) item.label.text = item.text();
         RefreshBindingEditor();
@@ -95,7 +95,7 @@ internal sealed partial class ControllerBindingPanel
     {
         _diagramPage = Page("CONTROLLER DIAGRAM");
         _diagram = new ControllerDiagramView(_diagramPage.transform, _font, SelectDiagramButton);
-        Label(_diagramPage.transform, "Select a physical control to inspect or edit it.\nFree stick click: wheel · Axes and grip are fixed.",
+        Label(_diagramPage.transform, "Choose Left / Right, then a callout to edit.\nTouch: amber · Press: green · Free click: wheel",
             new Vector2(0, -184), new Vector2(510, 42), 17);
         _diagramButtonPage = Page("CONTROLLER BUTTON");
         _diagramInfo = Label(_diagramButtonPage.transform, "", new Vector2(0, 149), new Vector2(510, 102), 18);
@@ -119,6 +119,7 @@ internal sealed partial class ControllerBindingPanel
     {
         if (_diagramPage == null) return;
         if (_diagramPage.activeSelf) _diagram.Refresh(Bindings, StickLeft);
+        else _diagram.ClearActivity();
         if (!_diagramButtonPage.activeSelf) return;
         if (_diagramProfile != Bindings.EffectiveProfile || _diagramHardware != Bindings.ButtonProfile(_diagramLeft)) { Back(); return; }
         var fixedGrip = _diagramButton == null;

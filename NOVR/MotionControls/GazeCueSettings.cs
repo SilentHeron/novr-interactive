@@ -9,7 +9,9 @@ internal sealed class GazeCueSettings
 {
     internal const float DefaultSize = 1f, DefaultOpacity = .65f, Diameter = 60f;
     internal const float MinSize = .5f, MaxSize = 2.5f, MinOpacity = .05f;
-    internal readonly ConfigEntry<float> Size, Opacity;
+    internal const float DefaultVerticalDegrees = -1f, MinVerticalDegrees = -8f, MaxVerticalDegrees = 8f;
+    internal const float ViewDepthMeters = 3f, CanvasScale = .001f;
+    internal readonly ConfigEntry<float> Size, Opacity, VerticalDegrees;
     internal readonly ConfigEntry<GazeCueShape> Shape;
     internal GazeCueSettings(ConfigFile config)
     {
@@ -21,11 +23,18 @@ internal sealed class GazeCueSettings
                 new AcceptableValueRange<float>(MinOpacity, 1f)));
         Shape = config.Bind("VR HUD", "Look Cue Shape", GazeCueShape.Circle,
             "Look-direction symbol: hollow circle, small dot, open-centre crosshair, or corner brackets.");
+        VerticalDegrees = config.Bind("VR HUD", "Look Cue Vertical Position", DefaultVerticalDegrees,
+            new ConfigDescription("Visual cue position in degrees relative to the centre of vision. Negative moves down, positive moves up. Does not change targeting or the selection ray.",
+                new AcceptableValueRange<float>(MinVerticalDegrees, MaxVerticalDegrees)));
     }
     internal float Scale => SafeRange(Size.Value, MinSize, MaxSize, DefaultSize);
     internal float Alpha => SafeRange(Opacity.Value, MinOpacity, 1, DefaultOpacity);
+    internal float VerticalAngle => SafeRange(VerticalDegrees.Value, MinVerticalDegrees, MaxVerticalDegrees, DefaultVerticalDegrees);
+    internal float CanvasOffsetY => (float)Math.Tan(VerticalAngle * Math.PI / 180) * ViewDepthMeters / CanvasScale;
+    internal string PositionLabel => VerticalAngle == 0 ? "Centre of vision" :
+        Math.Abs(VerticalAngle).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "° " + (VerticalAngle < 0 ? "below centre" : "above centre");
     internal GazeCueShape CurrentShape => (uint)Shape.Value <= (uint)GazeCueShape.Brackets ? Shape.Value : GazeCueShape.Circle;
     private static float SafeRange(float value, float min, float max, float fallback) =>
         float.IsNaN(value) || float.IsInfinity(value) ? fallback : Math.Max(min, Math.Min(max, value));
-    internal void Reset() { Size.Value = DefaultSize; Opacity.Value = DefaultOpacity; Shape.Value = GazeCueShape.Circle; }
+    internal void Reset() { Size.Value = DefaultSize; Opacity.Value = DefaultOpacity; Shape.Value = GazeCueShape.Circle; VerticalDegrees.Value = DefaultVerticalDegrees; }
 }

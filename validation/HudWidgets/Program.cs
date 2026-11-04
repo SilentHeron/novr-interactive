@@ -12,6 +12,19 @@ try
     var path = Path.Combine(directory, "hud.cfg");
     var config = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var profiles = new HudWidgetProfiles(config);
+    foreach(var id in new[]{"SmallFighter1","Multirole1","modauthor/FS-3_Ternion","other-author/custom-plane"})
+    {
+        var all=profiles.Load(id,2);
+        True(all.Count==9 && HudWidgetProfiles.Ids.All(all.ContainsKey),"Every stock/custom aircraft receives all nine editable widgets");
+        var hidden=all["damage"];hidden.Visible=false;all["damage"]=hidden;
+        profiles.Save(id,all,2);
+        var restored=profiles.Load(id,2);
+        True(restored.Count==9 && !restored["damage"].Visible,"Universal availability preserves saved hide settings");
+        True(profiles.Load(id,1)["damage"].Visible,"Visibility stays independent across aircraft slots");
+    }
+    True(profiles.Load("").Count==9 && !profiles.HasSavedLayout(""),"Missing metadata retains editable defaults without a fallback save");
+    profiles.Save("",profiles.Load(""));
+    True(!profiles.HasSavedLayout(""),"An unresolved aircraft identity never writes a shared profile");
     var factory = HudWidgetProfiles.FactoryDefaults;
     var defaults = profiles.Load(null);
     Equal(defaults.Count, 9, "Nine independent widget types including damage and instructions");
@@ -161,6 +174,7 @@ try
     HudWidgetGestureChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
+    HudWidgetDefaultPlacementChecks.Run(directory, True);
     HudWidgetAngleChecks.Run(True);
     HudWidgetMotionChecks.Run(True);
     HudWidgetTwoHandChecks.Run(True);

@@ -20,7 +20,9 @@ try
     void Refresh() => typeof(GazeRingGraphic).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(cue, null);
     var original = cue.Mesh();
     Check(cue.rectTransform.sizeDelta == new Vector2(60, 60), "Default remains 60-pixel cue");
-    Check(cue.rectTransform.anchoredPosition == new Vector2(0, -26.2f), "Visual drop unchanged");
+    Check(settings.VerticalAngle == -1 && cue.rectTransform.anchoredPosition.x == 0, "Default shifts cue slightly lower without lateral movement");
+    Near((float)Math.Atan(cue.rectTransform.anchoredPosition.y * GazeCueSettings.CanvasScale / GazeCueSettings.ViewDepthMeters) * 180 / MathF.PI,
+        -1, "Default is exactly one degree below view centre");
     Check(!cue.raycastTarget, "Cue cannot interfere with controller pointers");
     Near(cue.color.a, .65f, "Original base alpha unchanged");
     Check(original.Vertices.Count == 260 && original.Triangles.Count == 256, "Original two 64-segment rings preserved");
@@ -45,6 +47,20 @@ try
     settings.Opacity.Value = .35f; Refresh();
     Near(cue.rectTransform.sizeDelta.x, 102, "Opacity does not change size");
     Near(cue.color.a, .35f, "Opacity adjustable independently");
+    foreach (var angle in new[] { -8f, -2.25f, 0f, .25f, 5f, 8f })
+    {
+        settings.VerticalDegrees.Value = angle; Refresh();
+        var actual = (float)Math.Atan(cue.rectTransform.anchoredPosition.y * GazeCueSettings.CanvasScale / GazeCueSettings.ViewDepthMeters) * 180 / MathF.PI;
+        Near(actual, angle, "Cue position is an angular offset from view centre");
+        Near(cue.rectTransform.sizeDelta.x, 102, "Position does not change cue size");
+        Near(cue.color.a, .35f, "Position does not change cue opacity");
+        Check(cue.rectTransform.anchoredPosition.x == 0, "Vertical position cannot shift cue laterally");
+        Check(settings.PositionLabel.Contains(angle < 0 ? "below" : angle > 0 ? "above" : "Centre"), "Position label states direction clearly");
+    }
+    settings.VerticalDegrees.Value = -100; Check(settings.VerticalAngle == -8, "Downward travel bounded");
+    settings.VerticalDegrees.Value = 100; Check(settings.VerticalAngle == 8, "Upward travel bounded");
+    settings.VerticalDegrees.Value = float.NaN;
+    Check(float.IsFinite(settings.VerticalAngle) && float.IsFinite(settings.CanvasOffsetY), "Invalid position cannot hide or corrupt cue");
     config.InstrumentBrightness.Value = .5f; Refresh();
     Near(cue.color.a, .175f, "HUD brightness still multiplies configured alpha");
     ThemeManager.Active = new ThemeManager(); Refresh();
@@ -76,9 +92,11 @@ try
             foreach (var target in new[] { false, true })
                 foreach (var selecting in new[] { false, true })
                     Check(TargetCueVisibility.Show(mode, cockpit, target, selecting) == (cockpit && mode != TargetCueMode.Off && (mode == TargetCueMode.Always || target)), "Context/Always/Off semantics unchanged, empty Select stays hidden");
-    settings.Size.Value = 1.5f; settings.Opacity.Value = .4f; settings.Shape.Value = GazeCueShape.Brackets; file.Save();
+    settings.Size.Value = 1.5f; settings.Opacity.Value = .4f; settings.Shape.Value = GazeCueShape.Brackets; settings.VerticalDegrees.Value = -2.25f; file.Save();
     var reloaded = new GazeCueSettings(new ConfigFile(Path.Combine(dir, "cue.cfg"), false));
     Check(reloaded.Scale == 1.5f && reloaded.Alpha == .4f && reloaded.CurrentShape == GazeCueShape.Brackets, "Custom appearance persists across reload");
+    Check(reloaded.VerticalAngle == -2.25f, "Custom angular position persists across reload");
+    reloaded.Reset(); Check(reloaded.VerticalAngle == -1, "Reset restores modest lower default");
     Console.WriteLine($"PASS: {count} gaze-cue settings/default/geometry checks.");
 }
 finally { Directory.Delete(dir, true); }

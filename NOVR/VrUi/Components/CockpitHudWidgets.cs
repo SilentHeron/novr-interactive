@@ -53,8 +53,10 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private string _key = "";
     private int _slot = 1;
     internal int ProfileSlot => _slot;
-    internal string ProfileAircraftName => CockpitProfiles.Instance?.AircraftName ?? "Aircraft";
+    internal string ProfileAircraftName => CanSaveProfile ? CockpitProfiles.Instance?.AircraftName ?? AircraftName : "Aircraft loading";
+    internal bool CanSaveProfile => _key.Length > 0 && CockpitProfiles.Instance?.AircraftIdentity == _key;
     private bool _editing, _initialPlacementDone;
+    private readonly HudWidgetDefaultPlacement _defaultPlacement = new();
     private Vector3 _seat, _anchor, _calibration;
     private Quaternion _recenter;
     private Font? _font;
@@ -83,7 +85,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     internal string SelectedId { get; private set; } = "weapons";
     internal string AircraftName => _aircraft?.definition?.unitName ?? "No aircraft";
     internal bool SnapEnabled { get => _snap.Value; set => _snap.Value = value; }
-    internal bool Available => _aircraft != null && Ready();
+    internal bool Available => _aircraft != null && _initialPlacementDone && Ready();
 
     private void Awake()
     {
@@ -94,7 +96,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     }
     private void OnEnable() => Application.onBeforeRender += Place;
     internal static bool Owns(string id) => Instance != null && Instance._aircraft != null && Instance._widgets.ContainsKey(id);
-    internal static bool IsVisible(string id) => Owns(id) && Instance!.Ready() && Instance._poses[id].Visible;
+    internal static bool IsVisible(string id) => Owns(id) && Instance!._initialPlacementDone && Instance.Ready() && Instance._poses[id].Visible;
     internal static bool TryGetContent(string id, out RectTransform content)
     {
         content = null!;
@@ -151,25 +153,26 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         GameManager.GetLocalAircraft(out var aircraft);
         if (!XRSettings.enabled || CockpitAlerts.LostCockpit(aircraft)) aircraft = null;
-        if (aircraft != _aircraft || _slot != CockpitProfiles.ActiveSlot)
+        var key = aircraft != null && aircraft.definition != null
+            ? AircraftLayoutIdentity.Resolve(aircraft.definition.jsonKey, aircraft.definition.name) : "";
+        if (aircraft != _aircraft || _slot != CockpitProfiles.ActiveSlot || _key != key ||
+            aircraft != null && _widgets.Count != HudWidgetProfiles.Ids.Length)
         {
             Finish(false);
             ReleaseWidgets();
-            _aircraft = aircraft; _slot = CockpitProfiles.ActiveSlot;
-            _initialPlacementDone = false;
-            if (aircraft != null && aircraft.definition != null)
+            _aircraft = aircraft; _slot = CockpitProfiles.ActiveSlot; _key = key;
+            _initialPlacementDone = false; _defaultPlacement.Reset();
+            if (aircraft != null)
             {
-                _key = string.IsNullOrEmpty(aircraft.definition.jsonKey) ? aircraft.definition.name : aircraft.definition.jsonKey;
+                // Every cockpit gets every widget, regardless of native HUD
+                // sources or mod metadata timing. Missing sources stay editable.
                 _poses = _profiles.Load(_key, _slot);
+                _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot);
+                CaptureCalibration();
                 foreach (var id in HudWidgetProfiles.Ids) CreateWidget(id);
             }
         }
-        if (!_initialPlacementDone && Ready())
-        {
-            // Only untouched first-use defaults may be fitted to the pilot.
-            // Saved layouts stay aircraft-fixed, regardless of current reach.
-            _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot) || EnsureWidgetsWithinReach(false);
-        }
+        if (!_initialPlacementDone) InitializeDefaults();
         Place();
         if (!_editing) return;
         if (!Ready() || CameraStateManager.cameraMode != CameraMode.cockpit) { Finish(false); return; }
@@ -218,7 +221,8 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     }
     internal bool SaveToSlot(int slot)
     {
-        if (slot < 1 || slot > 3 || !_editing || !Available || CockpitLayout.Instance?.CanSaveUnified != true ||
+        CockpitProfiles.Instance?.Refresh();
+        if (slot < 1 || slot > 3 || !_editing || !Available || !CanSaveProfile || CockpitLayout.Instance?.CanSaveUnified != true ||
             !GameManager.GetLocalAircraft(out var aircraft) || aircraft != _aircraft || CockpitProfiles.Instance == null) return false;
         var stick = CockpitLayout.StickPreview ?? CockpitProfiles.StickPosition;
         var throttle = CockpitLayout.ThrottlePreview ?? CockpitProfiles.ThrottlePosition;
@@ -232,20 +236,20 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     internal bool LoadSlot(int slot)
     {
         // Loading never silently discards a live placement preview.
-        if (_editing || !Available || CockpitProfiles.Instance?.SelectSlot(slot) != true) return false;
+        if (_editing || !Available || !CanSaveProfile || CockpitProfiles.Instance?.SelectSlot(slot) != true) return false;
         ReloadProfile(); return true;
     }
     internal bool HasSavedSlot(int slot) => _profiles.HasSavedLayout(_key, slot);
     private void ReloadProfile()
     {
         _slot = CockpitProfiles.ActiveSlot; _poses = _profiles.Load(_key, _slot);
-        _initialPlacementDone = false; ReleaseHands(); CaptureCalibration();
+        _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot); _defaultPlacement.Reset(); ReleaseHands(); CaptureCalibration();
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons(); Place();
     }
     internal void ResetPreview()
     {
-        if (!_editing) return;
-        _poses = HudWidgetProfiles.FactoryDefaults;
+        if (!_editing || !TryGetSeatedHead(out var head)) return;
+        _poses = HudWidgetDefaultPlacement.AtHead(head);
         CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
     }
     internal HudWidgetPose GetPose(string id) => _poses.TryGetValue(id, out var pose) ? pose : HudWidgetProfiles.FactoryDefaults[id];
@@ -271,40 +275,50 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         else
         {
             _poses[id] = HudWidgetProfiles.Sanitize(id, pose);
-            if (Available) _profiles.Save(_key, _poses, _slot);
+            if (Available && CanSaveProfile) _profiles.Save(_key, _poses, _slot);
             Place();
         }
     }
     internal void BringWithinReach()
     {
-        if (!_editing) return;
-        EnsureWidgetsWithinReach(true); CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
-    }
-    private bool EnsureWidgetsWithinReach(bool all)
-    {
-        if (!Space(out var gameRoot, out _, out var eye)) return false;
-        var head = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
-            gameRoot.TransformPoint(NOVRHeadsetData.Translation + CockpitProfiles.SeatOffset));
-        var leftShoulder = head + new Vector3(-.16f, -.18f, 0);
-        var rightShoulder = head + new Vector3(.16f, -.18f, 0);
-        var defaults = HudWidgetProfiles.FactoryDefaults;
+        if (!_editing || !TryGetSeatedHead(out var head)) return;
+        var defaults = HudWidgetDefaultPlacement.AtHead(head);
         foreach (var id in HudWidgetProfiles.Ids)
         {
-            var pose = _poses[id]; var half = Size(id) * (PixelSize * pose.Scale * .5f);
-            var orientation = Quaternion.Euler(pose.Euler);
-            var reachable = pose.Position.z > head.z + .1f;
-            for (var corner = 0; corner < 4; corner++)
-            {
-                var point = pose.Position + orientation * new Vector3((corner & 1) == 0 ? -half.x : half.x, (corner & 2) == 0 ? -half.y : half.y, 0);
-                reachable &= Mathf.Min(Vector3.Distance(point, leftShoulder), Vector3.Distance(point, rightShoulder)) <= .60f;
-            }
-            if (!all && reachable) continue;
-            pose.Position = head + defaults[id].Position;
-            pose.Euler = defaults[id].Euler;
-            pose.Scale = Mathf.Min(pose.Scale, defaults[id].Scale);
-            _poses[id] = pose;
+            var pose = _poses[id]; var reachable = defaults[id];
+            pose.Position = reachable.Position; pose.Euler = reachable.Euler;
+            pose.Scale = Mathf.Min(pose.Scale, reachable.Scale); _poses[id] = pose;
         }
-        return true;
+        CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
+    }
+    private void InitializeDefaults()
+    {
+        // Spawning/recentering updates tracking calibration after the camera is
+        // attached. Wait for a real, settled pose instead of committing a zero
+        // position or the previous aircraft's last camera frame as a fallback.
+        if (_seat != CockpitProfiles.SeatOffset || _anchor != NOVRHeadsetData.TranslationAnchor ||
+            _calibration != NOVRHeadsetData.TranslationCalibrationOffset || _recenter != NOVRHeadsetData.RotationCalibrationOffset)
+        { _defaultPlacement.Reset(); CaptureCalibration(); }
+        var valid = TryGetSeatedHead(out var head);
+        if (!_defaultPlacement.Observe(valid, head, Time.unscaledTime, Time.frameCount)) return;
+        _poses = HudWidgetDefaultPlacement.AtHead(head);
+        _initialPlacementDone = true;
+    }
+    private bool TryGetSeatedHead(out Vector3 head)
+    {
+        head = default;
+        if (!Ready() || !Space(out var gameRoot, out _, out var eye) || !TrackedControllers.Available) return false;
+        var device = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+        if (!device.isValid || !device.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) || !tracked ||
+            device.TryGetFeatureValue(CommonUsages.trackingState, out var state) && (state & InputTrackingState.Position) == 0) return false;
+        // Read the current center-eye feature directly. NOVRHeadsetData's cached
+        // pose is updated later than this component's early input Update.
+        if (!device.TryGetFeatureValue(CommonUsages.centerEyePosition, out var position) &&
+            !device.TryGetFeatureValue(CommonUsages.devicePosition, out position)) return false;
+        if (!HudWidgetDefaultPlacement.Finite(position)) return false;
+        head = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation,
+            gameRoot.TransformPoint(NOVRHeadsetData.MapTrackingPosition(position) + CockpitProfiles.SeatOffset));
+        return HudWidgetDefaultPlacement.Finite(head);
     }
 
     private void CaptureCalibration()
@@ -499,6 +513,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         var root = new GameObject("NOVR HUD " + id, typeof(RectTransform), typeof(Canvas));
         root.transform.SetParent(transform, false);
+        root.SetActive(false);
         var canvas = root.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = APIBus.CockpitHudCamera;
         var widget = new Widget { Root = (RectTransform)root.transform, Canvas = canvas };
         widget.Root.sizeDelta = Size(id);
@@ -562,16 +577,16 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     };
     private static string Idle(string id) => id switch
     {
-        "weapons" => "WEAPONS\nNo selection",
+        "weapons" => "WEAPONS\nNo readout",
         "countermeasures" => "COUNTERMEASURES\nNo readout",
-        "power" => "CAPACITOR · IDLE",
-        "map" => "MAP\nWaiting for terrain",
+        "power" => "CAPACITOR\nNo readout",
+        "map" => "MAP\nNo readout",
         _ => ""
     };
     private void Place()
     {
         var hasSpace = Space(out var gameRoot, out var uiRoot, out var eye);
-        var ready = hasSpace && Ready();
+        var ready = _initialPlacementDone && hasSpace && Ready();
         string? focused = WristMenu.IsOpen ? _menuAppearanceFocus : null;
         if (focused == null)
             foreach (var pair in _widgets)

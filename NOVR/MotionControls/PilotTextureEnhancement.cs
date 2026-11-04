@@ -22,7 +22,11 @@ internal static class PilotTextureEnhancement
         for (var value = 0; value < 256; value++)
         {
             // Build once rather than evaluating a power for every atlas texel.
-            var shade = Math.Min(1.25, Math.Pow(value / 96.0, .75));
+            var shade = Math.Pow(value / 96.0, .75);
+            // Preserve the approved glove ramp. Cloth needs a smooth shoulder:
+            // the old hard cap flattened every fold brighter than ~129/255.
+            shade = glove ? Math.Min(1.25, shade) : shade <= 1 ? shade
+                : 1 + .36 * (1 - Math.Exp(-(shade - 1) / .36));
             ramp[value * 3] = (byte)Math.Min(255, Math.Round(color.red * shade));
             ramp[value * 3 + 1] = (byte)Math.Min(255, Math.Round(color.green * shade));
             ramp[value * 3 + 2] = (byte)Math.Min(255, Math.Round(color.blue * shade));
@@ -42,6 +46,71 @@ internal static class PilotTextureEnhancement
         }
         return output;
     }
+
+    internal static byte[] ApplyNormal(byte[] input, int width, int height, byte[] fabric,
+        int fabricWidth, int fabricHeight, CancellationToken cancellation)
+    {
+        if (width < 1 || width > 2048 || height < 1 || height > 2048 ||
+            input.Length != (long)width * height * 4 || fabricWidth < 1 || fabricHeight < 1 ||
+            fabric.Length != (long)fabricWidth * fabricHeight)
+            throw new ArgumentException("Invalid pilot normal texture dimensions or pixel data.");
+        cancellation.ThrowIfCancellationRequested();
+        var tileWidth = Math.Max(1, width / 4);
+        var tileHeight = Math.Max(1, height / 4);
+        var tile = ResampleFabric(fabric, fabricWidth, fabricHeight, tileWidth, tileHeight, cancellation);
+        var dx = new float[tile.Length]; var dy = new float[tile.Length];
+        var maximumSlope = 16f;
+        for (var y = 0; y < tileHeight; y++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            for (var x = 0; x < tileWidth; x++)
+            {
+                var at = y * tileWidth + x;
+                dx[at] = (tile[y * tileWidth + (x + 1) % tileWidth] - tile[y * tileWidth + (x + tileWidth - 1) % tileWidth]) * .5f;
+                dy[at] = (tile[((y + 1) % tileHeight) * tileWidth + x] - tile[((y + tileHeight - 1) % tileHeight) * tileWidth + x]) * .5f;
+                maximumSlope = Math.Max(maximumSlope, (float)Math.Sqrt(dx[at] * dx[at] + dy[at] * dy[at]));
+            }
+        }
+        var output = (byte[])input.Clone();
+        for (var y = 0; y < height; y++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            for (var x = 0; x < width; x++)
+            {
+                var tileAt = y % tileHeight * tileWidth + x % tileWidth;
+                if (Math.Abs(dx[tileAt]) + Math.Abs(dy[tileAt]) < .00001f) continue;
+                var at = (y * width + x) * 4;
+                // Unity desktop UnpackNormalmapRGorAG: X is red * alpha,
+                // Y is green. Alpha is a normal channel, not coverage.
+                var nx = input[at] * input[at + 3] / (255.0 * 255.0) * 2 - 1;
+                var ny = input[at + 1] / 255.0 * 2 - 1;
+                var nz = Math.Sqrt(Math.Max(0, 1 - nx * nx - ny * ny));
+                var nLength = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                nx /= nLength; ny /= nLength; nz /= nLength;
+                // At most 8.6 degrees of weave relief; steep native folds take
+                // less detail so their tangent-space normal cannot invert.
+                var strength = .15 * Math.Max(.15, nz) / maximumSlope;
+                var bx = -dx[tileAt] * strength; var by = -dy[tileAt] * strength;
+                var detailLength = Math.Sqrt(bx * bx + by * by + 1);
+                bx /= detailLength; by /= detailLength; var bz = 1 / detailLength;
+                // Reoriented normal mapping retains the original fold frame.
+                // Simply adding XY would flatten or skew the authored normals.
+                var tz = nz + 1;
+                var projection = (-nx * bx - ny * by + tz * bz) / tz;
+                var rx = nx * projection + bx;
+                var ry = ny * projection + by;
+                var rz = Math.Max(.001, tz * projection - bz);
+                var length = Math.Sqrt(rx * rx + ry * ry + rz * rz);
+                output[at] = output[at + 2] = 255;
+                output[at + 1] = EncodeNormal(ry / length);
+                output[at + 3] = EncodeNormal(rx / length);
+            }
+        }
+        return output;
+    }
+
+    private static byte EncodeNormal(double value) =>
+        (byte)Math.Max(0, Math.Min(255, Math.Round((value * .5 + .5) * 255)));
 
     internal static byte[] Apply(byte[] input, int size, byte[] fabric, int fabricWidth,
         int fabricHeight, CancellationToken cancellation) =>

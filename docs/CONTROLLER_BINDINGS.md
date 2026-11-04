@@ -29,7 +29,7 @@ With left-handed HOTAS, role-based actions follow the stick or throttle. The phy
 
 ## Edit in the headset
 
-1. Open **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings → OPEN**. Select a button on the controller diagram to inspect its assignments, or use the action groups below.
+1. Open **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings → OPEN**. Choose Left or Right, then select a callout beside the controller image to inspect its assignments, or use the action groups below.
 2. Leave **Preset: Auto** for detection, or select Frame / Touch explicitly. Each keeps its own saved bindings.
 3. Choose **Weapons & targets**, **Flight & defense**, or **Menu & map**.
 4. Choose an action, select its hand and button, then **Save binding**. You can select the stick/throttle role or a fixed left/right hand. Unsupported buttons are disabled.
@@ -42,7 +42,7 @@ Existing Frame custom bindings are retained. Switching between controller famili
 
 ## Hand option wheel
 
-Release that hand’s flight handle, then click its thumbstick. The game’s wheel follows above the hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
+Release that hand’s flight handle, then click its thumbstick. The smaller game wheel sits just above the thumbstick, parallel to its top surface, and tilts with the controller. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying.
 
 ## Grip and layout
 
@@ -50,5 +50,7 @@ In **View → Flight controls**, choose **Hold** or **Toggle** independently for
 
 **Aircraft profiles** contains three slots for the current aircraft’s seat, handles and HUD widgets. Existing layouts stay in Slot 1. Load a slot, edit, then save to the named aircraft and chosen slot. Cancel discards the preview. There are no cross-aircraft shared profiles. During a two-corner widget grab, move and tilt both hands while changing their separation to translate, rotate and resize together; roll remains locked.
 
-The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity and visibility settings under **Aiming & markers → Look direction cue**; Reset restores the current defaults.
+The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **Aiming & markers → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and changes only the visible marker. Reset restores the defaults.
 A brief pulse marks entry into the stick or throttle grab range; the stronger grab cue confirms attachment. MIL detent holds just below the native afterburner boundary.
+
+Stick-limit feedback is a steady vibration that grows stronger near full pitch, roll or twist input. It uses the normal haptic-strength setting.

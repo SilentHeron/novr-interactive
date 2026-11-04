@@ -3,7 +3,7 @@ using UnityEngine.XR;
 
 namespace NOVR.MotionControls;
 
-// Discrete interaction edges only: callers never vibrate continuously while held.
+// Discrete interactions may include audio; sustained movement feedback uses PulseOnly.
 internal static class InteractionHaptics
 {
     internal static void Pulse(InputDevice device, InteractionCue preset)

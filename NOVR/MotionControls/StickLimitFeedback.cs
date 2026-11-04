@@ -6,10 +6,11 @@ namespace NOVR.MotionControls;
 // physical stick twist share one cue; thumbstick yaw is deliberately excluded.
 internal sealed class StickLimitFeedback
 {
-    private const float NearStart = .78f, NearExit = .70f, Limit = .999f, LimitRearm = .90f;
-    private bool _active, _near, _limitLatched;
+    private const float NearStart = .78f, NearExit = .70f;
+    private const float RefreshInterval = .025f, ImpulseDuration = .065f, Response = 18f;
+    private bool _active, _near;
     private int _lastFrame = -1;
-    private float _lastTime, _lastPulse, _nextPulse;
+    private float _lastTime, _nextPulse, _strength;
 
     internal (float strength, float seconds) Update(bool active, float pitch, float roll, float twist, float now, int frame)
     {
@@ -22,32 +23,32 @@ internal sealed class StickLimitFeedback
         var magnitude = Math.Min(1f, Math.Max(Math.Abs(pitch), Math.Max(Math.Abs(roll), Math.Abs(twist))));
         if (!_active || now < _lastTime || now - _lastTime > .25f)
         {
-            _active = true; _lastFrame = frame; _lastTime = _lastPulse = now;
-            _near = magnitude >= NearStart; _limitLatched = magnitude >= LimitRearm;
-            _nextPulse = now + .18f;
-            return default; // No new edge from a stale sample or grip-acquisition pulse.
+            _active = true; _lastFrame = frame; _lastTime = now; _strength = 0;
+            _near = magnitude >= NearStart; _nextPulse = now + .06f;
+            return default; // Let the grip-acquisition cue finish before sustained feedback starts.
         }
+        var elapsed = now - _lastTime;
         _lastFrame = frame; _lastTime = now;
-        if (magnitude < LimitRearm) _limitLatched = false;
-        if (magnitude <= NearExit) { _near = false; return default; }
+        if (magnitude <= NearExit) { _near = false; _strength = 0; return default; }
         if (magnitude >= NearStart) _near = true;
         if (!_near) return default;
 
-        if (magnitude >= Limit && !_limitLatched && now - _lastPulse >= .08f)
-        {
-            _limitLatched = true; _lastPulse = now; _nextPulse = now + .35f;
-            return (.42f, .06f);
-        }
-        // A held stop stays quiet, even if tracking jitters around full input.
-        if (_limitLatched || now < _nextPulse) return default;
         var approach = FlightControlMath.Clamp((magnitude - NearStart) / (1f - NearStart), 0f, 1f);
-        _lastPulse = now; _nextPulse = now + .42f - .18f * approach;
-        return (.10f + .08f * approach, .018f + .008f * approach);
+        approach = approach * approach * (3f - 2f * approach);
+        var fade = FlightControlMath.Clamp((magnitude - NearExit) / (NearStart - NearExit), 0f, 1f);
+        var target = (.04f + .61f * approach) * fade;
+        _strength += (target - _strength) * FlightControlMath.SmoothingWeight(elapsed, Response);
+        if (now < _nextPulse) return default;
+        // Overlapping impulses remove the slow on/off rhythm. Common headset
+        // rates send 30-40 updates/sec, never more than 40, while amplitude
+        // changes smoothly and stays strong at full travel without a stop latch.
+        _nextPulse = now + RefreshInterval;
+        return (_strength, ImpulseDuration);
     }
 
     internal void Reset()
     {
-        _active = _near = _limitLatched = false;
-        _lastFrame = -1; _lastTime = _lastPulse = _nextPulse = 0;
+        _active = _near = false;
+        _lastFrame = -1; _lastTime = _nextPulse = _strength = 0;
     }
 }

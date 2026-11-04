@@ -12,7 +12,7 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     var tracking = new GameObject("tracking").transform;
     tracking.SetPositionAndRotation(new Vector3(3, 1, -4), Quaternion.Euler(5, 30, -8));
     using var glove = new RiggedGlove(left, tracking, new Material(), default);
-    var sample = new ControllerSample { Valid = true, Position = new Vector3(.15f, -.1f, .2f), Rotation = Quaternion.Euler(12, 30, 9) };
+    var sample = new ControllerSample { Valid = true, Position = new Vector3(.15f, -.1f, .2f), Rotation = Quaternion.Euler(12, 30, 9), HasAimPose = true, AimRotation = Quaternion.Euler(12, 30, 9) * Quaternion.Euler(42.8091f, 0, 0), Profile = ControllerHardwareProfile.SteamFrame };
     var grip = new Pose(new Vector3(3.1f, 1.25f, -3.6f), Quaternion.Euler(10, -15, 7));
     var button = new Pose(new Vector3(3.23f, 1.16f, -3.45f), Quaternion.Euler(2, -15, 45));
     void Frame(Pose? attachment = null, bool stick = false, bool collective = false, Pose? cockpit = null, bool pointing = false, bool pinching = false)
@@ -26,7 +26,7 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     {
         var settings = ModConfiguration.Instance.MotionControls;
         Near(glove.Root.localPosition, sample.Position + sample.Rotation * settings.FreeHandOffset(left), "Free calibrated wrist anchor changed");
-        SameRotation(glove.Root.localRotation, sample.Rotation * Quaternion.Euler(settings.FreeHandAngles(left)), "Free palm orientation changed");
+        SameRotation(glove.Root.localRotation, sample.AimRotation * Quaternion.Euler(settings.FreeHandAngles(left)), "Free palm orientation changed");
         Check(!glove.IsTransitioning, "Free transition never settled");
     }
     Frame(); CheckFree();
@@ -68,7 +68,7 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
     // preserved relative to the widget. The corner can move during resizing.
     Settle();
     var corner = new Pose(new Vector3(3.31f, 1.20f, -3.46f),
-        tracking.rotation * sample.Rotation * Quaternion.Euler(ModConfiguration.Instance.MotionControls.FreeHandAngles(left)));
+        tracking.rotation * FreeHandPose.Rotation(sample, ModConfiguration.Instance.MotionControls.FreeHandAngles(left)));
     previous = glove.Root.localPosition; previousRotation = glove.Root.localRotation;
     previousBones = glove.Renderer.bones.Select(b => b.localRotation).ToArray();
     var untouchedSample = sample;
@@ -223,6 +223,24 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
                 Check(Quaternion.Angle(right.Renderer.bones[3].localRotation, upperThumb) > .05f, "Thumb actuator did not articulate above the fixed contact patch");
         }
     }
+}
+// Aim and grip axes are not interchangeable on angled controller handles.
+foreach(var profile in new[]{ControllerHardwareProfile.SteamFrame, ControllerHardwareProfile.Touch})
+foreach(var left in new[]{true,false})
+foreach(var aimed in new[]{Quaternion.identity,Quaternion.Euler(-90,0,0),Quaternion.Euler(23,71,-14)})
+{
+    var pitch=profile==ControllerHardwareProfile.SteamFrame ? 42.8091f : 60f;
+    var sample=new ControllerSample { Valid=true,HasAimPose=true,Profile=profile,AimRotation=aimed,Rotation=aimed*Quaternion.Euler(-pitch,0,0) };
+    var correction=new Vector3(0,0,left?90:-90);
+    var rotation=FreeHandPose.Rotation(sample,correction);
+    Near(rotation*Vector3.forward,aimed*Vector3.forward,"Free fingers fail to point along controller aim");
+    Near(rotation*new Vector3(left?1:-1,0,0),aimed*Vector3.up,"Handshake thumb/palm roll changed");
+    sample.HasAimPose=false;
+    SameRotation(FreeHandPose.Rotation(sample,correction),rotation,"Missing aim pose changes known-controller hand orientation");
+    sample.HasAimPose=true;sample.AimRotation=new Quaternion(float.NaN,0,0,1);
+    SameRotation(FreeHandPose.Rotation(sample,correction),rotation,"Invalid aim pose poisoned free wrist");
+    var adjustment=new Vector3(5,-10,left?90:-90);sample.AimRotation=aimed;
+    SameRotation(FreeHandPose.Rotation(sample,adjustment),aimed*Quaternion.Euler(adjustment),"Independent hand alignment correction was lost");
 }
 Console.WriteLine($"{checks} hand pose checks passed at 45/72/90/120 Hz on both glove rigs.");
 Console.WriteLine("Standalone transform/math checks only: Unity rendering and headset comfort remain unverified.");

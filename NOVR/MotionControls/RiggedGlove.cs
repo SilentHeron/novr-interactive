@@ -112,7 +112,7 @@ internal sealed class RiggedGlove : IDisposable
         var offset = settings.FreeHandOffset(_left);
         var angles = settings.FreeHandAngles(_left);
         var tip = fingertip ? _indexRest : new Vector3(0,-.019f,.043f);
-        return Root.parent.TransformPoint(sample.Position + sample.Rotation * offset + sample.Rotation * Quaternion.Euler(angles) * tip);
+        return Root.parent.TransformPoint(sample.Position + sample.Rotation * offset + FreeHandPose.Rotation(sample, angles) * tip);
     }
     internal void ResetAttachmentTransition()
     {
@@ -128,7 +128,7 @@ internal sealed class RiggedGlove : IDisposable
         var settings=ModConfiguration.Instance.MotionControls;
         var offset=settings.FreeHandOffset(_left);
         var angles=settings.FreeHandAngles(_left);
-        var trackedRotation = sample.Rotation * Quaternion.Euler(angles);
+        var trackedRotation = FreeHandPose.Rotation(sample, angles);
         // Do not animate through a tracking teleport or stale-frame recovery.
         // Seat/recenter changes also reset this state through PilotHandVisuals.
         if (_hasRenderedPose && ((sample.Position - _lastTrackedPosition).sqrMagnitude > .18f * .18f ||

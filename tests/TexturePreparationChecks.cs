@@ -142,6 +142,63 @@ internal static class TexturePreparationChecks
             catch (OperationCanceledException) { canceled = true; }
             assert(canceled);
         });
+        check("Sleeve highlights retain bright folds while approved glove ramp stays unchanged", () =>
+        {
+            var pixels=Enumerable.Range(0,256).SelectMany(v=>new byte[]{(byte)v,(byte)v,(byte)v,255}).ToArray();
+            foreach(var team in new[]{PilotUniformTeam.Bdf,PilotUniformTeam.Pala})
+            {
+                var sleeve=PilotTextureEnhancement.Recolor(pixels,256,1,team,false,default);
+                var glove=PilotTextureEnhancement.Recolor(pixels,256,1,team,true,default);
+                var palette=PilotUniformPalette.Color(team,true);
+                for(var i=1;i<256;i++)
+                {
+                    assert(sleeve[i*4]>=sleeve[(i-1)*4] && sleeve[i*4+2]>=sleeve[(i-1)*4+2]);
+                    var legacy=Math.Min(1.25,Math.Pow(i/96.0,.75));
+                    assert(glove[i*4]==(byte)Math.Min(255,Math.Round(palette.red*legacy)));
+                }
+                assert(sleeve[160*4+2]<sleeve[200*4+2] && sleeve[200*4+2]<sleeve[255*4+2]);
+                assert(sleeve[255*4+2]<255);
+            }
+        });
+        check("Normal detail preserves native folds exactly when the weave is flat or subpixel", () =>
+        {
+            var input=Enumerable.Range(0,256).SelectMany(i=>new byte[]{255,(byte)(100+i%40),255,(byte)(110+i%30)}).ToArray();
+            var original=input.ToArray();
+            var flat=PilotTextureEnhancement.ApplyNormal(input,16,16,new byte[]{128},1,1,default);
+            assert(flat.SequenceEqual(input) && !ReferenceEquals(flat,input));
+            var checker=Enumerable.Range(0,64*64).Select(i=>(byte)(((i/64+i%64)%2)*255)).ToArray();
+            assert(PilotTextureEnhancement.ApplyNormal(input,16,16,checker,64,64,default).SequenceEqual(input));
+            assert(input.SequenceEqual(original));
+        });
+        check("Weave normals follow the native fold frame and stay small, normalized and correctly packed", () =>
+        {
+            var fabric=Enumerable.Range(0,81).Select(i=>(byte)(128+90*Math.Sin((i%9)*Math.PI*2/9)+25*Math.Sin((i/9)*Math.PI*2/9))).ToArray();
+            static (double x,double y,double z) Decode(byte[] p,int at)
+            { var x=p[at]*p[at+3]/65025.0*2-1;var y=p[at+1]/255.0*2-1;return(x,y,Math.Sqrt(Math.Max(0,1-x*x-y*y))); }
+            foreach(var source in new[]{new byte[]{255,128,255,128},new byte[]{255,155,255,190},new byte[]{190,155,255,255}})
+            {
+                var input=Enumerable.Range(0,64*32).SelectMany(_=>source).ToArray();var original=input.ToArray();
+                var output=PilotTextureEnhancement.ApplyNormal(input,64,32,fabric,9,9,default);
+                assert(!output.SequenceEqual(input) && input.SequenceEqual(original));
+                var n=Decode(source,0);
+                for(var i=0;i<output.Length;i+=4)
+                {
+                    var v=Decode(output,i);assert(output[i]==255 && output[i+2]==255);
+                    assert(double.IsFinite(v.z) && v.z>0 && Math.Abs(v.x*v.x+v.y*v.y+v.z*v.z-1)<.000001);
+                    assert(n.x*v.x+n.y*v.y+n.z*v.z>Math.Cos(10*Math.PI/180));
+                }
+                // Four repeats preserve the rectangular source atlas shape.
+                for(var y=0;y<32;y++)for(var x=0;x<64;x++)
+                { var a=(y*64+x)*4;var b=((y%8)*64+x%16)*4;assert(output[a+1]==output[b+1] && output[a+3]==output[b+3]); }
+            }
+        });
+        check("Normal filtering rejects malformed atlases and honors cancellation", () =>
+        {
+            foreach(var size in new[]{0,-1,2049})
+            { try{PilotTextureEnhancement.ApplyNormal(new byte[4],size,1,new byte[]{128},1,1,default);assert(false);}catch(ArgumentException){} }
+            using var cancel=new CancellationTokenSource();cancel.Cancel();
+            try{PilotTextureEnhancement.ApplyNormal(new byte[4],1,1,new byte[]{128},1,1,cancel.Token);assert(false);}catch(OperationCanceledException){}
+        });
         check("Background texture jobs serialize and discard an abandoned cockpit's result", () =>
         {
             using var entered = new ManualResetEventSlim();

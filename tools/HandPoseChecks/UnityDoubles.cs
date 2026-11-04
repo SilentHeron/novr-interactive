@@ -99,8 +99,8 @@ namespace NOVR.MotionControls
     using UnityEngine;
     internal struct ControllerSample
     {
-        public bool Valid, Primary, Secondary, Top, Outside, StickClick, ThumbstickTouched, ButtonTouched, PrimaryTouched, ThumbrestTouched, TriggerTouched, GripTouched;
-        public float Grip, Trigger; public Vector3 Position; public Quaternion Rotation;
+        public bool Valid, HasAimPose, Primary, Secondary, Top, Outside, StickClick, ThumbstickTouched, ButtonTouched, PrimaryTouched, ThumbrestTouched, TriggerTouched, GripTouched;
+        public float Grip, Trigger; public Vector3 Position; public Quaternion Rotation, AimRotation; public ControllerHardwareProfile Profile;
     }
     internal readonly struct Pose { public readonly Vector3 position; public readonly Quaternion rotation; public Pose(Vector3 p, Quaternion r) { position = p; rotation = r; } }
     internal static class FlightControlMath { internal static bool IsFinite(float value) => float.IsFinite(value); }
