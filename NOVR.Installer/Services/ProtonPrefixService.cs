@@ -9,13 +9,15 @@ public sealed class ProtonPrefixService
     {
         cancellationToken.ThrowIfCancellationRequested();
         var linux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-        if (linux) progress.Report("Proton setup needs a manual per-game launch option.");
+        if (linux)
+            progress.Report("Proton setup needs a manual per-game launch option.");
         return Task.FromResult(SetupGuidance(game.GameDir, linux));
     }
 
     internal static string SetupGuidance(string gameDir, bool linux)
     {
-        if (!linux) return "Proton/Wine override is only needed on Linux.";
+        if (!linux)
+            return "Proton/Wine override is only needed on Linux.";
         var prefix = FindPrefix(gameDir);
         return "Manual Proton setup: in Steam, open Nuclear Option > Properties > General > Launch Options and add " +
                "WINEDLLOVERRIDES=\"winhttp=n,b\" %command%. " +
@@ -32,7 +34,8 @@ public sealed class ProtonPrefixService
         // a prefix managed by a potentially different Proton version.
         var common = new DirectoryInfo(Path.GetFullPath(gameDir)).Parent;
         var steamapps = common?.Parent;
-        if (common?.Name != "common" || steamapps?.Name != "steamapps") return null;
+        if (common?.Name != "common" || steamapps?.Name != "steamapps")
+            return null;
         var prefix = Path.Combine(steamapps.FullName, "compatdata", "2168680", "pfx");
         return Directory.Exists(prefix) ? prefix : null;
     }

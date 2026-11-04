@@ -22,33 +22,54 @@ internal sealed class CockpitInstructionSources
         private TextMeshProUGUI? _copy;
         private RectTransform? _slot;
         private string? _last;
-        internal TextLeaf(TMP_Text source) { Source = source; _hide = new HudGraphicVisibilityLease(source, true); }
+        internal TextLeaf(TMP_Text source)
+        {
+            Source = source;
+            _hide = new HudGraphicVisibilityLease(source, true);
+        }
         internal bool HasText => Source != null && Source.isActiveAndEnabled && !string.IsNullOrWhiteSpace(Source.text);
         internal bool Taxi => Source != null && Source.text.StartsWith("Taxi to ", StringComparison.Ordinal);
         internal void Bind(RectTransform slot, Vector2 position, Vector2 size, int fontSize, int lines)
         {
-            if (_slot == slot && _copy != null) return;
-            if (_copy != null) UnityEngine.Object.Destroy(_copy.gameObject);
-            _slot = slot; _last = null;
+            if (_slot == slot && _copy != null)
+                return;
+            if (_copy != null)
+                UnityEngine.Object.Destroy(_copy.gameObject);
+            _slot = slot;
+            _last = null;
             var go = new GameObject("Compact aircraft instruction", typeof(RectTransform), typeof(TextMeshProUGUI));
-            go.transform.SetParent(slot, false); go.layer = slot.gameObject.layer;
+            go.transform.SetParent(slot, false);
+            go.layer = slot.gameObject.layer;
             _copy = go.GetComponent<TextMeshProUGUI>();
-            _copy.font = Source.font; _copy.fontSharedMaterial = Source.fontSharedMaterial;
-            _copy.fontSize = fontSize; _copy.richText = true; _copy.raycastTarget = false;
-            _copy.enableWordWrapping = true; _copy.overflowMode = TextOverflowModes.Ellipsis;
-            _copy.alignment = TextAlignmentOptions.TopLeft; _copy.maxVisibleLines = lines;
-            _copy.rectTransform.anchoredPosition = position; _copy.rectTransform.sizeDelta = size;
+            _copy.font = Source.font;
+            _copy.fontSharedMaterial = Source.fontSharedMaterial;
+            _copy.fontSize = fontSize;
+            _copy.richText = true;
+            _copy.raycastTarget = false;
+            _copy.enableWordWrapping = true;
+            _copy.overflowMode = TextOverflowModes.Ellipsis;
+            _copy.alignment = TextAlignmentOptions.TopLeft;
+            _copy.maxVisibleLines = lines;
+            _copy.rectTransform.anchoredPosition = position;
+            _copy.rectTransform.sizeDelta = size;
         }
         internal bool Refresh(bool hideNative, bool showCopy)
         {
-            if (hideNative) _hide.Apply(); else _hide.Restore();
+            if (hideNative)
+                _hide.Apply();
+            else
+                _hide.Restore();
             var visible = showCopy && HasText;
             if (_copy != null)
             {
                 _copy.enabled = visible;
                 if (visible)
                 {
-                    if (_last != Source.text) { _last = Source.text; _copy.text = _last; }
+                    if (_last != Source.text)
+                    {
+                        _last = Source.text;
+                        _copy.text = _last;
+                    }
                     _copy.color = Source.color;
                 }
             }
@@ -57,8 +78,10 @@ internal sealed class CockpitInstructionSources
         internal void Release()
         {
             _hide.Release();
-            if (_copy != null) UnityEngine.Object.Destroy(_copy.gameObject);
-            _copy = null; _slot = null;
+            if (_copy != null)
+                UnityEngine.Object.Destroy(_copy.gameObject);
+            _copy = null;
+            _slot = null;
         }
     }
 
@@ -77,7 +100,8 @@ internal sealed class CockpitInstructionSources
             var background = report != null ? ActionsBackground.GetValue(report) as Image : null;
             if (background != _background || background == null && _backgroundHide != null)
             {
-                _backgroundHide?.Release(); _background = background;
+                _backgroundHide?.Release();
+                _background = background;
                 _backgroundHide = background == null ? null : new HudGraphicVisibilityLease(background);
             }
             var hud = SceneSingleton<FlightHud>.i;
@@ -99,16 +123,23 @@ internal sealed class CockpitInstructionSources
         var hasTaxi = _taxi?.Refresh(recovery || cockpit && taxi, visible && taxi) == true;
         var hasActions = _actions?.Refresh(recovery || cockpit, visible) == true;
         // This is the report's own black rectangle, not any HUD/map container.
-        if (recovery || cockpit) _backgroundHide?.Apply(); else _backgroundHide?.Restore();
+        if (recovery || cockpit)
+            _backgroundHide?.Apply();
+        else
+            _backgroundHide?.Restore();
         CockpitHudWidgets.SetHasContent("objectives", hasTaxi || hasActions);
     }
 
     private static AirbaseOverlay? FindAirbase(Transform parent)
     {
-        var own = parent.GetComponent<AirbaseOverlay>(); if (own != null) return own;
+        var own = parent.GetComponent<AirbaseOverlay>();
+        if (own != null)
+            return own;
         for (var i = 0; i < parent.childCount; i++)
         {
-            var nested = FindAirbase(parent.GetChild(i)); if (nested != null) return nested;
+            var nested = FindAirbase(parent.GetChild(i));
+            if (nested != null)
+                return nested;
         }
         return null;
     }
@@ -116,12 +147,20 @@ internal sealed class CockpitInstructionSources
     {
         // Destroyed Unity objects compare equal to null; release their draw
         // callbacks instead of retaining an invalid leaf until another spawn.
-        if (leaf == null && source == null || leaf != null && source != null && leaf.Source == source) return;
-        leaf?.Release(); leaf = source == null ? null : new TextLeaf(source);
+        if (leaf == null && source == null || leaf != null && source != null && leaf.Source == source)
+            return;
+        leaf?.Release();
+        leaf = source == null ? null : new TextLeaf(source);
     }
     internal void Release()
     {
-        _actions?.Release(); _actions = null; _taxi?.Release(); _taxi = null;
-        _backgroundHide?.Release(); _backgroundHide = null; _background = null; _nextFind = 0;
+        _actions?.Release();
+        _actions = null;
+        _taxi?.Release();
+        _taxi = null;
+        _backgroundHide?.Release();
+        _backgroundHide = null;
+        _background = null;
+        _nextFind = 0;
     }
 }

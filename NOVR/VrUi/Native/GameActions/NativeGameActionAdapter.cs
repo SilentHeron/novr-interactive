@@ -38,7 +38,8 @@ public partial class NativeGameActionAdapter
 
     public void SetOriginalMainCanvas(GameObject? originalMainCanvas)
     {
-        if (_originalMainCanvas == originalMainCanvas) return;
+        if (_originalMainCanvas == originalMainCanvas)
+            return;
 
         _originalMainCanvas = originalMainCanvas;
         if (_originalMainCanvas == null)
@@ -74,7 +75,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < buttons.Length; index++)
         {
             var button = buttons[index];
-            if (!ButtonMatches(button, candidateLabels)) continue;
+            if (!ButtonMatches(button, candidateLabels))
+                continue;
 
             Debug.Log($"[NOVR] Native UI action '{action}' delegated to original button '{GetGameObjectPath(button.gameObject)}'.");
             button.onClick.Invoke();
@@ -104,7 +106,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < buttons.Length; index++)
         {
             var button = buttons[index];
-            if (!ButtonMatches(button, candidateLabels)) continue;
+            if (!ButtonMatches(button, candidateLabels))
+                continue;
 
             Debug.Log($"[NOVR] Native UI current-menu action '{actionName}' delegated to original button '{GetGameObjectPath(button.gameObject)}'.");
             button.onClick.Invoke();
@@ -127,7 +130,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < settingsMenus.Length; index++)
         {
             var settingsMenu = settingsMenus[index];
-            if (!settingsMenu.gameObject.activeInHierarchy) continue;
+            if (!settingsMenu.gameObject.activeInHierarchy)
+                continue;
 
             Debug.Log($"[NOVR] Native UI closing original settings menu '{GetGameObjectPath(settingsMenu.gameObject)}'.");
             settingsMenu.CloseSettingsMenu();
@@ -150,7 +154,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < workshopMenus.Length; index++)
         {
             var workshopMenu = workshopMenus[index];
-            if (!workshopMenu.gameObject.activeInHierarchy) continue;
+            if (!workshopMenu.gameObject.activeInHierarchy)
+                continue;
 
             Debug.Log($"[NOVR] Native UI closing original workshop menu '{GetGameObjectPath(workshopMenu.gameObject)}'.");
             workshopMenu.CloseMenu();
@@ -173,7 +178,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < pickers.Length; index++)
         {
             var picker = pickers[index];
-            if (!picker.gameObject.activeInHierarchy) continue;
+            if (!picker.gameObject.activeInHierarchy)
+                continue;
 
             // Keep the native list and picker synchronized. Re-selecting an
             // unchanged key would reload the disk copy and discard Customize.
@@ -188,9 +194,11 @@ public partial class NativeGameActionAdapter
     internal bool TryGetOriginalSelectedMission(MissionKey missionKey, out Mission? mission)
     {
         mission = null;
-        if (_originalMainCanvas == null) return false;
+        if (_originalMainCanvas == null)
+            return false;
         foreach (var picker in _originalMainCanvas.GetComponentsInChildren<global::MissionPicker>(true))
-            if (picker.gameObject.activeInHierarchy && NativeMissionSelection.TryGet(picker, missionKey, out mission)) return true;
+            if (picker.gameObject.activeInHierarchy && NativeMissionSelection.TryGet(picker, missionKey, out mission))
+                return true;
         return false;
     }
 
@@ -206,7 +214,8 @@ public partial class NativeGameActionAdapter
         for (var index = 0; index < lobbyLists.Length; index++)
         {
             var candidate = lobbyLists[index];
-            if (!candidate.gameObject.activeInHierarchy) continue;
+            if (!candidate.gameObject.activeInHierarchy)
+                continue;
 
             lobbyList = candidate;
             return true;

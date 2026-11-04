@@ -3,7 +3,10 @@ using BepInEx.Configuration;
 
 namespace NOVR.MotionControls;
 
-internal enum GazeCueShape { Circle, Dot, Crosshair, Brackets }
+internal enum GazeCueShape
+{
+    Circle, Dot, Crosshair, Brackets
+}
 
 internal sealed class GazeCueSettings
 {
@@ -36,5 +39,11 @@ internal sealed class GazeCueSettings
     internal GazeCueShape CurrentShape => (uint)Shape.Value <= (uint)GazeCueShape.Brackets ? Shape.Value : GazeCueShape.Circle;
     private static float SafeRange(float value, float min, float max, float fallback) =>
         float.IsNaN(value) || float.IsInfinity(value) ? fallback : Math.Max(min, Math.Min(max, value));
-    internal void Reset() { Size.Value = DefaultSize; Opacity.Value = DefaultOpacity; Shape.Value = GazeCueShape.Circle; VerticalDegrees.Value = DefaultVerticalDegrees; }
+    internal void Reset()
+    {
+        Size.Value = DefaultSize;
+        Opacity.Value = DefaultOpacity;
+        Shape.Value = GazeCueShape.Circle;
+        VerticalDegrees.Value = DefaultVerticalDegrees;
+    }
 }

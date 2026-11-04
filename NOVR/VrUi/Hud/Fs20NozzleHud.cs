@@ -24,19 +24,32 @@ internal sealed class Fs20NozzleHud : MonoBehaviour
         private readonly bool _enabled, _showEnabled;
         private readonly float _alpha, _showAlpha;
         internal GraphicState(Graphic graphic, bool showEnabled, float showAlpha)
-        { _graphic = graphic; _enabled = graphic.enabled; _alpha = graphic.color.a; _showEnabled = showEnabled; _showAlpha = showAlpha; }
+        {
+            _graphic = graphic;
+            _enabled = graphic.enabled;
+            _alpha = graphic.color.a;
+            _showEnabled = showEnabled;
+            _showAlpha = showAlpha;
+        }
         internal void Apply(bool visible)
         {
-            if (_graphic == null) return;
+            if (_graphic == null)
+                return;
             _graphic.enabled = visible && _showEnabled;
-            if (!visible) return;
-            var color = _graphic.color; color.a = _showAlpha; _graphic.color = color;
+            if (!visible)
+                return;
+            var color = _graphic.color;
+            color.a = _showAlpha;
+            _graphic.color = color;
         }
         internal void Restore()
         {
-            if (_graphic == null) return;
+            if (_graphic == null)
+                return;
             _graphic.enabled = _enabled;
-            var color = _graphic.color; color.a = _alpha; _graphic.color = color;
+            var color = _graphic.color;
+            color.a = _alpha;
+            _graphic.color = color;
         }
     }
 
@@ -48,14 +61,22 @@ internal sealed class Fs20NozzleHud : MonoBehaviour
 
     internal void Bind(NozzleGauge source, Aircraft aircraft)
     {
-        Restore(); _source = source; _aircraft = aircraft;
+        Restore();
+        _source = source;
+        _aircraft = aircraft;
     }
 
     private void LateUpdate()
     {
-        if (!XRSettings.enabled || _source == null) { Restore(); return; }
-        if (!_owned) Begin();
-        if (!_owned) return;
+        if (!XRSettings.enabled || _source == null)
+        {
+            Restore();
+            return;
+        }
+        if (!_owned)
+            Begin();
+        if (!_owned)
+            return;
         // Native fading hides even a steady hover gauge after five seconds.
         // Continue its normal Refresh while managing only the fitted graphics.
         Fade(_source) = false;
@@ -73,22 +94,36 @@ internal sealed class Fs20NozzleHud : MonoBehaviour
             ready && fitted ? system!.GetNozzleAngle() : 0,
             inputs != null ? inputs.customAxis1 : 1,
             ready && _aircraft!.IsAutoHoverEnabled(), Time.unscaledTime);
-        foreach (var graphic in _graphics) graphic.Apply(visible);
+        foreach (var graphic in _graphics)
+            graphic.Apply(visible);
     }
 
     private void Begin()
     {
-        if (_source == null) return;
-        var images = Images(_source); var alphas = ImageAlphas(_source); var label = Label(_source);
-        if (images == null || alphas == null) return;
+        if (_source == null)
+            return;
+        var images = Images(_source);
+        var alphas = ImageAlphas(_source);
+        var label = Label(_source);
+        if (images == null || alphas == null)
+            return;
         _nativeFade = Fade(_source);
         foreach (var graphic in _source.GetComponentsInChildren<Graphic>(true))
         {
-            var shown = graphic.enabled; var alpha = graphic.color.a;
+            var shown = graphic.enabled;
+            var alpha = graphic.color.a;
             for (var i = 0; i < images.Length; i++)
                 if (graphic == images[i])
-                { shown = true; alpha = i < alphas.Length ? alphas[i] : alpha; break; }
-            if (graphic == label) { shown = true; alpha = 1; }
+                {
+                    shown = true;
+                    alpha = i < alphas.Length ? alphas[i] : alpha;
+                    break;
+                }
+            if (graphic == label)
+            {
+                shown = true;
+                alpha = 1;
+            }
             _graphics.Add(new GraphicState(graphic, shown, alpha));
         }
         _owned = true;
@@ -96,9 +131,13 @@ internal sealed class Fs20NozzleHud : MonoBehaviour
 
     private void Restore()
     {
-        if (_owned && _source != null) Fade(_source) = _nativeFade;
-        foreach (var graphic in _graphics) graphic.Restore();
-        _graphics.Clear(); _context.Reset(); _owned = false;
+        if (_owned && _source != null)
+            Fade(_source) = _nativeFade;
+        foreach (var graphic in _graphics)
+            graphic.Restore();
+        _graphics.Clear();
+        _context.Reset();
+        _owned = false;
     }
     private void OnDisable() => Restore();
     private void OnDestroy() => Restore();
@@ -112,9 +151,11 @@ internal static class NozzleHudContextPatch
     {
         // MFD/cockpit apps can use the same gauge class. Never hide those.
         if (__instance.GetComponentInParent<HUDAppManager>() == null ||
-            __instance.GetComponentInParent<FlightHud>() == null) return;
+            __instance.GetComponentInParent<FlightHud>() == null)
+            return;
         var behavior = __instance.GetComponent<Fs20NozzleHud>();
-        if (behavior == null) behavior = __instance.gameObject.AddComponent<Fs20NozzleHud>();
+        if (behavior == null)
+            behavior = __instance.gameObject.AddComponent<Fs20NozzleHud>();
         behavior.Bind(__instance, aircraft);
     }
 }

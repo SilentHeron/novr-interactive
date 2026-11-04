@@ -24,8 +24,8 @@ public class CameraCockpitStatePatch
     {
         private static readonly FieldInfo PanViewField = AccessTools.Field(typeof(CameraCockpitState), "panView");
         private static readonly FieldInfo TiltViewField = AccessTools.Field(typeof(CameraCockpitState), "tiltView");
-        
-        
+
+
         [HarmonyPostfix]
         private static void Postfix(CameraCockpitState __instance, CameraStateManager cam)
         {

@@ -31,7 +31,7 @@ internal static class JammedMarkerRotationSafePatch
             var map = SceneSingleton<DynamicMap>.i;
             var iconLayer = map.iconLayer.transform;
             var jammedLocalPosition = iconLayer.InverseTransformPoint(mapIcon.transform.position);
-            
+
             __instance.transform.localPosition = jammedLocalPosition;
             __instance.transform.localScale = Vector3.one / map.mapImage.transform.localScale.x;
 

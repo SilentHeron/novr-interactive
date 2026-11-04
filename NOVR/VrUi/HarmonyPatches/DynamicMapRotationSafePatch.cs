@@ -18,7 +18,8 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
-            if (CockpitMapNavigation.TryCenter(__instance)) return false;
+            if (CockpitMapNavigation.TryCenter(__instance))
+                return false;
             var cameraPosition = SceneSingleton<CameraStateManager>.i.transform.GlobalPosition().AsVector3() * __instance.mapDisplayFactor;
             __instance.mapImage.transform.localPosition = MapOffsetToLocalPosition(__instance, cameraPosition);
             return false;
@@ -31,13 +32,17 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
-            if (CockpitMapNavigation.TryCenter(__instance)) return false;
+            if (CockpitMapNavigation.TryCenter(__instance))
+                return false;
             var combatHud = SceneSingleton<CombatHUD>.i;
             if (combatHud == null || combatHud.aircraft == null)
                 return false;
 
             var cameraPosition = SceneSingleton<CameraStateManager>.i.transform.position.ToGlobalPosition().AsVector3() * __instance.mapDisplayFactor;
-            var aircraftForward = combatHud.aircraft.transform.forward with { y = 0.0f };
+            var aircraftForward = combatHud.aircraft.transform.forward with
+            {
+                y = 0.0f
+            };
             var viewForward = APIBus.MainCamera != null
                 ? APIBus.MainCamera.transform.forward
                 : SceneSingleton<CameraStateManager>.i.transform.forward;
@@ -62,7 +67,8 @@ internal static class DynamicMapRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::DynamicMap __instance)
         {
-            if (CockpitMapNavigation.TryCenter(__instance)) return false;
+            if (CockpitMapNavigation.TryCenter(__instance))
+                return false;
             var currentPosition = __instance.mapImage.transform.localPosition;
             var targetPosition = MapOffsetToLocalPosition(__instance, (Vector3)MapTargetField.GetValue(__instance));
             __instance.mapImage.transform.localPosition = Vector3.Lerp(currentPosition, targetPosition, 0.05f);
@@ -75,7 +81,7 @@ internal static class DynamicMapRotationSafePatch
             return false;
         }
     }
-    
+
     internal static Vector3 MapOffsetToLocalPosition(global::DynamicMap map, Vector3 mapPosition)
     {
         var scale = map.mapImage.transform.localScale.x * GetMapBackgroundTransform(map).localScale.x;

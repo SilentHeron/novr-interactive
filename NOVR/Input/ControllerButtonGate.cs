@@ -5,9 +5,18 @@ namespace NOVR.MotionControls;
 internal sealed class ControllerButtonGate
 {
     private readonly GripLatch _latch = new();
-    public bool Held { get; private set; }
-    public bool Pressed { get; private set; }
-    public bool Released { get; private set; }
+    public bool Held
+    {
+        get; private set;
+    }
+    public bool Pressed
+    {
+        get; private set;
+    }
+    public bool Released
+    {
+        get; private set;
+    }
 
     public void Update(bool available, float value)
     {

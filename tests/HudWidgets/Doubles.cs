@@ -5,13 +5,22 @@ namespace UnityEngine;
 public struct Vector2
 {
     public float x, y;
-    public Vector2(float x, float y) { this.x = x; this.y = y; }
+    public Vector2(float x, float y)
+    {
+        this.x = x;
+        this.y = y;
+    }
 }
 
 public struct Vector3
 {
     public float x, y, z;
-    public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
+    public Vector3(float x, float y, float z)
+    {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
     public static Vector3 zero => default;
     internal N.Vector3 Numerics => new(x, y, z);
     internal static Vector3 From(N.Vector3 value) => new(value.X, value.Y, value.Z);

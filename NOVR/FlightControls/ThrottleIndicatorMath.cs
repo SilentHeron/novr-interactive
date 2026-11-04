@@ -12,14 +12,19 @@ internal static class ThrottleIndicatorMath
     internal static int Percent(float thrust) => (int)Math.Round(Command(thrust) * 100f, MidpointRounding.AwayFromZero);
     internal static string State(float thrust, float militaryPower, bool collective, bool hover)
     {
-        if (hover) return "HOVER";
-        if (collective) return "COLL";
+        if (hover)
+            return "HOVER";
+        if (collective)
+            return "COLL";
         var value = Command(thrust);
-        if (value <= .005f) return "IDLE";
+        if (value <= .005f)
+            return "IDLE";
         if (militaryPower > 0 && militaryPower < 1)
         {
-            if (value >= militaryPower) return "AB";
-            if (value >= ThrottleDetent.MilitaryCommand(militaryPower) - .003f) return "MIL";
+            if (value >= militaryPower)
+                return "AB";
+            if (value >= ThrottleDetent.MilitaryCommand(militaryPower) - .003f)
+                return "MIL";
         }
         return value >= .995f ? "MAX" : "THR";
     }

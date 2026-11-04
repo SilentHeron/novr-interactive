@@ -41,10 +41,10 @@ internal static class DynamicMapRadarVisualizationRotationSafePatch
             {
                 if (vectorImage != null)
                     Object.Destroy(vectorImage.gameObject);
-                
+
                 if (dynamicMap != null)
                     ((IList)RadarVisualizationsField.GetValue(dynamicMap)).Remove(__instance);
-                
+
                 return false;
             }
 

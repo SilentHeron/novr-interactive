@@ -7,7 +7,7 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
 {
     private bool _initialized;
     private Canvas? _canvas;
-    
+
     protected virtual bool ShouldInitializeCanvas => true;
 
     public virtual void Awake() => Initialize();
@@ -18,15 +18,20 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
 
     private void Initialize()
     {
-        if (!ShouldInitializeCanvas) return;
+        if (!ShouldInitializeCanvas)
+            return;
         if (!_initialized)
         {
             _initialized = true;
             ApplyVrUiLayerRecursive(transform);
-            transform.localPosition = transform.localPosition with { z = 0 };
+            transform.localPosition = transform.localPosition with
+            {
+                z = 0
+            };
         }
         _canvas = gameObject.GetComponent<Canvas>();
-        if (_canvas == null) return;
+        if (_canvas == null)
+            return;
         _canvas.renderMode = RenderMode.WorldSpace;
         _canvas.planeDistance = 1f;
         RefreshCanvasCamera();
@@ -34,11 +39,13 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
 
     private void RefreshCanvasCamera()
     {
-        if (_canvas == null) return;
+        if (_canvas == null)
+            return;
         // The UI manager can arrive after Awake or recreate its camera during
         // a scene change. Rebind without replaying the canvas/layout setup.
         var camera = APIBus.CockpitHudCamera;
-        if (!ReferenceEquals(_canvas.worldCamera, camera)) _canvas.worldCamera = camera;
+        if (!ReferenceEquals(_canvas.worldCamera, camera))
+            _canvas.worldCamera = camera;
     }
 
     private static void ApplyVrUiLayerRecursive(Transform root)

@@ -15,44 +15,57 @@ internal static class CandidateChecks
         CombatHUD Hud(params HUDUnitMarker[] markers)
         {
             var hud = new CombatHUD { targetDesignator = new GameObject("Native designator").AddComponent<Image>() };
-            hud.Add(markers); return hud;
+            hud.Add(markers);
+            return hud;
         }
         CombatHUD Fresh(out HUDUnitMarker marker)
         {
-            TargetCueCandidates.Nearby(null); Time.unscaledTime = 1;
+            TargetCueCandidates.Nearby(null);
+            Time.unscaledTime = 1;
             SceneSingleton<TargetListSelector>.i = new TargetListSelector();
-            marker = Marker(); return Hud(marker);
+            marker = Marker();
+            return Hud(marker);
         }
 
         var hud = Fresh(out var marker);
         check(TargetCueCandidates.Nearby(hud), "nearby unlocked native marker enables cue");
-        hud.aircraft!.weaponManager!.Targets.Add(marker.unit!); Time.unscaledTime += .01f;
+        hud.aircraft!.weaponManager!.Targets.Add(marker.unit!);
+        Time.unscaledTime += .01f;
         check(!marker.selected && !TargetCueCandidates.Nearby(hud),
             "authoritative lock list invalidates cached positive before marker.selected catches up");
         for (var index = 0; index < 4; index++)
         {
             hud = Fresh(out marker);
             var targets = hud.aircraft!.weaponManager!.Targets;
-            for (var i = 0; i < 4; i++) targets.Add(i == index ? marker.unit! : new Unit());
+            for (var i = 0; i < 4; i++)
+                targets.Add(i == index ? marker.unit! : new Unit());
             check(!TargetCueCandidates.Nearby(hud), "every target-list position is excluded, not just primary lock");
         }
 
-        hud = Fresh(out marker); var alternative = Marker(40); hud.Add(alternative);
+        hud = Fresh(out marker);
+        var alternative = Marker(40);
+        hud.Add(alternative);
         check(TargetCueCandidates.Nearby(hud), "first unlocked marker warms candidate cache");
-        hud.aircraft!.weaponManager!.Targets.Add(marker.unit!); Time.unscaledTime += .01f;
+        hud.aircraft!.weaponManager!.Targets.Add(marker.unit!);
+        Time.unscaledTime += .01f;
         check(TargetCueCandidates.Nearby(hud), "newly locked cached marker yields to nearby unlocked alternative immediately");
-        hud.aircraft.weaponManager.Targets.Add(alternative.unit!); Time.unscaledTime += .01f;
+        hud.aircraft.weaponManager.Targets.Add(alternative.unit!);
+        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(hud), "all nearby multi-lock entries suppress the cue");
-        hud.aircraft.weaponManager.Targets.Remove(marker.unit!); Time.unscaledTime += .01f;
+        hud.aircraft.weaponManager.Targets.Remove(marker.unit!);
+        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(hud), "unlock respects existing bounded negative-cache interval");
         Time.unscaledTime += .09f;
         check(TargetCueCandidates.Nearby(hud), "unlocked candidate returns after negative cache expires");
 
-        hud = Fresh(out marker); hud.Targets.Add(marker.unit!);
+        hud = Fresh(out marker);
+        hud.Targets.Add(marker.unit!);
         check(TargetCueCandidates.Nearby(hud), "live weapon-manager list takes precedence over stale HUD list");
-        hud.aircraft!.weaponManager = null; Time.unscaledTime += .01f;
+        hud.aircraft!.weaponManager = null;
+        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(hud), "HUD target-list fallback still excludes selected unit without weapon manager");
-        hud.Targets.Clear(); Time.unscaledTime += .09f;
+        hud.Targets.Clear();
+        Time.unscaledTime += .09f;
         check(TargetCueCandidates.Nearby(hud), "HUD fallback unlock also resumes after cache expiry");
 
         foreach (var invalidate in new Action<CombatHUD, HUDUnitMarker>[]
@@ -68,8 +81,10 @@ internal static class CandidateChecks
             (_, m) => m.unit = null
         })
         {
-            hud = Fresh(out marker); check(TargetCueCandidates.Nearby(hud), "valid candidate warms positive cache");
-            invalidate(hud, marker); Time.unscaledTime += .01f;
+            hud = Fresh(out marker);
+            check(TargetCueCandidates.Nearby(hud), "valid candidate warms positive cache");
+            invalidate(hud, marker);
+            Time.unscaledTime += .01f;
             check(!TargetCueCandidates.Nearby(hud), "cached candidates retain native selection/visibility/distance/exclusion filters");
         }
 
@@ -86,14 +101,19 @@ internal static class CandidateChecks
                 "native strict100-unit three-dimensional distance stays relative to designator");
         }
 
-        hud = Fresh(out marker); check(TargetCueCandidates.Nearby(hud), "old HUD has cached positive");
-        var otherHud = Hud(); Time.unscaledTime += .01f;
+        hud = Fresh(out marker);
+        check(TargetCueCandidates.Nearby(hud), "old HUD has cached positive");
+        var otherHud = Hud();
+        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(otherHud), "switching HUD cannot reuse old HUD candidate");
         check(TargetCueCandidates.Nearby(hud), "switching back rescans actual HUD immediately");
-        var otherAircraft = new Aircraft(); otherAircraft.weaponManager!.Targets.Add(marker.unit!);
-        hud.aircraft = otherAircraft; Time.unscaledTime += .01f;
+        var otherAircraft = new Aircraft();
+        otherAircraft.weaponManager!.Targets.Add(marker.unit!);
+        hud.aircraft = otherAircraft;
+        Time.unscaledTime += .01f;
         check(!TargetCueCandidates.Nearby(hud), "new aircraft target list replaces cached aircraft ownership");
-        hud.aircraft = new Aircraft(); Time.unscaledTime += .01f;
+        hud.aircraft = new Aircraft();
+        Time.unscaledTime += .01f;
         check(TargetCueCandidates.Nearby(hud), "new aircraft is not held back by previous aircraft's negative cache");
 
         foreach (var invalidate in new Action<CombatHUD>[]
@@ -105,8 +125,10 @@ internal static class CandidateChecks
             _ => SceneSingleton<TargetListSelector>.i = null
         })
         {
-            hud = Fresh(out marker); check(TargetCueCandidates.Nearby(hud), "candidate exists before native context loss");
-            invalidate(hud); Time.unscaledTime += .01f;
+            hud = Fresh(out marker);
+            check(TargetCueCandidates.Nearby(hud), "candidate exists before native context loss");
+            invalidate(hud);
+            Time.unscaledTime += .01f;
             check(!TargetCueCandidates.Nearby(hud), "lost native context cannot leave cached cue active");
         }
         check(!TargetCueCandidates.Nearby(null), "missing HUD fails closed and clears cache");

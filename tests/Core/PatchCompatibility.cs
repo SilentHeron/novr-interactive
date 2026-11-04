@@ -46,31 +46,34 @@ internal static class PatchCompatibility
         var failures = new List<string>();
         var verified = 0;
         foreach (var type in AllTypes(mod.MainModule.Types))
-        foreach (var patch in type.CustomAttributes.Where(a => a.AttributeType.FullName == "HarmonyLib.HarmonyPatch"))
-        {
-            var target = patch.ConstructorArguments.Select(a => a.Value).OfType<TypeReference>().FirstOrDefault();
-            var method = patch.ConstructorArguments.Select(a => a.Value).OfType<string>().FirstOrDefault();
-            if (target == null || method == null) continue;
-            var definition = target.Resolve();
-            var signature = patch.ConstructorArguments.FirstOrDefault(a => a.Type.FullName == "System.Type[]").Value as CustomAttributeArgument[];
-            var candidates = definition.Methods.Where(m => m.Name == method);
-            if (signature != null)
-                candidates = candidates.Where(m => m.Parameters.Select(p => p.ParameterType.FullName)
-                    .SequenceEqual(signature.Select(a => ((TypeReference)a.Value).FullName)));
-            if (!candidates.Any())
+            foreach (var patch in type.CustomAttributes.Where(a => a.AttributeType.FullName == "HarmonyLib.HarmonyPatch"))
             {
-                failures.Add($"Missing method or overload {target.FullName}.{method}");
-                continue;
+                var target = patch.ConstructorArguments.Select(a => a.Value).OfType<TypeReference>().FirstOrDefault();
+                var method = patch.ConstructorArguments.Select(a => a.Value).OfType<string>().FirstOrDefault();
+                if (target == null || method == null)
+                    continue;
+                var definition = target.Resolve();
+                var signature = patch.ConstructorArguments.FirstOrDefault(a => a.Type.FullName == "System.Type[]").Value as CustomAttributeArgument[];
+                var candidates = definition.Methods.Where(m => m.Name == method);
+                if (signature != null)
+                    candidates = candidates.Where(m => m.Parameters.Select(p => p.ParameterType.FullName)
+                        .SequenceEqual(signature.Select(a => ((TypeReference)a.Value).FullName)));
+                if (!candidates.Any())
+                {
+                    failures.Add($"Missing method or overload {target.FullName}.{method}");
+                    continue;
+                }
+                foreach (var parameter in type.Methods.SelectMany(m => m.Parameters).Where(p => p.Name.StartsWith("___")))
+                {
+                    var fieldName = parameter.Name[3..];
+                    var owner = definition;
+                    while (owner != null && !owner.Fields.Any(f => f.Name == fieldName))
+                        owner = owner.BaseType?.Resolve();
+                    if (owner == null)
+                        failures.Add($"Missing injected field {target.FullName}.{fieldName}");
+                }
+                verified++;
             }
-            foreach (var parameter in type.Methods.SelectMany(m => m.Parameters).Where(p => p.Name.StartsWith("___")))
-            {
-                var fieldName = parameter.Name[3..];
-                var owner = definition;
-                while (owner != null && !owner.Fields.Any(f => f.Name == fieldName)) owner = owner.BaseType?.Resolve();
-                if (owner == null) failures.Add($"Missing injected field {target.FullName}.{fieldName}");
-            }
-            verified++;
-        }
         // Native guidance and engine limits are read-only. Verify their private
         // fields as well as the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
@@ -130,12 +133,14 @@ internal static class PatchCompatibility
             (owner: "HUDLaserGuidedState", field: "hint", type: "TMPro.TextMeshProUGUI") })
         {
             var field = AllTypes(game.MainModule.Types).Single(t => t.FullName == contract.owner).Fields.SingleOrDefault(f => f.Name == contract.field);
-            if (field?.FieldType.FullName != contract.type) failures.Add($"Native readout field mismatch {contract.owner}.{contract.field}");
+            if (field?.FieldType.FullName != contract.type)
+                failures.Add($"Native readout field mismatch {contract.owner}.{contract.field}");
         }
         using var urp = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Unity.RenderPipelines.Universal.Runtime.dll"));
         if (urp.MainModule.Types.Single(t => t.Name == "UniversalAdditionalCameraData").Fields.SingleOrDefault(f => f.Name == "m_ClearDepth")?.FieldType.FullName != "System.Boolean")
             failures.Add("Foreground overlay depth-clear contract changed.");
-        if (verified < 20) throw new Exception($"Only {verified} patch targets were checked; wrong build?");
+        if (verified < 20)
+            throw new Exception($"Only {verified} patch targets were checked; wrong build?");
         // These nested native types are private, so their Harmony targets are
         // resolved dynamically. Verify return values and injected fields too.
         var radarWarning = game.MainModule.Types.Single(t => t.Name == "RadarWarning");
@@ -151,8 +156,10 @@ internal static class PatchCompatibility
         var selector = game.MainModule.Types.Single(t => t.Name == "CombatHUD").Methods.Single(m => m.Name == "TargetSelect").Body.Instructions;
         var acquisitionSites = selector.Count(i => i.OpCode == Mono.Cecil.Cil.OpCodes.Ldc_R4 && i.Operand is float f && f == 100 &&
             i.Next?.Operand is MethodReference call && call.DeclaringType.Name == "FastMath" && call.Name == "InRange");
-        if (acquisitionSites != 1) failures.Add("Native optical selection acquisition-circle IL contract changed.");
-        if (failures.Count != 0) throw new Exception(string.Join(Environment.NewLine, failures));
+        if (acquisitionSites != 1)
+            failures.Add("Native optical selection acquisition-circle IL contract changed.");
+        if (failures.Count != 0)
+            throw new Exception(string.Join(Environment.NewLine, failures));
         Console.WriteLine($"Verified {verified} declared patch targets (metadata only; no game code executed).");
     }
 
@@ -161,7 +168,8 @@ internal static class PatchCompatibility
         foreach (var type in roots)
         {
             yield return type;
-            foreach (var nested in AllTypes(type.NestedTypes)) yield return nested;
+            foreach (var nested in AllTypes(type.NestedTypes))
+                yield return nested;
         }
     }
 }

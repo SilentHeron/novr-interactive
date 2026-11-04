@@ -8,18 +8,25 @@ internal static class CanvasDiscoveryChecks
     {
         var passed = 0;
         void Check(bool value, string description)
-        { if (!value) throw new Exception(description); passed++; }
+        {
+            if (!value)
+                throw new Exception(description);
+            passed++;
+        }
         Canvas Add(string name, Scene scene, bool active = true)
         {
             var item = new Canvas { gameObject = new GameObject { name = name, scene = scene, activeSelf = active } };
-            Resources.Loaded.Add(item); return item;
+            Resources.Loaded.Add(item);
+            return item;
         }
 
-        var firstScene = new Scene(1); var secondScene = new Scene(2);
+        var firstScene = new Scene(1);
+        var secondScene = new Scene(2);
         SceneManager.SetActive(firstScene);
         var discovery = new NativeMainCanvasDiscovery();
         Check(discovery.Find(0) == null && Resources.Searches == 0, "Disabled discovery must not enumerate.");
-        discovery.Enable(); discovery.Enable();
+        discovery.Enable();
+        discovery.Enable();
         Check(SceneManager.Subscribers == 3, "Enable must register scene events exactly once.");
         Add("MainCanvas", default); // Prefab asset, not a scene instance.
         Add("MainCanvas", new Scene(3, false));
@@ -52,7 +59,8 @@ internal static class CanvasDiscoveryChecks
         Check(Resources.Searches == 7, "First missing retry runs after half a second.");
         discovery.Find(103.5f);
         Check(Resources.Searches == 7, "Second retry backs off to one second.");
-        discovery.Find(103.6f); discovery.Find(105f);
+        discovery.Find(103.6f);
+        discovery.Find(105f);
         Check(Resources.Searches == 8, "Repeated missing menus back off to the two-second cap.");
         var delayed = Add("MainCanvas", firstScene, false);
         Check(discovery.Find(105.61f) == delayed.gameObject && Resources.Searches == 9, "A late-created inactive menu is discovered without a scene event.");
@@ -66,9 +74,12 @@ internal static class CanvasDiscoveryChecks
         discovery.Invalidate();
         Check(discovery.Find(106.03f) == immediate.gameObject && Resources.Searches == 12, "Startup camera replacement can explicitly invalidate discovery.");
 
-        discovery.Disable(); discovery.Disable();
+        discovery.Disable();
+        discovery.Disable();
         Check(SceneManager.Subscribers == 0, "Disable/destroy removes every scene subscription without duplicates.");
-        SceneManager.Load(secondScene); SceneManager.Unload(firstScene); SceneManager.SetActive(secondScene);
+        SceneManager.Load(secondScene);
+        SceneManager.Unload(firstScene);
+        SceneManager.SetActive(secondScene);
         Check(discovery.Find(200) == null && Resources.Searches == 12, "Disabled discovery ignores scene activity.");
         replacement.gameObject.scene = secondScene;
         discovery.Enable();

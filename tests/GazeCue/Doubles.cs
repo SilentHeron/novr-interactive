@@ -8,7 +8,11 @@ namespace NOVR
         internal readonly GazeCueSettings LookCue;
         public readonly ConfigEntry<float> InstrumentBrightness;
         public ModConfiguration(ConfigFile config)
-        { Instance = this; LookCue = new(config); InstrumentBrightness = config.Bind("VR HUD", "Instrument Brightness", 1f); }
+        {
+            Instance = this;
+            LookCue = new(config);
+            InstrumentBrightness = config.Bind("VR HUD", "Instrument Brightness", 1f);
+        }
     }
 }
 namespace UnityEngine
@@ -37,9 +41,16 @@ namespace UnityEngine
         public bool activeInHierarchy => activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
         public void SetActive(bool value) => activeSelf = value;
         public GameObject(string name, params Type[] components)
-        { transform = new RectTransform { gameObject = this }; _components.Add(transform); }
+        {
+            transform = new RectTransform { gameObject = this };
+            _components.Add(transform);
+        }
         public T AddComponent<T>() where T : Component, new()
-        { var component = new T { gameObject = this }; _components.Add(component); return component; }
+        {
+            var component = new T { gameObject = this };
+            _components.Add(component);
+            return component;
+        }
         public T GetComponent<T>() where T : Component => _components.OfType<T>().First();
     }
     public readonly record struct Vector2(float x, float y)
@@ -54,13 +65,19 @@ namespace UnityEngine
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
         public static float SqrMagnitude(Vector3 value) => value.x * value.x + value.y * value.y + value.z * value.z;
     }
-    public static class Time { public static float unscaledTime; }
+    public static class Time
+    {
+        public static float unscaledTime;
+    }
     public class CanvasRenderer
     {
         public float Alpha = 1;
         public float GetInheritedAlpha() => Alpha;
     }
-    public readonly record struct Rect(float width, float height) { public Vector2 center => Vector2.zero; }
+    public readonly record struct Rect(float width, float height)
+    {
+        public Vector2 center => Vector2.zero;
+    }
     public record struct Color(float r, float g, float b, float a = 1);
     public static class Mathf
     {
@@ -86,22 +103,36 @@ namespace UnityEngine.UI
         public bool raycastTarget = true;
         public int DirtyCount;
         protected void SetVerticesDirty() => DirtyCount++;
-        protected virtual void OnPopulateMesh(VertexHelper helper) { }
-        public VertexHelper Mesh() { var helper = new VertexHelper(); OnPopulateMesh(helper); return helper; }
+        protected virtual void OnPopulateMesh(VertexHelper helper)
+        {
+        }
+        public VertexHelper Mesh()
+        {
+            var helper = new VertexHelper();
+            OnPopulateMesh(helper);
+            return helper;
+        }
     }
     public class VertexHelper
     {
         public readonly List<(UnityEngine.Vector2 p, UnityEngine.Color color)> Vertices = new();
         public readonly List<(int a, int b, int c)> Triangles = new();
         public int currentVertCount => Vertices.Count;
-        public void Clear() { Vertices.Clear(); Triangles.Clear(); }
+        public void Clear()
+        {
+            Vertices.Clear();
+            Triangles.Clear();
+        }
         public void AddVert(UnityEngine.Vector2 position, UnityEngine.Color color, UnityEngine.Vector2 uv) => Vertices.Add((position, color));
         public void AddTriangle(int a, int b, int c) => Triangles.Add((a, b, c));
     }
 }
 namespace NuclearOption.UIStyleSystem
 {
-    public class ColorTheme { public UnityEngine.Color AllClear = new(.1f, .8f, .3f); }
+    public class ColorTheme
+    {
+        public UnityEngine.Color AllClear = new(.1f, .8f, .3f);
+    }
     public class ThemeManager
     {
         public static ThemeManager? Active;

@@ -4,9 +4,17 @@ using V = System.Numerics.Vector3;
 
 namespace HarmonyLib
 {
-    [AttributeUsage(AttributeTargets.Class)] public sealed class HarmonyPatch : Attribute
-    { public HarmonyPatch(Type type, string method) { } }
-    [AttributeUsage(AttributeTargets.Method)] public sealed class HarmonyPrefix : Attribute { }
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class HarmonyPatch : Attribute
+    {
+        public HarmonyPatch(Type type, string method)
+        {
+        }
+    }
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class HarmonyPrefix : Attribute
+    {
+    }
     public static class AccessTools
     {
         public static FieldInfo Field(Type type, string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -35,7 +43,10 @@ namespace UnityEngine
         public Vector3 localPosition;
         public Vector3 localScale = new(1, 1, 1);
         public Q rotation = Q.Identity;
-        public Vector3 localEulerAngles { set => rotation = Q.CreateFromAxisAngle(V.UnitZ, value.z / Mathf.Rad2Deg); }
+        public Vector3 localEulerAngles
+        {
+            set => rotation = Q.CreateFromAxisAngle(V.UnitZ, value.z / Mathf.Rad2Deg);
+        }
         public Vector3 position => TransformPoint(default);
         public Vector3 TransformVector(Vector3 v)
         {
@@ -66,7 +77,10 @@ namespace UnityEngine
     }
 }
 
-public static class SceneSingleton<T> { public static T i = default!; }
+public static class SceneSingleton<T>
+{
+    public static T i = default!;
+}
 public sealed class DynamicMap
 {
     public readonly UnityEngine.Transform transform = new();
@@ -77,5 +91,9 @@ public sealed class ThreatItem
     private readonly UnityEngine.Transform? missileIconTransform, playerAircraftIconTransform;
     private readonly UnityEngine.GameObject? vectorLine;
     public ThreatItem(UnityEngine.Transform? missile, UnityEngine.Transform? player, UnityEngine.GameObject? line)
-    { missileIconTransform = missile; playerAircraftIconTransform = player; vectorLine = line; }
+    {
+        missileIconTransform = missile;
+        playerAircraftIconTransform = player;
+        vectorLine = line;
+    }
 }

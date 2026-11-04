@@ -13,7 +13,8 @@ internal static class GridAircraftReadoutPatch
     [HarmonyPostfix]
     internal static void Postfix(Text ___gridAircraft)
     {
-        if (!XRSettings.enabled || DynamicMap.mapMaximized || ___gridAircraft == null) return;
+        if (!XRSettings.enabled || DynamicMap.mapMaximized || ___gridAircraft == null)
+            return;
         var map = SceneSingleton<DynamicMap>.i;
         if (map != null && map.hudMapAnchor != null && ___gridAircraft.transform.parent == map.hudMapAnchor)
             ___gridAircraft.enabled = false;

@@ -17,7 +17,11 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         internal readonly string Id, Name;
         internal Lease? Lease;
         internal bool Failed;
-        internal Source(string id, string name) { Id = id; Name = name; }
+        internal Source(string id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
     }
 
     private sealed class Lease
@@ -44,12 +48,19 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
         internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false)
         {
-            Widget = widget; Slot = slot; Parent = widget.parent;
-            _compactWeapon = compactWeapon; _damage = damage;
-            Index = widget.GetSiblingIndex(); _position = widget.localPosition;
-            _scale = widget.localScale; _rotation = widget.localRotation;
-            _anchorMin = widget.anchorMin; _anchorMax = widget.anchorMax;
-            _pivot = widget.pivot; _size = widget.sizeDelta;
+            Widget = widget;
+            Slot = slot;
+            Parent = widget.parent;
+            _compactWeapon = compactWeapon;
+            _damage = damage;
+            Index = widget.GetSiblingIndex();
+            _position = widget.localPosition;
+            _scale = widget.localScale;
+            _rotation = widget.localRotation;
+            _anchorMin = widget.anchorMin;
+            _anchorMax = widget.anchorMax;
+            _pivot = widget.pivot;
+            _size = widget.sizeDelta;
             // StatusDisplay's root image is its aircraft silhouette, including
             // native damage fading. It is content, never a removable backplate.
             _background = damage ? null : widget.GetComponent<Image>();
@@ -58,8 +69,10 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
         internal void Attach()
         {
-            var widget = Widget; var dimensions = widget.rect.size;
-            if (_background != null) _background.enabled = false;
+            var widget = Widget;
+            var dimensions = widget.rect.size;
+            if (_background != null)
+                _background.enabled = false;
             _visibility = new HudCanvasGroupLease(widget.gameObject);
             // Do not activate the source: the capacitor deliberately remains
             // dormant until the native power-supply event makes it relevant.
@@ -72,7 +85,8 @@ internal sealed class CockpitStatusSources : MonoBehaviour
                 // Exact native safety overlay only. Weapon art, ammunition,
                 // reload progress and other descendant images remain intact.
                 var safety = widget.Find("weaponDisabled")?.GetComponent<Image>();
-                if (safety != null) _safety = new NativeWeaponSafetyIndicator(safety, widget);
+                if (safety != null)
+                    _safety = new NativeWeaponSafetyIndicator(safety, widget);
             }
             Refresh();
             Attached = true;
@@ -82,20 +96,29 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
         internal void Refresh()
         {
-            if (!Valid) return;
+            if (!Valid)
+                return;
             _gone.Clear();
-            foreach (var pair in _layers) if (pair.Key == null) _gone.Add(pair.Key!);
-            foreach (var key in _gone) _layers.Remove(key);
-            _gone.Clear(); _nodes.Clear();
+            foreach (var pair in _layers)
+                if (pair.Key == null)
+                    _gone.Add(pair.Key!);
+            foreach (var key in _gone)
+                _layers.Remove(key);
+            _gone.Clear();
+            _nodes.Clear();
             Widget.GetComponentsInChildren(true, _nodes);
             foreach (var node in _nodes)
             {
-                if (node == null) continue;
+                if (node == null)
+                    continue;
                 var go = node.gameObject;
-                if (!_layers.ContainsKey(go)) _layers.Add(go, go.layer);
-                if (go.layer != Slot.gameObject.layer) go.layer = Slot.gameObject.layer;
+                if (!_layers.ContainsKey(go))
+                    _layers.Add(go, go.layer);
+                if (go.layer != Slot.gameObject.layer)
+                    go.layer = Slot.gameObject.layer;
             }
-            _graphics.Clear(); Widget.GetComponentsInChildren(true, _graphics);
+            _graphics.Clear();
+            Widget.GetComponentsInChildren(true, _graphics);
             // Include dormant native rectangles too. Unity's convenience bounds
             // query omits inactive descendants, which would briefly misplace a
             // capacitor the first time its charge event makes it visible.
@@ -108,22 +131,30 @@ internal sealed class CockpitStatusSources : MonoBehaviour
                 var started = false;
                 foreach (var graphic in _graphics)
                 {
-                    if (graphic == null || graphic == _background || graphic == _safety?.Source) continue;
+                    if (graphic == null || graphic == _background || graphic == _safety?.Source)
+                        continue;
                     graphic.rectTransform.GetWorldCorners(_corners);
                     foreach (var corner in _corners)
                     {
                         var local = Widget.InverseTransformPoint(corner);
-                        if (!started) { _bounds = new Bounds(local, Vector3.zero); started = true; }
-                        else _bounds.Encapsulate(local);
+                        if (!started)
+                        {
+                            _bounds = new Bounds(local, Vector3.zero);
+                            started = true;
+                        }
+                        else
+                            _bounds.Encapsulate(local);
                     }
                 }
             }
-            else foreach (var node in _nodes)
-                if (node is RectTransform rect)
-                {
-                    rect.GetWorldCorners(_corners);
-                    foreach (var corner in _corners) _bounds.Encapsulate(Widget.InverseTransformPoint(corner));
-                }
+            else
+                foreach (var node in _nodes)
+                    if (node is RectTransform rect)
+                    {
+                        rect.GetWorldCorners(_corners);
+                        foreach (var corner in _corners)
+                            _bounds.Encapsulate(Widget.InverseTransformPoint(corner));
+                    }
             _nodes.Clear();
             Fit();
         }
@@ -132,31 +163,45 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         {
             _visibility?.Apply(Parent != null && Parent.gameObject.activeInHierarchy ? 1 : 0);
             _safety?.Refresh();
-            if (_background != null) _background.enabled = false;
-            if (!Valid || _bounds.size.x < 1 || _bounds.size.y < 1) return;
+            if (_background != null)
+                _background.enabled = false;
+            if (!Valid || _bounds.size.x < 1 || _bounds.size.y < 1)
+                return;
             var factor = Mathf.Min(Slot.rect.width / _bounds.size.x, Slot.rect.height / _bounds.size.y);
-            if (factor <= 0 || float.IsNaN(factor) || float.IsInfinity(factor)) return;
+            if (factor <= 0 || float.IsNaN(factor) || float.IsInfinity(factor))
+                return;
             var scale = Vector3.one * factor;
             var position = -_bounds.center * factor;
-            if (Widget.localScale != scale) Widget.localScale = scale;
-            if (Widget.localPosition != position) Widget.localPosition = position;
+            if (Widget.localScale != scale)
+                Widget.localScale = scale;
+            if (Widget.localPosition != position)
+                Widget.localPosition = position;
         }
 
         internal bool HasContent
         {
             get
             {
-                if (!Valid || !Parent.gameObject.activeInHierarchy || !Widget.gameObject.activeSelf) return false;
+                if (!Valid || !Parent.gameObject.activeInHierarchy || !Widget.gameObject.activeSelf)
+                    return false;
                 foreach (var graphic in _graphics)
                 {
-                    if (graphic == null || !graphic.enabled || graphic == _background || graphic == _safety?.Source) continue;
-                    if (_damage && graphic.color.a <= .001f) continue;
+                    if (graphic == null || !graphic.enabled || graphic == _background || graphic == _safety?.Source)
+                        continue;
+                    if (_damage && graphic.color.a <= .001f)
+                        continue;
                     if (graphic is TMP_Text tmp && string.IsNullOrWhiteSpace(tmp.text) ||
-                        graphic is Text text && string.IsNullOrWhiteSpace(text.text)) continue;
+                        graphic is Text text && string.IsNullOrWhiteSpace(text.text))
+                        continue;
                     var active = true;
                     for (var node = graphic.transform; node != null && node != Slot; node = node.parent)
-                        if (!node.gameObject.activeSelf) { active = false; break; }
-                    if (active) return true;
+                        if (!node.gameObject.activeSelf)
+                        {
+                            active = false;
+                            break;
+                        }
+                    if (active)
+                        return true;
                 }
                 return false;
             }
@@ -164,22 +209,37 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
         internal void Restore()
         {
-            foreach (var pair in _layers) if (pair.Key != null) pair.Key.layer = pair.Value;
-            _layers.Clear(); _nodes.Clear(); _graphics.Clear(); _gone.Clear();
-            _safety?.Release(); _safety = null;
-            _visibility?.Release(); _visibility = null;
-            if (_background != null) _background.enabled = _backgroundEnabled;
-            if (Widget == null || Widget.parent != Slot) return;
+            foreach (var pair in _layers)
+                if (pair.Key != null)
+                    pair.Key.layer = pair.Value;
+            _layers.Clear();
+            _nodes.Clear();
+            _graphics.Clear();
+            _gone.Clear();
+            _safety?.Release();
+            _safety = null;
+            _visibility?.Release();
+            _visibility = null;
+            if (_background != null)
+                _background.enabled = _backgroundEnabled;
+            if (Widget == null || Widget.parent != Slot)
+                return;
             if (Parent == null)
             {
                 // Its original scene owner has died. Never retain a live native
                 // component pointing at the previous aircraft in the VR rig.
-                Widget.gameObject.SetActive(false); Destroy(Widget.gameObject); return;
+                Widget.gameObject.SetActive(false);
+                Destroy(Widget.gameObject);
+                return;
             }
             Widget.SetParent(Parent, false);
-            Widget.anchorMin = _anchorMin; Widget.anchorMax = _anchorMax;
-            Widget.pivot = _pivot; Widget.sizeDelta = _size;
-            Widget.localPosition = _position; Widget.localRotation = _rotation; Widget.localScale = _scale;
+            Widget.anchorMin = _anchorMin;
+            Widget.anchorMax = _anchorMax;
+            Widget.pivot = _pivot;
+            Widget.sizeDelta = _size;
+            Widget.localPosition = _position;
+            Widget.localRotation = _rotation;
+            Widget.localScale = _scale;
             Widget.SetSiblingIndex(Index);
             // Preserve the source's current activeSelf: native visibility may
             // legitimately change while a widget is moved or hidden.
@@ -202,24 +262,29 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
     internal static bool Owns(Transform source)
     {
-        if (_instance == null || source == null) return false;
+        if (_instance == null || source == null)
+            return false;
         foreach (var item in _instance._sources)
-            if (item.Lease?.Valid == true && (source == item.Lease.Widget || source.IsChildOf(item.Lease.Widget))) return true;
+            if (item.Lease?.Valid == true && (source == item.Lease.Widget || source.IsChildOf(item.Lease.Widget)))
+                return true;
         return false;
     }
 
     internal static bool EmptiedStatusPanel(Transform panel)
     {
-        if (_instance == null || panel == null) return false;
+        if (_instance == null || panel == null)
+            return false;
         // Hide only the old common container once all three known leaves have
         // safely moved. Never blanket-hide flight instruments or ThreatList.
         foreach (var source in _instance._sources)
         {
             // Aircraft damage lives in a separate native anchor. Its absence
             // must not resurrect the emptied weapons/CM/capacitor backplate.
-            if (source.Id == "damage") continue;
+            if (source.Id == "damage")
+                continue;
             if (source.Lease?.Valid != true ||
-                source.Lease.Parent != panel && !source.Lease.Parent.IsChildOf(panel)) return false;
+                source.Lease.Parent != panel && !source.Lease.Parent.IsChildOf(panel))
+                return false;
         }
         return true;
     }
@@ -231,36 +296,60 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         _instructions.Update();
         GameManager.GetLocalAircraft(out var aircraft);
         var hud = SceneSingleton<FlightHud>.i;
-        if (_aircraft != aircraft || _hud != hud) { Release(); _aircraft = aircraft; _hud = hud; }
+        if (_aircraft != aircraft || _hud != hud)
+        {
+            Release();
+            _aircraft = aircraft;
+            _hud = hud;
+        }
         if (!XRSettings.enabled || aircraft == null || hud == null || CockpitHudWidgets.CurrentAircraft != aircraft)
-        { Release(); return; }
+        {
+            Release();
+            return;
+        }
         var discover = Time.unscaledTime >= _nextFind;
-        if (discover) _nextFind = Time.unscaledTime + .5f;
+        if (discover)
+            _nextFind = Time.unscaledTime + .5f;
         // Capture every sibling's original index before moving any of them.
         foreach (var source in _sources)
         {
             if (!CockpitHudWidgets.TryGetContent(source.Id, out var content))
-            { source.Lease?.Restore(); source.Lease = null; CockpitHudWidgets.SetHasContent(source.Id, false); continue; }
+            {
+                source.Lease?.Restore();
+                source.Lease = null;
+                CockpitHudWidgets.SetHasContent(source.Id, false);
+                continue;
+            }
             if (source.Lease != null && (!source.Lease.Valid || source.Lease.Slot != content))
-            { source.Lease.Restore(); source.Lease = null; }
+            {
+                source.Lease.Restore();
+                source.Lease = null;
+            }
             if (discover && source.Lease == null && !source.Failed)
             {
                 var widget = source.Id == "damage" ? FindDamage(hud.statusAnchor) : Find(hud.transform, source.Name);
-                if (widget != null) source.Lease = new Lease(widget, content, source.Id == "weapons", source.Id == "damage");
+                if (widget != null)
+                    source.Lease = new Lease(widget, content, source.Id == "weapons", source.Id == "damage");
             }
         }
         foreach (var source in _sources)
         {
             if (source.Lease is { Attached: false } lease)
             {
-                try { lease.Attach(); }
+                try
+                {
+                    lease.Attach();
+                }
                 catch (Exception error)
                 {
-                    lease.Restore(); source.Lease = null; source.Failed = true;
+                    lease.Restore();
+                    source.Lease = null;
+                    source.Failed = true;
                     Debug.LogWarning("[NOVR] Keeping native " + source.Name + " after widget attachment failed: " + error.Message);
                 }
             }
-            if (discover) source.Lease?.Refresh();
+            if (discover)
+                source.Lease?.Refresh();
             source.Lease?.Fit();
             CockpitHudWidgets.SetHasContent(source.Id, source.Lease?.HasContent == true);
         }
@@ -271,22 +360,28 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         for (var i = 0; i < parent.childCount; i++)
         {
             var child = parent.GetChild(i);
-            if (child.name == name && child is RectTransform rect) return rect;
-            var nested = Find(child, name); if (nested != null) return nested;
+            if (child.name == name && child is RectTransform rect)
+                return rect;
+            var nested = Find(child, name);
+            if (nested != null)
+                return nested;
         }
         return null;
     }
 
     private static RectTransform? FindDamage(Transform parent)
     {
-        if (parent == null) return null;
+        if (parent == null)
+            return null;
         // These are instantiated per aircraft with different prefab names.
         // Search only the live HUD anchor, never aircraft assets or previews.
-        if (parent.GetComponent<StatusDisplay>() != null && parent is RectTransform rect) return rect;
+        if (parent.GetComponent<StatusDisplay>() != null && parent is RectTransform rect)
+            return rect;
         for (var i = 0; i < parent.childCount; i++)
         {
             var found = FindDamage(parent.GetChild(i));
-            if (found != null) return found;
+            if (found != null)
+                return found;
         }
         return null;
     }
@@ -298,17 +393,33 @@ internal sealed class CockpitStatusSources : MonoBehaviour
     private void Release()
     {
         _restore.Clear();
-        foreach (var source in _sources) if (source.Lease != null) _restore.Add(source.Lease);
+        foreach (var source in _sources)
+            if (source.Lease != null)
+                _restore.Add(source.Lease);
         _restore.Sort((a, b) => a.Index.CompareTo(b.Index));
-        foreach (var lease in _restore) lease.Restore();
+        foreach (var lease in _restore)
+            lease.Restore();
         _restore.Clear();
         foreach (var source in _sources)
         {
-            source.Lease = null; source.Failed = false;
+            source.Lease = null;
+            source.Failed = false;
             CockpitHudWidgets.SetHasContent(source.Id, false);
         }
-        _aircraft = null; _hud = null; _nextFind = 0;
+        _aircraft = null;
+        _hud = null;
+        _nextFind = 0;
     }
-    private void OnDisable() { Release(); _instructions.Release(); }
-    private void OnDestroy() { Release(); _instructions.Release(); if (_instance == this) _instance = null; }
+    private void OnDisable()
+    {
+        Release();
+        _instructions.Release();
+    }
+    private void OnDestroy()
+    {
+        Release();
+        _instructions.Release();
+        if (_instance == this)
+            _instance = null;
+    }
 }

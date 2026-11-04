@@ -13,7 +13,10 @@ internal static class MissionTagListOrderFix
         [HarmonyPrefix]
         private static void Prefix(global::MissionTagListItem __instance, MissionTag tag)
         {
-            __instance.transform.localPosition = __instance.transform.localPosition with { z = 0 };
+            __instance.transform.localPosition = __instance.transform.localPosition with
+            {
+                z = 0
+            };
 
         }
     }

@@ -5,12 +5,13 @@ namespace NOVR.VrUi.SpecialBehavior;
 
 public class NOVRBlackoutCanvasBehavior : MonoBehaviour
 {
-    
+
     protected virtual void Awake()
     {
         var canvas = gameObject.GetComponent<Canvas>();
-        if (canvas == null) throw new Exception($"{typeof(NOVRBlackoutCanvasBehavior)} attached to {typeof(GameObject)} without {typeof(Canvas)} component.");
-        
+        if (canvas == null)
+            throw new Exception($"{typeof(NOVRBlackoutCanvasBehavior)} attached to {typeof(GameObject)} without {typeof(Canvas)} component.");
+
         ApplyVrUiLayerRecursive(canvas.transform);
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = APIBus.CockpitHudCamera;

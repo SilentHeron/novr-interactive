@@ -20,7 +20,8 @@ internal static class ProtonControllerCompatibility
 
     internal static void Initialize()
     {
-        if (_registered) return;
+        if (_registered)
+            return;
         _registered = true;
         _enabled = ModConfiguration.Instance.DisableProtonXInput.Value && IsWine();
         if (_enabled && ReInput.isReady)
@@ -29,7 +30,10 @@ internal static class ProtonControllerCompatibility
 
     private static bool IsWine()
     {
-        try { return WineGetVersion() != IntPtr.Zero; }
+        try
+        {
+            return WineGetVersion() != IntPtr.Zero;
+        }
         catch (DllNotFoundException) { return false; }
         catch (EntryPointNotFoundException) { return false; }
         catch (BadImageFormatException) { return false; }
@@ -37,7 +41,8 @@ internal static class ProtonControllerCompatibility
 
     internal static void BeforeInitialization(InputManager_Base manager)
     {
-        if (!_enabled || !ModConfiguration.Instance.DisableProtonXInput.Value || ReInput.isReady || manager == null) return;
+        if (!_enabled || !ModConfiguration.Instance.DisableProtonXInput.Value || ReInput.isReady || manager == null)
+            return;
         try
         {
             // Awake/OnEnable have not created the platform backend yet. Change
@@ -45,11 +50,14 @@ internal static class ProtonControllerCompatibility
             // or touching saved bindings. The runtime configuration setter
             // resets Rewired and is unsafe inside its InitializedEvent callback.
             var config = manager.userData?.ConfigVars;
-            if (config == null) return;
+            if (config == null)
+                return;
             var xinputPrimary = config.windowsStandalonePrimaryInputSource == WindowsStandalonePrimaryInputSource.XInput;
-            if (!config.useXInput && !xinputPrimary) return;
+            if (!config.useXInput && !xinputPrimary)
+                return;
             config.useXInput = false;
-            if (xinputPrimary) config.windowsStandalonePrimaryInputSource = WindowsStandalonePrimaryInputSource.RawInput;
+            if (xinputPrimary)
+                config.windowsStandalonePrimaryInputSource = WindowsStandalonePrimaryInputSource.RawInput;
             Debug.Log("[NOVR] Proton compatibility: legacy Rewired XInput polling disabled; OpenXR motion-controller input retained.");
         }
         catch (Exception exception)

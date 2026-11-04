@@ -28,29 +28,29 @@ foreach (var travel in new[] { .05f, .12f, .22f })
         "Readout remains actual command rather than rescaled travel percentage");
 }
 foreach (var onset in new[] { .5f, .85f, .9f, .95f })
-foreach (var travel in new[] { .05f, .12f, .22f })
-{
-    var mil = ThrottleDetent.MilitaryCommand(onset);
-    var commandTravel = ThrottleDetent.CommandTravel(travel);
-    var width = ThrottleDetent.TravelMeters / commandTravel;
-    Check(mil < onset && onset - mil <= .000101f, "MIL shelf holds immediately below native AB onset");
-    foreach (var shelfFraction in new[] { 0f, .01f, .5f, .99f, 1f })
+    foreach (var travel in new[] { .05f, .12f, .22f })
     {
-        var command = ThrottleDetent.Output(mil + width * shelfFraction, mil, width);
-        // Native gauge chooses AB for >= onset; engine target is Clamp01 of
-        // (command-onset)/(1-onset). Both must remain dry through the shelf.
-        Check(command < onset && FlightControlMath.Clamp((command - onset) / (1 - onset), 0, 1) == 0,
-            "Entire detent shelf stays outside native afterburner region and thrust ramp");
-        var bindingRoundTrip = (FlightControlMath.ToSimulatedThrottle(command, true, false) + 1) * .5f;
-        Check(bindingRoundTrip < onset, "Negative-axis binding conversion does not round the shelf back into AB");
-        Check(Math.Abs(ThrottleDetent.Output(ThrottleDetent.Input(command, mil, width), mil, width) - command) < .000001f,
-            "Release and regrab preserves protected MIL command");
+        var mil = ThrottleDetent.MilitaryCommand(onset);
+        var commandTravel = ThrottleDetent.CommandTravel(travel);
+        var width = ThrottleDetent.TravelMeters / commandTravel;
+        Check(mil < onset && onset - mil <= .000101f, "MIL shelf holds immediately below native AB onset");
+        foreach (var shelfFraction in new[] { 0f, .01f, .5f, .99f, 1f })
+        {
+            var command = ThrottleDetent.Output(mil + width * shelfFraction, mil, width);
+            // Native gauge chooses AB for >= onset; engine target is Clamp01 of
+            // (command-onset)/(1-onset). Both must remain dry through the shelf.
+            Check(command < onset && FlightControlMath.Clamp((command - onset) / (1 - onset), 0, 1) == 0,
+                "Entire detent shelf stays outside native afterburner region and thrust ramp");
+            var bindingRoundTrip = (FlightControlMath.ToSimulatedThrottle(command, true, false) + 1) * .5f;
+            Check(bindingRoundTrip < onset, "Negative-axis binding conversion does not round the shelf back into AB");
+            Check(Math.Abs(ThrottleDetent.Output(ThrottleDetent.Input(command, mil, width), mil, width) - command) < .000001f,
+                "Release and regrab preserves protected MIL command");
+        }
+        Check(Math.Abs(ThrottleDetent.Output(travel / commandTravel, mil, width) - 1) < .000001f,
+            "Protected detent retains full afterburner at end of travel");
+        Check(ThrottleDetent.Output(mil + width + .001f, mil, width) > onset,
+            "Moving through detent still enters afterburner");
     }
-    Check(Math.Abs(ThrottleDetent.Output(travel / commandTravel, mil, width) - 1) < .000001f,
-        "Protected detent retains full afterburner at end of travel");
-    Check(ThrottleDetent.Output(mil + width + .001f, mil, width) > onset,
-        "Moving through detent still enters afterburner");
-}
 var aircraft = new Aircraft
 {
     engineStates = new object[] { new Turbojet { nozzles = new[] { new JetNozzle { afterburners = new[] { new Burner(.9f) } } } } },
@@ -64,7 +64,7 @@ Check(nativeOnset == .85f && shelf < .85f, "An earlier aircraft-authored gauge b
 aircraft.parameters.HUDExtras = null;
 shelf = MilitaryPower.Find(aircraft, out nativeOnset);
 Check(nativeOnset == .9f && shelf < .9f, "Missing HUD uses actual nozzle threshold safely");
-aircraft.engineStates = new object[] { new Turbojet { nozzles = new[] { new JetNozzle { afterburners = new[] { new Burner(.9f), new Burner(.85f), new Burner(.3f, force:0), new Burner(.2f, force:float.PositiveInfinity) } } } } };
+aircraft.engineStates = new object[] { new Turbojet { nozzles = new[] { new JetNozzle { afterburners = new[] { new Burner(.9f), new Burner(.85f), new Burner(.3f, force: 0), new Burner(.2f, force: float.PositiveInfinity) } } } } };
 shelf = MilitaryPower.Find(aircraft, out nativeOnset);
 Check(nativeOnset == .85f && shelf < .85f, "Earliest active burner wins; disabled/invalid burners are ignored");
 aircraft.engineStates = Array.Empty<object>();

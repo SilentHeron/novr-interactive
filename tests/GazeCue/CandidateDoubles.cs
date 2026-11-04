@@ -12,14 +12,23 @@ namespace HarmonyLib
         {
             var field = typeof(T).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;
             var method = new DynamicMethod("FixtureFieldRef", typeof(TField).MakeByRefType(), new[] { typeof(T) }, typeof(T), true);
-            var il = method.GetILGenerator(); il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldflda, field); il.Emit(OpCodes.Ret);
+            var il = method.GetILGenerator();
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldflda, field);
+            il.Emit(OpCodes.Ret);
             return (FieldRef<T, TField>)method.CreateDelegate(typeof(FieldRef<T, TField>));
         }
     }
 }
 
-public class Unit { public bool disabled; }
-public sealed class Aircraft : Unit { public WeaponManager? weaponManager = new(); }
+public class Unit
+{
+    public bool disabled;
+}
+public sealed class Aircraft : Unit
+{
+    public WeaponManager? weaponManager = new();
+}
 public sealed class WeaponManager
 {
     public readonly List<Unit> Targets = new();
@@ -45,4 +54,7 @@ public sealed class TargetListSelector
     public readonly HashSet<Unit> Excluded = new();
     public bool CheckExclusions(Unit unit) => Excluded.Contains(unit);
 }
-public static class SceneSingleton<T> where T : class { public static T? i; }
+public static class SceneSingleton<T> where T : class
+{
+    public static T? i;
+}

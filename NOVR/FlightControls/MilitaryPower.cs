@@ -25,13 +25,16 @@ internal static class MilitaryPower
             // Both native jet engine families pass the pilot's normalized
             // throttle to their afterburners. DuctedThrustSystem does not.
             var field = state is Turbojet ? TurbojetNozzles : state is Turbofan ? TurbofanNozzles : null;
-            if (field?.GetValue(state) is not JetNozzle[] nozzles) continue;
+            if (field?.GetValue(state) is not JetNozzle[] nozzles)
+                continue;
             foreach (var nozzle in nozzles)
             {
-                if (nozzle == null || NozzleBurners?.GetValue(nozzle) is not Array burners) continue;
+                if (nozzle == null || NozzleBurners?.GetValue(nozzle) is not Array burners)
+                    continue;
                 foreach (var burner in burners)
                 {
-                    if (burner == null) continue;
+                    if (burner == null)
+                        continue;
                     var type = burner.GetType();
                     if (AccessTools.Field(type, "throttleStart")?.GetValue(burner) is float start &&
                         AccessTools.Field(type, "throttleEnd")?.GetValue(burner) is float end &&
@@ -52,7 +55,8 @@ internal static class MilitaryPower
                 foreach (var gauge in extras.GetComponentsInChildren<ThrottleGauge>(true))
                 {
                     if (GaugeAfterburner?.GetValue(gauge) is not true ||
-                        GaugeRegions?.GetValue(gauge) is not Array regions || regions.Length == 0) continue;
+                        GaugeRegions?.GetValue(gauge) is not Array regions || regions.Length == 0)
+                        continue;
                     // Native ThrottleGauge itself uses the final region's start
                     // for its afterburner boundary, independent of display names.
                     var region = regions.GetValue(regions.Length - 1);

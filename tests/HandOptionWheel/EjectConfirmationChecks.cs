@@ -7,7 +7,8 @@ internal static class EjectConfirmationChecks
         const float dt = 1f / 90f;
         EjectConfirmationGesture Begin()
         {
-            var gesture = new EjectConfirmationGesture(); gesture.Begin();
+            var gesture = new EjectConfirmationGesture();
+            gesture.Begin();
             check(gesture.Active && !gesture.Holding && gesture.Progress == 0, "eject begins idle, requiring release");
             return gesture;
         }
@@ -28,7 +29,9 @@ internal static class EjectConfirmationChecks
 
         foreach (var rate in new[] { 30, 60, 72, 90, 120, 144 })
         {
-            var gesture = Hold(); var step = 1f / rate; double elapsed = 0;
+            var gesture = Hold();
+            var step = 1f / rate;
+            double elapsed = 0;
             while (elapsed + step < 1.2d)
             {
                 elapsed += step;
@@ -44,18 +47,21 @@ internal static class EjectConfirmationChecks
                     "confirmed gesture never repeats after held click or release");
         }
 
-        var g = Begin(); RemainsDisarmed(g);
+        var g = Begin();
+        RemainsDisarmed(g);
         g.Update(true, false, 0, 0, 0, dt);
         check(g.Update(true, true, 0, 0, 0, dt) == EjectConfirmationEvent.None && g.Holding,
             "a held click on confirmation entry needs release plus new press");
 
         foreach (var offCentre in new[] { .221f, .30f, .45f })
         {
-            g = Begin(); g.Update(true, false, 0, offCentre, 0, dt);
+            g = Begin();
+            g.Update(true, false, 0, offCentre, 0, dt);
             check(g.Update(true, true, 0, offCentre, 0, dt) == EjectConfirmationEvent.None && !g.Holding,
                 "off-centre press cannot start eject");
             RemainsDisarmed(g);
-            g.Update(true, false, 0, 0, 0, dt); g.Update(true, true, 0, 0, 0, dt);
+            g.Update(true, false, 0, 0, 0, dt);
+            g.Update(true, true, 0, 0, 0, dt);
             check(g.Holding, "off-centre rejection permits a fresh centered retry");
         }
 
@@ -70,7 +76,8 @@ internal static class EjectConfirmationChecks
             "center tolerance uses radial distance, not independent square axes");
 
         g = Hold();
-        for (var i = 0; i < 100; i++) g.Update(true, true, 0, 0, 0, dt);
+        for (var i = 0; i < 100; i++)
+            g.Update(true, true, 0, 0, 0, dt);
         check(g.Progress > .9f, "early release case has substantial real progress");
         check(g.Update(true, false, 0, 0, 0, .15f) == EjectConfirmationEvent.None && g.Active &&
             !g.Holding && g.Progress == 0, "early release resets progress but keeps confirmation available");
@@ -82,14 +89,18 @@ internal static class EjectConfirmationChecks
         foreach (var gap in new[] { .15001f, .5f, 5f })
         {
             g = Hold();
-            for (var i = 0; i < 100; i++) g.Update(true, true, 0, 0, 0, dt);
+            for (var i = 0; i < 100; i++)
+                g.Update(true, true, 0, 0, 0, dt);
             check(g.Update(true, true, 0, 0, 0, gap) == EjectConfirmationEvent.None && g.Active &&
                 !g.Holding && g.Progress == 0, "stalled frame resets hold without ejecting or dismissing retry");
             RemainsDisarmed(g);
-            g.Update(true, false, 0, 0, 0, dt); g.Update(true, true, 0, 0, 0, dt);
+            g.Update(true, false, 0, 0, 0, dt);
+            g.Update(true, true, 0, 0, 0, dt);
             check(g.Holding, "frame-gap recovery requires released click then new press");
         }
-        g = Hold(); g.Update(true, true, 0, 0, 0, .1f); var progress = g.Progress;
+        g = Hold();
+        g.Update(true, true, 0, 0, 0, .1f);
+        var progress = g.Progress;
         for (var i = 0; i < 20; i++)
             check(g.Update(true, true, 0, 0, 0, 0) == EjectConfirmationEvent.None && g.Progress == progress,
                 "zero time cannot advance eject confirmation");
@@ -97,26 +108,39 @@ internal static class EjectConfirmationChecks
         void Cancels(bool available = true, float trigger = 0, float x = 0, float y = 0, float step = dt)
         {
             var gesture = Hold();
-            for (var i = 0; i < 107; i++) gesture.Update(true, true, 0, 0, 0, dt);
+            for (var i = 0; i < 107; i++)
+                gesture.Update(true, true, 0, 0, 0, dt);
             check(gesture.Update(available, true, trigger, x, y, step) == EjectConfirmationEvent.Cancel &&
                 !gesture.Active && !gesture.Holding && gesture.Progress == 0, "unsafe input/context cancels and clears eject hold");
             check(gesture.Update(true, false, 0, 0, 0, dt) == EjectConfirmationEvent.None &&
                 gesture.Update(true, true, 0, 0, 0, dt) == EjectConfirmationEvent.None && !gesture.Active,
                 "cancel emits once and cannot silently resume after recovery");
         }
-        Cancels(available:false); // Caller uses false for tracking, pause, menu and aircraft loss.
-        foreach (var radius in new[] { .451f, 1f, -1f, float.MaxValue }) Cancels(x:radius);
-        Cancels(x:.32f, y:.32f);
-        foreach (var trigger in new[] { .75f, 1f, -1f }) Cancels(trigger:trigger);
-        Cancels(step:-.001f);
+        Cancels(available: false); // Caller uses false for tracking, pause, menu and aircraft loss.
+        foreach (var radius in new[] { .451f, 1f, -1f, float.MaxValue })
+            Cancels(x: radius);
+        Cancels(x: .32f, y: .32f);
+        foreach (var trigger in new[] { .75f, 1f, -1f })
+            Cancels(trigger: trigger);
+        Cancels(step: -.001f);
         foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
-        { Cancels(trigger:bad); Cancels(x:bad); Cancels(y:bad); Cancels(step:bad); }
+        {
+            Cancels(trigger: bad);
+            Cancels(x: bad);
+            Cancels(y: bad);
+            Cancels(step: bad);
+        }
 
         g = Begin();
         check(g.Update(true, false, 1, 0, 0, dt) == EjectConfirmationEvent.Cancel,
             "trigger already down on entry also cancels safely");
-        g = Hold(); g.Update(true, true, 0, 0, 0, .1f); g.Begin(); RemainsDisarmed(g);
-        g = Hold(); g.Update(true, true, 0, 0, 0, .1f); g.Reset();
+        g = Hold();
+        g.Update(true, true, 0, 0, 0, .1f);
+        g.Begin();
+        RemainsDisarmed(g);
+        g = Hold();
+        g.Update(true, true, 0, 0, 0, .1f);
+        g.Reset();
         check(!g.Active && !g.Holding && g.Progress == 0 &&
             g.Update(true, true, 0, 0, 0, dt) == EjectConfirmationEvent.None,
             "external reset removes pending confirmation and does not reopen");

@@ -15,7 +15,10 @@ internal sealed class MotionControlVisuals : IDisposable
         _active.Root.gameObject.activeInHierarchy && (stick ? _active._nativeStick : _active._nativeThrottle)?.UsesFittedPose == true;
     internal static bool HasFittedCollective => _active != null && _active.Root != null &&
         _active.Root.gameObject.activeInHierarchy && _active._nativeThrottle?.UsesCollectivePose == true;
-    public Transform Root { get; }
+    public Transform Root
+    {
+        get;
+    }
     private readonly Transform _stickBase, _stickPivot, _throttleBase, _throttleHandle;
     private readonly Transform _stickHand, _throttleHand, _rail;
     private readonly Transform _sliderParts, _collectiveParts, _collectiveJoint, _collectiveShaft;
@@ -46,7 +49,8 @@ internal sealed class MotionControlVisuals : IDisposable
             // GUI/Text Shader ignores depth. UI/Default supports the same alpha
             // font atlas with an explicit per-material depth test.
             var textShader = Shader.Find("UI/Default");
-            if (textShader == null) throw new InvalidOperationException("No depth-tested caption shader is available.");
+            if (textShader == null)
+                throw new InvalidOperationException("No depth-tested caption shader is available.");
             _textMaterial = new Material(textShader) { name = "NOVR flight caption", color = Color.white };
             _textMaterial.SetInt("unity_GUIZTestMode", (int)CompareFunction.LessEqual);
             RefreshFontTexture(_font);
@@ -90,7 +94,8 @@ internal sealed class MotionControlVisuals : IDisposable
             _milMark = Child("MIL detent gate", _throttleBase);
             Shape("Detent notch", PrimitiveType.Cube, _milMark, Vector3.zero, new Vector3(.025f, .004f, .007f), _indicatorWhite);
             var milLabel = Label("MIL", _milMark, new Vector3(0, .0022f, -.011f));
-            milLabel.characterSize = .0011f; milLabel.transform.localRotation = Quaternion.Euler(90,0,0);
+            milLabel.characterSize = .0011f;
+            milLabel.transform.localRotation = Quaternion.Euler(90, 0, 0);
             _indicatorTrack = Shape("Throttle slider rail", PrimitiveType.Cube, _throttleBase, Vector3.zero,
                 Vector3.one, _indicatorGrey).transform;
             _indicatorFill = Shape("Throttle slider fill", PrimitiveType.Cube, _throttleBase, Vector3.zero,
@@ -121,15 +126,20 @@ internal sealed class MotionControlVisuals : IDisposable
             _fallbackThrottle.AddRange(group.GetComponentsInChildren<Renderer>(true));
         _nativeStick = NativeControlModel.TryCreate(aircraft, true, _stickPivot);
         _nativeThrottle = NativeControlModel.TryCreate(aircraft, false, _throttleHandle);
-        if (_nativeStick != null) foreach (var renderer in _fallbackStick) renderer.enabled = false;
-        if (_nativeThrottle != null) foreach (var renderer in _fallbackThrottle) renderer.enabled = false;
+        if (_nativeStick != null)
+            foreach (var renderer in _fallbackStick)
+                renderer.enabled = false;
+        if (_nativeThrottle != null)
+            foreach (var renderer in _fallbackThrottle)
+                renderer.enabled = false;
         SetMirrored(ModConfiguration.Instance.MotionControls.LeftHanded.Value);
         _active = this;
     }
     internal void SetVisible(bool visible)
     {
         Root.gameObject.SetActive(visible);
-        _nativeStick?.SetVisible(visible); _nativeThrottle?.SetVisible(visible);
+        _nativeStick?.SetVisible(visible);
+        _nativeThrottle?.SetVisible(visible);
     }
 
     internal Pose GripPose(bool stick) => stick
@@ -138,10 +148,13 @@ internal sealed class MotionControlVisuals : IDisposable
 
     private void SetMirrored(bool mirrored)
     {
-        if (_mirrored == mirrored) return;
+        if (_mirrored == mirrored)
+            return;
         _mirrored = mirrored;
-        _fallbackStickMirror?.SetMirrored(mirrored); _fallbackThrottleMirror?.SetMirrored(mirrored);
-        _nativeStick?.SetMirrored(mirrored); _nativeThrottle?.SetMirrored(mirrored);
+        _fallbackStickMirror?.SetMirrored(mirrored);
+        _fallbackThrottleMirror?.SetMirrored(mirrored);
+        _nativeStick?.SetMirrored(mirrored);
+        _nativeThrottle?.SetMirrored(mirrored);
     }
 
     public void Update(Vector3 stick, Vector3 throttle, float travel, float angle, float pitch, float roll,
@@ -243,7 +256,8 @@ internal sealed class MotionControlVisuals : IDisposable
         var state = ThrottleIndicatorMath.State(thrust, militaryPower, collective, hover);
         if (percent != _lastPercent || state != _lastThrottleState)
         {
-            _lastPercent = percent; _lastThrottleState = state;
+            _lastPercent = percent;
+            _lastThrottleState = state;
             _throttleReadout.text = percent.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%\n" + state;
         }
     }
@@ -296,7 +310,8 @@ internal sealed class MotionControlVisuals : IDisposable
 
     private void RefreshFontTexture(Font font)
     {
-        if (font != _font || _textMaterial == null) return;
+        if (font != _font || _textMaterial == null)
+            return;
         var texture = _font.material.mainTexture;
         _textMaterial.mainTexture = texture;
         // Dynamic fonts are alpha-only: supply white RGB without altering alpha.
@@ -322,12 +337,17 @@ internal sealed class MotionControlVisuals : IDisposable
 
     public void Dispose()
     {
-        if (_active == this) _active = null;
-        _fallbackStickMirror?.Dispose(); _fallbackThrottleMirror?.Dispose();
-        _nativeStick?.Dispose(); _nativeThrottle?.Dispose();
+        if (_active == this)
+            _active = null;
+        _fallbackStickMirror?.Dispose();
+        _fallbackThrottleMirror?.Dispose();
+        _nativeStick?.Dispose();
+        _nativeThrottle?.Dispose();
         Font.textureRebuilt -= RefreshFontTexture;
-        if (Root != null) Object.Destroy(Root.gameObject);
-        foreach (var mesh in _shadedMeshes.Values) Object.Destroy(mesh);
+        if (Root != null)
+            Object.Destroy(Root.gameObject);
+        foreach (var mesh in _shadedMeshes.Values)
+            Object.Destroy(mesh);
         _shadedMeshes.Clear();
         Object.Destroy(_baseMaterial);
         Object.Destroy(_idleMaterial);

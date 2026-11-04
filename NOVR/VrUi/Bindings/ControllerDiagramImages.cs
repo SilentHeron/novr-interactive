@@ -17,7 +17,8 @@ internal static class ControllerDiagramImages
     internal static string File(bool frame, bool left, bool side) => frame ? "frame-views.png" : "touch-diagram.png";
     internal static Rect Region(bool frame, bool left, bool side)
     {
-        if (!frame) return new Rect(left ? 0 : 585f / 800, 0, 215f / 800, 1);
+        if (!frame)
+            return new Rect(left ? 0 : 585f / 800, 0, 215f / 800, 1);
         var x = side ? (left ? 122 : 86) : (left ? 1262 : 1272);
         var y = side ? (left ? 1210 : 438) : (left ? 768 : 31);
         var height = side ? 241 : 348;
@@ -33,8 +34,10 @@ internal static class ControllerDiagramImages
     private static Vector2 FramePoint(bool left, ControllerButton? button)
     {
         // Measured against Valve's original front/top and underside drawings.
-        if (button == ControllerButton.Trigger) return new Vector2(left ? 106.25f / 202 : 100f / 202, 133f / 241);
-        if (button == ControllerButton.Shoulder) return new Vector2(left ? 103f / 202 : 100f / 202, 86f / 241);
+        if (button == ControllerButton.Trigger)
+            return new Vector2(left ? 106.25f / 202 : 100f / 202, 133f / 241);
+        if (button == ControllerButton.Shoulder)
+            return new Vector2(left ? 103f / 202 : 100f / 202, 86f / 241);
         var point = button switch
         {
             ControllerButton.Menu => new Vector2(left ? 101.25f : 100.625f, 67.5f),
@@ -65,21 +68,28 @@ internal static class ControllerDiagramImages
     internal static Texture2D? Get(bool frame, bool left, bool side)
     {
         var file = File(frame, left, side);
-        if (Textures.TryGetValue(file, out var cached)) return cached;
+        if (Textures.TryGetValue(file, out var cached))
+            return cached;
         Texture2D? texture = null;
         try
         {
             using var stream = typeof(ControllerDiagramImages).Assembly.GetManifestResourceStream("NOVR.Controllers." + file);
-            if (stream == null) throw new InvalidDataException("Missing controller artwork: " + file);
-            using var bytes = new MemoryStream(); stream.CopyTo(bytes);
+            if (stream == null)
+                throw new InvalidDataException("Missing controller artwork: " + file);
+            using var bytes = new MemoryStream();
+            stream.CopyTo(bytes);
             texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { name = file, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-            if (!ImageConversion.LoadImage(texture, bytes.ToArray(), true)) throw new InvalidDataException("Invalid controller artwork: " + file);
+            if (!ImageConversion.LoadImage(texture, bytes.ToArray(), true))
+                throw new InvalidDataException("Invalid controller artwork: " + file);
         }
         catch (Exception e)
         {
-            if (texture != null) UnityEngine.Object.Destroy(texture);
-            texture = null; Debug.LogWarning("[NOVR] " + e.Message);
+            if (texture != null)
+                UnityEngine.Object.Destroy(texture);
+            texture = null;
+            Debug.LogWarning("[NOVR] " + e.Message);
         }
-        Textures[file] = texture; return texture;
+        Textures[file] = texture;
+        return texture;
     }
 }

@@ -9,12 +9,17 @@ public class Component
     public RectTransform transform => gameObject.Rect;
     public T? GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
 }
-public class MonoBehaviour : Component { }
+public class MonoBehaviour : Component
+{
+}
 public sealed class GameObject
 {
     private readonly Dictionary<Type, Component> _components = new();
     public bool activeSelf = true;
-    public RectTransform Rect { get; }
+    public RectTransform Rect
+    {
+        get;
+    }
     public GameObject(Vector2 anchor)
     {
         Rect = new RectTransform { gameObject = this, anchoredPosition = anchor };
@@ -30,7 +35,10 @@ public sealed class GameObject
     }
     public void SetActive(bool value) => activeSelf = value;
 }
-public sealed class RectTransform : Component { public Vector2 anchoredPosition; }
+public sealed class RectTransform : Component
+{
+    public Vector2 anchoredPosition;
+}
 public sealed class CanvasGroup : Component
 {
     public float alpha = 1;
@@ -46,7 +54,10 @@ public readonly struct Vector2(float x, float y)
         return new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
     }
 }
-public static class Time { public static float unscaledDeltaTime = 1f / 90; }
+public static class Time
+{
+    public static float unscaledDeltaTime = 1f / 90;
+}
 public static class Mathf
 {
     public static float Clamp01(float value) => Math.Clamp(value, 0, 1);

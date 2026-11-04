@@ -19,7 +19,8 @@ internal sealed class HudReadability : MonoBehaviour
     internal static void Add(Transform panel, bool secondary)
     {
         var behavior = panel.GetComponent<HudReadability>();
-        if (behavior == null) behavior = panel.gameObject.AddComponent<HudReadability>();
+        if (behavior == null)
+            behavior = panel.gameObject.AddComponent<HudReadability>();
         behavior._secondary = secondary;
     }
 
@@ -47,7 +48,8 @@ internal sealed class HudReadability : MonoBehaviour
     {
         if (_sourcesMoved)
         {
-            if (_backplate != null) _backplate.enabled = false;
+            if (_backplate != null)
+                _backplate.enabled = false;
             _group?.Apply(0);
             return;
         }
@@ -65,7 +67,8 @@ internal sealed class HudReadability : MonoBehaviour
         // use contrast when the compact warning view cannot replace them.
         var mapMoved = _secondary && CockpitHudWidgets.Owns("map") && GetComponentInChildren<DynamicMap>(true) == null;
         var nativeThreats = incomingMissile && !CockpitAlerts.Active;
-        if (_backplate != null) _backplate.enabled = config.HudContrast.Value &&
+        if (_backplate != null)
+            _backplate.enabled = config.HudContrast.Value &&
             !(_secondary && CockpitAlerts.Active) &&
             (!mapMoved || nativeThreats);
         _readabilityAlpha = _secondary && config.HudDeclutter.Value && !incomingMissile ? 0.15f : 1f;
@@ -75,20 +78,26 @@ internal sealed class HudReadability : MonoBehaviour
     internal void SetWidgetSourcesMoved(bool moved)
     {
         _sourcesMoved = moved;
-        if (moved && _backplate != null) _backplate.enabled = false;
-        if (isActiveAndEnabled) _group?.Apply(moved ? 0 : _readabilityAlpha);
-        else _group?.Restore();
+        if (moved && _backplate != null)
+            _backplate.enabled = false;
+        if (isActiveAndEnabled)
+            _group?.Apply(moved ? 0 : _readabilityAlpha);
+        else
+            _group?.Restore();
     }
 
     private void OnDisable()
     {
-        _sourcesMoved = false; _group?.Restore();
-        if (_backplate != null) _backplate.enabled = false;
+        _sourcesMoved = false;
+        _group?.Restore();
+        if (_backplate != null)
+            _backplate.enabled = false;
     }
 
     private void OnDestroy()
     {
         _group?.Release();
-        if (_backplate != null) Destroy(_backplate.gameObject);
+        if (_backplate != null)
+            Destroy(_backplate.gameObject);
     }
 }

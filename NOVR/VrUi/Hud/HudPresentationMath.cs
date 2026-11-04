@@ -2,7 +2,10 @@ using System;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
-internal enum AircraftLabelAffiliation { Other, Friendly, Hostile }
+internal enum AircraftLabelAffiliation
+{
+    Other, Friendly, Hostile
+}
 
 internal static class HudPresentationMath
 {

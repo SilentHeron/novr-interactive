@@ -31,8 +31,10 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         // These are shared native labels for the first selected target, not
         // children of each HUDUnitMarker. Do not infer affiliation from color
         // (selection changes it) or scale every marker during its update loop.
-        if (_targetTextStyle != null) _targetTextStyle.SetAircraftLabelAffiliation(affiliation);
-        if (_targetInfoStyle != null) _targetInfoStyle.SetAircraftLabelAffiliation(affiliation);
+        if (_targetTextStyle != null)
+            _targetTextStyle.SetAircraftLabelAffiliation(affiliation);
+        if (_targetInfoStyle != null)
+            _targetInfoStyle.SetAircraftLabelAffiliation(affiliation);
     }
 
     internal static AircraftLabelAffiliation LabelAffiliation(Unit? unit) => unit is Aircraft
@@ -46,8 +48,10 @@ internal sealed class TargetingHudStyle : MonoBehaviour
 
     private void RestoreAircraftLabels()
     {
-        if (_targetTextStyle != null) _targetTextStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
-        if (_targetInfoStyle != null) _targetInfoStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
+        if (_targetTextStyle != null)
+            _targetTextStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
+        if (_targetInfoStyle != null)
+            _targetInfoStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
     }
     private void OnDisable() => RestoreAircraftLabels();
 
@@ -55,7 +59,8 @@ internal sealed class TargetingHudStyle : MonoBehaviour
     {
         var combat = SceneSingleton<CombatHUD>.i;
         UpdateAircraftLabels(combat);
-        if (Time.unscaledTime < _nextScan) return;
+        if (Time.unscaledTime < _nextScan)
+            return;
         _nextScan = Time.unscaledTime + .5f;
         var flight = SceneSingleton<FlightHud>.i;
         if (flight != null)
@@ -63,10 +68,12 @@ internal sealed class TargetingHudStyle : MonoBehaviour
             HudElementStyle.Add(flight.velocityVector, HudElementKind.Reticle);
             HudElementStyle.Add(flight.waterline, HudElementKind.Reticle);
         }
-        if (combat == null) return;
+        if (combat == null)
+            return;
         HudElementStyle.Add(combat.targetDesignator, HudElementKind.Reticle);
         HudElementStyle.Add(TargetArrowField.GetValue(combat) as Graphic, HudElementKind.Marker);
-        if (flight == null) return;
+        if (flight == null)
+            return;
         foreach (var state in flight.GetComponentsInChildren<HUDWeaponState>(true))
         {
             var widget = state is HUDMissileState || state is HUDLaserGuidedState || state is HUDCargoState;
@@ -86,15 +93,22 @@ internal sealed class TargetingHudStyle : MonoBehaviour
                 void Register(Graphic g)
                 {
                     // Shared target-designator graphics belong to the flight HUD.
-                    if (!g.transform.IsChildOf(state.transform)) return;
+                    if (!g.transform.IsChildOf(state.transform))
+                        return;
                     var kind = g is TMP_Text ? HudElementKind.Label :
                         field.Name == "line" ? HudElementKind.HorizontalLine :
                         field.Name == "ccipLine" || field.Name == "alignmentBar" ? HudElementKind.VerticalLine : HudElementKind.Reticle;
                     HudElementStyle.Add(g, kind);
                 }
-                if (typeof(Graphic).IsAssignableFrom(field.FieldType)) { if (field.GetValue(state) is Graphic g) Register(g); }
+                if (typeof(Graphic).IsAssignableFrom(field.FieldType))
+                {
+                    if (field.GetValue(state) is Graphic g)
+                        Register(g);
+                }
                 else if (typeof(Graphic[]).IsAssignableFrom(field.FieldType) && field.GetValue(state) is Graphic[] graphics)
-                    foreach (var g in graphics) if (g != null) Register(g);
+                    foreach (var g in graphics)
+                        if (g != null)
+                            Register(g);
             }
         }
     }

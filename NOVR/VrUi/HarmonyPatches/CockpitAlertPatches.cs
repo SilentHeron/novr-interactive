@@ -13,7 +13,8 @@ internal static class CockpitAlertPatches
         [HarmonyPostfix]
         private static void Postfix(Aircraft.OnRadarWarning source, Aircraft ___aircraft)
         {
-            if (source.detected) CockpitAlerts.Record(___aircraft, source.emitter, false);
+            if (source.detected)
+                CockpitAlerts.Record(___aircraft, source.emitter, false);
         }
     }
     [HarmonyPatch(typeof(RadarWarning), "RadarWarning_OnJammed")]
@@ -32,7 +33,8 @@ internal static class CockpitAlertPatches
         [HarmonyPostfix]
         private static void Postfix(bool __result, Image ___image)
         {
-            if (__result && CockpitAlerts.ReplacesEw && ___image != null) ___image.enabled = false;
+            if (__result && CockpitAlerts.ReplacesEw && ___image != null)
+                ___image.enabled = false;
         }
     }
     [HarmonyPatch]
@@ -43,9 +45,12 @@ internal static class CockpitAlertPatches
         [HarmonyPostfix]
         private static void Postfix(bool __result, Image ___image, Text ___text)
         {
-            if (!__result || !CockpitAlerts.ReplacesEw) return;
-            if (___image != null) ___image.enabled = false;
-            if (___text != null) ___text.enabled = false;
+            if (!__result || !CockpitAlerts.ReplacesEw)
+                return;
+            if (___image != null)
+                ___image.enabled = false;
+            if (___text != null)
+                ___text.enabled = false;
         }
     }
 }

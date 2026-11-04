@@ -11,16 +11,31 @@ using UnityEngine.XR.OpenXR;
 namespace NOVR.VrUi;
 
 [DefaultExecutionOrder(-1000)]
-public class VrUiCursor: NOVRBehaviour
+public class VrUiCursor : NOVRBehaviour
 {
-    public static VrUiCursor? Instance { get; private set; }
+    public static VrUiCursor? Instance
+    {
+        get; private set;
+    }
     public static VrUiCursor? I => Instance;
 
     public bool IsActive => _cursor != null && _cursor.activeSelf;
-    public bool IsControllerPointer { get; private set; }
-    public bool PrimaryHeld { get; private set; }
-    public bool PrimaryPressed { get; private set; }
-    public Vector2 Scroll { get; private set; }
+    public bool IsControllerPointer
+    {
+        get; private set;
+    }
+    public bool PrimaryHeld
+    {
+        get; private set;
+    }
+    public bool PrimaryPressed
+    {
+        get; private set;
+    }
+    public Vector2 Scroll
+    {
+        get; private set;
+    }
     internal bool ControllerOverMap => IsControllerPointer && _controllerPointer.OverMap;
     private readonly ControllerUiPointer _controllerPointer = new();
     private readonly ControllerButtonGate _mouseClick = new();
@@ -44,10 +59,14 @@ public class VrUiCursor: NOVRBehaviour
     private void OnDestroy()
     {
         _controllerPointer.Cancel();
-        if (_cursor != null) Destroy(_cursor);
-        if (_laser != null) Destroy(_laser.gameObject);
-        if (_laserMaterial != null) Destroy(_laserMaterial);
-        if (_texture != null) Destroy(_texture);
+        if (_cursor != null)
+            Destroy(_cursor);
+        if (_laser != null)
+            Destroy(_laser.gameObject);
+        if (_laserMaterial != null)
+            Destroy(_laserMaterial);
+        if (_texture != null)
+            Destroy(_texture);
         if (Instance == this)
         {
             Instance = null;
@@ -97,8 +116,8 @@ public class VrUiCursor: NOVRBehaviour
     private bool _reportedMissingUiModule;
     private Mouse? _virtualMouse;
     private Mouse? _realMouse;
-    
-    
+
+
     private int ScreenWidth => Screen.width;
     private int ScreenHeight => Screen.height;
     public Camera? UiCamera
@@ -108,8 +127,8 @@ public class VrUiCursor: NOVRBehaviour
             return APIBus.CockpitHudCamera;
         }
     }
-    
-    
+
+
     public Vector2 GetScreenPoint()
     {
         var camera = UiCamera;
@@ -133,8 +152,8 @@ public class VrUiCursor: NOVRBehaviour
     {
         _hasProjectionReferenceOverride = false;
     }
-    
-    
+
+
     private void Start()
     {
         _texture = CreateCursorTexture();
@@ -162,14 +181,21 @@ public class VrUiCursor: NOVRBehaviour
         if (_virtualMouse == null)
         {
             foreach (var device in InputSystem.devices)
-                if (device is Mouse mouse) { _realMouse = mouse; break; }
+                if (device is Mouse mouse)
+                {
+                    _realMouse = mouse;
+                    break;
+                }
             _virtualMouse = InputSystem.AddDevice<Mouse>("VirtualMouse");
         }
         // Menus may recreate their EventSystem after a scene transition.
         var currentModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-        if (currentModule != _boundUiModule) _hasInitializedEventSystem = false;
-        if (!_hasInitializedEventSystem) _hasInitializedEventSystem = RestrictUIModuleToVirtualMouse();
-        if (_texture == null) return;
+        if (currentModule != _boundUiModule)
+            _hasInitializedEventSystem = false;
+        if (!_hasInitializedEventSystem)
+            _hasInitializedEventSystem = RestrictUIModuleToVirtualMouse();
+        if (_texture == null)
+            return;
         EnsureCursorCanvas(camera);
         var wasController = IsControllerPointer;
         IsControllerPointer = _controllerPointer.Update(camera);
@@ -191,29 +217,50 @@ public class VrUiCursor: NOVRBehaviour
         }
         else
         {
-            if (_laser != null) _laser.enabled = false;
+            if (_laser != null)
+                _laser.enabled = false;
             // A background desktop must not feed mouse clicks into the headset.
-            if (!Application.isFocused) { ReportPointerState("hidden: no tracked pointer and desktop unfocused"); HidePointer(false); return; }
+            if (!Application.isFocused)
+            {
+                ReportPointerState("hidden: no tracked pointer and desktop unfocused");
+                HidePointer(false);
+                return;
+            }
             if (_realMouse == null || !_realMouse.added)
             {
                 _realMouse = null;
                 foreach (var device in InputSystem.devices)
-                    if (device is Mouse mouse && mouse != _virtualMouse) { _realMouse = mouse; break; }
-                if (_realMouse == null) { ReportPointerState("hidden: no tracked pointer or mouse"); HidePointer(false); return; }
+                    if (device is Mouse mouse && mouse != _virtualMouse)
+                    {
+                        _realMouse = mouse;
+                        break;
+                    }
+                if (_realMouse == null)
+                {
+                    ReportPointerState("hidden: no tracked pointer or mouse");
+                    HidePointer(false);
+                    return;
+                }
             }
             ReportPointerState("mouse fallback active");
-            if (wasController) _mouseClick.Reset();
+            if (wasController)
+                _mouseClick.Reset();
             UpdateCursorAngles();
             _mouseClick.Update(true, _realMouse.leftButton.isPressed ? 1f : 0f);
             PrimaryHeld = _mouseClick.Held;
             PrimaryPressed = _mouseClick.Pressed;
             Scroll = _realMouse.scroll.ReadValue();
             ushort buttons = PrimaryHeld ? (ushort)1 : (ushort)0;
-            if (_realMouse.rightButton.isPressed) buttons |= 2;
-            if (_realMouse.middleButton.isPressed) buttons |= 4;
+            if (_realMouse.rightButton.isPressed)
+                buttons |= 2;
+            if (_realMouse.middleButton.isPressed)
+                buttons |= 4;
             InputState.Change(_virtualMouse, new MouseState
             {
-                position = GetScreenPoint(), delta = _realMouse.delta.ReadValue(), scroll = Scroll, buttons = buttons
+                position = GetScreenPoint(),
+                delta = _realMouse.delta.ReadValue(),
+                scroll = Scroll,
+                buttons = buttons
             });
         }
         UpdateCursorAnimation();
@@ -221,7 +268,8 @@ public class VrUiCursor: NOVRBehaviour
 
     private void ReportPointerState(string state)
     {
-        if (state == _reportedPointerState || Time.unscaledTime < _nextPointerReport) return;
+        if (state == _reportedPointerState || Time.unscaledTime < _nextPointerReport)
+            return;
         _reportedPointerState = state;
         _nextPointerReport = Time.unscaledTime + 2f;
         var left = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
@@ -240,12 +288,15 @@ public class VrUiCursor: NOVRBehaviour
     {
         // Update already canceled any unavailable capture. Preserve its edge
         // observation here so an available non-owner can deliberately take over.
-        if (cancelController) _controllerPointer.Cancel();
+        if (cancelController)
+            _controllerPointer.Cancel();
         _mouseClick.Reset();
         IsControllerPointer = PrimaryHeld = PrimaryPressed = false;
         Scroll = Vector2.zero;
-        if (_cursor != null) _cursor.SetActive(false);
-        if (_laser != null) _laser.enabled = false;
+        if (_cursor != null)
+            _cursor.SetActive(false);
+        if (_laser != null)
+            _laser.enabled = false;
         if (_virtualMouse != null)
             InputState.Change(_virtualMouse, new MouseState { position = new Vector2(-10000, -10000) });
     }
@@ -265,7 +316,8 @@ public class VrUiCursor: NOVRBehaviour
             _laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _laser.receiveShadows = false;
             _laserMaterial = CockpitMaterials.Opaque("NOVR menu pointer", CursorHoverColor);
-            if (_laserMaterial.HasProperty("_Cull")) _laserMaterial.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            if (_laserMaterial.HasProperty("_Cull"))
+                _laserMaterial.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             _laser.sharedMaterial = _laserMaterial;
         }
         _laser.enabled = true;
@@ -273,12 +325,17 @@ public class VrUiCursor: NOVRBehaviour
         _laser.SetPosition(1, end);
     }
 
-    protected override void OnDisable() { HidePointer(); base.OnDisable(); }
+    protected override void OnDisable()
+    {
+        HidePointer();
+        base.OnDisable();
+    }
 
     private void UpdateCursorAngles()
     {
         var camera = UiCamera;
-        if (camera == null) return;
+        if (camera == null)
+            return;
 
         EnsureCursorCanvas(camera);
 
@@ -291,14 +348,15 @@ public class VrUiCursor: NOVRBehaviour
         {
             _cursor.SetActive(true);
         }
-        
+
         var mouse = _realMouse;
-        if (mouse == null) return;
+        if (mouse == null)
+            return;
 
         var mousePos = mouse.position.ReadValue();
         float cursorPitch = ProjectPitchAngle(mousePos.y);
-        float cursorYaw = ProjectYawAngle(mousePos.x);        
-        
+        float cursorYaw = ProjectYawAngle(mousePos.x);
+
         Vector3 localDirection = Quaternion.Euler(-cursorPitch, cursorYaw, 0f) * Vector3.forward;
         Quaternion referenceRotation = GetProjectionReferenceRotation();
         Vector3 worldDirection = referenceRotation * localDirection;
@@ -319,7 +377,7 @@ public class VrUiCursor: NOVRBehaviour
 
         return transform.parent != null ? transform.parent.rotation : Quaternion.identity;
     }
-    
+
     private void EnsureCursorCanvas(Camera uiCaptureCamera)
     {
         if (_cursor != null)
@@ -347,10 +405,10 @@ public class VrUiCursor: NOVRBehaviour
         _cursorImage.texture = _texture;
         _cursorImage.color = CursorNormalColor;
         LayerHelper.SetLayerRecursive(_cursor.transform, LayerHelper.GetVrUiLayer());
-        
-        
-        
-        
+
+
+
+
     }
 
 
@@ -457,7 +515,8 @@ public class VrUiCursor: NOVRBehaviour
 
     private void UpdateCursorAnimation()
     {
-        if (_cursor == null || _cursorImage == null) return;
+        if (_cursor == null || _cursorImage == null)
+            return;
 
         if (PrimaryPressed)
         {
@@ -501,13 +560,15 @@ public class VrUiCursor: NOVRBehaviour
     private float ProjectPitchAngle(float y)
     {
         int height = ScreenHeight;
-        if (height <= 0) throw new System.InvalidOperationException($"[{nameof(VrUiCursor)}] Screen height is invalid ({height}).");
+        if (height <= 0)
+            throw new System.InvalidOperationException($"[{nameof(VrUiCursor)}] Screen height is invalid ({height}).");
         return Mathf.Lerp(-MaxPitchDegrees, MaxPitchDegrees, y / height);
     }
     private float ProjectYawAngle(float x)
     {
         int width = ScreenWidth;
-        if (width <= 0) throw new System.InvalidOperationException($"[{nameof(VrUiCursor)}] Screen width is invalid ({width}).");
+        if (width <= 0)
+            throw new System.InvalidOperationException($"[{nameof(VrUiCursor)}] Screen width is invalid ({width}).");
         return Mathf.Lerp(-MaxYawDegrees, MaxYawDegrees, x / width);
     }
     private static bool IsRealCursorVisible() => Cursor.visible && Cursor.lockState != CursorLockMode.Locked;
@@ -540,11 +601,12 @@ public class VrUiCursor: NOVRBehaviour
         texture.Apply();
         return texture;
     }
-    
+
     private void LogRaycastAtCursor()
     {
-        if (EventSystem.current == null) return;
-        
+        if (EventSystem.current == null)
+            return;
+
         var screenPos = GetScreenPoint();
         var pointerEventData = new PointerEventData(EventSystem.current)
         {
@@ -553,13 +615,14 @@ public class VrUiCursor: NOVRBehaviour
 
         var results = new List<RaycastResult>();
         EventSystem.current.RaycastAll(pointerEventData, results);
-        
+
         Debug.Log($"[VrUiCursor] Click Raycast at screenPos={screenPos}: found {results.Count} results");
         for (int i = 0; i < results.Count; i++)
         {
             var result = results[i];
-            if (result.gameObject == _cursor) continue;
-            
+            if (result.gameObject == _cursor)
+                continue;
+
             var canvas = result.gameObject.GetComponentInParent<Canvas>();
             var cg = result.gameObject.GetComponentInParent<CanvasGroup>();
             string cgInfo = cg != null ? $", CanvasGroup(alpha={cg.alpha}, interactable={cg.interactable}, blocksRaycasts={cg.blocksRaycasts})" : "";
@@ -572,7 +635,7 @@ public class VrUiCursor: NOVRBehaviour
             Debug.Log($"[VrUiCursor]   Hit[{i}]: name='{result.gameObject.name}', path='{GetGameObjectPath(result.gameObject)}', canvas='{(canvas != null ? canvas.name : "None")}'{rectInfo}{cgInfo}");
         }
     }
-    
+
     private static string GetGameObjectPath(GameObject go)
     {
         string path = go.name;
@@ -589,7 +652,8 @@ public class VrUiCursor: NOVRBehaviour
     {
         try
         {
-            if (_virtualMouse == null) return false;
+            if (_virtualMouse == null)
+                return false;
             var uiModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             if (uiModule != null)
             {
@@ -624,13 +688,16 @@ public class VrUiCursor: NOVRBehaviour
     // Generic joystick / XR axes (HMD, controllers, HOTAS at rest) otherwise feed UI navigation like a held arrow key.
     private static void RestrictNavigationToKeyboardAndGamepad(InputAction? action)
     {
-        if (action == null) return;
+        if (action == null)
+            return;
         for (int i = 0; i < action.bindings.Count; i++)
         {
             var binding = action.bindings[i];
-            if (binding.isComposite) continue;
+            if (binding.isComposite)
+                continue;
             var path = binding.path ?? string.Empty;
-            if (path.StartsWith("<Keyboard>") || path.StartsWith("<Gamepad>")) continue;
+            if (path.StartsWith("<Keyboard>") || path.StartsWith("<Gamepad>"))
+                continue;
             action.ApplyBindingOverride(i, string.Empty);
             Debug.Log($"[NOVR] Disabled UI navigation binding '{path}' on action '{action.name}'");
         }
@@ -638,7 +705,8 @@ public class VrUiCursor: NOVRBehaviour
 
     private static void RestrictActionToVirtualMouse(InputAction? action, string devicePath)
     {
-        if (action == null) return;
+        if (action == null)
+            return;
         for (int i = 0; i < action.bindings.Count; i++)
         {
             var binding = action.bindings[i];

@@ -2,7 +2,10 @@ namespace NOVR.VrTogglers;
 
 public abstract class VrToggler
 {
-    public bool IsVrEnabled { get; private set; }
+    public bool IsVrEnabled
+    {
+        get; private set;
+    }
 
     private bool _isSetUp;
 
@@ -12,13 +15,15 @@ public abstract class VrToggler
 
     public void SetVrEnabled(bool nextVrEnabled)
     {
-        if (nextVrEnabled == IsVrEnabled) return;
+        if (nextVrEnabled == IsVrEnabled)
+            return;
         if (nextVrEnabled)
         {
             if (!_isSetUp)
             {
                 _isSetUp = SetUp();
-                if (!_isSetUp) return;
+                if (!_isSetUp)
+                    return;
             }
             IsVrEnabled = EnableVr();
         }

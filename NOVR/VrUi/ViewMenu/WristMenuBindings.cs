@@ -32,8 +32,13 @@ internal sealed partial class WristMenu
         {
             var binding = Bindings.Get(action);
             if (binding.Button == ControllerButton.None || action == ControllerActionId.Map || action == ControllerActionId.WristMenu ||
-                ControllerBindings.ResolveLeft(binding.Hand, StickLeft) != left) continue;
-            if (++count > 7) { text += "More: Controller bindings"; break; }
+                ControllerBindings.ResolveLeft(binding.Hand, StickLeft) != left)
+                continue;
+            if (++count > 7)
+            {
+                text += "More: Controller bindings";
+                break;
+            }
             text += ControllerBindings.ActionLabel(action) + ": " +
                 ControllerButtonNames.Describe(binding.Button, left, Bindings.ButtonProfile(left) == ControllerBindingProfile.Frame) + "\n\n";
         }

@@ -23,8 +23,14 @@ internal sealed class NativeControlModel : IDisposable
     private bool _visible;
     private NativeHandleFade? _fade;
     private MirroredControlGeometry? _mirror;
-    internal bool UsesFittedPose { get; private set; }
-    internal bool UsesCollectivePose { get; private set; }
+    internal bool UsesFittedPose
+    {
+        get; private set;
+    }
+    internal bool UsesCollectivePose
+    {
+        get; private set;
+    }
 
     private NativeControlModel(Transform parent)
     {
@@ -41,7 +47,8 @@ internal sealed class NativeControlModel : IDisposable
             if (aircraft.cockpit != null)
                 foreach (var cockpit in aircraft.cockpit.GetComponentsInChildren<Cockpit>(true))
                     foreach (var source in Sources(cockpit, stick))
-                        if (!sources.Contains(source)) sources.Add(source);
+                        if (!sources.Contains(source))
+                            sources.Add(source);
             var collective = MotionFlightController.UsesLiftCollective(aircraft);
             var standardKey = NativeControlSelection.Source(stick, collective);
             var standard = StandardSource(standardKey, stick);
@@ -50,32 +57,46 @@ internal sealed class NativeControlModel : IDisposable
             if (standard == null && aircraft.definition?.jsonKey == standardKey && sources.Count > 0)
                 standard = sources[0];
             var selected = standard != null ? standard : sources.Count > 0 ? sources[0] : null;
-            if (selected == null) return null;
+            if (selected == null)
+                return null;
             model = new NativeControlModel(parent)
             {
                 UsesFittedPose = NativeControlSelection.FittedFs20(stick, collective, standard != null),
                 UsesCollectivePose = standard != null && collective && !stick
             };
             var geometry = new GameObject("Aircraft handle geometry").transform;
-            geometry.SetParent(model._root, false); geometry.localScale = selected.lossyScale;
+            geometry.SetParent(model._root, false);
+            geometry.localScale = selected.lossyScale;
             foreach (var renderer in selected.GetComponentsInChildren<MeshRenderer>(true))
             {
                 var mesh = renderer.GetComponent<MeshFilter>()?.sharedMesh;
-                if (mesh == null) continue;
+                if (mesh == null)
+                    continue;
                 var go = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
                 go.transform.SetParent(geometry, false);
                 go.transform.localPosition = selected.InverseTransformPoint(renderer.transform.position);
                 go.transform.localRotation = Quaternion.Inverse(selected.rotation) * renderer.transform.rotation;
-                var scale = renderer.transform.lossyScale; var sourceScale = selected.lossyScale;
+                var scale = renderer.transform.lossyScale;
+                var sourceScale = selected.lossyScale;
                 go.transform.localScale = new Vector3(scale.x / sourceScale.x, scale.y / sourceScale.y, scale.z / sourceScale.z);
                 go.GetComponent<MeshFilter>().sharedMesh = mesh;
-                var copy = go.GetComponent<MeshRenderer>(); copy.sharedMaterials = renderer.sharedMaterials;
-                copy.shadowCastingMode = ShadowCastingMode.Off; copy.receiveShadows = renderer.receiveShadows;
-                copy.lightProbeUsage = renderer.lightProbeUsage; copy.reflectionProbeUsage = renderer.reflectionProbeUsage;
-                var block = new MaterialPropertyBlock(); renderer.GetPropertyBlock(block); copy.SetPropertyBlock(block);
-                model._copies.Add(copy); model._originalBlocks.Add(block);
+                var copy = go.GetComponent<MeshRenderer>();
+                copy.sharedMaterials = renderer.sharedMaterials;
+                copy.shadowCastingMode = ShadowCastingMode.Off;
+                copy.receiveShadows = renderer.receiveShadows;
+                copy.lightProbeUsage = renderer.lightProbeUsage;
+                copy.reflectionProbeUsage = renderer.reflectionProbeUsage;
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                copy.SetPropertyBlock(block);
+                model._copies.Add(copy);
+                model._originalBlocks.Add(block);
             }
-            if (model._copies.Count == 0) { model.Dispose(); return null; }
+            if (model._copies.Count == 0)
+            {
+                model.Dispose();
+                return null;
+            }
             var bounds = model.Bounds();
             // Seat the palm below the stick button head. A sliding throttle
             // supports the palm on its upper grip, not through the lever body.
@@ -84,7 +105,8 @@ internal sealed class NativeControlModel : IDisposable
             var grip = bounds.center;
             if (model.UsesCollectivePose)
                 grip = new Vector3(0, FlightControlMath.CollectiveGripHeight, FlightControlMath.CollectiveGripForward);
-            else if (stick) grip.y = bounds.max.y - Mathf.Min(.080f, bounds.size.y * .36f);
+            else if (stick)
+                grip.y = bounds.max.y - Mathf.Min(.080f, bounds.size.y * .36f);
             else if (!collective)
                 grip.y = bounds.max.y - Mathf.Min(.028f, bounds.size.y * .22f);
             geometry.localPosition = -grip;
@@ -93,14 +115,19 @@ internal sealed class NativeControlModel : IDisposable
                 // This native assembly includes a very broad throttle housing.
                 // Fit the VR copy to the glove (about 16 cm across), retaining
                 // the acquired palm socket and the installed mesh/materials.
-                geometry.localScale *= .68f; geometry.localPosition *= .68f;
+                geometry.localScale *= .68f;
+                geometry.localPosition *= .68f;
                 geometry.localPosition += Vector3.up * .005f;
             }
-            if (stick) model._root.localPosition = Vector3.up * .12f;
+            if (stick)
+                model._root.localPosition = Vector3.up * .12f;
             if (model.UsesFittedPose)
             {
-                try { model._fade = new NativeHandleFade(model._root,model._copies); }
-                catch(Exception e) { Debug.LogWarning("[NOVR] Shaft fade unavailable; opaque native handle retained: " + e.Message); }
+                try
+                {
+                    model._fade = new NativeHandleFade(model._root, model._copies);
+                }
+                catch (Exception e) { Debug.LogWarning("[NOVR] Shaft fade unavailable; opaque native handle retained: " + e.Message); }
             }
             // Include the ghost shaft meshes as well as the opaque grip. Their
             // positions, winding and tangent handedness must reflect together.
@@ -126,11 +153,13 @@ internal sealed class NativeControlModel : IDisposable
         // Use the game's loaded definition; never instantiate a live aircraft or
         // copy scripts, collision shapes, animations or gameplay state.
         if (Encyclopedia.Lookup == null || !Encyclopedia.Lookup.TryGetValue(aircraftKey, out var definition) ||
-            definition == null || definition.unitPrefab == null) return null;
+            definition == null || definition.unitPrefab == null)
+            return null;
         foreach (var cockpit in definition.unitPrefab.GetComponentsInChildren<Cockpit>(true))
         {
             var sources = Sources(cockpit, stick);
-            if (sources.Count > 0) return sources[0];
+            if (sources.Count > 0)
+                return sources[0];
         }
         return null;
     }
@@ -138,14 +167,18 @@ internal sealed class NativeControlModel : IDisposable
     private static List<Transform> Sources(Cockpit? cockpit, bool stick)
     {
         var sources = new List<Transform>();
-        if (cockpit == null) return sources;
+        if (cockpit == null)
+            return sources;
         var controls = AccessTools.Field(typeof(Cockpit), stick ? "joysticks" : "throttles")?.GetValue(cockpit) as IEnumerable;
-        if (controls == null) return sources;
+        if (controls == null)
+            return sources;
         foreach (var control in controls)
         {
-            if (control == null) continue;
+            if (control == null)
+                continue;
             var source = AccessTools.Field(control.GetType(), "transform")?.GetValue(control) as Transform;
-            if (source != null && SeparateMesh(source) && !sources.Contains(source)) sources.Add(source);
+            if (source != null && SeparateMesh(source) && !sources.Contains(source))
+                sources.Add(source);
         }
         return sources;
     }
@@ -153,13 +186,16 @@ internal sealed class NativeControlModel : IDisposable
     private static bool SeparateMesh(Transform source)
     {
         var renderers = source.GetComponentsInChildren<Renderer>(true);
-        if (renderers.Length == 0) return false;
-        var bounds = new Bounds(); var found = false;
+        if (renderers.Length == 0)
+            return false;
+        var bounds = new Bounds();
+        var found = false;
         foreach (var renderer in renderers)
         {
             // Do not partially hide a skinned/combined cockpit that cannot be
             // reproduced as an isolated control with ordinary mesh renderers.
-            if (renderer is not MeshRenderer || renderer.GetComponent<MeshFilter>()?.sharedMesh == null) return false;
+            if (renderer is not MeshRenderer || renderer.GetComponent<MeshFilter>()?.sharedMesh == null)
+                return false;
             // Prefab Renderer.bounds may not have been updated by the scene.
             // Evaluate the actual mesh corners through its authored transform.
             var meshBounds = renderer.GetComponent<MeshFilter>().sharedMesh.bounds;
@@ -168,7 +204,13 @@ internal sealed class NativeControlModel : IDisposable
                     for (var z = -1; z <= 1; z += 2)
                     {
                         var point = renderer.transform.TransformPoint(meshBounds.center + Vector3.Scale(meshBounds.extents, new Vector3(x, y, z)));
-                        if (!found) { bounds = new Bounds(point, Vector3.zero); found = true; } else bounds.Encapsulate(point);
+                        if (!found)
+                        {
+                            bounds = new Bounds(point, Vector3.zero);
+                            found = true;
+                        }
+                        else
+                            bounds.Encapsulate(point);
                     }
         }
         return found && bounds.size.magnitude > .01f && bounds.size.magnitude < 1.5f &&
@@ -176,7 +218,8 @@ internal sealed class NativeControlModel : IDisposable
     }
     private Bounds Bounds()
     {
-        var result = new Bounds(); var found = false;
+        var result = new Bounds();
+        var found = false;
         foreach (var renderer in _copies)
         {
             var bounds = renderer.GetComponent<MeshFilter>().sharedMesh.bounds;
@@ -186,7 +229,13 @@ internal sealed class NativeControlModel : IDisposable
                     {
                         var corner = bounds.center + Vector3.Scale(bounds.extents, new Vector3(x, y, z));
                         var point = _root.InverseTransformPoint(renderer.transform.TransformPoint(corner));
-                        if (!found) { result = new Bounds(point, Vector3.zero); found = true; } else result.Encapsulate(point);
+                        if (!found)
+                        {
+                            result = new Bounds(point, Vector3.zero);
+                            found = true;
+                        }
+                        else
+                            result.Encapsulate(point);
                     }
         }
         return result;
@@ -195,18 +244,21 @@ internal sealed class NativeControlModel : IDisposable
     {
         _visible = visible;
         foreach (var original in _originals)
-            if (original.renderer != null) original.renderer.forceRenderingOff = visible || original.hidden;
+            if (original.renderer != null)
+                original.renderer.forceRenderingOff = visible || original.hidden;
     }
     internal void SetMirrored(bool mirrored) => _mirror?.SetMirrored(mirrored);
     internal void Highlight(int state)
     {
-        if (_lastHighlight == state) return;
+        if (_lastHighlight == state)
+            return;
         _lastHighlight = state;
         for (var i = 0; i < _copies.Count; i++)
         {
             var renderer = _copies[i];
             renderer.SetPropertyBlock(_originalBlocks[i]);
-            if (state == 0) continue;
+            if (state == 0)
+                continue;
             renderer.GetPropertyBlock(_highlight);
             var material = renderer.sharedMaterial;
             var baseColor = material != null && material.HasProperty("_BaseColor") ? material.GetColor("_BaseColor") : Color.white;
@@ -217,9 +269,13 @@ internal sealed class NativeControlModel : IDisposable
     }
     public void Dispose()
     {
-        if (_visible) SetVisible(false);
-        _mirror?.Dispose(); _mirror = null;
-        _fade?.Dispose(); _fade = null;
-        if (_root != null) Object.Destroy(_root.gameObject);
+        if (_visible)
+            SetVisible(false);
+        _mirror?.Dispose();
+        _mirror = null;
+        _fade?.Dispose();
+        _fade = null;
+        if (_root != null)
+            Object.Destroy(_root.gameObject);
     }
 }

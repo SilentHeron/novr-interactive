@@ -1,6 +1,9 @@
 namespace NOVR.VrUi.SpecialBehavior;
 
-internal enum CockpitFeedMode { Native, Cockpit, Recovery }
+internal enum CockpitFeedMode
+{
+    Native, Cockpit, Recovery
+}
 
 internal static class CockpitFeedPresentation
 {
@@ -9,10 +12,14 @@ internal static class CockpitFeedPresentation
     internal static CockpitFeedMode Choose(bool enabled, bool playing, bool unobstructed,
         bool cockpitReady, bool hadCockpit, bool lostCockpit)
     {
-        if (!enabled || !playing) return CockpitFeedMode.Native;
-        if (hadCockpit && lostCockpit) return CockpitFeedMode.Recovery;
-        if (!unobstructed) return CockpitFeedMode.Native;
-        if (cockpitReady) return CockpitFeedMode.Cockpit;
+        if (!enabled || !playing)
+            return CockpitFeedMode.Native;
+        if (hadCockpit && lostCockpit)
+            return CockpitFeedMode.Recovery;
+        if (!unobstructed)
+            return CockpitFeedMode.Native;
+        if (cockpitReady)
+            return CockpitFeedMode.Cockpit;
         return CockpitFeedMode.Native;
     }
 }

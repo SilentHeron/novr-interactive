@@ -13,11 +13,22 @@ internal sealed class MenuHistory<T> where T : class
     internal bool CanBack => _trail.Count > 1;
     internal void Push(T page)
     {
-        if (EqualityComparer<T>.Default.Equals(Current, page)) return;
+        if (EqualityComparer<T>.Default.Equals(Current, page))
+            return;
         var index = _trail.IndexOf(page);
-        if (index >= 0) _trail.RemoveRange(index + 1, _trail.Count - index - 1);
-        else _trail.Add(page);
+        if (index >= 0)
+            _trail.RemoveRange(index + 1, _trail.Count - index - 1);
+        else
+            _trail.Add(page);
     }
-    internal void Back() { if (CanBack) _trail.RemoveAt(_trail.Count - 1); }
-    internal void Home() { if (CanBack) _trail.RemoveRange(1, _trail.Count - 1); }
+    internal void Back()
+    {
+        if (CanBack)
+            _trail.RemoveAt(_trail.Count - 1);
+    }
+    internal void Home()
+    {
+        if (CanBack)
+            _trail.RemoveRange(1, _trail.Count - 1);
+    }
 }

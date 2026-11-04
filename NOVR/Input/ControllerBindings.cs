@@ -80,8 +80,11 @@ internal sealed class ControllerBindingBank
         SelectTargetOnStick.Value ? ControllerButton.None : SelectTarget.Value, NextCountermeasure.Value);
     internal void ApplyVtolStyle()
     {
-        Fire.Value = ControllerButton.Trigger; WeaponRelease.Value = ControllerButton.Primary; NextWeapon.Value = ControllerButton.TopOrSecondary;
-        UnlockTarget.Value = ControllerButton.OutsideOrNone; ClearTargets.Value = ControllerButton.None;
+        Fire.Value = ControllerButton.Trigger;
+        WeaponRelease.Value = ControllerButton.Primary;
+        NextWeapon.Value = ControllerButton.TopOrSecondary;
+        UnlockTarget.Value = ControllerButton.OutsideOrNone;
+        ClearTargets.Value = ControllerButton.None;
         ApplyThrottleLayout(ThrottleBindingLayout.VtolStyle);
     }
 
@@ -90,7 +93,8 @@ internal sealed class ControllerBindingBank
     internal void ApplyThrottleLayout(ThrottleBindingLayout layout)
     {
         var preset = ThrottleBindingProfiles.Get(layout);
-        Brake.Value = preset.Brake; Countermeasures.Value = preset.Countermeasures;
+        Brake.Value = preset.Brake;
+        Countermeasures.Value = preset.Countermeasures;
         SelectTargetOnStick.Value = layout == ThrottleBindingLayout.VtolStyle;
         SelectTarget.Value = SelectTargetOnStick.Value ? ControllerButton.StickClick : preset.Target;
         NextCountermeasure.Value = preset.NextCountermeasure;

@@ -8,7 +8,10 @@ internal sealed class PointerHandSelection
     private readonly ControllerButtonGate _leftGrip = new(), _rightGrip = new();
     private uint _leftButtons, _rightButtons;
     private bool _leftValid, _rightValid;
-    internal bool Left { get; private set; } // Right initially; retain the last chosen hand across menus.
+    internal bool Left
+    {
+        get; private set;
+    } // Right initially; retain the last chosen hand across menus.
     internal ControllerButtonGate Trigger => Left ? _left : _right;
 
     internal void Update(bool leftAvailable, float leftTrigger, float leftGrip, uint leftButtons,
@@ -22,8 +25,10 @@ internal sealed class PointerHandSelection
         var rightPressed = ButtonPressed(rightAvailable, rightButtons, ref _rightValid, ref _rightButtons) || _right.Pressed || _rightGrip.Pressed;
         // Consume both hands' edges even during capture: a press ignored while
         // dragging must not become a delayed takeover when the drag ends.
-        if (Trigger.Held || Trigger.Released) return;
-        if (Left ? rightAvailable && rightPressed : leftAvailable && leftPressed) Left = !Left;
+        if (Trigger.Held || Trigger.Released)
+            return;
+        if (Left ? rightAvailable && rightPressed : leftAvailable && leftPressed)
+            Left = !Left;
     }
 
     private static bool ButtonPressed(bool available, uint buttons, ref bool valid, ref uint previous)
@@ -36,7 +41,10 @@ internal sealed class PointerHandSelection
 
     internal void Reset()
     {
-        _left.Reset(); _right.Reset(); _leftGrip.Reset(); _rightGrip.Reset();
+        _left.Reset();
+        _right.Reset();
+        _leftGrip.Reset();
+        _rightGrip.Reset();
         _leftValid = _rightValid = false;
         _leftButtons = _rightButtons = 0;
     }

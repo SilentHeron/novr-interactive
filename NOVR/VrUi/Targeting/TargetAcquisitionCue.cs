@@ -24,15 +24,22 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         var native = hud?.targetDesignator;
         if (native != _native)
         {
-            Restore(); _native = native;
+            Restore();
+            _native = native;
             if (native != null)
             {
                 _nativeGroup = native.GetComponent<CanvasGroup>() ?? native.gameObject.AddComponent<CanvasGroup>();
                 _originalAlpha = _nativeGroup.alpha;
             }
         }
-        if (!XRSettings.enabled || NOUIManager.I == null) { Restore(); Hide(); return; }
-        if (_nativeGroup != null) _nativeGroup.alpha = 0;
+        if (!XRSettings.enabled || NOUIManager.I == null)
+        {
+            Restore();
+            Hide();
+            return;
+        }
+        if (_nativeGroup != null)
+            _nativeGroup.alpha = 0;
         // Native weapon states disable the image with landing gear down. Its
         // transform still supplies the aim direction for our independent cue.
         var ready = hud != null && hud.aircraft != null && _native != null && _native.gameObject.activeInHierarchy &&
@@ -45,13 +52,26 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
         var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, ready, candidate, selecting);
         var desired = show ? candidate || selecting ? 1f : .8f : 0;
         _opacity = Mathf.MoveTowards(_opacity, desired, Time.unscaledDeltaTime * 6);
-        if (!ready || _opacity <= .001f) { Hide(); return; }
+        if (!ready || _opacity <= .001f)
+        {
+            Hide();
+            return;
+        }
         var camera = APIBus.CockpitHudCamera;
-        if (camera == null) { Hide(); return; }
+        if (camera == null)
+        {
+            Hide();
+            return;
+        }
         var direction = _native!.transform.position - camera.transform.position;
-        if (Vector3.Dot(direction, camera.transform.forward) <= 0) { Hide(); return; }
+        if (Vector3.Dot(direction, camera.transform.forward) <= 0)
+        {
+            Hide();
+            return;
+        }
         EnsureView(camera);
-        _canvas!.worldCamera = camera; _group!.alpha = _opacity;
+        _canvas!.worldCamera = camera;
+        _group!.alpha = _opacity;
         // Only this decorative cue follows the centre of vision. Native
         // designator transforms still drive candidate detection and selection.
         _view!.transform.SetPositionAndRotation(camera.transform.position + camera.transform.forward * GazeCueSettings.ViewDepthMeters, camera.transform.rotation);
@@ -59,17 +79,40 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
     }
     private void EnsureView(Camera camera)
     {
-        if (_view != null) return;
+        if (_view != null)
+            return;
         _view = new GameObject("NOVR contextual target cue", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup));
-        _view.transform.SetParent(transform, false); _view.transform.localScale = Vector3.one * GazeCueSettings.CanvasScale;
-        _canvas = _view.GetComponent<Canvas>(); _canvas.renderMode = RenderMode.WorldSpace;
-        _canvas.worldCamera = camera; _canvas.overrideSorting = true; _canvas.sortingOrder = 180;
-        _group = _view.GetComponent<CanvasGroup>(); _group.blocksRaycasts = false;
+        _view.transform.SetParent(transform, false);
+        _view.transform.localScale = Vector3.one * GazeCueSettings.CanvasScale;
+        _canvas = _view.GetComponent<Canvas>();
+        _canvas.renderMode = RenderMode.WorldSpace;
+        _canvas.worldCamera = camera;
+        _canvas.overrideSorting = true;
+        _canvas.sortingOrder = 180;
+        _group = _view.GetComponent<CanvasGroup>();
+        _group.blocksRaycasts = false;
         GazeRingGraphic.Create(_view.transform);
         LayerHelper.SetLayerRecursive(_view.transform, LayerHelper.GetVrUiLayer());
     }
-    private void Restore() { if (_nativeGroup != null) _nativeGroup.alpha = _originalAlpha; }
-    private void Hide() { if (_view != null) _view.SetActive(false); }
-    private void OnDisable() { Restore(); Hide(); }
-    private void OnDestroy() { OnDisable(); if (_view != null) Destroy(_view); }
+    private void Restore()
+    {
+        if (_nativeGroup != null)
+            _nativeGroup.alpha = _originalAlpha;
+    }
+    private void Hide()
+    {
+        if (_view != null)
+            _view.SetActive(false);
+    }
+    private void OnDisable()
+    {
+        Restore();
+        Hide();
+    }
+    private void OnDestroy()
+    {
+        OnDisable();
+        if (_view != null)
+            Destroy(_view);
+    }
 }

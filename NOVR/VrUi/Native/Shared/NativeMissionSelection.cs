@@ -15,14 +15,16 @@ internal static class NativeMissionSelection
             if (!selection.SelectedMission.Equals(key) || picker.Mission == null)
                 selection.SetSelectedMission(key);
         }
-        else picker.SelectMission(key);
+        else
+            picker.SelectMission(key);
     }
 
     internal static bool TryGet(MissionPicker picker, MissionKey key, out Mission? mission)
     {
         mission = null;
         if (picker.Mission == null || SelectionField?.GetValue(picker) is not MissionSelectPanel selection ||
-            !selection.SelectedMission.Equals(key)) return false;
+            !selection.SelectedMission.Equals(key))
+            return false;
         mission = picker.Mission;
         return true;
     }

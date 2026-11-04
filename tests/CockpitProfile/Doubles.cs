@@ -16,13 +16,20 @@ namespace BepInEx.Configuration
                 _entries[(section, key)] = entry = new ConfigEntry<T>(value);
             return (ConfigEntry<T>)entry;
         }
-        public void Save() { }
+        public void Save()
+        {
+        }
     }
 }
 namespace UnityEngine
 {
-    public sealed class DefaultExecutionOrder(int order) : Attribute { public int Order => order; }
-    public class MonoBehaviour { }
+    public sealed class DefaultExecutionOrder(int order) : Attribute
+    {
+        public int Order => order;
+    }
+    public class MonoBehaviour
+    {
+    }
     public struct Vector3(float x, float y, float z) : IEquatable<Vector3>
     {
         public float x = x, y = y, z = z;
@@ -40,14 +47,30 @@ namespace UnityEngine
         public static float Clamp(float value, float min, float max) => Math.Clamp(value, min, max);
     }
 }
-public enum CameraMode { cockpit, external }
-public static class CameraStateManager { public static CameraMode cameraMode = CameraMode.cockpit; }
-public sealed class AircraftDefinition { public string jsonKey = "SmallFighter1", name = "FS20", unitName = "FS-20"; }
-public sealed class Aircraft { public AircraftDefinition definition = new(); public bool Collective; }
+public enum CameraMode
+{
+    cockpit, external
+}
+public static class CameraStateManager
+{
+    public static CameraMode cameraMode = CameraMode.cockpit;
+}
+public sealed class AircraftDefinition
+{
+    public string jsonKey = "SmallFighter1", name = "FS20", unitName = "FS-20";
+}
+public sealed class Aircraft
+{
+    public AircraftDefinition definition = new(); public bool Collective;
+}
 public static class GameManager
 {
     public static Aircraft? Current;
-    public static bool GetLocalAircraft(out Aircraft aircraft) { aircraft = Current!; return aircraft != null; }
+    public static bool GetLocalAircraft(out Aircraft aircraft)
+    {
+        aircraft = Current!;
+        return aircraft != null;
+    }
 }
 namespace NOVR
 {
@@ -75,7 +98,10 @@ namespace NOVR.MotionControls
         public void ResetGrips() => Resets++;
         public static bool UsesLiftCollective(Aircraft aircraft) => aircraft.Collective;
     }
-    public static class CockpitLayout { public static Vector3? StickPreview => null; public static Vector3? ThrottlePreview => null; }
+    public static class CockpitLayout
+    {
+        public static Vector3? StickPreview => null; public static Vector3? ThrottlePreview => null;
+    }
     public static class TrackedControllers
     {
         public static bool Finite(Vector3 value) => float.IsFinite(value.x) && float.IsFinite(value.y) && float.IsFinite(value.z);

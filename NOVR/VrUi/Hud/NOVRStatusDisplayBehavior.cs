@@ -9,8 +9,10 @@ public class NOVRStatusDisplayBehavior : UIRenderedCanvasBehavior
     {
         // Source leases return this to FlightHud on aircraft loss. That root
         // suppresses drawing during recovery; do not recreate its large fallback.
-        if (CockpitAlerts.InRecovery) return;
-        if (CockpitStatusSources.Owns(transform)) return;
-        transform.position = new Vector3(630f,145f,1000f);
+        if (CockpitAlerts.InRecovery)
+            return;
+        if (CockpitStatusSources.Owns(transform))
+            return;
+        transform.position = new Vector3(630f, 145f, 1000f);
     }
 }

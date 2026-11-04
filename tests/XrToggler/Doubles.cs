@@ -6,9 +6,16 @@ namespace UnityEngine
     public class ScriptableObject
     {
         public static int Created;
-        public static T CreateInstance<T>() where T : ScriptableObject, new() { Created++; return new T(); }
+        public static T CreateInstance<T>() where T : ScriptableObject, new()
+        {
+            Created++;
+            return new T();
+        }
     }
-    public static class Application { public static bool runInBackground; }
+    public static class Application
+    {
+        public static bool runInBackground;
+    }
 }
 namespace UnityEngine.XR.Management
 {
@@ -19,14 +26,34 @@ namespace UnityEngine.XR.Management
         public readonly List<string> Calls = new();
         public virtual bool Initialize()
         {
-            Initializes++; Calls.Add("initialize");
-            if (ThrowInitialize) throw new InvalidOperationException("initialize failed");
+            Initializes++;
+            Calls.Add("initialize");
+            if (ThrowInitialize)
+                throw new InvalidOperationException("initialize failed");
             return CanInitialize;
         }
-        public virtual bool Start() { Starts++; Calls.Add("start"); if (ThrowStart) throw new InvalidOperationException("start failed"); return true; }
-        public virtual bool Stop() { Stops++; Calls.Add("stop"); return true; }
+        public virtual bool Start()
+        {
+            Starts++;
+            Calls.Add("start");
+            if (ThrowStart)
+                throw new InvalidOperationException("start failed");
+            return true;
+        }
+        public virtual bool Stop()
+        {
+            Stops++;
+            Calls.Add("stop");
+            return true;
+        }
         public virtual bool Deinitialize()
-        { Deinitializes++; Calls.Add("deinitialize"); if (ThrowDeinitialize) throw new InvalidOperationException("deinitialize failed"); return true; }
+        {
+            Deinitializes++;
+            Calls.Add("deinitialize");
+            if (ThrowDeinitialize)
+                throw new InvalidOperationException("deinitialize failed");
+            return true;
+        }
     }
     public class XRManagerSettings : ScriptableObject
     {
@@ -39,29 +66,51 @@ namespace UnityEngine.XR.Management
         public void InitializeLoaderSync()
         {
             InitializeCalls++;
-            if (activeLoader != null) return;
+            if (activeLoader != null)
+                return;
             foreach (var loader in loaders)
-                if (loader.Initialize()) { activeLoader = loader; isInitializationComplete = true; return; }
+                if (loader.Initialize())
+                {
+                    activeLoader = loader;
+                    isInitializationComplete = true;
+                    return;
+                }
         }
         public void StartSubsystems()
-        { StartCalls++; if (isInitializationComplete && activeLoader != null) activeLoader.Start(); }
+        {
+            StartCalls++;
+            if (isInitializationComplete && activeLoader != null)
+                activeLoader.Start();
+        }
         public void StopSubsystems()
-        { if (isInitializationComplete && activeLoader != null) activeLoader.Stop(); }
+        {
+            if (isInitializationComplete && activeLoader != null)
+                activeLoader.Stop();
+        }
         public void DeinitializeLoader()
         {
             DeinitializeCalls++;
-            if (!isInitializationComplete) return;
+            if (!isInitializationComplete)
+                return;
             StopSubsystems();
-            activeLoader?.Deinitialize(); activeLoader = null; isInitializationComplete = false;
+            activeLoader?.Deinitialize();
+            activeLoader = null;
+            isInitializationComplete = false;
         }
     }
-    public class XRGeneralSettings : ScriptableObject { public XRManagerSettings Manager = null!; }
+    public class XRGeneralSettings : ScriptableObject
+    {
+        public XRManagerSettings Manager = null!;
+    }
 }
 namespace UnityEngine.XR.OpenXR
 {
     public sealed class OpenXRSettings
     {
-        public enum RenderMode { SinglePassInstanced, MultiPass }
+        public enum RenderMode
+        {
+            SinglePassInstanced, MultiPass
+        }
         public static readonly OpenXRSettings Instance = new();
         public RenderMode renderMode;
         public bool ProfilesEnabled;

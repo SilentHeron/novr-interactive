@@ -15,7 +15,10 @@ internal sealed class HudGraphicVisibilityLease
     private bool _hidden;
 
     internal HudGraphicVisibilityLease(Graphic source, bool children = false)
-    { _source = source; _children = children; }
+    {
+        _source = source;
+        _children = children;
+    }
 
     internal void Apply()
     {
@@ -31,25 +34,36 @@ internal sealed class HudGraphicVisibilityLease
 
     private void BeforeRender()
     {
-        if (!_hidden || _source == null) return;
+        if (!_hidden || _source == null)
+            return;
         _renderers.Clear();
-        if (_children) _source.GetComponentsInChildren(true, _renderers);
-        else _renderers.Add(_source.canvasRenderer);
+        if (_children)
+            _source.GetComponentsInChildren(true, _renderers);
+        else
+            _renderers.Add(_source.canvasRenderer);
         foreach (var renderer in _renderers)
         {
-            if (renderer == null) continue;
-            if (!_original.ContainsKey(renderer)) _original.Add(renderer, renderer.cull);
+            if (renderer == null)
+                continue;
+            if (!_original.ContainsKey(renderer))
+                _original.Add(renderer, renderer.cull);
             renderer.cull = true;
         }
     }
 
     internal void Restore()
     {
-        if (!_hidden) return;
-        _hidden = false; Canvas.willRenderCanvases -= BeforeRender;
-        foreach (var pair in _original) if (pair.Key != null) pair.Key.cull = pair.Value;
-        _original.Clear(); _renderers.Clear();
-        if (_source != null) _source.SetVerticesDirty();
+        if (!_hidden)
+            return;
+        _hidden = false;
+        Canvas.willRenderCanvases -= BeforeRender;
+        foreach (var pair in _original)
+            if (pair.Key != null)
+                pair.Key.cull = pair.Value;
+        _original.Clear();
+        _renderers.Clear();
+        if (_source != null)
+            _source.SetVerticesDirty();
     }
 
     internal void Release() => Restore();

@@ -5,7 +5,7 @@ namespace NOVR;
 
 public class NOVRBehaviour : MonoBehaviour
 {
-    public static T Create<T>(Transform parent) where T: NOVRBehaviour
+    public static T Create<T>(Transform parent) where T : NOVRBehaviour
     {
         return new GameObject(typeof(T).Name)
         {
@@ -17,8 +17,10 @@ public class NOVRBehaviour : MonoBehaviour
             }
         }.AddComponent<T>();
     }
-    
-    protected virtual void Awake() {}
+
+    protected virtual void Awake()
+    {
+    }
 
     protected virtual void OnEnable()
     {
@@ -37,7 +39,11 @@ public class NOVRBehaviour : MonoBehaviour
         OnSettingChanged();
     }
 
-    protected virtual void OnBeforeRender() {}
+    protected virtual void OnBeforeRender()
+    {
+    }
 
-    protected virtual void OnSettingChanged() {}
+    protected virtual void OnSettingChanged()
+    {
+    }
 }

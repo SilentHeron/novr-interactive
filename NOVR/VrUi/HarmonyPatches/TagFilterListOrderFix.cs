@@ -12,7 +12,10 @@ internal static class TagFilterListOrderFix
         [HarmonyPrefix]
         private static void Prefix(global::TagFilterListItem __instance, TagFilterListItem.Item value)
         {
-            __instance.transform.localPosition = __instance.transform.localPosition with { z = 0 };
+            __instance.transform.localPosition = __instance.transform.localPosition with
+            {
+                z = 0
+            };
 
         }
     }

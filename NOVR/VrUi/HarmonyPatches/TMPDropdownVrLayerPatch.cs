@@ -22,11 +22,12 @@ internal static class TMPDropdownVrLayerPatch
             var dropdown = (GameObject)DropdownField.GetValue(__instance);
             if (dropdown == null)
                 return;
-            
+
             LayerHelper.SetLayerRecursive(dropdown.transform, LayerHelper.Layers.VrUi);
-            
+
             var mask = dropdown.gameObject.GetComponentInChildren<Mask>();
-            if (mask) mask.enabled = false;
+            if (mask)
+                mask.enabled = false;
         }
     }
 
@@ -37,7 +38,7 @@ internal static class TMPDropdownVrLayerPatch
         {
             if (transform.gameObject.layer == (int)vrLayer)
                 return true;
-            
+
             transform = transform.parent;
         }
 

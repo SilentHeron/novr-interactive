@@ -23,7 +23,10 @@ public sealed class GitHubReleaseClient
     {
         progress.Report("Checking " + InstallerConstants.ReleaseChannel + "...");
         GitHubRelease release;
-        try { release = await GetLatestReleaseAsync(InstallerConstants.GitHubOwner, InstallerConstants.GitHubRepo, cancellationToken); }
+        try
+        {
+            release = await GetLatestReleaseAsync(InstallerConstants.GitHubOwner, InstallerConstants.GitHubRepo, cancellationToken);
+        }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             throw new InvalidOperationException("No published release is available on " + InstallerConstants.ReleaseChannel +
@@ -39,7 +42,10 @@ public sealed class GitHubReleaseClient
         if (hash is null)
             throw new InvalidOperationException("This NOVR release has no SHA-256 checksum. Publish " + asset.Name + ".sha256 alongside the package, or use a GitHub asset with a SHA-256 digest. No files have been changed.");
         var download = await DownloadAssetAsync(asset, tempDir, progress, release.TagName, hash, cancellationToken);
-        try { NovrPackage.Validate(download, release.TagName); }
+        try
+        {
+            NovrPackage.Validate(download, release.TagName);
+        }
         catch { File.Delete(download); throw; }
         FoundNOVRRelease = version;
         return download;
@@ -51,23 +57,27 @@ public sealed class GitHubReleaseClient
         var release = await GetLatestBepInEx5ReleaseAsync(cancellationToken);
         var asset = release.Assets.SingleOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
             a.Name.Contains("BepInEx", StringComparison.OrdinalIgnoreCase) && a.Name.Contains("win_x64", StringComparison.OrdinalIgnoreCase));
-        if (asset is null) throw new InvalidOperationException("Latest BepInEx 5 release does not contain a Windows x64 ZIP asset.");
+        if (asset is null)
+            throw new InvalidOperationException("Latest BepInEx 5 release does not contain a Windows x64 ZIP asset.");
         return await DownloadAssetAsync(asset, tempDir, progress, release.TagName, DigestHash(asset.Digest), cancellationToken);
     }
 
     private async Task<string?> ExpectedHashAsync(GitHubAsset asset, GitHubAsset[] assets, CancellationToken cancellationToken)
     {
         var digest = DigestHash(asset.Digest);
-        if (digest is not null) return digest;
+        if (digest is not null)
+            return digest;
         var checksum = assets.SingleOrDefault(a => a.Name.Equals(asset.Name + ".sha256", StringComparison.OrdinalIgnoreCase));
-        if (checksum is null) return null;
+        if (checksum is null)
+            return null;
         ValidateDownloadUrl(checksum.BrowserDownloadUrl);
         using var response = await _httpClient.GetAsync(checksum.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var buffer = new byte[4097];
         var length = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
-        if (length > 4096) throw new InvalidDataException("Release checksum file is too large.");
+        if (length > 4096)
+            throw new InvalidDataException("Release checksum file is too large.");
         var text = System.Text.Encoding.UTF8.GetString(buffer, 0, length).Trim();
         var fields = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (fields.Length is < 1 or > 2 || !IsSha256(fields[0]) ||
@@ -78,7 +88,8 @@ public sealed class GitHubReleaseClient
 
     private static string? DigestHash(string? digest)
     {
-        if (string.IsNullOrEmpty(digest)) return null;
+        if (string.IsNullOrEmpty(digest))
+            return null;
         if (!digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) || !IsSha256(digest[7..]))
             throw new InvalidDataException("Unsupported release checksum: expected SHA-256.");
         return digest[7..];

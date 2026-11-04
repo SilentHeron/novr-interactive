@@ -37,18 +37,23 @@ internal static class TrackedControllers
     {
         get
         {
-            if (_availableFrame != Time.frameCount) { _availableFrame = Time.frameCount; _available = CheckAvailable(); }
+            if (_availableFrame != Time.frameCount)
+            {
+                _availableFrame = Time.frameCount;
+                _available = CheckAvailable();
+            }
             return _available;
         }
     }
     private static bool CheckAvailable()
     {
-            // The desktop mirror can lose focus while the streamed headset still
-            // owns the OpenXR session. The runtime, not the window, owns VR input.
-            if (!XRSettings.enabled || !OpenXRUtility.IsSessionFocused) return false;
-            var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
-            return head.isValid && head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) && tracked &&
-                   (!head.TryGetFeatureValue(CommonUsages.userPresence, out var present) || present);
+        // The desktop mirror can lose focus while the streamed headset still
+        // owns the OpenXR session. The runtime, not the window, owns VR input.
+        if (!XRSettings.enabled || !OpenXRUtility.IsSessionFocused)
+            return false;
+        var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+        return head.isValid && head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) && tracked &&
+               (!head.TryGetFeatureValue(CommonUsages.userPresence, out var present) || present);
     }
 
     internal static ControllerHardwareProfile Profile(bool left) => Profile(left ? XRController.leftHand : XRController.rightHand);
@@ -72,13 +77,20 @@ internal static class TrackedControllers
         device.TryGetFeatureValue(usage, out var value) ? value : controller?.TryGetChildControl<ButtonControl>(name)?.isPressed == true;
     private static bool ReadAnalog(InputDevice device, InputFeatureUsage<float> usage, XRController? controller, string name, out float value)
     {
-        if (device.TryGetFeatureValue(usage, out value) && FlightControlMath.IsFinite(value)) return true;
+        if (device.TryGetFeatureValue(usage, out value) && FlightControlMath.IsFinite(value))
+            return true;
         var control = controller?.TryGetChildControl<AxisControl>(name);
-        if (control != null) { value = control.ReadValue(); return true; }
+        if (control != null)
+        {
+            value = control.ReadValue();
+            return true;
+        }
         // Preserve invalid samples as invalid instead of treating tracking/data
         // failures as a released trigger. A genuinely absent feature is zero.
-        if (!FlightControlMath.IsFinite(value)) return true;
-        value = 0; return false;
+        if (!FlightControlMath.IsFinite(value))
+            return true;
+        value = 0;
+        return false;
     }
 
     public static ControllerSample Read(bool left)
@@ -87,17 +99,22 @@ internal static class TrackedControllers
         if (_sampleSeat != seat || _sampleAnchor != NOVRHeadsetData.TranslationAnchor ||
             _sampleTranslation != NOVRHeadsetData.TranslationCalibrationOffset || _sampleRotation != NOVRHeadsetData.RotationCalibrationOffset)
         {
-            ReadFrames[0] = ReadFrames[1] = -1; _sampleSeat = seat; _sampleAnchor = NOVRHeadsetData.TranslationAnchor;
-            _sampleTranslation = NOVRHeadsetData.TranslationCalibrationOffset; _sampleRotation = NOVRHeadsetData.RotationCalibrationOffset;
+            ReadFrames[0] = ReadFrames[1] = -1;
+            _sampleSeat = seat;
+            _sampleAnchor = NOVRHeadsetData.TranslationAnchor;
+            _sampleTranslation = NOVRHeadsetData.TranslationCalibrationOffset;
+            _sampleRotation = NOVRHeadsetData.RotationCalibrationOffset;
         }
         var i = left ? 0 : 1;
-        if (ReadFrames[i] == Time.frameCount) return Samples[i];
+        if (ReadFrames[i] == Time.frameCount)
+            return Samples[i];
         ReadFrames[i] = Time.frameCount;
         return Samples[i] = ReadRuntime(left);
     }
     private static ControllerSample ReadRuntime(bool left)
     {
-        if (!Available) return default;
+        if (!Available)
+            return default;
         var device = InputDevices.GetDeviceAtXRNode(left ? XRNode.LeftHand : XRNode.RightHand);
         if (!device.isValid || !device.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) || !tracked ||
             !device.TryGetFeatureValue(CommonUsages.trackingState, out var tracking) ||
@@ -105,7 +122,8 @@ internal static class TrackedControllers
             (InputTrackingState.Position | InputTrackingState.Rotation) ||
             !device.TryGetFeatureValue(CommonUsages.devicePosition, out var position) ||
             !device.TryGetFeatureValue(CommonUsages.deviceRotation, out var rotation) ||
-            !Finite(position) || !Finite(rotation)) return default;
+            !Finite(position) || !Finite(rotation))
+            return default;
 
         var inputDevice = left ? XRController.leftHand : XRController.rightHand;
         var profile = Profile(inputDevice);
@@ -134,7 +152,10 @@ internal static class TrackedControllers
         var handIndex = left ? 0 : 1;
         if ((left ? _reportedLeft : _reportedRight)?.Equals(device) != true || ReportedProfiles[handIndex] != profile)
         {
-            if (left) _reportedLeft = device; else _reportedRight = device;
+            if (left)
+                _reportedLeft = device;
+            else
+                _reportedRight = device;
             ReportedProfiles[handIndex] = profile;
             Debug.Log($"[NOVR] {(left ? "Left" : "Right")} controller: {device.name}; layout {inputDevice?.layout ?? "unavailable"}; profile {profile}.");
         }
@@ -143,7 +164,8 @@ internal static class TrackedControllers
         bool Touch(string name, out bool supported)
         {
             var control = inputDevice?.TryGetChildControl<ButtonControl>(name);
-            supported = control != null; return control?.isPressed == true;
+            supported = control != null;
+            return control?.isPressed == true;
         }
         var stickTouch = Touch("thumbstickTouched", out var hasStickTouch);
         var triggerTouch = Touch("triggerTouched", out var hasTriggerTouch);
@@ -168,20 +190,36 @@ internal static class TrackedControllers
         return new ControllerSample
         {
             Valid = FlightControlMath.IsFinite(grip) && FlightControlMath.IsFinite(trigger),
-            Device = device, Grip = grip, Trigger = trigger, HasAxis = hasAxis, HasAimPose = hasAimPose,
+            Device = device,
+            Grip = grip,
+            Trigger = trigger,
+            HasAxis = hasAxis,
+            HasAimPose = hasAimPose,
             Axis = hasAxis ? axis : Vector2.zero,
             StickClick = nativeFrame ? Button("thumbstickClicked") : stickClick,
             Primary = nativeFrame ? Button("faceButtonBottom") : primary,
             Secondary = nativeFrame ? Button("faceButtonInside") : secondary,
             Menu = nativeFrame ? Button("menu") : menu,
-            Shoulder = Button("shoulder"), Top = Button("faceButtonTop"), Outside = Button("faceButtonOutside"),
-            NativeFrame = nativeFrame, Profile = profile,
-            HasThumbTouch = hasStickTouch || hasButtonTouch || hasRestTouch, HasTriggerTouch = hasTriggerTouch,
-            ThumbstickTouched = stickTouch, ButtonTouched = faceTouch, PrimaryTouched = primaryTouch,
-            SecondaryTouched = secondaryTouch, TopTouched = topTouch, OutsideTouched = outsideTouch, ThumbrestTouched = restTouch,
-            TriggerTouched = triggerTouch, GripTouched = Button("gripTouched"),
-            Position = MapPosition(position), Rotation = NOVRHeadsetData.RotationCalibrationOffset * rotation,
-            AimPosition = MapPosition(aimPosition), AimRotation = NOVRHeadsetData.RotationCalibrationOffset * aimRotation
+            Shoulder = Button("shoulder"),
+            Top = Button("faceButtonTop"),
+            Outside = Button("faceButtonOutside"),
+            NativeFrame = nativeFrame,
+            Profile = profile,
+            HasThumbTouch = hasStickTouch || hasButtonTouch || hasRestTouch,
+            HasTriggerTouch = hasTriggerTouch,
+            ThumbstickTouched = stickTouch,
+            ButtonTouched = faceTouch,
+            PrimaryTouched = primaryTouch,
+            SecondaryTouched = secondaryTouch,
+            TopTouched = topTouch,
+            OutsideTouched = outsideTouch,
+            ThumbrestTouched = restTouch,
+            TriggerTouched = triggerTouch,
+            GripTouched = Button("gripTouched"),
+            Position = MapPosition(position),
+            Rotation = NOVRHeadsetData.RotationCalibrationOffset * rotation,
+            AimPosition = MapPosition(aimPosition),
+            AimRotation = NOVRHeadsetData.RotationCalibrationOffset * aimRotation
         };
     }
 

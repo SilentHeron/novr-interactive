@@ -19,28 +19,52 @@ internal static class TargetCueCandidates
     {
         if (hud == null || hud.aircraft == null || hud.aircraft.disabled || hud.targetDesignator == null ||
             !hud.targetDesignator.gameObject.activeInHierarchy)
-        { _hud = null; _aircraft = null; _candidate = null; _nextCheck = 0; return false; }
+        {
+            _hud = null;
+            _aircraft = null;
+            _candidate = null;
+            _nextCheck = 0;
+            return false;
+        }
         const float radius = 100;
         var exclusions = SceneSingleton<TargetListSelector>.i;
-        if (exclusions == null) { _candidate = null; _nextCheck = 0; return false; }
+        if (exclusions == null)
+        {
+            _candidate = null;
+            _nextCheck = 0;
+            return false;
+        }
         // Marker highlights are presentation state and can lag selection from
         // the map or a weapon system. Consult the complete live target list too,
         // including on the fast path for a previously eligible candidate.
         var selected = hud.aircraft.weaponManager != null
             ? hud.aircraft.weaponManager.GetTargetList() : hud.GetTargetList();
-        if (selected == null) { _candidate = null; _nextCheck = 0; return false; }
+        if (selected == null)
+        {
+            _candidate = null;
+            _nextCheck = 0;
+            return false;
+        }
         if (_hud == hud && _aircraft == hud.aircraft && _radius == radius && Time.unscaledTime < _nextCheck)
         {
             // Recheck a positive result against the current gaze and filters.
             // Newly selected or moved-away units must not leave a stale cue.
-            if (_candidate == null) return false;
-            if (Eligible(_candidate, hud, exclusions, selected, radius)) return true;
+            if (_candidate == null)
+                return false;
+            if (Eligible(_candidate, hud, exclusions, selected, radius))
+                return true;
         }
-        _hud = hud; _aircraft = hud.aircraft; _radius = radius;
-        _nextCheck = Time.unscaledTime + .08f; _candidate = null;
+        _hud = hud;
+        _aircraft = hud.aircraft;
+        _radius = radius;
+        _nextCheck = Time.unscaledTime + .08f;
+        _candidate = null;
         foreach (var marker in Markers(hud))
             if (Eligible(marker, hud, exclusions, selected, radius))
-            { _candidate = marker; return true; }
+            {
+                _candidate = marker;
+                return true;
+            }
         return false;
     }
 

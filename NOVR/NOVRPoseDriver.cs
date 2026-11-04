@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace NOVR;
@@ -16,15 +16,15 @@ public enum CalibrationAxes : byte
     Z = Roll,
 }
 
-public class NOVRPoseDriver: NOVRBehaviour
+public class NOVRPoseDriver : NOVRBehaviour
 {
-    
-    
-
-    
 
 
-    
+
+
+
+
+
     protected override void OnBeforeRender()
     {
         base.OnBeforeRender();
@@ -47,5 +47,5 @@ public class NOVRPoseDriver: NOVRBehaviour
         transform.localPosition = NOVRHeadsetData.Translation + MotionControls.CockpitProfiles.SeatOffset;
     }
 
-   
+
 }

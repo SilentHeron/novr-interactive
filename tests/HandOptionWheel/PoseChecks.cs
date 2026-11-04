@@ -22,7 +22,9 @@ internal static class PoseChecks
                 var cap = frame ? new Vector3(side * .027826f, .0110762f, .0537274f)
                     : new Vector3(-side * .006413f, -.0166453f, .0537527f);
                 HandOptionWheelPose.Get(left, frame, out var offsetValue, out var normalValue, out var upValue);
-                var offset = V(offsetValue); var normal = V(normalValue); var up = V(upValue);
+                var offset = V(offsetValue);
+                var normal = V(normalValue);
+                var up = V(upValue);
                 check(Vector3.Distance(offset, cap + deckNormal * .055f) < .000001f,
                     "wheel center remains 5.5 cm above the actual cap for both profiles/hands");
                 check(MathF.Abs(Vector3.Dot(normal, deckNormal) - cosine) < .00001f,

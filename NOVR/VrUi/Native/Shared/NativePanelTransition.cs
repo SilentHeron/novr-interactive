@@ -28,7 +28,8 @@ public sealed class NativePanelTransition : MonoBehaviour
 
     private void Initialize()
     {
-        if (_initialized) return;
+        if (_initialized)
+            return;
         _rectTransform ??= (RectTransform)transform;
         _canvasGroup ??= gameObject.GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         _shownPosition = _rectTransform.anchoredPosition;
@@ -46,12 +47,14 @@ public sealed class NativePanelTransition : MonoBehaviour
             gameObject.SetActive(true);
         }
 
-        if (_canvasGroup == null || _rectTransform == null) return;
+        if (_canvasGroup == null || _rectTransform == null)
+            return;
 
         _canvasGroup.interactable = visible;
         _canvasGroup.blocksRaycasts = visible;
 
-        if (!instant) return;
+        if (!instant)
+            return;
 
         _canvasGroup.alpha = visible ? 1f : 0f;
         _rectTransform.anchoredPosition = visible ? _shownPosition : _hiddenPosition;
@@ -60,7 +63,8 @@ public sealed class NativePanelTransition : MonoBehaviour
 
     private void Update()
     {
-        if (_canvasGroup == null || _rectTransform == null) return;
+        if (_canvasGroup == null || _rectTransform == null)
+            return;
 
         var targetAlpha = _targetVisible ? 1f : 0f;
         var maxAlphaDelta = Time.unscaledDeltaTime / DurationSeconds;

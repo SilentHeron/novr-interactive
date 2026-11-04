@@ -91,7 +91,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         EnsureRoot();
         ScanForMainMenuCanvas();
 
-        if (UpdateStartupSplash()) return;
+        if (UpdateStartupSplash())
+            return;
 
         if (!IsNativeMenuUiEnabled)
         {
@@ -113,7 +114,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
             RestoreOriginalMainCanvas();
             // Suspend the replacement canvas without resetting its panels. On
             // return, keep the chosen mission and its edited settings intact.
-            if (_root != null) _root.SetActive(false);
+            if (_root != null)
+                _root.SetActive(false);
             ClearNativeCursorProjectionReference();
             SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
             return;
@@ -198,7 +200,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private bool UpdateStartupSplash()
     {
-        if (_startupSplash?.Finished == true) return false;
+        if (_startupSplash?.Finished == true)
+            return false;
         var manager = NetworkManagerNuclearOption.IsLoaded ? NetworkManagerNuclearOption.i : null;
         var multiplayer = StartupSplashState.IsMultiplayerSession(GameManager.gameState == GameState.Multiplayer,
             manager != null && manager.Server.Active, manager != null && manager.Server.Listening,
@@ -206,7 +209,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         var visible = _startupSplash?.Update(BlueprinterContentReadiness.Read().Phase,
             UnityEngine.XR.XRSettings.enabled, GameManager.GetLocalAircraft(out _), multiplayer) == true;
         NOUIManager.I?.SetStartupPresentation(visible);
-        if (!visible) return false;
+        if (!visible)
+            return false;
 
         // The loader's temporary offline host may replace the main camera and scene.
         // Keep the loading view in the same useful place relative to the new tracked rig.
@@ -222,7 +226,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         HandleRecenterShortcut(true);
         UpdatePlacement(true);
         UpdatePendingRecenter(true);
-        if (_root != null) _root.SetActive(true);
+        if (_root != null)
+            _root.SetActive(true);
         SuppressOriginalMainCanvas(true);
         return true;
     }
@@ -233,7 +238,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         RestoreOriginalMainCanvas();
         _startupSplash?.Dispose();
         NOUIManager.I?.SetStartupPresentation(false);
-        if (_root != null) _root.SetActive(false);
+        if (_root != null)
+            _root.SetActive(false);
         SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
         base.OnDisable();
     }
@@ -243,8 +249,10 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         _mainCanvasDiscovery.Disable();
         _actions.ActionInvoked -= OnNativeActionInvoked;
         _startupSplash?.Dispose();
-        if (_root != null) Destroy(_root);
-        if (_recenterWidgetRoot != null) Destroy(_recenterWidgetRoot);
+        if (_root != null)
+            Destroy(_root);
+        if (_recenterWidgetRoot != null)
+            Destroy(_recenterWidgetRoot);
     }
 
     protected override void OnSettingChanged()
@@ -255,7 +263,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void RefreshEnabledState()
     {
-        if (_startupSplash?.IsVisible == true) return;
+        if (_startupSplash?.IsVisible == true)
+            return;
         if (IsNativeMenuUiEnabled)
         {
             EnsureRoot();
@@ -274,7 +283,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void EnsureRoot()
     {
-        if (_root != null) return;
+        if (_root != null)
+            return;
 
         _root = new GameObject("NOVR Native VR UI");
         DontDestroyOnLoad(_root);
@@ -315,7 +325,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void UpdatePlacement(bool shouldShowNativeUi)
     {
-        if (_root == null) return;
+        if (_root == null)
+            return;
 
         var loading = _startupSplash?.IsVisible == true;
         var menuDistance = loading ? DefaultMenuDistanceMeters : GetNativeMenuDistance();
@@ -377,7 +388,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void ApplyMenuAnchor(float menuDistance, float menuHeightOffset)
     {
-        if (_root == null || !_menuAnchorInitialized) return;
+        if (_root == null || !_menuAnchorInitialized)
+            return;
 
         var position = _menuAnchorPosition + (_menuAnchorRotation * Vector3.forward) * menuDistance + Vector3.up * menuHeightOffset;
         var minimumHeight = _menuAnchorPosition.y + MinimumMenuCenterHeightBelowHeadMeters;
@@ -392,7 +404,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void ApplyNativeCursorProjectionReference()
     {
-        if (!_menuAnchorInitialized) return;
+        if (!_menuAnchorInitialized)
+            return;
 
         VrUiCursor.I?.SetProjectionReferenceRotation(_menuAnchorRotation);
     }
@@ -404,7 +417,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void HandleRecenterShortcut(bool shouldShowNativeUi)
     {
-        if (!shouldShowNativeUi) return;
+        if (!shouldShowNativeUi)
+            return;
 
         var keyboard = Keyboard.current;
         if (keyboard?.homeKey.wasPressedThisFrame == true)
@@ -458,7 +472,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void UpdateRecenterButtonText()
     {
-        if (_recenterButtonText == null) return;
+        if (_recenterButtonText == null)
+            return;
 
         if (_utilityWidgetMode == UtilityWidgetMode.EnableNativeUi)
         {
@@ -478,7 +493,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void CreateRecenterWidget()
     {
-        if (_recenterWidgetRoot != null) return;
+        if (_recenterWidgetRoot != null)
+            return;
 
         _recenterWidgetRoot = new GameObject("NOVR Native VR UI Recenter Widget");
         DontDestroyOnLoad(_recenterWidgetRoot);
@@ -512,7 +528,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void UpdateRecenterWidgetPlacement()
     {
-        if (_recenterWidgetRoot == null) return;
+        if (_recenterWidgetRoot == null)
+            return;
 
         if (_utilityWidgetMode == UtilityWidgetMode.Recenter && _root != null)
         {
@@ -546,7 +563,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
         var modeChanged = _utilityWidgetMode != mode;
         _utilityWidgetMode = mode;
 
-        if (_recenterWidgetRoot == null) return;
+        if (_recenterWidgetRoot == null)
+            return;
 
         var visible = mode != UtilityWidgetMode.Hidden;
         if (_recenterWidgetRoot.activeSelf != visible)
@@ -554,7 +572,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
             _recenterWidgetRoot.SetActive(visible);
         }
 
-        if (!visible) return;
+        if (!visible)
+            return;
 
         UpdateRecenterWidgetPlacement();
         UpdateRecenterButtonText();
@@ -692,7 +711,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
     private void ScanForMainMenuCanvas()
     {
         var mainCanvas = _mainCanvasDiscovery.Find(Time.unscaledTime);
-        if (mainCanvas == _mainCanvas) return;
+        if (mainCanvas == _mainCanvas)
+            return;
 
         RestoreOriginalMainCanvas();
         _mainCanvas = mainCanvas;
@@ -702,7 +722,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private bool IsMissionPickerAvailable()
     {
-        if (_mainCanvas == null) return false;
+        if (_mainCanvas == null)
+            return false;
 
         var pickers = _mainCanvas.GetComponentsInChildren<global::MissionPicker>(true);
         for (var index = 0; index < pickers.Length; index++)
@@ -718,7 +739,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private bool IsMultiplayerMenuAvailable()
     {
-        if (_mainCanvas == null) return false;
+        if (_mainCanvas == null)
+            return false;
 
         var lobbyLists = _mainCanvas.GetComponentsInChildren<LobbyList>(true);
         for (var index = 0; index < lobbyLists.Length; index++)
@@ -734,7 +756,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private bool IsSettingsMenuAvailable()
     {
-        if (_mainCanvas == null) return false;
+        if (_mainCanvas == null)
+            return false;
 
         var settingsMenus = _mainCanvas.GetComponentsInChildren<global::SettingsMenu>(true);
         for (var index = 0; index < settingsMenus.Length; index++)
@@ -750,7 +773,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private bool IsWorkshopMenuAvailable()
     {
-        if (_mainCanvas == null) return false;
+        if (_mainCanvas == null)
+            return false;
 
         var workshopMenus = _mainCanvas.GetComponentsInChildren<WorkshopMenu>(true);
         for (var index = 0; index < workshopMenus.Length; index++)
@@ -826,11 +850,13 @@ public partial class NativeVrUiRoot : NOVRBehaviour
             return;
         }
 
-        if (_mainCanvas == null) return;
+        if (_mainCanvas == null)
+            return;
 
         SuppressOriginalCanvases();
 
-        if (_suppressedMainCanvasGroup != null) return;
+        if (_suppressedMainCanvasGroup != null)
+            return;
 
         _mainCanvasHadCanvasGroup = _mainCanvas.TryGetComponent(out _suppressedMainCanvasGroup);
         if (_suppressedMainCanvasGroup == null)
@@ -849,13 +875,15 @@ public partial class NativeVrUiRoot : NOVRBehaviour
 
     private void SuppressOriginalCanvases()
     {
-        if (_mainCanvas == null) return;
+        if (_mainCanvas == null)
+            return;
 
         var canvases = _mainCanvas.GetComponentsInChildren<Canvas>(true);
         for (var index = 0; index < canvases.Length; index++)
         {
             var canvas = canvases[index];
-            if (canvas == null) continue;
+            if (canvas == null)
+                continue;
 
             if (!HasSuppressedCanvasState(canvas))
             {
@@ -883,7 +911,8 @@ public partial class NativeVrUiRoot : NOVRBehaviour
     {
         RestoreOriginalCanvases();
 
-        if (_suppressedMainCanvasGroup == null) return;
+        if (_suppressedMainCanvasGroup == null)
+            return;
 
         _suppressedMainCanvasGroup.alpha = _mainCanvasOriginalAlpha;
         _suppressedMainCanvasGroup.interactable = _mainCanvasOriginalInteractable;
@@ -944,7 +973,13 @@ public partial class NativeVrUiRoot : NOVRBehaviour
             WasEnabled = wasEnabled;
         }
 
-        public Canvas Canvas { get; }
-        public bool WasEnabled { get; }
+        public Canvas Canvas
+        {
+            get;
+        }
+        public bool WasEnabled
+        {
+            get;
+        }
     }
 }

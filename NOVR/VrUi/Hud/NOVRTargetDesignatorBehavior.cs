@@ -9,10 +9,12 @@ public class NOVRTargetDesignatorBehavior : UIRenderedCanvasBehavior
 
     private void LateUpdate()
     {
-        if (NOUIManager.I == null) return;
+        if (NOUIManager.I == null)
+            return;
         var uiCam = APIBus.CockpitHudReference;
-        if (uiCam == null) return;
-        
+        if (uiCam == null)
+            return;
+
         transform.rotation = Quaternion.SlerpUnclamped(Quaternion.identity, uiCam.transform.rotation, 1.1f);
         transform.position = uiCam.transform.position + transform.forward * _offset;
     }

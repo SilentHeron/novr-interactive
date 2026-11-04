@@ -16,7 +16,8 @@ internal static class PilotTextureEnhancement
             throw new ArgumentException("Invalid pilot colour texture dimensions or pixel data.");
         cancellation.ThrowIfCancellationRequested();
         var output = (byte[])input.Clone();
-        if (team == PilotUniformTeam.Native) return output;
+        if (team == PilotUniformTeam.Native)
+            return output;
         var color = PilotUniformPalette.Color(team, glove);
         var ramp = new byte[256 * 3];
         for (var value = 0; value < 256; value++)
@@ -37,11 +38,14 @@ internal static class PilotTextureEnhancement
             for (var x = 0; x < width; x++)
             {
                 var at = (y * width + x) * 4;
-                if (input[at + 3] == 0) continue;
+                if (input[at + 3] == 0)
+                    continue;
                 // Keep dark stitching dark and cap highlights below white so
                 // both pale cloth and black cloth retain readable surface detail.
                 var tone = Math.Min(255, (int)Math.Round(Luminance(input, at))) * 3;
-                output[at] = ramp[tone]; output[at + 1] = ramp[tone + 1]; output[at + 2] = ramp[tone + 2];
+                output[at] = ramp[tone];
+                output[at + 1] = ramp[tone + 1];
+                output[at + 2] = ramp[tone + 2];
             }
         }
         return output;
@@ -58,7 +62,8 @@ internal static class PilotTextureEnhancement
         var tileWidth = Math.Max(1, width / 4);
         var tileHeight = Math.Max(1, height / 4);
         var tile = ResampleFabric(fabric, fabricWidth, fabricHeight, tileWidth, tileHeight, cancellation);
-        var dx = new float[tile.Length]; var dy = new float[tile.Length];
+        var dx = new float[tile.Length];
+        var dy = new float[tile.Length];
         var maximumSlope = 16f;
         for (var y = 0; y < tileHeight; y++)
         {
@@ -78,7 +83,8 @@ internal static class PilotTextureEnhancement
             for (var x = 0; x < width; x++)
             {
                 var tileAt = y % tileHeight * tileWidth + x % tileWidth;
-                if (Math.Abs(dx[tileAt]) + Math.Abs(dy[tileAt]) < .00001f) continue;
+                if (Math.Abs(dx[tileAt]) + Math.Abs(dy[tileAt]) < .00001f)
+                    continue;
                 var at = (y * width + x) * 4;
                 // Unity desktop UnpackNormalmapRGorAG: X is red * alpha,
                 // Y is green. Alpha is a normal channel, not coverage.
@@ -86,13 +92,18 @@ internal static class PilotTextureEnhancement
                 var ny = input[at + 1] / 255.0 * 2 - 1;
                 var nz = Math.Sqrt(Math.Max(0, 1 - nx * nx - ny * ny));
                 var nLength = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-                nx /= nLength; ny /= nLength; nz /= nLength;
+                nx /= nLength;
+                ny /= nLength;
+                nz /= nLength;
                 // At most 8.6 degrees of weave relief; steep native folds take
                 // less detail so their tangent-space normal cannot invert.
                 var strength = .15 * Math.Max(.15, nz) / maximumSlope;
-                var bx = -dx[tileAt] * strength; var by = -dy[tileAt] * strength;
+                var bx = -dx[tileAt] * strength;
+                var by = -dy[tileAt] * strength;
                 var detailLength = Math.Sqrt(bx * bx + by * by + 1);
-                bx /= detailLength; by /= detailLength; var bz = 1 / detailLength;
+                bx /= detailLength;
+                by /= detailLength;
+                var bz = 1 / detailLength;
                 // Reoriented normal mapping retains the original fold frame.
                 // Simply adding XY would flatten or skew the authored normals.
                 var tz = nz + 1;
@@ -131,11 +142,14 @@ internal static class PilotTextureEnhancement
         var tileHeight = Math.Max(1, height / 4);
         var tile = ResampleFabric(fabric, fabricWidth, fabricHeight, tileWidth, tileHeight, cancellation);
         double sum = 0;
-        foreach (var value in tile) sum += value;
+        foreach (var value in tile)
+            sum += value;
         var mean = (float)(sum / tile.Length);
         var deviation = 32f;
-        foreach (var value in tile) deviation = Math.Max(deviation, Math.Abs(value - mean));
-        for (var i = 0; i < tile.Length; i++) tile[i] = (tile[i] - mean) * (.055f / deviation);
+        foreach (var value in tile)
+            deviation = Math.Max(deviation, Math.Abs(value - mean));
+        for (var i = 0; i < tile.Length; i++)
+            tile[i] = (tile[i] - mean) * (.055f / deviation);
 
         var output = new byte[input.Length];
         for (var y = 0; y < height; y++)
@@ -153,7 +167,8 @@ internal static class PilotTextureEnhancement
                 var up = (above + x) * 4;
                 var down = (below + x) * 4;
                 var value = Luminance(input, at);
-                var low = value; var high = value;
+                var low = value;
+                var high = value;
                 var neighbours = Neighbour(input, at, left, value, ref low, ref high) +
                     Neighbour(input, at, right, value, ref low, ref high) +
                     Neighbour(input, at, up, value, ref low, ref high) +
@@ -168,8 +183,10 @@ internal static class PilotTextureEnhancement
                 // black. Additive gray grain would wash out saturated/dark uniforms.
                 var scale = 1f + grain + contrast / Math.Max(16f, value);
                 var brightest = Math.Max(input[at], Math.Max(input[at + 1], input[at + 2]));
-                if (brightest > 0) scale = Math.Min(scale, 255f / brightest);
-                if (input[at + 3] == 0) scale = 1f;
+                if (brightest > 0)
+                    scale = Math.Min(scale, 255f / brightest);
+                if (input[at + 3] == 0)
+                    scale = 1f;
                 for (var channel = 0; channel < 3; channel++)
                     output[at + channel] = (byte)Math.Max(0, Math.Min(255,
                         (int)Math.Round(input[at + channel] * scale, MidpointRounding.ToEven)));
@@ -185,9 +202,11 @@ internal static class PilotTextureEnhancement
     private static float Neighbour(byte[] pixels, int at, int neighbour, float value, ref float low, ref float high)
     {
         // Do not pull invisible padding or a different coverage island into a seam.
-        if (pixels[at + 3] != pixels[neighbour + 3]) return value;
+        if (pixels[at + 3] != pixels[neighbour + 3])
+            return value;
         var other = Luminance(pixels, neighbour);
-        low = Math.Min(low, other); high = Math.Max(high, other);
+        low = Math.Min(low, other);
+        high = Math.Max(high, other);
         return other;
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace NOVR;
 
@@ -14,7 +14,7 @@ public class KeyboardKey
         F4 = 0x73,
         F5 = 0x74,
     }
-    
+
     private bool _previousIsKeyPressed;
     private bool _isKeyPressed;
     private readonly KeyCode _keyCode;
@@ -23,7 +23,7 @@ public class KeyboardKey
     {
         _keyCode = keyCode;
     }
-    
+
     public bool UpdateIsDown()
     {
         _previousIsKeyPressed = _isKeyPressed;
@@ -31,7 +31,7 @@ public class KeyboardKey
 
         return !_previousIsKeyPressed && _isKeyPressed;
     }
-    
+
     [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true, CallingConvention = CallingConvention.Winapi)]
     private static extern short GetKeyState(int keyCode);
 }

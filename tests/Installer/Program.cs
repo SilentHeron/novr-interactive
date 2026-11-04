@@ -11,7 +11,11 @@ var checks = 0;
 void Check(bool condition, string name) { if (!condition) throw new Exception(name); Console.WriteLine("PASS " + name); checks++; }
 async Task Reject(Func<Task> action, string name)
 {
-    try { await action(); } catch (Exception ex) when (ex is not TestFailure) { Check(true, name + " (" + ex.GetType().Name + ")"); return; }
+    try
+    {
+        await action();
+    }
+    catch (Exception ex) when (ex is not TestFailure) { Check(true, name + " (" + ex.GetType().Name + ")"); return; }
     throw new TestFailure("Expected rejection: " + name);
 }
 void RejectSync(Action action, string name) => Reject(() => { action(); return Task.CompletedTask; }, name).GetAwaiter().GetResult();
@@ -23,7 +27,8 @@ try
     Check(new ReleaseVersion("0.4.7") == new ReleaseVersion("0.4.7.0"), "three- and four-part equivalents compare equally");
     Check(new ReleaseVersion("0.4.7").GetHashCode() == new ReleaseVersion("0.4.7.0").GetHashCode(), "version equality hash contract");
     Check(default(ReleaseVersion) < new ReleaseVersion("0.4.7.3"), "default version comparison is safe");
-    foreach (var value in new[] { "", "0.4", "0.4.7.-1", "0.4.7.3-preview", "0.4.7.3.1" }) RejectSync(() => _ = new ReleaseVersion(value), "reject invalid tag " + value);
+    foreach (var value in new[] { "", "0.4", "0.4.7.-1", "0.4.7.3-preview", "0.4.7.3.1" })
+        RejectSync(() => _ = new ReleaseVersion(value), "reject invalid tag " + value);
 
     var library = Path.Combine(root, "external Steam library", "steamapps");
     var protonGame = Path.Combine(library, "common", "Nuclear Option");
@@ -67,7 +72,8 @@ try
         "cancelled setup stops before inspecting or reporting Proton setup");
 
     var zip = MakeZip(root, "valid.zip");
-    NovrPackage.Validate(zip, "v0.4.7.3"); Check(true, "validate complete package");
+    NovrPackage.Validate(zip, "v0.4.7.3");
+    Check(true, "validate complete package");
     Check(NovrPackage.ReadVersion(zip).ToString() == "0.4.7.3", "offline package identifies own version");
     foreach (var (name, extra, omit) in new[] {
         ("traversal", "../outside.dll", ""), ("backslash", "plugins\\NOVR\\evil.dll", ""),
@@ -80,7 +86,8 @@ try
     }
     RejectSync(() => NovrPackage.Validate(zip, "0.4.7.2"), "mismatched release metadata rejected");
     var linkZip = MakeZip(root, "link.zip");
-    using (var archive = ZipFile.Open(linkZip, ZipArchiveMode.Update)) archive.GetEntry("plugins/NOVR/NOVR.dll")!.ExternalAttributes = unchecked((int)0xA1FF0000);
+    using (var archive = ZipFile.Open(linkZip, ZipArchiveMode.Update))
+        archive.GetEntry("plugins/NOVR/NOVR.dll")!.ExternalAttributes = unchecked((int)0xA1FF0000);
     RejectSync(() => NovrPackage.Validate(linkZip, "0.4.7.3"), "archive symbolic links rejected");
 
     var game = FixtureGame(root, "update");
@@ -97,8 +104,10 @@ try
     Check(File.ReadAllText(game.VersionFile) == "0.4.7.3", "committed version metadata matches package");
 
     var broken = FixtureGame(root, "failed-second-swap");
-    var sabotage = new ImmediateProgress(message => {
-        if (message.StartsWith("Installing validated")) Directory.Delete(Path.Combine(broken.BepInExDir, ".novr-update", "staged", "patchers", "NOVR"), true);
+    var sabotage = new ImmediateProgress(message =>
+    {
+        if (message.StartsWith("Installing validated"))
+            Directory.Delete(Path.Combine(broken.BepInExDir, ".novr-update", "staged", "patchers", "NOVR"), true);
     });
     await Reject(() => installer.InstallOrUpdateNovrAsync(broken, zip, "0.4.7.3", sabotage, default), "failure after first swap reported");
     Check(IsOld(broken.PluginDir, "NOVR.dll") && IsOld(broken.PatcherDir, "NOVR.Patcher.dll"), "both directories restored after second swap fails");
@@ -116,10 +125,13 @@ try
     Directory.CreateDirectory(transaction);
     File.WriteAllText(Path.Combine(transaction, "journal.json"), "{\"HadPlugin\":true,\"HadPatcher\":true}");
     Directory.Move(interrupted.PluginDir, Path.Combine(transaction, "old-plugins"));
-    Directory.CreateDirectory(interrupted.PluginDir); File.WriteAllText(Path.Combine(interrupted.PluginDir, "NOVR.dll"), "interrupted new plugin");
+    Directory.CreateDirectory(interrupted.PluginDir);
+    File.WriteAllText(Path.Combine(interrupted.PluginDir, "NOVR.dll"), "interrupted new plugin");
     var recovered = false;
-    await installer.InstallOrUpdateNovrAsync(interrupted, zip, "0.4.7.3", new ImmediateProgress(message => {
-        if (message.StartsWith("Installing validated")) recovered = IsOld(interrupted.PluginDir, "NOVR.dll") && IsOld(interrupted.PatcherDir, "NOVR.Patcher.dll");
+    await installer.InstallOrUpdateNovrAsync(interrupted, zip, "0.4.7.3", new ImmediateProgress(message =>
+    {
+        if (message.StartsWith("Installing validated"))
+            recovered = IsOld(interrupted.PluginDir, "NOVR.dll") && IsOld(interrupted.PatcherDir, "NOVR.Patcher.dll");
     }), default);
     Check(recovered, "interrupted previous transaction restored before next update");
     Check(File.ReadAllText(Path.Combine(interrupted.PluginDir, "NOVR.dll")) == "new-plugin", "update proceeds after recovery");
@@ -140,7 +152,8 @@ try
     var attemptedRemoval = false;
     await installer.InstallOrUpdateNovrAsync(updateDuringRemoval, zip, "0.4.7.3", new ImmediateProgress(message =>
     {
-        if (!message.StartsWith("Installing validated")) return;
+        if (!message.StartsWith("Installing validated"))
+            return;
         attemptedRemoval = true;
         var secondInstaller = new FileSystemInstaller();
         Reject(() => secondInstaller.UninstallNovrAsync(updateDuringRemoval, messages, default), "second installer cannot remove NOVR during an active update").GetAwaiter().GetResult();
@@ -239,7 +252,8 @@ static bool IsOld(string directory, string name) => File.Exists(Path.Combine(dir
 static GameInstallInfo FixtureGame(string root, string name)
 {
     var game = new GameInstallInfo(Path.Combine(root, name), true, true, InstallState.FullyInstalled, null);
-    Directory.CreateDirectory(game.PluginDir); Directory.CreateDirectory(game.PatcherDir);
+    Directory.CreateDirectory(game.PluginDir);
+    Directory.CreateDirectory(game.PatcherDir);
     File.WriteAllText(Path.Combine(game.PluginDir, "NOVR.dll"), "old");
     File.WriteAllText(Path.Combine(game.PluginDir, "obsolete.dll"), "old");
     File.WriteAllText(Path.Combine(game.PatcherDir, "NOVR.Patcher.dll"), "old");
@@ -255,24 +269,40 @@ static string MakeZip(string root, string name, string extra = "", string omit =
     using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
     foreach (var (file, content) in new[] { ("plugins/NOVR/NOVR.dll", "new-plugin"), ("patchers/NOVR/NOVR.Patcher.dll", "new-patcher"), ("plugins/NOVR/version.txt", "0.4.7.3"), ("docs/guide.txt", "guide"), ("config/deltawing.novr.cfg", "package default settings") })
     {
-        if (file == omit) continue;
-        using var writer = new StreamWriter(archive.CreateEntry(file).Open()); writer.Write(content);
+        if (file == omit)
+            continue;
+        using var writer = new StreamWriter(archive.CreateEntry(file).Open());
+        writer.Write(content);
     }
-    if (extra.Length > 0) { using var writer = new StreamWriter(archive.CreateEntry(extra).Open()); writer.Write("extra"); }
+    if (extra.Length > 0)
+    {
+        using var writer = new StreamWriter(archive.CreateEntry(extra).Open());
+        writer.Write("extra");
+    }
     return path;
 }
 static GitHubReleaseClient MockClient(string? hash, byte[] bytes, string name, string? sidecar = null, List<string>? urls = null)
 {
     var assets = new List<object> { new { name, browser_download_url = "https://github.com/SilentHeron/novr-interactive/releases/download/v0.4.7.3/" + name, digest = hash is null ? null : "sha256:" + hash } };
-    if (sidecar is not null) assets.Add(new { name = name + ".sha256", browser_download_url = "https://github.com/SilentHeron/novr-interactive/releases/download/v0.4.7.3/" + name + ".sha256" });
+    if (sidecar is not null)
+        assets.Add(new
+        {
+            name = name + ".sha256",
+            browser_download_url = "https://github.com/SilentHeron/novr-interactive/releases/download/v0.4.7.3/" + name + ".sha256"
+        });
     return new GitHubReleaseClient(new HttpClient(new MockHandler(request =>
     {
-        var url = request.RequestUri!.ToString(); urls?.Add(url);
-        if (url.StartsWith("https://api.github.com/")) return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { tag_name = "v0.4.7.3", assets })) };
+        var url = request.RequestUri!.ToString();
+        urls?.Add(url);
+        if (url.StartsWith("https://api.github.com/"))
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { tag_name = "v0.4.7.3", assets })) };
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = url.EndsWith(".sha256") ? new StringContent(sidecar!) : new ByteArrayContent(bytes) };
     })));
 }
-sealed class ImmediateProgress(Action<string>? callback = null) : IProgress<string> { public void Report(string value) => callback?.Invoke(value); }
+sealed class ImmediateProgress(Action<string>? callback = null) : IProgress<string>
+{
+    public void Report(string value) => callback?.Invoke(value);
+}
 sealed class MockHandler(Func<HttpRequestMessage, HttpResponseMessage> send) : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(send(request));

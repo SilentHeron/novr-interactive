@@ -23,15 +23,18 @@ public class APIBus : MonoBehaviour
 
     public void Update()
     {
-        if (!TryClaimOwnership()) return;
+        if (!TryClaimOwnership())
+            return;
         var camera = Camera.main;
         Publish(camera != null ? camera : null);
     }
 
     private bool TryClaimOwnership()
     {
-        if (!isActiveAndEnabled) return false;
-        if (ReferenceEquals(_current, this)) return true;
+        if (!isActiveAndEnabled)
+            return false;
+        if (ReferenceEquals(_current, this))
+            return true;
         if (_current == null || !_current.isActiveAndEnabled)
         {
             _current = this;
@@ -49,7 +52,8 @@ public class APIBus : MonoBehaviour
     {
         // Unity considers a destroyed camera equal to null, but subscribers
         // still need that loss notification and the stale reference cleared.
-        if (ReferenceEquals(_previousMainCamera, camera)) return;
+        if (ReferenceEquals(_previousMainCamera, camera))
+            return;
         var previous = _previousMainCamera;
         _previousMainCamera = camera;
         // Publish the cache first. A failing subscriber must not make the
@@ -59,7 +63,8 @@ public class APIBus : MonoBehaviour
 
     private void ReleaseOwnership()
     {
-        if (!ReferenceEquals(_current, this)) return;
+        if (!ReferenceEquals(_current, this))
+            return;
         _current = null;
         Publish(null);
     }

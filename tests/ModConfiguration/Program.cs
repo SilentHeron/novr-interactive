@@ -6,11 +6,15 @@ var checks = 0;
 void Check(bool condition, string label)
 {
     checks++;
-    if (!condition) throw new InvalidOperationException(label);
+    if (!condition)
+        throw new InvalidOperationException(label);
 }
 void Throws<T>(Action action, string label) where T : Exception
 {
-    try { action(); }
+    try
+    {
+        action();
+    }
     catch (T) { Check(true, label); return; }
     throw new InvalidOperationException(label);
 }
@@ -41,7 +45,8 @@ foreach (var failAt in new[] { 2, firstFile.BindCount / 2, firstFile.BindCount }
     failingFile.BeforeBind = count =>
     {
         Check(ReferenceEquals(first, ModConfiguration.Current), "A replacement remains private throughout construction.");
-        if (count == failAt) throw new IOException("Configuration bind failed");
+        if (count == failAt)
+            throw new IOException("Configuration bind failed");
     };
     Throws<IOException>(() => _ = new ModConfiguration(failingFile), $"Failure on binding {failAt} propagates.");
     Check(ReferenceEquals(first, ModConfiguration.Instance), "A failed replacement retains the last complete settings.");

@@ -61,12 +61,20 @@ internal static class HudWidgetGestureChecks
         // panel center: both hands must be able to reach the resize affordance.
         var footprints = new Dictionary<string, (float width, float height)>
         {
-            ["weapons"] = (420, 170), ["countermeasures"] = (260, 135), ["power"] = (420, 80),
-            ["threats"] = (460, 190), ["ew"] = (260, 260), ["feed"] = (460, 270), ["map"] = (300, 300), ["damage"] = (300, 300), ["objectives"] = (420, 150)
+            ["weapons"] = (420, 170),
+            ["countermeasures"] = (260, 135),
+            ["power"] = (420, 80),
+            ["threats"] = (460, 190),
+            ["ew"] = (260, 260),
+            ["feed"] = (460, 270),
+            ["map"] = (300, 300),
+            ["damage"] = (300, 300),
+            ["objectives"] = (420, 150)
         };
         foreach (var pair in HudWidgetProfiles.FactoryDefaults)
         {
-            var pose = pair.Value; var size = footprints[pair.Key];
+            var pose = pair.Value;
+            var size = footprints[pair.Key];
             for (var corner = 0; corner < 4; corner++)
             {
                 var x = pose.Position.x + ((corner & 1) == 0 ? -1 : 1) * size.width * .0007f * pose.Scale * .5f;

@@ -10,7 +10,10 @@ namespace NOVR.MotionControls;
 [DefaultExecutionOrder(-1050)]
 internal sealed class ControllerActions : MonoBehaviour
 {
-    internal static ControllerActions? Instance { get; private set; }
+    internal static ControllerActions? Instance
+    {
+        get; private set;
+    }
 
     private static readonly ControllerActionId[] ActionIds = (ControllerActionId[])System.Enum.GetValues(typeof(ControllerActionId));
     internal bool TargetSelecting => !CockpitHudWidgets.Editing && _target.Held;

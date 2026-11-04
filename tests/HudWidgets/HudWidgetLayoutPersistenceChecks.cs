@@ -12,11 +12,14 @@ internal static class HudWidgetLayoutPersistenceChecks
         var saved = profiles.Load("FS-20");
         for (var i = 0; i < HudWidgetProfiles.Ids.Length; i++)
         {
-            var id = HudWidgetProfiles.Ids[i]; var pose = saved[id];
+            var id = HudWidgetProfiles.Ids[i];
+            var pose = saved[id];
             // Deliberately beyond the old reach-repair radius, enlarged, and
             // with different backing/content opacity for every widget.
             pose.Position = new Vector3(.7f + i * .1f, -.9f, 1.1f + i * .1f);
-            pose.Scale = 1.5f + i * .1f; pose.Background = i / (float)(HudWidgetProfiles.Ids.Length - 1); pose.Opacity = .4f + i * .05f;
+            pose.Scale = 1.5f + i * .1f;
+            pose.Background = i / (float)(HudWidgetProfiles.Ids.Length - 1);
+            pose.Opacity = .4f + i * .05f;
             saved[id] = pose;
         }
         profiles.Save("FS-20", saved);
@@ -27,7 +30,8 @@ internal static class HudWidgetLayoutPersistenceChecks
         var reopened = profiles.Load("FS-20");
         foreach (var id in HudWidgetProfiles.Ids)
         {
-            var actual = reopened[id]; var expected = saved[id];
+            var actual = reopened[id];
+            var expected = saved[id];
             check(actual.Position.x == expected.Position.x && actual.Position.y == expected.Position.y && actual.Position.z == expected.Position.z,
                 "Saved distant position preserved: " + id);
             check(actual.Scale == expected.Scale, "Saved enlarged size preserved: " + id);
@@ -55,7 +59,11 @@ internal static class HudWidgetLayoutPersistenceChecks
         }
         foreach (var invalid in new[] { 0, 4, -1 })
         {
-            try { profiles.Save("FS-20", saved, invalid); check(false, "Invalid slot was accepted"); }
+            try
+            {
+                profiles.Save("FS-20", saved, invalid);
+                check(false, "Invalid slot was accepted");
+            }
             catch (ArgumentOutOfRangeException) { }
         }
     }

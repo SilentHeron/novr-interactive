@@ -12,8 +12,10 @@ public static class NativeMainMenuLogo
 
     public static Texture2D? GetTexture()
     {
-        if (_texture != null) return _texture;
-        if (_loadAttempted) return null;
+        if (_texture != null)
+            return _texture;
+        if (_loadAttempted)
+            return null;
 
         _loadAttempted = true;
         var modFolder = NOVRPlugin.ModFolderPath;

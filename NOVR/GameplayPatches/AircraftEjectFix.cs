@@ -16,7 +16,8 @@ internal static class AircraftEjectFix
             var camera = SceneSingleton<CameraStateManager>.i;
             if (!XRSettings.enabled || camera == null || __instance.pilotNumber != 0 ||
                 !UnitRegistry.TryGetUnit<Aircraft>(__instance.parentUnit, out var aircraft) ||
-                camera.followingUnit != aircraft) return;
+                camera.followingUnit != aircraft)
+                return;
             __instance.StartCoroutine(ApplyCameraPivot(__instance, aircraft));
         }
 
@@ -28,7 +29,8 @@ internal static class AircraftEjectFix
             while (pilot != null && Time.unscaledTime < deadline)
             {
                 var camera = SceneSingleton<CameraStateManager>.i;
-                if (camera == null || (camera.followingUnit != aircraft && camera.followingUnit != pilot)) yield break;
+                if (camera == null || (camera.followingUnit != aircraft && camera.followingUnit != pilot))
+                    yield break;
                 var head = pilot.transform.Find("pilot/pilot_armature/pelvis/chest/neck/head");
                 var helmet = head != null ? head.Find("helmetCamPoint") : null;
                 if (camera.followingUnit == pilot && camera.cameraPivot != null &&

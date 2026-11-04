@@ -15,7 +15,8 @@ internal sealed class NativeMainCanvasDiscovery
 
     internal void Enable()
     {
-        if (_enabled) return;
+        if (_enabled)
+            return;
         _enabled = true;
         SceneManager.sceneLoaded += SceneLoaded;
         SceneManager.sceneUnloaded += SceneUnloaded;
@@ -25,7 +26,8 @@ internal sealed class NativeMainCanvasDiscovery
 
     internal void Disable()
     {
-        if (!_enabled) return;
+        if (!_enabled)
+            return;
         _enabled = false;
         SceneManager.sceneLoaded -= SceneLoaded;
         SceneManager.sceneUnloaded -= SceneUnloaded;
@@ -42,12 +44,16 @@ internal sealed class NativeMainCanvasDiscovery
 
     internal GameObject? Find(float now)
     {
-        if (!_enabled) return null;
-        if (!_dirty && IsLoaded(_canvas)) return _canvas!.gameObject;
+        if (!_enabled)
+            return null;
+        if (!_dirty && IsLoaded(_canvas))
+            return _canvas!.gameObject;
         // A cached object becoming Unity-null/unloaded is a lifecycle change,
         // not another failed search: recover immediately, even during backoff.
-        if (!_dirty && !ReferenceEquals(_canvas, null)) Invalidate();
-        if (!_dirty && now < _nextSearchTime) return null;
+        if (!_dirty && !ReferenceEquals(_canvas, null))
+            Invalidate();
+        if (!_dirty && now < _nextSearchTime)
+            return null;
 
         _dirty = false;
         _canvas = null;
@@ -55,13 +61,16 @@ internal sealed class NativeMainCanvasDiscovery
         var bestScore = -1;
         foreach (var canvas in Resources.FindObjectsOfTypeAll<Canvas>())
         {
-            if (!IsLoaded(canvas)) continue;
+            if (!IsLoaded(canvas))
+                continue;
             var candidate = canvas.gameObject;
-            if (candidate.name != "MainCanvas") continue;
+            if (candidate.name != "MainCanvas")
+                continue;
             // A newly active scene may overlap the previous scene during an
             // additive transition. Its menu wins even while still inactive.
             var score = (candidate.scene == activeScene ? 2 : 0) + (candidate.activeInHierarchy ? 1 : 0);
-            if (score <= bestScore) continue;
+            if (score <= bestScore)
+                continue;
             _canvas = canvas;
             bestScore = score;
         }

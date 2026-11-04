@@ -35,7 +35,13 @@ public sealed class ControllerBindings
         _frame = new Bank(config, ControllerBindingProfile.Frame, Changed);
         _touch = new Bank(config, ControllerBindingProfile.Touch, Changed);
     }
-    private void Changed() { unchecked { _changeVersion++; } }
+    private void Changed()
+    {
+        unchecked
+        {
+            _changeVersion++;
+        }
+    }
     internal ControllerBindingProfile EffectiveProfile
     {
         get
@@ -43,21 +49,34 @@ public sealed class ControllerBindings
             var effective = Profile.Value;
             if (effective == ControllerBindingProfile.Auto)
             {
-                var left = TrackedControllers.Profile(true); var right = TrackedControllers.Profile(false);
+                var left = TrackedControllers.Profile(true);
+                var right = TrackedControllers.Profile(false);
                 effective = left == ControllerHardwareProfile.SteamFrame || right == ControllerHardwareProfile.SteamFrame ? ControllerBindingProfile.Frame :
                     left == ControllerHardwareProfile.Touch || right == ControllerHardwareProfile.Touch || left == ControllerHardwareProfile.Other || right == ControllerHardwareProfile.Other
                         ? ControllerBindingProfile.Touch : _lastEffective == ControllerBindingProfile.Touch ? ControllerBindingProfile.Touch : ControllerBindingProfile.Frame;
             }
-            if (_lastEffective != effective) { _lastEffective = effective; Changed(); }
+            if (_lastEffective != effective)
+            {
+                _lastEffective = effective;
+                Changed();
+            }
             return effective;
         }
     }
-    internal int ChangeVersion { get { _ = EffectiveProfile; return _changeVersion; } }
+    internal int ChangeVersion
+    {
+        get
+        {
+            _ = EffectiveProfile;
+            return _changeVersion;
+        }
+    }
     internal ControllerActionBinding Get(ControllerActionId action) => Active.Get(action);
     internal void Set(ControllerActionId action, ControllerActionBinding binding)
     {
         var left = ResolveLeft(binding.Hand, ModConfiguration.Instance.MotionControls.LeftHanded.Value);
-        if (!IsBindingAvailable(ButtonProfile(left), left, action, binding.Button)) return;
+        if (!IsBindingAvailable(ButtonProfile(left), left, action, binding.Button))
+            return;
         Active.Set(action, binding);
         if (action == ControllerActionId.SelectTarget && (binding.Hand == ControllerHandRole.Stick || binding.Hand == ControllerHandRole.Throttle))
             Values.SelectTargetOnStick.Value = binding.Hand == ControllerHandRole.Stick;
@@ -71,12 +90,15 @@ public sealed class ControllerBindings
     {
         var leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         var left = ResolveLeft(binding.Hand, leftHanded);
-        if (!IsBindingAvailable(ButtonProfile(left), left, action, binding.Button)) return false;
+        if (!IsBindingAvailable(ButtonProfile(left), left, action, binding.Button))
+            return false;
         var conflicts = GetConflicts(action, binding, leftHanded);
-        if (conflicts.Length > 0 && !replaceConflicts) return false;
+        if (conflicts.Length > 0 && !replaceConflicts)
+            return false;
         var bank = Active;
         var before = bank.Capture();
-        foreach (var other in conflicts) bank.Set(other, new(ControllerButton.None, bank.Get(other).Hand));
+        foreach (var other in conflicts)
+            bank.Set(other, new(ControllerButton.None, bank.Get(other).Hand));
         bank.Set(action, binding);
         if (action == ControllerActionId.SelectTarget && (binding.Hand == ControllerHandRole.Stick || binding.Hand == ControllerHandRole.Throttle))
             bank.Values.SelectTargetOnStick.Value = binding.Hand == ControllerHandRole.Stick;
@@ -87,8 +109,10 @@ public sealed class ControllerBindings
     internal bool UndoEdit() => Active.Undo();
     internal void ResetProfile()
     {
-        var bank = Active; var before = bank.Capture();
-        bank.Reset(); bank.RememberEdit(before, "Restore defaults");
+        var bank = Active;
+        var before = bank.Capture();
+        bank.Reset();
+        bank.RememberEdit(before, "Restore defaults");
     }
     internal static bool ResolveLeft(ControllerHandRole role, bool leftHanded) => ControllerBindingDefaults.ResolveLeft(role, leftHanded);
     internal static string ActionLabel(ControllerActionId action) => ControllerBindingDefaults.ActionLabel(action);
@@ -115,7 +139,8 @@ public sealed class ControllerBindings
         var result = new List<ControllerActionId>();
         var frame = ButtonProfile(ResolveLeft(proposed.Hand, leftHanded)) == ControllerBindingProfile.Frame;
         foreach (var other in ControllerBindingDefaults.Actions)
-            if (ControllerBindingDefaults.Conflict(action, proposed, other, Get(other), leftHanded, frame)) result.Add(other);
+            if (ControllerBindingDefaults.Conflict(action, proposed, other, Get(other), leftHanded, frame))
+                result.Add(other);
         return result.ToArray();
     }
     internal ThrottleButtons ThrottleButtons => new(Brake.Value, Countermeasures.Value,
@@ -138,7 +163,11 @@ public sealed class ControllerBindings
     {
         internal readonly ConfigEntry<ControllerButton> Button;
         internal readonly ConfigEntry<ControllerHandRole> Hand;
-        internal Slot(ConfigEntry<ControllerButton> button, ConfigEntry<ControllerHandRole> hand) { Button = button; Hand = hand; }
+        internal Slot(ConfigEntry<ControllerButton> button, ConfigEntry<ControllerHandRole> hand)
+        {
+            Button = button;
+            Hand = hand;
+        }
     }
     private sealed class Bank
     {
@@ -158,22 +187,31 @@ public sealed class ControllerBindings
             var section = profile == ControllerBindingProfile.Touch ? "VR Controller Bindings - Touch" : "VR Controller Bindings";
             Values = new ControllerBindingBank(config, section, profile == ControllerBindingProfile.Touch);
             void Watch<T>(ConfigEntry<T> entry) => entry.SettingChanged += (_, _) => changed();
-            Watch(Values.PointerEnabled); Watch(Values.CombatEnabled); Watch(Values.PointerResponse);
+            Watch(Values.PointerEnabled);
+            Watch(Values.CombatEnabled);
+            Watch(Values.PointerResponse);
             Watch(Values.SelectTargetOnStick);
             foreach (var action in ControllerBindingDefaults.Actions)
             {
                 var preset = ControllerBindingDefaults.Get(profile, action);
                 var button = action switch
                 {
-                    ControllerActionId.Guns => Values.Fire, ControllerActionId.WeaponRelease => Values.WeaponRelease,
-                    ControllerActionId.SelectTarget => Values.SelectTarget, ControllerActionId.UnlockTarget => Values.UnlockTarget,
-                    ControllerActionId.ClearTargets => Values.ClearTargets, ControllerActionId.NextWeapon => Values.NextWeapon,
-                    ControllerActionId.Countermeasures => Values.Countermeasures, ControllerActionId.NextCountermeasure => Values.NextCountermeasure,
-                    ControllerActionId.Brake => Values.Brake, ControllerActionId.Map => Values.Map, ControllerActionId.WristMenu => Values.WristMenu,
+                    ControllerActionId.Guns => Values.Fire,
+                    ControllerActionId.WeaponRelease => Values.WeaponRelease,
+                    ControllerActionId.SelectTarget => Values.SelectTarget,
+                    ControllerActionId.UnlockTarget => Values.UnlockTarget,
+                    ControllerActionId.ClearTargets => Values.ClearTargets,
+                    ControllerActionId.NextWeapon => Values.NextWeapon,
+                    ControllerActionId.Countermeasures => Values.Countermeasures,
+                    ControllerActionId.NextCountermeasure => Values.NextCountermeasure,
+                    ControllerActionId.Brake => Values.Brake,
+                    ControllerActionId.Map => Values.Map,
+                    ControllerActionId.WristMenu => Values.WristMenu,
                     _ => config.Bind(section, action + " Button", preset.Button, ActionLabel(action) + ". " + ContextLabel(action) + ".")
                 };
                 var role = preset.Hand;
-                if (action == ControllerActionId.SelectTarget) role = Values.SelectTargetOnStick.Value ? ControllerHandRole.Stick : ControllerHandRole.Throttle;
+                if (action == ControllerActionId.SelectTarget)
+                    role = Values.SelectTargetOnStick.Value ? ControllerHandRole.Stick : ControllerHandRole.Throttle;
                 // Custom old wrist bindings followed the throttle. Stock View
                 // stays on physical left when the flight handles are mirrored.
                 if (profile == ControllerBindingProfile.Frame && action == ControllerActionId.WristMenu && button.Value != ControllerButton.Menu)
@@ -183,49 +221,68 @@ public sealed class ControllerBindings
                 // Free thumbstick click now always belongs to the native hand wheel.
                 // Repair only imported global bindings that would become unreachable.
                 if ((action == ControllerActionId.Map || action == ControllerActionId.WristMenu) && button.Value == ControllerButton.StickClick)
-                { button.Value = preset.Button; hand.Value = preset.Hand; }
-                _slots.Add(action, new Slot(button, hand)); Watch(button); Watch(hand);
+                {
+                    button.Value = preset.Button;
+                    hand.Value = preset.Hand;
+                }
+                _slots.Add(action, new Slot(button, hand));
+                Watch(button);
+                Watch(hand);
             }
         }
         internal ControllerActionBinding Get(ControllerActionId action) => new(_slots[action].Button.Value, _slots[action].Hand.Value);
         internal void Set(ControllerActionId action, ControllerActionBinding binding)
-        { _slots[action].Button.Value = binding.Button; _slots[action].Hand.Value = binding.Hand; }
+        {
+            _slots[action].Button.Value = binding.Button;
+            _slots[action].Hand.Value = binding.Hand;
+        }
         internal Snapshot Capture()
         {
             var snapshot = new Snapshot { SelectOnStick = Values.SelectTargetOnStick.Value };
-            foreach (var action in ControllerBindingDefaults.Actions) snapshot.Bindings.Add(action, Get(action));
+            foreach (var action in ControllerBindingDefaults.Actions)
+                snapshot.Bindings.Add(action, Get(action));
             return snapshot;
         }
         private bool Matches(Snapshot snapshot)
         {
-            if (snapshot.SelectOnStick != Values.SelectTargetOnStick.Value) return false;
+            if (snapshot.SelectOnStick != Values.SelectTargetOnStick.Value)
+                return false;
             foreach (var action in ControllerBindingDefaults.Actions)
             {
-                var current = Get(action); var expected = snapshot.Bindings[action];
-                if (current.Button != expected.Button || current.Hand != expected.Hand) return false;
+                var current = Get(action);
+                var expected = snapshot.Bindings[action];
+                if (current.Button != expected.Button || current.Hand != expected.Hand)
+                    return false;
             }
             return true;
         }
         internal bool CanUndo => _beforeEdit != null && _afterEdit != null && Matches(_afterEdit);
         internal void RememberEdit(Snapshot before, string label)
         {
-            if (Matches(before)) return; // Saving an unchanged row does not consume Undo.
-            _beforeEdit = before; _afterEdit = Capture(); EditLabel = label;
+            if (Matches(before))
+                return; // Saving an unchanged row does not consume Undo.
+            _beforeEdit = before;
+            _afterEdit = Capture();
+            EditLabel = label;
         }
         internal bool Undo()
         {
             // A config reload or another writer may have changed bindings since
             // the edit. Never replace that newer state with a stale snapshot.
-            if (!CanUndo) return false;
+            if (!CanUndo)
+                return false;
             var restore = _beforeEdit!;
-            _beforeEdit = _afterEdit = null; EditLabel = "";
-            foreach (var action in ControllerBindingDefaults.Actions) Set(action, restore.Bindings[action]);
+            _beforeEdit = _afterEdit = null;
+            EditLabel = "";
+            foreach (var action in ControllerBindingDefaults.Actions)
+                Set(action, restore.Bindings[action]);
             Values.SelectTargetOnStick.Value = restore.SelectOnStick;
             return true;
         }
         internal void Reset()
         {
-            foreach (var action in ControllerBindingDefaults.Actions) Set(action, ControllerBindingDefaults.Get(_profile, action));
+            foreach (var action in ControllerBindingDefaults.Actions)
+                Set(action, ControllerBindingDefaults.Get(_profile, action));
             Values.SelectTargetOnStick.Value = true;
         }
     }

@@ -18,8 +18,10 @@ internal readonly struct HudWidgetTwoHandGesture
         _span = inverse * (right - left);
         _euler = pose.Euler;
         _scale = pose.Scale;
-        _aspect = pose.Aspect; _independentAxes = independentAxes;
-        _leftAngles = leftAngles; _rightAngles = rightAngles;
+        _aspect = pose.Aspect;
+        _independentAxes = independentAxes;
+        _leftAngles = leftAngles;
+        _rightAngles = rightAngles;
     }
 
     internal HudWidgetPose Move(HudWidgetPose current, Vector3 left, Vector3 right, Vector2 leftAngles, Vector2 rightAngles)
@@ -43,7 +45,8 @@ internal readonly struct HudWidgetTwoHandGesture
                 _offset.y * rectangularScale * shape.y / (_scale * startShape.y), _offset.z * rectangularScale / _scale);
             current.Position = (left + right) * .5f + rotation * offset;
             current.Euler = new Vector3(angles.pitch, angles.yaw, 0);
-            current.Scale = rectangularScale; current.Aspect = aspect;
+            current.Scale = rectangularScale;
+            current.Aspect = aspect;
             return current;
         }
         var scale = HudWidgetGestureMath.Resize(_scale, _span.x, _span.y, _span.z, span.x, span.y, span.z, current.Scale);

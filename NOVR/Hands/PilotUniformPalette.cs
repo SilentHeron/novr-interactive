@@ -2,15 +2,20 @@ using System;
 
 namespace NOVR.MotionControls;
 
-internal enum PilotUniformTeam { Native, Bdf, Pala }
+internal enum PilotUniformTeam
+{
+    Native, Bdf, Pala
+}
 
 internal static class PilotUniformPalette
 {
     internal static PilotUniformTeam Resolve(string? tag, string? name)
     {
         static bool Is(string? value, string expected) => string.Equals(value?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
-        if (Is(tag, "BDF") || Is(name, "Boscali")) return PilotUniformTeam.Bdf;
-        if (Is(tag, "PALA") || Is(name, "Primeva")) return PilotUniformTeam.Pala;
+        if (Is(tag, "BDF") || Is(name, "Boscali"))
+            return PilotUniformTeam.Bdf;
+        if (Is(tag, "PALA") || Is(name, "Primeva"))
+            return PilotUniformTeam.Pala;
         return PilotUniformTeam.Native;
     }
 

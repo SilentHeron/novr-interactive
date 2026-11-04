@@ -15,8 +15,10 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
         set
         {
             var next = Mathf.Clamp01(value);
-            if (_progress == next) return;
-            _progress = next; SetVerticesDirty();
+            if (_progress == next)
+                return;
+            _progress = next;
+            SetVerticesDirty();
         }
     }
 
@@ -25,13 +27,19 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
         if (_icon == null)
         {
             var go = new GameObject("Native eject symbol", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(transform, false); go.layer = gameObject.layer;
+            go.transform.SetParent(transform, false);
+            go.layer = gameObject.layer;
             _icon = go.GetComponent<Image>();
-            _icon.raycastTarget = false; _icon.preserveAspect = true; _icon.color = Red;
+            _icon.raycastTarget = false;
+            _icon.preserveAspect = true;
+            _icon.color = Red;
             _icon.rectTransform.sizeDelta = new Vector2(48, 48);
         }
-        _icon.sprite = nativeIcon; _icon.enabled = nativeIcon != null;
-        _progress = 0; gameObject.SetActive(true); SetVerticesDirty();
+        _icon.sprite = nativeIcon;
+        _icon.enabled = nativeIcon != null;
+        _progress = 0;
+        gameObject.SetActive(true);
+        SetVerticesDirty();
     }
 
     protected override void OnPopulateMesh(VertexHelper vh)
@@ -39,7 +47,8 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
         vh.Clear();
         var center = rectTransform.rect.center;
         var scale = Mathf.Min(rectTransform.rect.width, rectTransform.rect.height) / 128f;
-        if (scale <= 0) return;
+        if (scale <= 0)
+            return;
         Arc(vh, center, 0, 63 * scale, 1, new Color(.025f, .015f, .015f, .9f));
         Arc(vh, center, 58 * scale, 61 * scale, 1, new Color(Red.r, Red.g, Red.b, .28f));
         // The guide remains visible before the hold. Its red arc fills clockwise
@@ -49,7 +58,8 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
             var radius = Mathf.Lerp(43, 61, _progress) * scale;
             Arc(vh, center, radius - 5 * scale, radius, _progress, Red);
         }
-        if (_icon != null && _icon.enabled) return;
+        if (_icon != null && _icon.enabled)
+            return;
         // A recognizable eject glyph remains available if a mod has no icon.
         var start = vh.currentVertCount;
         vh.AddVert(center + new Vector2(-18, -2) * scale, Red, Vector2.zero);
@@ -61,7 +71,8 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
         vh.AddVert(center + new Vector2(-18, -8) * scale, Red, Vector2.zero);
         vh.AddVert(center + new Vector2(18, -8) * scale, Red, Vector2.zero);
         vh.AddVert(center + new Vector2(18, -15) * scale, Red, Vector2.zero);
-        vh.AddTriangle(start, start + 1, start + 2); vh.AddTriangle(start, start + 2, start + 3);
+        vh.AddTriangle(start, start + 1, start + 2);
+        vh.AddTriangle(start, start + 2, start + 3);
     }
 
     private static void Arc(VertexHelper vh, Vector2 center, float inner, float outer, float fill, Color tint)
@@ -74,9 +85,11 @@ internal sealed class EjectConfirmationGraphic : MaskableGraphic
             var direction = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle));
             vh.AddVert(center + direction * inner, tint, Vector2.zero);
             vh.AddVert(center + direction * outer, tint, Vector2.zero);
-            if (i == segments) continue;
+            if (i == segments)
+                continue;
             var index = start + i * 2;
-            vh.AddTriangle(index, index + 1, index + 2); vh.AddTriangle(index + 1, index + 3, index + 2);
+            vh.AddTriangle(index, index + 1, index + 2);
+            vh.AddTriangle(index + 1, index + 3, index + 2);
         }
     }
 }

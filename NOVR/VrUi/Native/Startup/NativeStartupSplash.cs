@@ -53,10 +53,16 @@ internal sealed class NativeStartupSplash
             _container.gameObject.SetActive(visible);
             Debug.Log(visible ? "[NOVR] Startup loading splash shown; menu input suspended." : "[NOVR] Startup loading splash released; menu input restored.");
         }
-        if (!visible) { ReleaseFallbackEvents(); RestoreLoaderBlocker(); return false; }
+        if (!visible)
+        {
+            ReleaseFallbackEvents();
+            RestoreLoaderBlocker();
+            return false;
+        }
         SuppressLoaderBlocker();
         EnsureEventSystem();
-        if (Keyboard.current?.f10Key.wasPressedThisFrame == true) _state.ToggleExit();
+        if (Keyboard.current?.f10Key.wasPressedThisFrame == true)
+            _state.ToggleExit();
         UpdateText();
         // Keep the splash above panels whose visibility transitions were started before loading began.
         _container.SetAsLastSibling();
@@ -65,10 +71,19 @@ internal sealed class NativeStartupSplash
 
     private void ToggleOrConfirmExit()
     {
-        if (_state.CanQuit) { _actions.QuitGame(); return; }
-        _state.ToggleExit(); UpdateText();
+        if (_state.CanQuit)
+        {
+            _actions.QuitGame();
+            return;
+        }
+        _state.ToggleExit();
+        UpdateText();
     }
-    private void CancelExit() { _state.CancelExit(); UpdateText(); }
+    private void CancelExit()
+    {
+        _state.CancelExit();
+        UpdateText();
+    }
     private void UpdateText()
     {
         var confirming = _state.ExitConfirmation;
@@ -93,11 +108,18 @@ internal sealed class NativeStartupSplash
             foreach (var system in UnityEngine.Object.FindObjectsOfType<EventSystem>())
                 if (system != _fallbackEvents && system.isActiveAndEnabled)
                 {
-                    ReleaseFallbackEvents(); EventSystem.current = system; break;
+                    ReleaseFallbackEvents();
+                    EventSystem.current = system;
+                    break;
                 }
         }
-        if (EventSystem.current != null && EventSystem.current.isActiveAndEnabled) return;
-        if (_fallbackEvents != null) { EventSystem.current = _fallbackEvents; return; }
+        if (EventSystem.current != null && EventSystem.current.isActiveAndEnabled)
+            return;
+        if (_fallbackEvents != null)
+        {
+            EventSystem.current = _fallbackEvents;
+            return;
+        }
         var root = new GameObject("NOVR Startup Input");
         UnityEngine.Object.DontDestroyOnLoad(root);
         _fallbackEvents = root.AddComponent<EventSystem>();
@@ -107,18 +129,25 @@ internal sealed class NativeStartupSplash
     }
     private void ReleaseFallbackEvents()
     {
-        if (_fallbackEvents == null) return;
+        if (_fallbackEvents == null)
+            return;
         _fallbackEvents.gameObject.SetActive(false);
         UnityEngine.Object.Destroy(_fallbackEvents.gameObject);
         _fallbackEvents = null;
     }
     private void SuppressLoaderBlocker()
     {
-        if (_loaderBlocker != null) { _loaderBlocker.enabled = false; return; }
-        if (Time.unscaledTime < _nextBlockerScan) return;
+        if (_loaderBlocker != null)
+        {
+            _loaderBlocker.enabled = false;
+            return;
+        }
+        if (Time.unscaledTime < _nextBlockerScan)
+            return;
         _nextBlockerScan = Time.unscaledTime + .25f;
         var loader = GameObject.Find("BlueprinterLoadingScreen");
-        if (loader == null) return;
+        if (loader == null)
+            return;
         // Only the verified loader's UI blocker is replaced; no arbitrary mod canvas is disabled.
         foreach (var component in loader.GetComponents<MonoBehaviour>())
             if (component != null && component.GetType().FullName == "Blueprinter.BlueprinterLoadingScreen")
@@ -134,10 +163,15 @@ internal sealed class NativeStartupSplash
     }
     private void RestoreLoaderBlocker()
     {
-        if (_loaderBlocker != null) _loaderBlocker.enabled = _loaderBlockerEnabled;
+        if (_loaderBlocker != null)
+            _loaderBlocker.enabled = _loaderBlockerEnabled;
         _loaderBlocker = null;
     }
-    internal void Dispose() { ReleaseFallbackEvents(); RestoreLoaderBlocker(); }
+    internal void Dispose()
+    {
+        ReleaseFallbackEvents();
+        RestoreLoaderBlocker();
+    }
 
     private static RectTransform Rect(string name, RectTransform parent, Vector2 position, Vector2 size)
     {
@@ -146,27 +180,38 @@ internal sealed class NativeStartupSplash
         LayerHelper.SetLayerRecursive(go.transform, LayerHelper.GetVrUiLayer());
         var rect = (RectTransform)go.transform;
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, .5f);
-        rect.anchoredPosition = position; rect.sizeDelta = size;
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
         return rect;
     }
     private static RectTransform Image(string name, RectTransform parent, Vector2 position, Vector2 size, Color color)
     {
-        var rect = Rect(name, parent, position, size); var image = rect.gameObject.AddComponent<Image>(); image.color = color;
+        var rect = Rect(name, parent, position, size);
+        var image = rect.gameObject.AddComponent<Image>();
+        image.color = color;
         return rect;
     }
     private static Text Label(string name, RectTransform parent, string value, Vector2 position, Vector2 size, int font, Color color)
     {
-        var rect = Rect(name, parent, position, size); var text = rect.gameObject.AddComponent<Text>();
-        text.text = value; text.font = Resources.GetBuiltinResource<Font>("Arial.ttf"); text.fontSize = font;
-        text.alignment = TextAnchor.MiddleCenter; text.color = color; text.raycastTarget = false;
-        text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+        var rect = Rect(name, parent, position, size);
+        var text = rect.gameObject.AddComponent<Text>();
+        text.text = value;
+        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.fontSize = font;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.color = color;
+        text.raycastTarget = false;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
         return text;
     }
     private static Button Button(string label, RectTransform parent, Vector2 position, Vector2 size, Action action)
     {
         var color = new Color(.14f, .22f, .27f, 1);
-        var rect = Image(label, parent, position, size, color); var button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = rect.GetComponent<Image>(); button.onClick.AddListener(() => action());
+        var rect = Image(label, parent, position, size, color);
+        var button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = rect.GetComponent<Image>();
+        button.onClick.AddListener(() => action());
         NativeButtonFeedback.Configure(button, color);
         Label(label + " label", rect, label.ToUpperInvariant(), Vector2.zero, size, 24, Color.white);
         return button;

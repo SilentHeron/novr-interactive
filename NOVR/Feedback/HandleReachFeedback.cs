@@ -11,21 +11,36 @@ internal sealed class HandleReachFeedback
     {
         if (!valid || !FlightControlMath.IsFinite(distance) || distance < 0 ||
             !FlightControlMath.IsFinite(radius) || radius <= 0 || !FlightControlMath.IsFinite(now))
-        { Reset(); return false; }
-        if (now < _lastTime) Reset();
-        _lastTime = now;
-        if (held) { _inside = true; return false; }
-        if (_inside)
         {
-            if (distance > radius + .025f) _inside = false;
+            Reset();
             return false;
         }
-        if (distance > radius) return false;
+        if (now < _lastTime)
+            Reset();
+        _lastTime = now;
+        if (held)
+        {
+            _inside = true;
+            return false;
+        }
+        if (_inside)
+        {
+            if (distance > radius + .025f)
+                _inside = false;
+            return false;
+        }
+        if (distance > radius)
+            return false;
         _inside = true;
-        if (now < _nextPulse) return false;
+        if (now < _nextPulse)
+            return false;
         _nextPulse = now + .4f;
         return true;
     }
 
-    internal void Reset() { _inside = false; _nextPulse = _lastTime = 0; }
+    internal void Reset()
+    {
+        _inside = false;
+        _nextPulse = _lastTime = 0;
+    }
 }

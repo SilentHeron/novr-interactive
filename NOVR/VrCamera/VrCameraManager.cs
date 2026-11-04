@@ -1,4 +1,4 @@
-﻿#if CPP
+#if CPP
 using System;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 #endif
@@ -8,18 +8,18 @@ using UnityEngine.Rendering.Universal;
 
 namespace NOVR.VrCamera;
 
-public class VrCameraManager: MonoBehaviour
+public class VrCameraManager : MonoBehaviour
 {
     private const string NuclearOptionMainCameraName = "Main Camera";
     private const string NuclearOptionMenuCameraName = "Menu Camera";
     private const string VrCameraChildName = "NOVR Main Camera";
-    private static readonly string[] TrackedChildNames = {"cockpitRenderer", "postProcessingRenderer"};
+    private static readonly string[] TrackedChildNames = { "cockpitRenderer", "postProcessingRenderer" };
 
     public static HashSet<Camera> IgnoredCameras = new();
     private static readonly System.Predicate<Camera> IsDestroyedCamera = camera => camera == null;
     private Camera[] _cameraBuffer = System.Array.Empty<Camera>();
     private int _cameraCount;
-    
+
     private void Update() // Todo: Make me behave on events if possible
     {
         // Scene cameras leave managed wrappers behind after Unity destroys them.
@@ -31,13 +31,15 @@ public class VrCameraManager: MonoBehaviour
         if (_cameraBuffer.Length < capacity)
             _cameraBuffer = new Camera[Mathf.NextPowerOfTwo(capacity)];
         var count = Camera.GetAllCameras(_cameraBuffer);
-        if (count < _cameraCount) System.Array.Clear(_cameraBuffer, count, _cameraCount - count);
+        if (count < _cameraCount)
+            System.Array.Clear(_cameraBuffer, count, _cameraCount - count);
         _cameraCount = count;
 
         for (var i = 0; i < count; i++)
         {
             var camera = _cameraBuffer[i];
-            if (camera == null) continue;
+            if (camera == null)
+                continue;
             var gameObject = camera.gameObject;
             if (gameObject.name is not (NuclearOptionMainCameraName or NuclearOptionMenuCameraName))
             {
@@ -99,11 +101,11 @@ public class VrCameraManager: MonoBehaviour
         universalAdditionalCameraData.renderType = CameraRenderType.Base;
         universalAdditionalCameraData.allowXRRendering = true;
         var rootUniversalAdditionalCameraData = rootCamera.GetComponent<UniversalAdditionalCameraData>();
-        
+
         if (universalAdditionalCameraData != null && rootUniversalAdditionalCameraData != null)
             universalAdditionalCameraData.cameraStack.AddRange(rootUniversalAdditionalCameraData.cameraStack);
-        
-        
+
+
         var rootAudioListener = rootCamera.GetComponent<AudioListener>();
         if (rootAudioListener != null)
         {

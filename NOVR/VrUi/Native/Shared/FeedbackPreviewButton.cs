@@ -12,7 +12,11 @@ internal sealed class FeedbackPreviewButton : MonoBehaviour
     private bool _left;
     internal InteractionCue Cue;
 
-    internal void Arm(bool left, InputDevice device) { _left = left; _gate.Arm(device); }
+    internal void Arm(bool left, InputDevice device)
+    {
+        _left = left;
+        _gate.Arm(device);
+    }
     internal void Cancel() => _gate.Cancel();
     internal void Play()
     {

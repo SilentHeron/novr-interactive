@@ -20,18 +20,34 @@ internal sealed class ControllerUiPointer
     private readonly bool[] _hasPose = new bool[2];
     private readonly Vector3[] _positions = new Vector3[2];
     private readonly Quaternion[] _rotations = new Quaternion[2];
-    internal Ray Ray { get; private set; }
-    internal Vector3 HitPosition { get; private set; }
+    internal Ray Ray
+    {
+        get; private set;
+    }
+    internal Vector3 HitPosition
+    {
+        get; private set;
+    }
     internal bool Held => Trigger.Held;
     internal bool Pressed => Trigger.Pressed;
-    internal Vector2 Scroll { get; private set; }
-    internal bool OverInteractive { get; private set; }
-    internal bool OverMap { get; private set; }
+    internal Vector2 Scroll
+    {
+        get; private set;
+    }
+    internal bool OverInteractive
+    {
+        get; private set;
+    }
+    internal bool OverMap
+    {
+        get; private set;
+    }
 
     internal bool Update(Camera camera)
     {
         var settings = ModConfiguration.Instance;
-        var leftHand = TrackedControllers.Read(true); var rightHand = TrackedControllers.Read(false);
+        var leftHand = TrackedControllers.Read(true);
+        var rightHand = TrackedControllers.Read(false);
         var leftAvailable = leftHand.Valid && !HelmetNightVision.OwnsHand(true) && !NativeHandOptionWheel.OwnsHand(true);
         var rightAvailable = rightHand.Valid && !HelmetNightVision.OwnsHand(false) && !NativeHandOptionWheel.OwnsHand(false);
         if (!settings.ControllerBindings.PointerEnabled.Value || (!leftAvailable && !rightAvailable) || EventSystem.current == null)
@@ -51,20 +67,28 @@ internal sealed class ControllerUiPointer
         if (Unavailable(_event!.pointerPress) || Unavailable(_event.pointerDrag) ||
             _dragSurface is not null && (_dragSurface == null || _dragCamera == null))
             Cancel();
-        if (!leftAvailable) _hasPose[0] = false;
-        if (!rightAvailable) _hasPose[1] = false;
+        if (!leftAvailable)
+            _hasPose[0] = false;
+        if (!rightAvailable)
+            _hasPose[1] = false;
         var leftRay = leftAvailable ? HandRay(camera, leftHand, 0) : default;
         var rightRay = rightAvailable ? HandRay(camera, rightHand, 1) : default;
         var previousLeft = _hands.Left;
         _hands.Update(leftAvailable, leftHand.Trigger, leftHand.Grip, Buttons(leftHand),
             rightAvailable, rightHand.Trigger, rightHand.Grip, Buttons(rightHand));
-        if (previousLeft != _hands.Left) { Release(true); SetHover(null); }
+        if (previousLeft != _hands.Left)
+        {
+            Release(true);
+            SetHover(null);
+        }
         if (!(_hands.Left ? leftAvailable : rightAvailable))
         {
             // Keep observing the other hand's edges while the selected hand is
             // unavailable. Hover or restored tracking alone cannot take over.
-            Release(true); SetHover(null);
-            OverMap = OverInteractive = false; Scroll = Vector2.zero;
+            Release(true);
+            SetHover(null);
+            OverMap = OverInteractive = false;
+            Scroll = Vector2.zero;
             return false;
         }
         var hand = _hands.Left ? leftHand : rightHand;
@@ -100,11 +124,15 @@ internal sealed class ControllerUiPointer
         {
             Press(camera);
             var preview = data.pointerPress != null ? data.pointerPress.GetComponent<FeedbackPreviewButton>() : null;
-            if (preview != null) preview.Arm(_hands.Left, hand.Device);
-            else if (data.pointerPress != null || data.pointerDrag != null) InteractionHaptics.Pulse(hand.Device, .18f, .025f);
+            if (preview != null)
+                preview.Arm(_hands.Left, hand.Device);
+            else if (data.pointerPress != null || data.pointerDrag != null)
+                InteractionHaptics.Pulse(hand.Device, .18f, .025f);
         }
-        if (Trigger.Held) Drag();
-        if (Trigger.Released) Release(false);
+        if (Trigger.Held)
+            Drag();
+        if (Trigger.Released)
+            Release(false);
         if (Scroll.sqrMagnitude > 0 && !OverMap)
             ExecuteEvents.ExecuteHierarchy(hit.gameObject, data, ExecuteEvents.scrollHandler);
         return true;
@@ -112,17 +140,21 @@ internal sealed class ControllerUiPointer
 
     private static bool Interactive(GameObject? target)
     {
-        if (target == null) return false;
+        if (target == null)
+            return false;
         var selectable = target.GetComponentInParent<Selectable>();
-        if (selectable != null && (!selectable.isActiveAndEnabled || !selectable.IsInteractable())) return false;
+        if (selectable != null && (!selectable.isActiveAndEnabled || !selectable.IsInteractable()))
+            return false;
         return ExecuteEvents.GetEventHandler<IPointerClickHandler>(target) != null ||
             ExecuteEvents.GetEventHandler<IDragHandler>(target) != null || ExecuteEvents.GetEventHandler<IScrollHandler>(target) != null;
     }
     private static bool Unavailable(GameObject? target)
     {
         // A destroyed Unity object still has a managed reference.
-        if (target is null) return false;
-        if (target == null || !target.activeInHierarchy) return true;
+        if (target is null)
+            return false;
+        if (target == null || !target.activeInHierarchy)
+            return true;
         var selectable = target.GetComponentInParent<Selectable>();
         return selectable != null && (!selectable.isActiveAndEnabled || !selectable.IsInteractable());
     }
@@ -139,8 +171,13 @@ internal sealed class ControllerUiPointer
     private Ray HandRay(Camera camera, ControllerSample hand, int index)
     {
         var root = camera.transform.parent;
-        var position = hand.AimPosition; var rotation = hand.AimRotation;
-        if (root != null) { position = root.TransformPoint(position); rotation = root.rotation * rotation; }
+        var position = hand.AimPosition;
+        var rotation = hand.AimRotation;
+        if (root != null)
+        {
+            position = root.TransformPoint(position);
+            rotation = root.rotation * rotation;
+        }
         var response = ModConfiguration.Instance.ControllerBindings.PointerResponse.Value;
         var blend = !_hasPose[index] || response <= 0 ? 1 : FlightControlMath.SmoothingWeight(Time.unscaledDeltaTime, response);
         _positions[index] = Vector3.Lerp(_positions[index], position, blend);
@@ -152,9 +189,11 @@ internal sealed class ControllerUiPointer
     private void SetHover(GameObject? target)
     {
         var data = _event;
-        if (data == null || data.pointerEnter == target) return;
+        if (data == null || data.pointerEnter == target)
+            return;
         foreach (var hovered in data.hovered)
-            if (hovered != null) ExecuteEvents.Execute(hovered, data, ExecuteEvents.pointerExitHandler);
+            if (hovered != null)
+                ExecuteEvents.Execute(hovered, data, ExecuteEvents.pointerExitHandler);
         data.hovered.Clear();
         data.pointerEnter = target;
         for (var current = target != null ? target.transform : null; current != null; current = current.parent)
@@ -175,14 +214,16 @@ internal sealed class ControllerUiPointer
         data.pressPosition = data.position;
         data.pointerPressRaycast = data.pointerCurrentRaycast;
         var selected = ExecuteEvents.GetEventHandler<ISelectHandler>(target);
-        if (_system!.currentSelectedGameObject != selected) _system.SetSelectedGameObject(null, data);
+        if (_system!.currentSelectedGameObject != selected)
+            _system.SetSelectedGameObject(null, data);
         data.pointerPress = ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerDownHandler) ??
                             ExecuteEvents.GetEventHandler<IPointerClickHandler>(target);
         data.rawPointerPress = target;
         data.clickCount = data.lastPress == data.pointerPress && Time.unscaledTime - data.clickTime < 0.3f ? data.clickCount + 1 : 1;
         data.clickTime = Time.unscaledTime;
         data.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(target);
-        if (data.pointerDrag != null) ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.initializePotentialDrag);
+        if (data.pointerDrag != null)
+            ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.initializePotentialDrag);
         if (data.pointerDrag != null && data.pointerDrag.transform is RectTransform && !IsMap(data.pointerDrag))
         {
             _dragSurface = data.pointerDrag.transform;
@@ -194,18 +235,21 @@ internal sealed class ControllerUiPointer
     private void Drag()
     {
         var data = _event!;
-        if (data.pointerDrag == null) return;
+        if (data.pointerDrag == null)
+            return;
         var threshold = _system!.pixelDragThreshold;
         if (!data.dragging && (!data.useDragThreshold || (data.position - data.pressPosition).sqrMagnitude >= threshold * threshold))
         {
             ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.beginDragHandler);
             data.dragging = true;
         }
-        if (!data.dragging) return;
+        if (!data.dragging)
+            return;
         if (data.pointerPress != data.pointerDrag)
         {
             ExecuteEvents.Execute(data.pointerPress, data, ExecuteEvents.pointerUpHandler);
-            if (data.pointerPress != null) data.pointerPress.GetComponent<FeedbackPreviewButton>()?.Cancel();
+            if (data.pointerPress != null)
+                data.pointerPress.GetComponent<FeedbackPreviewButton>()?.Cancel();
             data.eligibleForClick = false;
             data.pointerPress = null;
             data.rawPointerPress = null;
@@ -216,7 +260,8 @@ internal sealed class ControllerUiPointer
     private void Release(bool cancel)
     {
         var data = _event;
-        if (data == null) return;
+        if (data == null)
+            return;
         ExecuteEvents.Execute(data.pointerPress, data, ExecuteEvents.pointerUpHandler);
         if (!cancel)
         {
@@ -224,13 +269,18 @@ internal sealed class ControllerUiPointer
             var click = ExecuteEvents.GetEventHandler<IPointerClickHandler>(target);
             if (data.pointerPress == click && data.eligibleForClick)
                 ExecuteEvents.Execute(data.pointerPress, data, ExecuteEvents.pointerClickHandler);
-            else if (data.dragging) ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dropHandler);
+            else if (data.dragging)
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dropHandler);
         }
-        if (data.dragging) ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.endDragHandler);
-        if (data.pointerPress != null) data.pointerPress.GetComponent<FeedbackPreviewButton>()?.Cancel();
+        if (data.dragging)
+            ExecuteEvents.Execute(data.pointerDrag, data, ExecuteEvents.endDragHandler);
+        if (data.pointerPress != null)
+            data.pointerPress.GetComponent<FeedbackPreviewButton>()?.Cancel();
         data.eligibleForClick = data.dragging = false;
         data.pointerPress = data.rawPointerPress = data.pointerDrag = null;
-        _dragSurface = null; _dragCamera = null; _dragPointLocal = default;
+        _dragSurface = null;
+        _dragCamera = null;
+        _dragPointLocal = default;
     }
 
     internal void Cancel()
@@ -248,9 +298,11 @@ internal sealed class ControllerUiPointer
         var best = default(RaycastResult);
         foreach (var caster in RaycasterManager.GetRaycasters())
         {
-            if (caster is not GraphicRaycaster graphics || !graphics.isActiveAndEnabled) continue;
+            if (caster is not GraphicRaycaster graphics || !graphics.isActiveAndEnabled)
+                continue;
             var canvas = graphics.GetComponent<Canvas>();
-            if (canvas == null || canvas.renderMode != RenderMode.WorldSpace || canvas.gameObject.layer != (int)LayerHelper.GetVrUiLayer()) continue;
+            if (canvas == null || canvas.renderMode != RenderMode.WorldSpace || canvas.gameObject.layer != (int)LayerHelper.GetVrUiLayer())
+                continue;
             var eventCamera = graphics.eventCamera ?? camera;
             // Unity's IndexedSet implements IList but deliberately throws from
             // GetEnumerator. Match GraphicRaycaster's indexed traversal.
@@ -258,18 +310,29 @@ internal sealed class ControllerUiPointer
             for (var i = 0; i < registeredGraphics.Count; i++)
             {
                 var graphic = registeredGraphics[i];
-                if (graphic == null || !graphic.isActiveAndEnabled || !graphic.raycastTarget || graphic.depth < 0 || graphic.canvasRenderer.cull) continue;
-                if (graphics.ignoreReversedGraphics && Vector3.Dot(ray.direction, graphic.transform.forward) <= 0) continue;
-                if (!HitRect(ray, graphic.rectTransform, out var distance, out var point)) continue;
+                if (graphic == null || !graphic.isActiveAndEnabled || !graphic.raycastTarget || graphic.depth < 0 || graphic.canvasRenderer.cull)
+                    continue;
+                if (graphics.ignoreReversedGraphics && Vector3.Dot(ray.direction, graphic.transform.forward) <= 0)
+                    continue;
+                if (!HitRect(ray, graphic.rectTransform, out var distance, out var point))
+                    continue;
                 var screen = (Vector2)eventCamera.WorldToScreenPoint(point, Camera.MonoOrStereoscopicEye.Mono);
-                if (!graphic.Raycast(screen, eventCamera)) continue;
+                if (!graphic.Raycast(screen, eventCamera))
+                    continue;
                 var candidate = new RaycastResult
                 {
-                    gameObject = graphic.gameObject, module = graphics, distance = distance,
-                    worldPosition = point, worldNormal = -graphic.transform.forward, screenPosition = screen,
-                    depth = graphic.depth, sortingLayer = canvas.sortingLayerID, sortingOrder = canvas.sortingOrder
+                    gameObject = graphic.gameObject,
+                    module = graphics,
+                    distance = distance,
+                    worldPosition = point,
+                    worldNormal = -graphic.transform.forward,
+                    screenPosition = screen,
+                    depth = graphic.depth,
+                    sortingLayer = canvas.sortingLayerID,
+                    sortingOrder = canvas.sortingOrder
                 };
-                if (InFront(candidate, best)) best = candidate;
+                if (InFront(candidate, best))
+                    best = candidate;
             }
         }
         var map = SceneSingleton<DynamicMap>.i;
@@ -282,12 +345,16 @@ internal sealed class ControllerUiPointer
 
     private static bool InFront(RaycastResult candidate, RaycastResult current)
     {
-        if (current.gameObject == null || candidate.distance < current.distance - 0.005f) return true;
-        if (candidate.distance > current.distance + 0.005f) return false;
+        if (current.gameObject == null || candidate.distance < current.distance - 0.005f)
+            return true;
+        if (candidate.distance > current.distance + 0.005f)
+            return false;
         var candidateLayer = SortingLayer.GetLayerValueFromID(candidate.sortingLayer);
         var currentLayer = SortingLayer.GetLayerValueFromID(current.sortingLayer);
-        if (candidateLayer != currentLayer) return candidateLayer > currentLayer;
-        if (candidate.sortingOrder != current.sortingOrder) return candidate.sortingOrder > current.sortingOrder;
+        if (candidateLayer != currentLayer)
+            return candidateLayer > currentLayer;
+        if (candidate.sortingOrder != current.sortingOrder)
+            return candidate.sortingOrder > current.sortingOrder;
         return candidate.depth > current.depth;
     }
 

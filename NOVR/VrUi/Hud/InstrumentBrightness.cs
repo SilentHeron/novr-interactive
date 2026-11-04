@@ -11,15 +11,29 @@ internal sealed class InstrumentBrightness : MonoBehaviour
     private CanvasGroup? _group;
     internal static void Add(Transform target)
     {
-        if (!target.TryGetComponent<InstrumentBrightness>(out _)) target.gameObject.AddComponent<InstrumentBrightness>();
+        if (!target.TryGetComponent<InstrumentBrightness>(out _))
+            target.gameObject.AddComponent<InstrumentBrightness>();
     }
-    private void Awake() { _group = gameObject.AddComponent<CanvasGroup>(); }
+    private void Awake()
+    {
+        _group = gameObject.AddComponent<CanvasGroup>();
+    }
     private void LateUpdate()
     {
-        if (_group == null) return;
+        if (_group == null)
+            return;
         var alpha = ModConfiguration.Instance.InstrumentBrightness.Value;
-        if (_group.alpha != alpha) _group.alpha = alpha;
+        if (_group.alpha != alpha)
+            _group.alpha = alpha;
     }
-    private void OnDisable() { if (_group != null) _group.alpha = 1f; }
-    private void OnDestroy() { if (_group != null) Destroy(_group); }
+    private void OnDisable()
+    {
+        if (_group != null)
+            _group.alpha = 1f;
+    }
+    private void OnDestroy()
+    {
+        if (_group != null)
+            Destroy(_group);
+    }
 }

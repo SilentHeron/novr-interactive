@@ -105,7 +105,8 @@ public sealed class NativeButtonFeedback : MonoBehaviour, IPointerEnterHandler, 
 
     private void CaptureBaseScale()
     {
-        if (_rectTransform == null) return;
+        if (_rectTransform == null)
+            return;
 
         _baseScale = _rectTransform.localScale;
         _hasBaseScale = true;
@@ -134,7 +135,8 @@ public sealed class NativeButtonFeedback : MonoBehaviour, IPointerEnterHandler, 
 
     private void Update()
     {
-        if (_button == null || _rectTransform == null || _outline == null) return;
+        if (_button == null || _rectTransform == null || _outline == null)
+            return;
 
         var active = _button.interactable;
         var targetScale = _baseScale;

@@ -15,7 +15,11 @@ internal sealed class DeferredTextureJob : IDisposable
         internal readonly string? Error;
         internal readonly double Milliseconds;
         internal Result(byte[]? pixels, string? error, double milliseconds = 0)
-        { Pixels = pixels; Error = error; Milliseconds = milliseconds; }
+        {
+            Pixels = pixels;
+            Error = error;
+            Milliseconds = milliseconds;
+        }
     }
 
     private static readonly SemaphoreSlim Worker = new(1, 1);
@@ -51,7 +55,8 @@ internal sealed class DeferredTextureJob : IDisposable
     internal bool TryTake(out Result result)
     {
         result = default;
-        if (_disposed || _taken || !_task.IsCompleted) return false;
+        if (_disposed || _taken || !_task.IsCompleted)
+            return false;
         _taken = true;
         result = _task.GetAwaiter().GetResult();
         return true;
@@ -59,7 +64,8 @@ internal sealed class DeferredTextureJob : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         _cancellation.Cancel();
         // Let a pending semaphore wait/worker finish using its token before disposal.

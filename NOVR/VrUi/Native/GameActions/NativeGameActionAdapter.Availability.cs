@@ -11,8 +11,10 @@ public partial class NativeGameActionAdapter
             // NOVR suppresses native rendering through Canvas/CanvasGroup;
             // an inactive GameObject instead means the game has closed its UI.
             // Avoid enumerating that retained hierarchy every flight frame.
-            if (_originalMainCanvas == null || !_originalMainCanvas.activeInHierarchy) return false;
-            if (!_mainMenuActionLabels.TryGetValue(NativeGameAction.SinglePlayer, out var singlePlayerLabels)) return false;
+            if (_originalMainCanvas == null || !_originalMainCanvas.activeInHierarchy)
+                return false;
+            if (!_mainMenuActionLabels.TryGetValue(NativeGameAction.SinglePlayer, out var singlePlayerLabels))
+                return false;
 
             var buttons = GetButtons(includeInactive: false);
             for (var index = 0; index < buttons.Length; index++)

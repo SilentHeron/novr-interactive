@@ -6,7 +6,8 @@ internal static class HoverAssist
     // action still goes through PilotPlayerState, including its G-LOC checks.
     internal static string? UnavailableReason(Aircraft? aircraft)
     {
-        if (aircraft?.GetControlsFilter()?.HasAutoHover() != true) return "HOVER ASSIST NOT FITTED";
+        if (aircraft?.GetControlsFilter()?.HasAutoHover() != true)
+            return "HOVER ASSIST NOT FITTED";
         return aircraft.radarAlt < 1f ? "HOVER ASSIST NEEDS AT LEAST 1 m ABOVE GROUND" : null;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NOVR.VrCamera;
 using NOVR.VrTogglers;
 using NOVR.VrUi;
@@ -11,13 +11,13 @@ namespace NOVR;
 
 public class Core : MonoBehaviour
 {
-    
+
     private bool _quitting;
 
     private NOVRHeadsetData? _headsetData;
     private NOUIManager? _vrUi;
     private VrTogglerManager? _vrTogglerManager;
-    
+
     private Aircraft? _aircraft;
 
     public static void Create()
@@ -53,21 +53,22 @@ public class Core : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_quitting) return;
+        if (_quitting)
+            return;
         Debug.Log("NOVR has been destroyed. This shouldn't have happened. Recreating...");
-        
+
         Create();
     }
 
     private void Start()
     {
-        
-        
+
+
         _headsetData = NOVRBehaviour.Create<NOVRHeadsetData>(transform);
         _vrUi = NOVRBehaviour.Create<NOUIManager>(transform);
-        
+
         _vrTogglerManager = new VrTogglerManager();
-        
+
     }
 
 
@@ -76,7 +77,8 @@ public class Core : MonoBehaviour
     {
         var previousAircraft = _aircraft;
         GameManager.GetLocalAircraft(out _aircraft);
-        if (_aircraft != previousAircraft) NOVRHeadsetData.CalibrateTranslation();
+        if (_aircraft != previousAircraft)
+            NOVRHeadsetData.CalibrateTranslation();
         CameraStateManager.enableMouseLook = false;
     }
 

@@ -19,7 +19,12 @@ internal static class WristMenuNavigation
     {
         internal readonly float X, Y, Width, Height;
         internal ButtonRect(float x, float y, float width, float height)
-        { X = x; Y = y; Width = width; Height = height; }
+        {
+            X = x;
+            Y = y;
+            Width = width;
+            Height = height;
+        }
     }
     internal static ButtonRect ButtonBounds(int column, int row, int columns = 2)
     {
@@ -32,7 +37,12 @@ internal static class WristMenuNavigation
         internal readonly ViewMenuDestination Destination;
         internal readonly int Column, Row;
         internal Item(string label, ViewMenuDestination destination, int column, int row)
-        { Label = label; Destination = destination; Column = column; Row = row; }
+        {
+            Label = label;
+            Destination = destination;
+            Column = column;
+            Row = row;
+        }
         internal bool OpensPage => Destination != ViewMenuDestination.EditLayout && Destination != ViewMenuDestination.Recenter;
     }
 
@@ -55,9 +65,9 @@ internal static class WristMenuNavigation
     });
     internal static ButtonRect HomeBounds(Item item)
     {
-        var y=item.Column==0 ? item.Row<3 ? 172-item.Row*47 : item.Row<6 ? -17-(item.Row-3)*47 : -208
-            : item.Row<4 ? 172-item.Row*47 : -64-(item.Row-4)*47;
-        return new ButtonRect(item.Column==0?-160:160,y,300,42);
+        var y = item.Column == 0 ? item.Row < 3 ? 172 - item.Row * 47 : item.Row < 6 ? -17 - (item.Row - 3) * 47 : -208
+            : item.Row < 4 ? 172 - item.Row * 47 : -64 - (item.Row - 4) * 47;
+        return new ButtonRect(item.Column == 0 ? -160 : 160, y, 300, 42);
     }
 
     internal static void BuildHome(Action<Item, Action> addButton, IReadOnlyDictionary<ViewMenuDestination, Action> actions)

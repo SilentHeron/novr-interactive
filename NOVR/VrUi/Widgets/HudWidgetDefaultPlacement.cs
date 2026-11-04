@@ -14,17 +14,34 @@ internal sealed class HudWidgetDefaultPlacement
     private float _since;
     private Vector3 _reference;
 
-    internal void Reset() { _sampling = false; _lastFrame = -1; _samples = 0; }
+    internal void Reset()
+    {
+        _sampling = false;
+        _lastFrame = -1;
+        _samples = 0;
+    }
 
     internal bool Observe(bool valid, Vector3 head, float now, int frame)
     {
-        if (!valid || !Finite(head) || float.IsNaN(now) || float.IsInfinity(now)) { Reset(); return false; }
-        if (!_sampling || now < _since || (head - _reference).magnitude > SettleDistance)
+        if (!valid || !Finite(head) || float.IsNaN(now) || float.IsInfinity(now))
         {
-            _sampling = true; _reference = head; _since = now; _lastFrame = frame; _samples = 1;
+            Reset();
             return false;
         }
-        if (frame != _lastFrame) { _lastFrame = frame; _samples++; }
+        if (!_sampling || now < _since || (head - _reference).magnitude > SettleDistance)
+        {
+            _sampling = true;
+            _reference = head;
+            _since = now;
+            _lastFrame = frame;
+            _samples = 1;
+            return false;
+        }
+        if (frame != _lastFrame)
+        {
+            _lastFrame = frame;
+            _samples++;
+        }
         return _samples >= 3 && now - _since >= SettleSeconds;
     }
 
@@ -35,11 +52,14 @@ internal sealed class HudWidgetDefaultPlacement
     // along the cockpit's forward/right/up axes rather than the user's gaze.
     internal static Dictionary<string, HudWidgetPose> AtHead(Vector3 head)
     {
-        if (!Finite(head)) throw new ArgumentException("A tracked seated position is required.", nameof(head));
+        if (!Finite(head))
+            throw new ArgumentException("A tracked seated position is required.", nameof(head));
         var poses = HudWidgetProfiles.FactoryDefaults;
         foreach (var id in HudWidgetProfiles.Ids)
         {
-            var pose = poses[id]; pose.Position += head; poses[id] = pose;
+            var pose = poses[id];
+            pose.Position += head;
+            poses[id] = pose;
         }
         return poses;
     }

@@ -19,7 +19,8 @@ internal static class LeaseChecks
             check(own.Owner == -1 && own.Owns(side, frame + 5) && !own.Owns(1 - side, frame + 5), "Commit/cancel frame cannot leak button or grip to flight input");
             check(!own.Owns(side, frame + 6), "Closing-frame block expires next frame");
         }
-        var f = new Fixture(); var original = f.Snapshot();
+        var f = new Fixture();
+        var original = f.Snapshot();
         using (var lease = new NativeRadialMenuLease(f.Native, f.Host))
         {
             check(f.Native.Opens == 1 && lease.Count == 1 && !lease.WeaponsPage, "Opens native setup and starts real main page");
@@ -43,12 +44,19 @@ internal static class LeaseChecks
         check(f.MainAction.Activations == 0 && f.WeaponAction.Activations == 0, "Lifecycle/page switching never activates an action");
         foreach (var phase in new[] { "setup", "reparented", "invalid caption" })
         {
-            f = new Fixture(); original = f.Snapshot();
-            if (phase == "setup") f.Native.FailOpen = true;
-            if (phase == "reparented") f.Main.FailActivation = true;
-            if (phase == "invalid caption") f.Caption.transform.SetParent(f.Parent.transform, false);
+            f = new Fixture();
+            original = f.Snapshot();
+            if (phase == "setup")
+                f.Native.FailOpen = true;
+            if (phase == "reparented")
+                f.Main.FailActivation = true;
+            if (phase == "invalid caption")
+                f.Caption.transform.SetParent(f.Parent.transform, false);
             var threw = false;
-            try { using var lease = new NativeRadialMenuLease(f.Native, f.Host); }
+            try
+            {
+                using var lease = new NativeRadialMenuLease(f.Native, f.Host);
+            }
             catch (InvalidOperationException) { threw = true; }
             check(threw, "Injected " + phase + " failure observed");
             if (phase == "invalid caption")
@@ -72,14 +80,27 @@ internal static class LeaseChecks
         internal readonly RadialMenuAction MainAction = new() { DisplayName = "Native gear" }, WeaponAction = new() { DisplayName = "Native missile" };
         internal Fixture()
         {
-            Menu.transform.SetParent(Parent.transform, false); Menu.layer = 5; Menu.SetActive(false);
-            Menu.transform.localPosition = new(6, 8, 2); Menu.transform.localScale = new(.5f, .5f, .5f);
-            Main.transform.SetParent(Menu.transform, false); Weapons.transform.SetParent(Menu.transform, false); Weapons.SetActive(false);
-            var caption = new GameObject("selectedAction") { layer = 7 }; caption.transform.SetParent(Menu.transform, false); Caption = caption.AddComponent<TMP_Text>();
-            Group = Parent.AddComponent<CanvasGroup>(); Group.alpha = .24f;
-            Native = Parent.AddComponent<RadialMenuMain>(); Native.menuObject = Menu; Native.actionsMainContainer = Main; Native.actionsWeaponsContainer = Weapons;
-            Native.selectedActionText = Caption; Native.canvasGroup = Group;
-            Native.allowedActionsMain.Add(MainAction); Native.allowedActionsWeapons.Add(WeaponAction);
+            Menu.transform.SetParent(Parent.transform, false);
+            Menu.layer = 5;
+            Menu.SetActive(false);
+            Menu.transform.localPosition = new(6, 8, 2);
+            Menu.transform.localScale = new(.5f, .5f, .5f);
+            Main.transform.SetParent(Menu.transform, false);
+            Weapons.transform.SetParent(Menu.transform, false);
+            Weapons.SetActive(false);
+            var caption = new GameObject("selectedAction") { layer = 7 };
+            caption.transform.SetParent(Menu.transform, false);
+            Caption = caption.AddComponent<TMP_Text>();
+            Group = Parent.AddComponent<CanvasGroup>();
+            Group.alpha = .24f;
+            Native = Parent.AddComponent<RadialMenuMain>();
+            Native.menuObject = Menu;
+            Native.actionsMainContainer = Main;
+            Native.actionsWeaponsContainer = Weapons;
+            Native.selectedActionText = Caption;
+            Native.canvasGroup = Group;
+            Native.allowedActionsMain.Add(MainAction);
+            Native.allowedActionsWeapons.Add(WeaponAction);
         }
         internal object Snapshot() => (Menu.transform.parent, Menu.transform.GetSiblingIndex(), Menu.transform.anchorMin, Menu.transform.anchorMax,
             Menu.transform.pivot, Menu.transform.sizeDelta, Menu.transform.localPosition, Menu.transform.localRotation, Menu.transform.localScale,

@@ -12,7 +12,8 @@ internal static class SleeveBoundsMath
     {
         center = size = 0;
         if (!Finite(a) || !Finite(b) || !Finite(c) || !Finite(rowX) || !Finite(rowY) ||
-            !Finite(rowZ) || !Finite(radius) || radius <= 0) return false;
+            !Finite(rowZ) || !Finite(radius) || radius <= 0)
+            return false;
         var margin = radius * (Math.Abs(rowX) + Math.Abs(rowY) + Math.Abs(rowZ));
         var min = Math.Min(a, Math.Min(b, c));
         var max = Math.Max(a, Math.Max(b, c));

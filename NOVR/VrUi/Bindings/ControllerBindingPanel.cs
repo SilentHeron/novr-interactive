@@ -37,7 +37,8 @@ internal sealed partial class ControllerBindingPanel
         AddButton("Restore defaults…", 1, 2, () => { _editingProfile = Bindings.EffectiveProfile; ShowPage(_bindingResetPage!); });
         _bindingUndo = AddButton("Undo last change", 0, 3, () =>
         {
-            Bindings.UndoEdit(); RefreshBindingEditor();
+            Bindings.UndoEdit();
+            RefreshBindingEditor();
         }).transform.parent.GetComponent<Button>();
         Label(_bindingsPage.transform, "Restores replaced\nassignments too", new Vector2(132, 6), new Vector2(238, 49), 18);
         _bindingProfileInfo = Label(_bindingsPage.transform, "", new Vector2(0, -112), new Vector2(510, 176), 18);
@@ -74,7 +75,8 @@ internal sealed partial class ControllerBindingPanel
                 var frame = Bindings.ButtonProfile(left) == ControllerBindingProfile.Frame;
                 var selected = ControllerButtonNames.Resolve(_pendingBinding.Button, frame) == choice;
                 return (selected ? "✓ " : "") + ControllerButtonNames.Describe(choice, left, frame);
-            }));
+            }
+            ));
         }
         _bindingSummary = Label(_bindingEditPage.transform, "", new Vector2(0, -84), new Vector2(510, 112), 18);
         _bindingSave = AddButton("Save binding", 0, 6, SaveBinding).transform.parent.GetComponent<Button>();
@@ -100,8 +102,11 @@ internal sealed partial class ControllerBindingPanel
             var action = actions[i];
             var text = AddButton("", i % 2, i / 2, () =>
             {
-                _editingAction = action; _editingProfile = Bindings.EffectiveProfile;
-                _pendingBinding = Bindings.Get(action); ShowPage(_bindingEditPage!); RefreshBindingEditor();
+                _editingAction = action;
+                _editingProfile = Bindings.EffectiveProfile;
+                _pendingBinding = Bindings.Get(action);
+                ShowPage(_bindingEditPage!);
+                RefreshBindingEditor();
             });
             text.fontSize = 17;
             _liveLabels.Add((text, () => ControllerBindings.ActionLabel(action) + "\n" + DescribeBinding(Bindings.Get(action))));
@@ -114,8 +119,10 @@ internal sealed partial class ControllerBindingPanel
     private static string ProfileName(ControllerBindingProfile profile) => profile == ControllerBindingProfile.Frame ? "Steam Frame" : "Touch / Quest";
     private static string RoleName(ControllerHandRole role) => role switch
     {
-        ControllerHandRole.Stick => "Stick", ControllerHandRole.Throttle => "Throttle",
-        ControllerHandRole.Left => "Left", _ => "Right"
+        ControllerHandRole.Stick => "Stick",
+        ControllerHandRole.Throttle => "Throttle",
+        ControllerHandRole.Left => "Left",
+        _ => "Right"
     };
     private static string DescribeBinding(ControllerActionBinding binding)
     {
@@ -126,20 +133,27 @@ internal sealed partial class ControllerBindingPanel
     private void RefreshBindingEditor()
     {
         RefreshDiagram();
-        if (_bindingUndo != null) _bindingUndo.interactable = Bindings.CanUndoEdit;
+        if (_bindingUndo != null)
+            _bindingUndo.interactable = Bindings.CanUndoEdit;
         if (_bindingProfileInfo != null && _bindingsPage?.activeSelf == true)
             _bindingProfileInfo.text = "Active: " + ProfileName(Bindings.EffectiveProfile) +
                 "\nAuto follows the connected controllers.\nEach preset keeps its saved bindings.\n\n" +
                 (Bindings.CanUndoEdit ? "Undo available: " + Bindings.UndoEditLabel : "No recent change to undo for this preset.") +
                 "\nUndo lasts for this game session.\nF9 opens View as a keyboard fallback.";
-        if (_bindingEditPage?.activeSelf != true && _bindingConflictPage?.activeSelf != true) return;
-        if (Bindings.EffectiveProfile != _editingProfile) { Back(); return; }
+        if (_bindingEditPage?.activeSelf != true && _bindingConflictPage?.activeSelf != true)
+            return;
+        if (Bindings.EffectiveProfile != _editingProfile)
+        {
+            Back();
+            return;
+        }
         var left = ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft);
         var allowed = ControllerBindings.IsBindingAvailable(Bindings.ButtonProfile(left), left, _editingAction, _pendingBinding.Button);
         foreach (var item in _bindingChoices)
             item.button.interactable = ControllerBindings.IsBindingAvailable(Bindings.ButtonProfile(left), left, _editingAction, item.value);
         var conflicts = Bindings.GetConflicts(_editingAction, _pendingBinding, StickLeft);
-        if (_bindingSave != null) _bindingSave.interactable = allowed;
+        if (_bindingSave != null)
+            _bindingSave.interactable = allowed;
         if (_bindingSummary != null)
             _bindingSummary.text = ControllerBindings.ActionLabel(_editingAction) + " · " + DescribeBinding(_pendingBinding) + "\n" +
                 ControllerBindings.ContextLabel(_editingAction) + "\n" +
@@ -152,17 +166,25 @@ internal sealed partial class ControllerBindingPanel
     }
     private void SaveBinding()
     {
-        if (Bindings.EffectiveProfile != _editingProfile) return;
+        if (Bindings.EffectiveProfile != _editingProfile)
+            return;
         if (Bindings.GetConflicts(_editingAction, _pendingBinding, StickLeft).Length > 0)
-        { ShowPage(_bindingConflictPage!); RefreshBindingEditor(); }
-        else ApplyBinding(false);
+        {
+            ShowPage(_bindingConflictPage!);
+            RefreshBindingEditor();
+        }
+        else
+            ApplyBinding(false);
     }
     private void ApplyBinding(bool replace)
     {
         if (Bindings.EffectiveProfile != _editingProfile || !ControllerBindings.IsBindingAvailable(Bindings.ButtonProfile(ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft)),
-                ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft), _editingAction, _pendingBinding.Button)) return;
-        if (!Bindings.TryApplyEdit(_editingAction, _pendingBinding, replace)) return;
-        if (_bindingConflictPage?.activeSelf == true) Back();
+                ControllerBindings.ResolveLeft(_pendingBinding.Hand, StickLeft), _editingAction, _pendingBinding.Button))
+            return;
+        if (!Bindings.TryApplyEdit(_editingAction, _pendingBinding, replace))
+            return;
+        if (_bindingConflictPage?.activeSelf == true)
+            Back();
         Back();
     }
 

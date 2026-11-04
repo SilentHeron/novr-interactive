@@ -15,14 +15,23 @@ internal sealed class PcVrCapabilities : MonoBehaviour
     private bool _queryWarning;
     private void Update()
     {
-        if (Time.unscaledTime < _nextCheck) return;
+        if (Time.unscaledTime < _nextCheck)
+            return;
         _nextCheck = Time.unscaledTime + 1;
-        if (!XRSettings.enabled) { Report = "VR runtime is not active."; _reported = false; _queryWarning = false; return; }
-        if (_reported && !WristMenu.IsPerformancePage) return;
+        if (!XRSettings.enabled)
+        {
+            Report = "VR runtime is not active.";
+            _reported = false;
+            _queryWarning = false;
+            return;
+        }
+        if (_reported && !WristMenu.IsPerformancePage)
+            return;
         try
         {
             var runtime = OpenXRRuntime.name;
-            if (string.IsNullOrWhiteSpace(runtime)) runtime = "OpenXR";
+            if (string.IsNullOrWhiteSpace(runtime))
+                runtime = "OpenXR";
             var backend = SystemInfo.graphicsDeviceType.ToString();
             var width = XRSettings.eyeTextureWidth;
             var height = XRSettings.eyeTextureHeight;
@@ -43,7 +52,8 @@ internal sealed class PcVrCapabilities : MonoBehaviour
         catch (Exception e)
         {
             Report = "VR performance information is not available yet.";
-            if (!_queryWarning) Debug.LogWarning("[NOVR] VR performance query deferred: " + e.GetType().Name);
+            if (!_queryWarning)
+                Debug.LogWarning("[NOVR] VR performance query deferred: " + e.GetType().Name);
             _queryWarning = true;
         }
     }

@@ -38,7 +38,8 @@ public class NativeMainMenuShell : MonoBehaviour
 
     private void BuildLayout()
     {
-        if (_rectTransform == null) return;
+        if (_rectTransform == null)
+            return;
 
         var container = CreateContainer("Native Main Menu Shell", _rectTransform, _rectTransform.sizeDelta);
         _containerTransform = container;
@@ -115,7 +116,8 @@ public class NativeMainMenuShell : MonoBehaviour
 
     public void SetOriginalMainCanvas(GameObject? sourceMainCanvas)
     {
-        if (_sourceMainCanvas == sourceMainCanvas) return;
+        if (_sourceMainCanvas == sourceMainCanvas)
+            return;
 
         _sourceMainCanvas = sourceMainCanvas;
         _sourceBackgroundGraphicId = 0;
@@ -154,7 +156,8 @@ public class NativeMainMenuShell : MonoBehaviour
 
     private void SyncSourceBackground()
     {
-        if (_containerTransform == null || _sourceMainCanvas == null) return;
+        if (_containerTransform == null || _sourceMainCanvas == null)
+            return;
 
         var source = FindBestSourceBackground(_sourceMainCanvas);
         if (source == null)
@@ -213,7 +216,8 @@ public class NativeMainMenuShell : MonoBehaviour
 
     private void CopySourceBackground(Graphic source)
     {
-        if (_sourceBackgroundObject == null) return;
+        if (_sourceBackgroundObject == null)
+            return;
 
         if (source is RawImage sourceRawImage &&
             _sourceBackgroundObject.TryGetComponent<RawImage>(out var targetRawImage))
@@ -251,8 +255,10 @@ public class NativeMainMenuShell : MonoBehaviour
         for (var index = 0; index < rawImages.Length; index++)
         {
             var rawImage = rawImages[index];
-            if (rawImage.texture == null || !TryScoreSourceBackground(rawImage, out var score)) continue;
-            if (score <= bestScore) continue;
+            if (rawImage.texture == null || !TryScoreSourceBackground(rawImage, out var score))
+                continue;
+            if (score <= bestScore)
+                continue;
 
             bestGraphic = rawImage;
             bestScore = score;
@@ -262,8 +268,10 @@ public class NativeMainMenuShell : MonoBehaviour
         for (var index = 0; index < images.Length; index++)
         {
             var image = images[index];
-            if (image.sprite == null || !TryScoreSourceBackground(image, out var score)) continue;
-            if (score <= bestScore) continue;
+            if (image.sprite == null || !TryScoreSourceBackground(image, out var score))
+                continue;
+            if (score <= bestScore)
+                continue;
 
             bestGraphic = image;
             bestScore = score;
@@ -343,7 +351,8 @@ public class NativeMainMenuShell : MonoBehaviour
     private void CreateLogo(string name, RectTransform parent, Vector2 anchoredPosition, Vector2 size)
     {
         var texture = NativeMainMenuLogo.GetTexture();
-        if (texture == null) return;
+        if (texture == null)
+            return;
 
         var gameObject = new GameObject(name);
         gameObject.transform.SetParent(parent, false);
@@ -419,8 +428,14 @@ public class NativeMainMenuShell : MonoBehaviour
             Action = action;
         }
 
-        public string Label { get; }
-        public NativeGameAction Action { get; }
+        public string Label
+        {
+            get;
+        }
+        public NativeGameAction Action
+        {
+            get;
+        }
     }
 
     private readonly struct MenuButton
@@ -431,7 +446,13 @@ public class NativeMainMenuShell : MonoBehaviour
             Action = action;
         }
 
-        public string Label { get; }
-        public Action Action { get; }
+        public string Label
+        {
+            get;
+        }
+        public Action Action
+        {
+            get;
+        }
     }
 }

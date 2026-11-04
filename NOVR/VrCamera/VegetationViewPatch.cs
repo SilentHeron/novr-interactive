@@ -24,7 +24,8 @@ internal static class VegetationViewPatch
         {
             __state = null;
             var tracked = APIBus.MainCamera;
-            if (!IsTrackedView(tracked) || ___camera == tracked) return;
+            if (!IsTrackedView(tracked) || ___camera == tracked)
+                return;
             __state = ___camera;
             ___camera = tracked!;
         }
@@ -34,7 +35,8 @@ internal static class VegetationViewPatch
         [HarmonyFinalizer]
         private static void Finalizer(ref Camera ___camera, Camera? __state)
         {
-            if (__state != null) ___camera = __state;
+            if (__state != null)
+                ___camera = __state;
         }
     }
 
@@ -44,10 +46,12 @@ internal static class VegetationViewPatch
         [HarmonyPostfix]
         private static void Postfix(Camera camera)
         {
-            if (!IsTrackedView(camera) || !camera.stereoEnabled) return;
+            if (!IsTrackedView(camera) || !camera.stereoEnabled)
+                return;
             var leftEye = camera.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left);
             var rightEye = camera.GetStereoProjectionMatrix(Camera.StereoscopicEye.Right);
-            if (!TryExtents(leftEye, out var left) || !TryExtents(rightEye, out var right)) return;
+            if (!TryExtents(leftEye, out var left) || !TryExtents(rightEye, out var right))
+                return;
 
             // GeometryUtility's Camera overload uses the mono projection, which
             // can be much narrower than the headset. Bound both eye projections
@@ -60,7 +64,8 @@ internal static class VegetationViewPatch
             var yMax = Mathf.Tan(Mathf.Min(angleLimit, Mathf.Atan(Mathf.Max(left.w, right.w)) + edgeMargin));
             var near = camera.nearClipPlane;
             var far = camera.farClipPlane;
-            if (near <= 0 || far <= near) return;
+            if (near <= 0 || far <= near)
+                return;
             var projection = Matrix4x4.Frustum(xMin * near, xMax * near, yMin * near, yMax * near, near, far);
             GeometryUtility.CalculateFrustumPlanes(projection * camera.worldToCameraMatrix, Planes);
             for (var i = 0; i < Planes.Length; i++)
@@ -79,7 +84,8 @@ internal static class VegetationViewPatch
         extents = default;
         if (!MotionControls.FlightControlMath.IsFinite(projection.m00) || !MotionControls.FlightControlMath.IsFinite(projection.m11) ||
             !MotionControls.FlightControlMath.IsFinite(projection.m02) || !MotionControls.FlightControlMath.IsFinite(projection.m12) ||
-            projection.m00 <= .01f || projection.m11 <= .01f) return false;
+            projection.m00 <= .01f || projection.m11 <= .01f)
+            return false;
         extents = new Vector4((projection.m02 - 1) / projection.m00, (projection.m02 + 1) / projection.m00,
             (projection.m12 - 1) / projection.m11, (projection.m12 + 1) / projection.m11);
         return true;

@@ -14,12 +14,20 @@ internal struct ControllerSample
 internal sealed class ControllerActions
 {
     internal static ControllerActions? Instance;
-    internal void ResetButtons() { }
+    internal void ResetButtons()
+    {
+    }
 }
 internal sealed class ModConfiguration
 {
     internal static readonly ModConfiguration Instance = new();
     internal readonly MotionControlsConfig MotionControls = new();
 }
-internal sealed class MotionControlsConfig { internal readonly ValueSetting<bool> LeftHanded = new(); }
-internal sealed class ValueSetting<T> { internal T Value = default!; }
+internal sealed class MotionControlsConfig
+{
+    internal readonly ValueSetting<bool> LeftHanded = new();
+}
+internal sealed class ValueSetting<T>
+{
+    internal T Value = default!;
+}

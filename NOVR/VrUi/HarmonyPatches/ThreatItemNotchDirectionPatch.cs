@@ -24,7 +24,8 @@ internal static class ThreatItemNotchDirectionPatch
         [HarmonyPostfix]
         private static void Postfix(GameObject __result)
         {
-            if (__result == null) return;
+            if (__result == null)
+                return;
             // These are instantiated after the flight canvas is converted to VR.
             // Parenting alone retains the prefab's original HUD layer, which the
             // VR HUD camera does not render.
@@ -52,7 +53,7 @@ internal static class ThreatItemNotchDirectionPatch
             var flattenedNotchDirection = new Vector3(notchDirection.x, 0.0f, notchDirection.z);
             if (flattenedNotchDirection.sqrMagnitude <= Mathf.Epsilon)
                 return false;
-            
+
             var notchYawDegrees = Quaternion.LookRotation(flattenedNotchDirection, Vector3.up).eulerAngles.y;
             notchLine.transform.position = playerAircraftIconTransform.position;
             notchLine.transform.eulerAngles = new Vector3(
@@ -71,10 +72,16 @@ internal static class ThreatItemNotchDirectionPatch
         private static bool Prefix(global::ThreatItem __instance)
         {
             var notchIndicator = (GameObject)NotchIndicatorField.GetValue(__instance);
-            if (notchIndicator == null) return false;
+            if (notchIndicator == null)
+                return false;
             var compact = SpecialBehavior.CockpitAlerts.Active && !ModConfiguration.Instance.CockpitAlerts.WorldNotch.Value;
-            if (compact) { CompactHiddenIndicators.Add(notchIndicator); notchIndicator.SetActive(false); }
-            else if (CompactHiddenIndicators.Remove(notchIndicator)) notchIndicator.SetActive(true);
+            if (compact)
+            {
+                CompactHiddenIndicators.Add(notchIndicator);
+                notchIndicator.SetActive(false);
+            }
+            else if (CompactHiddenIndicators.Remove(notchIndicator))
+                notchIndicator.SetActive(true);
             if (compact || !TryGetNotchDirection(__instance, out var notchDirection))
                 return false;
 
@@ -99,7 +106,7 @@ internal static class ThreatItemNotchDirectionPatch
             indicatorUp = Vector3.Cross(-cockpitHudCamera.transform.forward, indicatorUp).normalized;
             if (Vector3.Dot(indicatorUp, -cockpitHudCamera.transform.up) > 0.0f)
                 indicatorUp *= -1.0f;
-            
+
             notchIndicator.transform.rotation = Quaternion.LookRotation(
                 cockpitHudCamera.transform.forward,
                 indicatorUp);
@@ -110,7 +117,7 @@ internal static class ThreatItemNotchDirectionPatch
                 color = Color.Lerp(Color.yellow, Color.red, Mathf.Sin(Time.timeSinceLevelLoad * 20f) + 0.5f);
             else if (missile.seekerMode == Missile.SeekerMode.activeSearch)
                 color = Color.Lerp(Color.green, Color.yellow, Mathf.Sin(Time.timeSinceLevelLoad * 10f) + 0.5f);
-            
+
             var notchIndicatorBox = (Image)NotchIndicatorBoxField.GetValue(__instance);
             if (notchIndicatorBox != null)
             {
@@ -163,7 +170,9 @@ internal static class ThreatItemNotchDirectionPatch
 
     internal static void RestoreCompactIndicators()
     {
-        foreach (var indicator in CompactHiddenIndicators) if (indicator != null) indicator.SetActive(true);
+        foreach (var indicator in CompactHiddenIndicators)
+            if (indicator != null)
+                indicator.SetActive(true);
         CompactHiddenIndicators.Clear();
     }
 
@@ -174,7 +183,8 @@ internal static class ThreatItemNotchDirectionPatch
         private static void Prefix(global::ThreatItem __instance)
         {
             var indicator = NotchIndicatorField.GetValue(__instance) as GameObject;
-            if (indicator != null) CompactHiddenIndicators.Remove(indicator);
+            if (indicator != null)
+                CompactHiddenIndicators.Remove(indicator);
         }
     }
 }

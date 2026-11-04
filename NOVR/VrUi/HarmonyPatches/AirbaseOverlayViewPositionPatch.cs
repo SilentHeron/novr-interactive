@@ -26,7 +26,8 @@ internal static class AirbaseOverlayViewPositionPatch
         private static void Postfix(global::AirbaseOverlay __instance)
         {
             var hud = SceneSingleton<CombatHUD>.i;
-            if (hud == null || __instance == null) return;
+            if (hud == null || __instance == null)
+                return;
             var aircraft = hud.aircraft;
             var mainCamera = APIBus.MainCamera;
             var cockpitHudCamera = APIBus.CockpitHudCamera;
@@ -37,7 +38,7 @@ internal static class AirbaseOverlayViewPositionPatch
             HudElementStyle.Add(AirbaseLabelField?.GetValue(__instance) as Graphic, HudElementKind.Label);
             HudElementStyle.Add(GlideslopeAimPointField?.GetValue(__instance) as Graphic, HudElementKind.Reticle);
             __instance.transform.rotation = cockpitHudCamera.transform.rotation;
-            
+
             UpdateAirbaseMarker(__instance, aircraft);
             UpdateRunwayBorders(__instance);
             UpdateGlideslope(__instance, aircraft);
@@ -62,18 +63,22 @@ internal static class AirbaseOverlayViewPositionPatch
 
         var center = nearestAirbase.center;
         var pilots = aircraft.pilots;
-        if (center == null || pilots == null || pilots.Length == 0) return;
+        if (center == null || pilots == null || pilots.Length == 0)
+            return;
         var pilot = pilots[0];
-        if (pilot == null || pilot.flightInfo == null) return;
+        if (pilot == null || pilot.flightInfo == null)
+            return;
         var markerWorldPosition = center.position;
         if (!pilot.flightInfo.HasTakenOff)
         {
             if (!taxiingToRunway || reachedRunway || !runwayUsage.HasValue)
                 return;
 
-            if (runwayUsage.Value.Runway == null) return;
+            if (runwayUsage.Value.Runway == null)
+                return;
             var start = runwayUsage.Value.GetStart();
-            if (start == null) return;
+            if (start == null)
+                return;
             // Match native taxi guidance: the entrance, not the far endpoint.
             markerWorldPosition = start.position;
         }
@@ -93,7 +98,7 @@ internal static class AirbaseOverlayViewPositionPatch
         }
 
         var rotation = Quaternion.LookRotation(airbaseMarker.transform.position - cockpitHudCamera.transform.position);
-        
+
         airbaseMarker.transform.rotation = rotation;
         airbaseLabel.transform.rotation = offScreen ? cockpitHudCamera.transform.rotation : rotation;
     }
@@ -114,7 +119,8 @@ internal static class AirbaseOverlayViewPositionPatch
         var width = runway.GetWidth();
         var start = runway.Start;
         var end = runway.End;
-        if (start == null || end == null) return;
+        if (start == null || end == null)
+            return;
         var corners = new[]
         {
             start.position - 0.5f * width * start.right,
@@ -154,7 +160,8 @@ internal static class AirbaseOverlayViewPositionPatch
             return;
 
         var runway = runwayUsage.Value.Runway;
-        if (runway.Start == null || runway.End == null) return;
+        if (runway.Start == null || runway.End == null)
+            return;
         // Native touchdown is inset from the runway start and respects reversal
         // and floating-origin coordinates; GetEnd points at the far threshold.
         var touchdownPosition = runwayUsage.Value.GetTouchdownPoint().ToLocalPosition();

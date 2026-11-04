@@ -36,7 +36,8 @@ internal static class ControlMirrorChecks
             {
                 var mirror = new ControlMirrorMath(transform);
                 var reflected = points.Select(mirror.Position).ToArray();
-                var indices = new[] { 0, 1, 2 }; ControlMirrorMath.ReverseTriangles(indices);
+                var indices = new[] { 0, 1, 2 };
+                ControlMirrorMath.ReverseTriangles(indices);
                 var face = Vector3.Normalize(Vector3.Cross(reflected[indices[1]] - reflected[indices[0]], reflected[indices[2]] - reflected[indices[0]]));
                 var reflectedNormal = mirror.Normal(normal);
                 truth(Vector3.Dot(face, reflectedNormal) > .9999f);

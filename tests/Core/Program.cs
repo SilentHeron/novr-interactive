@@ -13,88 +13,125 @@ NativeControllerActionChecks.Run(Check, True);
 Check("Menu history returns shared help to its source and clears confirmations on Home", () =>
 {
     var h = new MenuHistory<string>("Home");
-    h.Back(); True(h.Current == "Home" && !h.CanBack);
+    h.Back();
+    True(h.Current == "Home" && !h.CanBack);
     foreach (var parent in new[] { "Controls", "Bindings", "Comfort" })
     {
-        h.Push(parent); h.Push("Guide"); h.Back(); True(h.Current == parent);
-        h.Push("Confirm"); h.Home(); h.Back(); True(h.Current == "Home" && !h.CanBack);
+        h.Push(parent);
+        h.Push("Guide");
+        h.Back();
+        True(h.Current == parent);
+        h.Push("Confirm");
+        h.Home();
+        h.Back();
+        True(h.Current == "Home" && !h.CanBack);
     }
-    h.Push("Controls"); h.Push("Bindings"); h.Push("Guide"); h.Push("Controls");
+    h.Push("Controls");
+    h.Push("Bindings");
+    h.Push("Guide");
+    h.Push("Controls");
     True(h.Trail.SequenceEqual(new[] { "Home", "Controls" }));
-    h.Push("Controls"); True(h.Trail.Count == 2);
+    h.Push("Controls");
+    True(h.Trail.Count == 2);
 });
 Check("Physical button touch needs an approach and rearms only after withdrawal", () =>
 {
     var gate = new CockpitTouchGate();
-    True(!gate.Update(true, true, 0)); True(!gate.Update(true, true, 0));
-    True(!gate.Update(true, true, .04f)); True(gate.Update(true, true, .003f));
-    True(!gate.Update(true, true, .002f)); True(!gate.Update(true, true, .008f));
-    True(!gate.Update(true, true, -.08f)); True(!gate.Update(true, true, 0));
-    True(!gate.Update(true, false, .04f)); True(!gate.Update(true, false, 0));
+    True(!gate.Update(true, true, 0));
+    True(!gate.Update(true, true, 0));
+    True(!gate.Update(true, true, .04f));
+    True(gate.Update(true, true, .003f));
+    True(!gate.Update(true, true, .002f));
+    True(!gate.Update(true, true, .008f));
+    True(!gate.Update(true, true, -.08f));
+    True(!gate.Update(true, true, 0));
+    True(!gate.Update(true, false, .04f));
+    True(!gate.Update(true, false, 0));
     True(gate.Update(true, true, 0));
-    gate.Update(false, true, .04f); True(!gate.Update(true, true, 0));
-    gate.Update(true, true, .04f); gate.Update(false, true, 0); True(!gate.Update(true, true, 0));
+    gate.Update(false, true, .04f);
+    True(!gate.Update(true, true, 0));
+    gate.Update(true, true, .04f);
+    gate.Update(false, true, 0);
+    True(!gate.Update(true, true, 0));
 });
 
 Check("MIL shelf fits entirely inside the chosen throttle range and preserves regrabs", () =>
 {
     foreach (var travel in new[] { .05f, .12f, .22f, .6f })
-    foreach (var mil in new[] { .5f, .8f, .95f })
-    {
-        var commandTravel = ThrottleDetent.CommandTravel(travel);
-        var width = ThrottleDetent.TravelMeters / commandTravel;
-        Near(ThrottleDetent.Position(1, mil, travel) - ThrottleDetent.Position(0, mil, travel), 1);
-        Near(ThrottleDetent.Output(travel / commandTravel, mil, width), 1);
-        Near(width * commandTravel, .016f);
-        var previous = -1f;
-        for (var i = 0; i <= 100; i++)
+        foreach (var mil in new[] { .5f, .8f, .95f })
         {
-            var command = i / 100f;
-            var fraction = ThrottleDetent.Position(command, mil, travel);
-            True(fraction >= previous && fraction >= 0 && fraction <= 1.00001f); previous = fraction;
-            Near(ThrottleDetent.Output(fraction * travel / commandTravel, mil, width), command);
-            foreach (var delta in new[] { -.5f, -.01f, 0f, .01f, .5f })
-                Near(ThrottleDetent.Output(ThrottleDetent.Input(command, mil, width) + delta / commandTravel, mil, width),
-                    ThrottleDetent.Output((fraction * travel + delta) / commandTravel, mil, width));
+            var commandTravel = ThrottleDetent.CommandTravel(travel);
+            var width = ThrottleDetent.TravelMeters / commandTravel;
+            Near(ThrottleDetent.Position(1, mil, travel) - ThrottleDetent.Position(0, mil, travel), 1);
+            Near(ThrottleDetent.Output(travel / commandTravel, mil, width), 1);
+            Near(width * commandTravel, .016f);
+            var previous = -1f;
+            for (var i = 0; i <= 100; i++)
+            {
+                var command = i / 100f;
+                var fraction = ThrottleDetent.Position(command, mil, travel);
+                True(fraction >= previous && fraction >= 0 && fraction <= 1.00001f);
+                previous = fraction;
+                Near(ThrottleDetent.Output(fraction * travel / commandTravel, mil, width), command);
+                foreach (var delta in new[] { -.5f, -.01f, 0f, .01f, .5f })
+                    Near(ThrottleDetent.Output(ThrottleDetent.Input(command, mil, width) + delta / commandTravel, mil, width),
+                        ThrottleDetent.Output((fraction * travel + delta) / commandTravel, mil, width));
+            }
         }
-    }
 });
 Check("Pointer ownership changes only on a fresh button edge", () =>
 {
     var p = new PointerHandSelection();
     p.Update(true, 0, 0, 0, true, 0, 0, 0);
     True(!p.Left);
-    for (var i = 0; i < 60; i++) p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    for (var i = 0; i < 60; i++)
+        p.Update(true, 0, 0, 0, true, 0, 0, 0);
     True(!p.Left);
-    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(p.Left);
-    p.Update(true, 0, 0, 1, true, 0, 0, 2); True(!p.Left);
-    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(!p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0);
+    True(p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 2);
+    True(!p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0);
+    True(!p.Left);
     p.Update(true, 0, 0, 0, true, 0, 0, 0);
-    p.Update(true, 0, 0, 1, true, 0, 0, 0); True(p.Left);
-    p.Reset(); p.Update(true, 0, 0, 0, true, 0, 0, 0); True(p.Left);
+    p.Update(true, 0, 0, 1, true, 0, 0, 0);
+    True(p.Left);
+    p.Reset();
+    p.Update(true, 0, 0, 0, true, 0, 0, 0);
+    True(p.Left);
 });
 Check("Pointer drag owns its release frame and consumes ignored other-hand presses", () =>
 {
     var p = new PointerHandSelection();
     p.Update(true, 0, 0, 0, true, 0, 0, 0);
-    p.Update(true, 1, 0, 0, true, 0, 0, 0); True(p.Left && p.Trigger.Pressed);
-    p.Update(true, 1, 0, 0, true, 1, 1, 1); True(p.Left && p.Trigger.Held);
-    p.Update(true, 0, 0, 0, true, 1, 1, 2); True(p.Left && p.Trigger.Released);
-    p.Update(true, 0, 0, 0, true, 1, 1, 2); True(p.Left && !p.Trigger.Held);
+    p.Update(true, 1, 0, 0, true, 0, 0, 0);
+    True(p.Left && p.Trigger.Pressed);
+    p.Update(true, 1, 0, 0, true, 1, 1, 1);
+    True(p.Left && p.Trigger.Held);
+    p.Update(true, 0, 0, 0, true, 1, 1, 2);
+    True(p.Left && p.Trigger.Released);
+    p.Update(true, 0, 0, 0, true, 1, 1, 2);
+    True(p.Left && !p.Trigger.Held);
     p.Update(true, 0, 0, 0, true, 0, 0, 0);
-    p.Update(true, 0, 0, 0, true, 1, 0, 0); True(!p.Left && p.Trigger.Pressed);
+    p.Update(true, 0, 0, 0, true, 1, 0, 0);
+    True(!p.Left && p.Trigger.Pressed);
 });
 Check("Pointer tracking and focus loss require fresh input and retain the chosen hand", () =>
 {
     var p = new PointerHandSelection();
     p.Update(true, 0, 0, 0, true, 0, 0, 0);
-    p.Update(true, 0, 1, 0, true, 0, 0, 0); True(p.Left);
-    p.Update(false, 0, 0, 0, true, 0, 0, 0); True(p.Left && !p.Trigger.Released);
-    p.Update(false, 0, 0, 0, true, 0, 0, 1); True(!p.Left);
-    p.Reset(); p.Update(true, 1, 1, 127, true, 1, 1, 127);
+    p.Update(true, 0, 1, 0, true, 0, 0, 0);
+    True(p.Left);
+    p.Update(false, 0, 0, 0, true, 0, 0, 0);
+    True(p.Left && !p.Trigger.Released);
+    p.Update(false, 0, 0, 0, true, 0, 0, 1);
+    True(!p.Left);
+    p.Reset();
+    p.Update(true, 1, 1, 127, true, 1, 1, 127);
     True(!p.Left && !p.Trigger.Held && !p.Trigger.Pressed);
     p.Update(true, 0, 0, 0, true, 0, 0, 127);
-    p.Update(true, 1, 0, 0, true, 0, 0, 127); True(p.Left && p.Trigger.Pressed);
+    p.Update(true, 1, 0, 0, true, 0, 0, 127);
+    True(p.Left && p.Trigger.Pressed);
 });
 Check("Interaction cues are finite, brief, peak bounded and fade to silence", () =>
 {
@@ -103,7 +140,8 @@ Check("Interaction cues are finite, brief, peak bounded and fade to silence", ()
         var samples = InteractionSoundWave.Create(cue);
         True(samples.Length >= 1000 && samples.Length <= 3000);
         True(samples.All(x => float.IsFinite(x) && Math.Abs(x) <= 1));
-        Near(samples[0], 0); Near(samples[^1], 0);
+        Near(samples[0], 0);
+        Near(samples[^1], 0);
         True(samples.Any(x => Math.Abs(x) > .05f));
         True(samples.TakeLast(100).Max(x => Math.Abs(x)) < .01f);
     }
@@ -182,16 +220,23 @@ Check("Shared B cannot open the map while unselecting or carry a held press acro
     var map = new ControllerButtonGate();
     var unselect = new ControllerButtonGate();
     True(ControllerButtonNames.SamePhysicalButton(ControllerButton.OutsideOrSecondary, ControllerButton.OutsideOrNone, true));
-    unselect.Update(true, 0); map.Update(false, 0);
-    unselect.Update(true, 1); map.Update(false, 1);
+    unselect.Update(true, 0);
+    map.Update(false, 0);
+    unselect.Update(true, 1);
+    map.Update(false, 1);
     True(unselect.Pressed && !map.Pressed);
-    unselect.Update(true, 0); map.Update(false, 0);
+    unselect.Update(true, 0);
+    map.Update(false, 0);
     True(unselect.Released && !map.Pressed);
-    unselect.Update(true, 1); map.Update(false, 1);
-    unselect.Update(false, 1); map.Update(true, 1);
+    unselect.Update(true, 1);
+    map.Update(false, 1);
+    unselect.Update(false, 1);
+    map.Update(true, 1);
     True(!unselect.Released && !map.Pressed);
-    unselect.Update(false, 0); map.Update(true, 0);
-    map.Update(true, 1); True(map.Pressed);
+    unselect.Update(false, 0);
+    map.Update(true, 0);
+    map.Update(true, 1);
+    True(map.Pressed);
 });
 var payloadTestDir = Path.Combine(Path.GetTempPath(), "novr-payload-" + Guid.NewGuid());
 Directory.CreateDirectory(payloadTestDir);
@@ -411,7 +456,8 @@ Check("invalid flight grip samples and clock rollback cancel a latch", () =>
 });
 Check("paused or recentered flight handles cannot resume their old latch", () =>
 {
-    var grip = TapGrab(); grip.Reset();
+    var grip = TapGrab();
+    grip.Reset();
     True(!grip.Update(true, 1, true, true, 1));
 });
 Check("controller help follows Frame hand and physical button labels", () =>
@@ -431,12 +477,12 @@ Check("controller help resolves fallback bindings and unavailable controls", () 
 Check("both throttle presets have distinct buttons on Frame and Touch profiles", () =>
 {
     foreach (var layout in new[] { ThrottleBindingLayout.CountermeasureTrigger, ThrottleBindingLayout.BrakeTrigger, ThrottleBindingLayout.VtolStyle })
-    foreach (var frame in new[] { true, false })
-    {
-        var preset = ThrottleBindingProfiles.Get(layout);
-        True(!ThrottleBindingProfiles.Conflicts(preset, frame));
-        True(ThrottleBindingProfiles.Identify(preset) == layout);
-    }
+        foreach (var frame in new[] { true, false })
+        {
+            var preset = ThrottleBindingProfiles.Get(layout);
+            True(!ThrottleBindingProfiles.Conflicts(preset, frame));
+            True(ThrottleBindingProfiles.Identify(preset) == layout);
+        }
 });
 Check("default brake is D-pad down on Frame and thumbstick click on Touch", () =>
 {
@@ -563,12 +609,12 @@ Check("collective travel stays finite at command limits", () =>
 Check("jet throttle retains its straight forward path at every command", () =>
 {
     foreach (var travel in new[] { .05f, .25f, .6f })
-    for (var i = 0; i <= 100; i++)
-    {
-        var p = FlightControlMath.ThrottleOffset(false, i / 100f, travel);
-        Near(p.height, 0);
-        Near(p.forward, (i / 100f - .5f) * travel);
-    }
+        for (var i = 0; i <= 100; i++)
+        {
+            var p = FlightControlMath.ThrottleOffset(false, i / 100f, travel);
+            Near(p.height, 0);
+            Near(p.forward, (i / 100f - .5f) * travel);
+        }
 });
 Check("forward throttle movement increases thrust proportionately", () =>
     Near(FlightControlMath.Throttle(0.3f, 0.2f, 0.3f, 0.25f), 0.7f));
@@ -591,22 +637,24 @@ Check("invalid throttle samples or zero travel retain thrust", () =>
 Check("native throttle handoff preserves every binding/collective convention", () =>
 {
     foreach (var negativeRange in new[] { false, true })
-    foreach (var invertedCollective in new[] { false, true })
-    for (int i = 0; i <= 100; i++)
-    {
-        var thrust = i / 100f;
-        var native = FlightControlMath.ToSimulatedThrottle(thrust, negativeRange, invertedCollective);
-        var restored = negativeRange ? 0.5f * (native + 1f) : native;
-        if (invertedCollective) restored = 1f - restored;
-        Near(restored, thrust);
-    }
+        foreach (var invertedCollective in new[] { false, true })
+            for (int i = 0; i <= 100; i++)
+            {
+                var thrust = i / 100f;
+                var native = FlightControlMath.ToSimulatedThrottle(thrust, negativeRange, invertedCollective);
+                var restored = negativeRange ? 0.5f * (native + 1f) : native;
+                if (invertedCollective)
+                    restored = 1f - restored;
+                Near(restored, thrust);
+            }
 });
 Check("HUD smoothing follows identically at 72, 90, and 120 Hz", () =>
 {
     float Simulate(int frames)
     {
         float remaining = 1;
-        for (int i = 0; i < frames; i++) remaining *= 1 - FlightControlMath.SmoothingWeight(1f / frames, 10);
+        for (int i = 0; i < frames; i++)
+            remaining *= 1 - FlightControlMath.SmoothingWeight(1f / frames, 10);
         return remaining;
     }
     Near(Simulate(72), Simulate(90));
@@ -702,7 +750,8 @@ Check("map zoom rate is equal at 72, 90, 120 and 144 Hz", () =>
     float Simulate(int frames)
     {
         float zoom = 2;
-        for (int i = 0; i < frames; i++) zoom = PointerGeometry.Zoom(zoom, 0.6f, 1f / frames);
+        for (int i = 0; i < frames; i++)
+            zoom = PointerGeometry.Zoom(zoom, 0.6f, 1f / frames);
         return zoom;
     }
     Near(Simulate(72), Simulate(90), 0.0001f);
@@ -720,35 +769,43 @@ Check("map zoom ignores invalid input and stays inside game limits", () =>
 
 Check("helmet gesture is limited to the brow in head-relative meters", () =>
 {
-    True(HelmetGestureMath.AtBrow(.12f,.07f,.14f));
-    True(HelmetGestureMath.AtBrow(-.12f,.07f,.14f));
-    True(!HelmetGestureMath.AtBrow(0,-.3f,.14f));
-    True(!HelmetGestureMath.AtBrow(0,.07f,-.14f));
-    True(!HelmetGestureMath.AtBrow(.4f,.07f,.14f));
-    True(!HelmetGestureMath.AtBrow(float.NaN,0,0));
+    True(HelmetGestureMath.AtBrow(.12f, .07f, .14f));
+    True(HelmetGestureMath.AtBrow(-.12f, .07f, .14f));
+    True(!HelmetGestureMath.AtBrow(0, -.3f, .14f));
+    True(!HelmetGestureMath.AtBrow(0, .07f, -.14f));
+    True(!HelmetGestureMath.AtBrow(.4f, .07f, .14f));
+    True(!HelmetGestureMath.AtBrow(float.NaN, 0, 0));
 });
 Check("helmet trigger requires release after arrival and tracking recovery", () =>
 {
     var gate = new ControllerButtonGate();
-    gate.Update(false,1); gate.Update(true,1); True(!gate.Pressed);
-    gate.Update(true,0); gate.Update(true,1); True(gate.Pressed);
-    gate.Update(true,1); True(!gate.Pressed);
-    gate.Update(false,1); gate.Update(true,1); True(!gate.Pressed);
+    gate.Update(false, 1);
+    gate.Update(true, 1);
+    True(!gate.Pressed);
+    gate.Update(true, 0);
+    gate.Update(true, 1);
+    True(gate.Pressed);
+    gate.Update(true, 1);
+    True(!gate.Pressed);
+    gate.Update(false, 1);
+    gate.Update(true, 1);
+    True(!gate.Pressed);
 });
 
 Check("MIL detent preserves every regrab command and reaches idle/full afterburner", () =>
 {
-    foreach (var mil in new[] {.8f, .9f, .998f})
-    foreach (var width in new[] {.016f/.05f, .016f/.25f, .016f/.6f})
-    {
-        for (var i = 0; i <= 100; i++) Near(ThrottleDetent.Output(ThrottleDetent.Input(i/100f, mil, width), mil, width), i/100f);
-        Near(ThrottleDetent.Output(mil+width*.01f, mil, width), mil);
-        Near(ThrottleDetent.Output(mil+width*.99f, mil, width), mil);
-        True(ThrottleDetent.Output(mil+width+.0001f, mil, width)>mil);
-        True(ThrottleDetent.Output(mil-.0001f, mil, width)<mil);
-        Near(ThrottleDetent.Output(-1, mil, width), 0);
-        Near(ThrottleDetent.Output(2, mil, width), 1);
-    }
+    foreach (var mil in new[] { .8f, .9f, .998f })
+        foreach (var width in new[] { .016f / .05f, .016f / .25f, .016f / .6f })
+        {
+            for (var i = 0; i <= 100; i++)
+                Near(ThrottleDetent.Output(ThrottleDetent.Input(i / 100f, mil, width), mil, width), i / 100f);
+            Near(ThrottleDetent.Output(mil + width * .01f, mil, width), mil);
+            Near(ThrottleDetent.Output(mil + width * .99f, mil, width), mil);
+            True(ThrottleDetent.Output(mil + width + .0001f, mil, width) > mil);
+            True(ThrottleDetent.Output(mil - .0001f, mil, width) < mil);
+            Near(ThrottleDetent.Output(-1, mil, width), 0);
+            Near(ThrottleDetent.Output(2, mil, width), 1);
+        }
 });
 
 
@@ -778,18 +835,31 @@ if (args.Length >= 1)
 {
     using var asm = Mono.Cecil.AssemblyDefinition.ReadAssembly(args[0]);
     foreach (var side in new[] { "left", "right" })
-    Check("Embedded " + side + " glove retains valid skin, poses and a bounded geometry budget", () =>
-    {
-        var resource=asm.MainModule.Resources.OfType<Mono.Cecil.EmbeddedResource>().Single(r=>r.Name=="NOVR.Glove."+side+".json");
-        using var reader=new StreamReader(resource.GetResourceStream());
-        var a=Newtonsoft.Json.Linq.JObject.Parse(reader.ReadToEnd());
-        var vertices=a["vertices"]!.ToObject<float[]>()!; var weights=a["weights"]!.ToObject<float[]>()!;
-        var indices=a["indices"]!.ToObject<int[]>()!; var triangles=a["triangles"]!.ToObject<int[]>()!;
-        var bones=a["bones"]!;True(bones.Count()==31 && vertices.Length/3==3028 && triangles.Length/3==4899);
-        True(vertices.All(float.IsFinite) && weights.Length==vertices.Length/3*4 && indices.Length==weights.Length);
-        True(triangles.All(i=>i>=0 && i<vertices.Length/3) && indices.All(i=>i>=0 && i<31));
-        for(var i=0;i<weights.Length;i+=4)Near(weights[i]+weights[i+1]+weights[i+2]+weights[i+3],1,.0001f);
-        for(var i=0;i<31;i++){True((int)bones[i]!["parent"]!<i);foreach(var pose in new[]{"open","fist"}){var q=a[pose]![i]!.ToObject<float[]>()!;True(q.Length==4&&q.All(float.IsFinite));Near(q.Sum(x=>x*x),1,.001f);}}
-    });
+        Check("Embedded " + side + " glove retains valid skin, poses and a bounded geometry budget", () =>
+        {
+            var resource = asm.MainModule.Resources.OfType<Mono.Cecil.EmbeddedResource>().Single(r => r.Name == "NOVR.Glove." + side + ".json");
+            using var reader = new StreamReader(resource.GetResourceStream());
+            var a = Newtonsoft.Json.Linq.JObject.Parse(reader.ReadToEnd());
+            var vertices = a["vertices"]!.ToObject<float[]>()!;
+            var weights = a["weights"]!.ToObject<float[]>()!;
+            var indices = a["indices"]!.ToObject<int[]>()!;
+            var triangles = a["triangles"]!.ToObject<int[]>()!;
+            var bones = a["bones"]!;
+            True(bones.Count() == 31 && vertices.Length / 3 == 3028 && triangles.Length / 3 == 4899);
+            True(vertices.All(float.IsFinite) && weights.Length == vertices.Length / 3 * 4 && indices.Length == weights.Length);
+            True(triangles.All(i => i >= 0 && i < vertices.Length / 3) && indices.All(i => i >= 0 && i < 31));
+            for (var i = 0; i < weights.Length; i += 4)
+                Near(weights[i] + weights[i + 1] + weights[i + 2] + weights[i + 3], 1, .0001f);
+            for (var i = 0; i < 31; i++)
+            {
+                True((int)bones[i]!["parent"]! < i);
+                foreach (var pose in new[] { "open", "fist" })
+                {
+                    var q = a[pose]![i]!.ToObject<float[]>()!;
+                    True(q.Length == 4 && q.All(float.IsFinite));
+                    Near(q.Sum(x => x * x), 1, .001f);
+                }
+            }
+        });
 }
 Console.WriteLine($"{passed} checks passed.");

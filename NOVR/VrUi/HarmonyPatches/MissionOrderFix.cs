@@ -13,9 +13,15 @@ internal static class MissionOrderFix
         [HarmonyPrefix]
         private static void Prefix(global::MissionSelectListItem __instance)
         {
-            __instance.transform.localPosition = __instance.transform.localPosition with { z = 0 };
+            __instance.transform.localPosition = __instance.transform.localPosition with
+            {
+                z = 0
+            };
             var text = __instance.transform.Find("Text (TMP)");
-            text.localPosition = text.localPosition with { z = 0 };
+            text.localPosition = text.localPosition with
+            {
+                z = 0
+            };
         }
     }
 }

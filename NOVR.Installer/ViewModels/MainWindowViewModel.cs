@@ -10,7 +10,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private sealed record DownloadedNovrRelease(string ZipPath, ReleaseVersion Version, string TempDir);
 
-    
+
     private readonly GameLocator _gameLocator = new();
     private readonly GitHubReleaseClient _releaseClient = new();
     private readonly FileSystemInstaller _installer = new();
@@ -29,8 +29,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private Func<Task<string?>>? _browseForPackageAsync;
     private Task<DownloadedNovrRelease>? _latestNovrDownloadTask;
     private readonly object _downloadLock = new();
-    
-    
+
+
 
     public MainWindowViewModel()
     {
@@ -127,13 +127,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public ICommand PrimaryActionCommand { get; }
-    public ICommand RepairUpdateCommand { get; }
-    public ICommand UninstallCommand { get; }
-    public ICommand FinishUninstallCommand { get; }
-    public ICommand RescanCommand { get; }
-    public ICommand BrowseCommand { get; }
-    public ICommand InstallPackageCommand { get; }
+    public ICommand PrimaryActionCommand
+    {
+        get;
+    }
+    public ICommand RepairUpdateCommand
+    {
+        get;
+    }
+    public ICommand UninstallCommand
+    {
+        get;
+    }
+    public ICommand FinishUninstallCommand
+    {
+        get;
+    }
+    public ICommand RescanCommand
+    {
+        get;
+    }
+    public ICommand BrowseCommand
+    {
+        get;
+    }
+    public ICommand InstallPackageCommand
+    {
+        get;
+    }
     public void SetPackageBrowser(Func<Task<string?>> browse) => _browseForPackageAsync = browse;
 
     public void SetFolderBrowser(Func<Task<string?>> browseForFolderAsync)
@@ -179,8 +200,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             throw;
         }
     }
-    
-    
+
+
     private Task ScanAsync()
     {
         return RunBusyAsync(() =>
@@ -239,9 +260,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private async Task InstallPackageAsync()
     {
-        if (_browseForPackageAsync is null) return;
+        if (_browseForPackageAsync is null)
+            return;
         var path = await _browseForPackageAsync();
-        if (!string.IsNullOrEmpty(path)) await InstallOrUpdateAsync(InstallType.Install, path);
+        if (!string.IsNullOrEmpty(path))
+            await InstallOrUpdateAsync(InstallType.Install, path);
     }
 
     private async Task InstallOrUpdateAsync(InstallType installType, string? localPackage = null)
@@ -400,7 +423,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             Status = "Operation failed.";
-            Details = ex.Message; 
+            Details = ex.Message;
         }
         finally
         {

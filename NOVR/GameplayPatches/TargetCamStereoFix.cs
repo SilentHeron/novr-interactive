@@ -24,9 +24,11 @@ internal static class TargetCamStereoFix
 
     private static void MakeInstrumentCamera(Camera? camera)
     {
-        if (camera == null) return;
+        if (camera == null)
+            return;
         camera.stereoTargetEye = StereoTargetEyeMask.None;
         var data = camera.GetComponent<UniversalAdditionalCameraData>();
-        if (data != null) data.allowXRRendering = false;
+        if (data != null)
+            data.allowXRRendering = false;
     }
 }

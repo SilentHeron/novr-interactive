@@ -33,7 +33,11 @@ public class UIBehaviorPatcher : NOVRBehaviour
     {
         internal readonly Type Behavior;
         internal readonly int Failures;
-        internal PendingAddition(Type behavior, int failures = 0) { Behavior = behavior; Failures = failures; }
+        internal PendingAddition(Type behavior, int failures = 0)
+        {
+            Behavior = behavior;
+            Failures = failures;
+        }
     }
 
     private sealed class ComponentReferenceComparer : IEqualityComparer<Component>
@@ -73,7 +77,8 @@ public class UIBehaviorPatcher : NOVRBehaviour
         foreach (var target in PatchMap.Keys)
         {
             var ctor = target.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (ctor == null || PatchedConstructors.Contains(ctor)) continue;
+            if (ctor == null || PatchedConstructors.Contains(ctor))
+                continue;
             try
             {
                 harmony.Patch(ctor, postfix: postfix);
@@ -88,7 +93,8 @@ public class UIBehaviorPatcher : NOVRBehaviour
 
     private static void UniversalPostfix(object __instance)
     {
-        if (__instance is not Component component) return;
+        if (__instance is not Component component)
+            return;
         // A patched base constructor can execute for a game/mod subclass too.
         // Avoid native object access here: Unity may still be deserializing it.
         for (Type? type = component.GetType(); type != null; type = type.BaseType)
@@ -103,7 +109,8 @@ public class UIBehaviorPatcher : NOVRBehaviour
     {
         lock (PendingLock)
         {
-            if (Pending.TryGetValue(component, out var existing) && existing.Failures > addition.Failures) return;
+            if (Pending.TryGetValue(component, out var existing) && existing.Failures > addition.Failures)
+                return;
             Pending[component] = addition;
         }
     }
@@ -114,23 +121,32 @@ public class UIBehaviorPatcher : NOVRBehaviour
         // OnEnable of a new behavior may enqueue more native UI components.
         lock (PendingLock)
         {
-            foreach (var item in Pending) _batch.Add(item);
+            foreach (var item in Pending)
+                _batch.Add(item);
             Pending.Clear();
         }
         for (var i = 0; i < _batch.Count; i++)
         {
             var item = _batch[i];
-            if (isActiveAndEnabled) AddBehavior(item.Key, item.Value);
-            else Enqueue(item.Key, item.Value);
+            if (isActiveAndEnabled)
+                AddBehavior(item.Key, item.Value);
+            else
+                Enqueue(item.Key, item.Value);
         }
         _batch.Clear();
-        if (!isActiveAndEnabled || !_scanSceneObjects) return;
+        if (!isActiveAndEnabled || !_scanSceneObjects)
+            return;
         _scanSceneObjects = false;
         foreach (var go in Resources.FindObjectsOfTypeAll<GameObject>())
         {
-            if (!isActiveAndEnabled) { _scanSceneObjects = true; break; }
+            if (!isActiveAndEnabled)
+            {
+                _scanSceneObjects = true;
+                break;
+            }
             // FindObjectsOfTypeAll includes prefab/assets; never mutate those.
-            if (go == null || !go.scene.IsValid() || !go.scene.isLoaded) continue;
+            if (go == null || !go.scene.IsValid() || !go.scene.isLoaded)
+                continue;
             if (ScenePatchMap.TryGetValue(go.name, out var behavior))
                 AddBehavior(go.transform, new PendingAddition(behavior));
             // Constructor notifications can precede scene readiness, or even
@@ -145,21 +161,27 @@ public class UIBehaviorPatcher : NOVRBehaviour
 
     private static void AddBehavior(Component source, PendingAddition addition)
     {
-        if (source is null) return;
+        if (source is null)
+            return;
         try
         {
             if (source == null)
             {
                 // A destroyed bound object is finished; a constructor whose
                 // native ID is still zero gets the same bounded readiness retry.
-                if (source!.GetInstanceID() != 0) return;
+                if (source!.GetInstanceID() != 0)
+                    return;
                 throw new InvalidOperationException("UI component is not attached yet");
             }
             var go = source.gameObject;
-            if (go == null) throw new InvalidOperationException("UI object is not attached yet");
-            if (!go.scene.IsValid() || !go.scene.isLoaded) return;
-            if (go.TryGetComponent(addition.Behavior, out Component _)) return;
-            if (go.AddComponent(addition.Behavior) == null) throw new InvalidOperationException("AddComponent returned no behavior");
+            if (go == null)
+                throw new InvalidOperationException("UI object is not attached yet");
+            if (!go.scene.IsValid() || !go.scene.isLoaded)
+                return;
+            if (go.TryGetComponent(addition.Behavior, out Component _))
+                return;
+            if (go.AddComponent(addition.Behavior) == null)
+                throw new InvalidOperationException("AddComponent returned no behavior");
             // Unity calls Awake/OnEnable itself and schedules Start normally.
             // Toggling the native object here would also interrupt every game
             // component on it, and could leave it hidden if this worker stops.
@@ -167,7 +189,8 @@ public class UIBehaviorPatcher : NOVRBehaviour
         catch (Exception exception)
         {
             var failures = addition.Failures + 1;
-            if (failures < 3) Enqueue(source, new PendingAddition(addition.Behavior, failures));
+            if (failures < 3)
+                Enqueue(source, new PendingAddition(addition.Behavior, failures));
             if (failures == 1 || failures == 3)
                 Debug.LogWarning($"[NOVR] Could not attach {addition.Behavior.Name}{(failures < 3 ? "; retrying" : "; giving up after 3 attempts")}: {exception.Message}");
         }

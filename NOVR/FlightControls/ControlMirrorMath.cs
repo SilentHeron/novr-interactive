@@ -30,8 +30,13 @@ internal readonly struct ControlMirrorMath
 
     internal static void ReverseTriangles(int[] indices)
     {
-        if (indices.Length % 3 != 0) throw new ArgumentException("Control geometry is not triangulated.");
+        if (indices.Length % 3 != 0)
+            throw new ArgumentException("Control geometry is not triangulated.");
         for (var i = 0; i < indices.Length; i += 3)
-        { var swap = indices[i + 1]; indices[i + 1] = indices[i + 2]; indices[i + 2] = swap; }
+        {
+            var swap = indices[i + 1];
+            indices[i + 1] = indices[i + 2];
+            indices[i + 2] = swap;
+        }
     }
 }

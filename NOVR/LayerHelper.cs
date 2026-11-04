@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -6,13 +6,13 @@ namespace NOVR;
 
 public static class LayerHelper
 {
-    
-    
+
+
     // Check me on game updates!!
     [Flags]
     public enum Layers
     {
-        
+
         // Base game
         Default = 0,
         TransparentFX = 1,
@@ -22,7 +22,7 @@ public static class LayerHelper
         UI = 5,
         Statics = 6,
         PP = 7,
-        TargetCamPP =8,
+        TargetCamPP = 8,
         HUD = 9,
         Effects = 10,
         Ship = 11,
@@ -33,9 +33,9 @@ public static class LayerHelper
         PreviewRender = 16,
         EditorSelectOnly = 17,
         GrassBlockerProxy = 18,
-        
-        
-        
+
+
+
         // Ours
         VrForeground = 29,
         VrUi = 30,

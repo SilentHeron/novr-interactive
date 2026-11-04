@@ -10,9 +10,11 @@ internal static class PilotMotionInputPatch
         [HarmonyPostfix]
         private static void Postfix(Rewired.Player __instance, string __0, ref float __result)
         {
-            if (__instance != GameManager.playerInput || __0 != "Custom Axis 1") return;
+            if (__instance != GameManager.playerInput || __0 != "Custom Axis 1")
+                return;
             var axis = MotionFlightController.Instance?.VtolAxis ?? 0;
-            if (axis != 0) __result = axis;
+            if (axis != 0)
+                __result = axis;
         }
     }
 
@@ -24,16 +26,19 @@ internal static class PilotMotionInputPatch
         private static void Postfix(Pilot ___pilot, ControlInputs ___controlInputs, float ___pilotStrength)
         {
             var motion = MotionFlightController.Instance;
-            if (motion == null || !motion.SampleFor(___pilot)) return;
+            if (motion == null || !motion.SampleFor(___pilot))
+                return;
             if (___pilotStrength < 0.2f)
             {
                 motion.ResetGrips();
                 return;
             }
-            if (!motion.StickHeld) return;
+            if (!motion.StickHeld)
+                return;
             ___controlInputs.pitch = motion.Pitch;
             ___controlInputs.roll = motion.Roll;
-            if (motion.HasYaw) ___controlInputs.yaw = motion.Yaw;
+            if (motion.HasYaw)
+                ___controlInputs.yaw = motion.Yaw;
         }
     }
 
@@ -46,13 +51,15 @@ internal static class PilotMotionInputPatch
         {
             var motion = MotionFlightController.Instance;
             motion?.ObserveThrottle(___pilot, ___controlInputs.throttle);
-            if (motion == null || !motion.SampleFor(___pilot)) return;
+            if (motion == null || !motion.SampleFor(___pilot))
+                return;
             if (___pilotStrength < 0.2f)
             {
                 motion.ResetGrips();
                 return;
             }
-            if (!motion.ThrottleHeld) return;
+            if (!motion.ThrottleHeld)
+                return;
             ___controlInputs.throttle = motion.Throttle;
             // Seed the native accumulator so letting go keeps thrust instead of snapping back.
             ___simulatedThrottle = FlightControlMath.ToSimulatedThrottle(motion.Throttle,

@@ -13,9 +13,11 @@ internal static class UnitMapIconPlanePatch
     [HarmonyPostfix]
     private static void Postfix(UnitMapIcon __instance, Transform mapTransform, bool ___orient, TrackingInfo ___trackingInfo)
     {
-        if (!XRSettings.enabled || __instance.iconImage == null || mapTransform == null) return;
+        if (!XRSettings.enabled || __instance.iconImage == null || mapTransform == null)
+            return;
         var icon = __instance.iconImage.transform;
-        if (icon != __instance.transform) __instance.transform.localRotation = Quaternion.identity;
+        if (icon != __instance.transform)
+            __instance.transform.localRotation = Quaternion.identity;
         if (___orient)
         {
             // Preserve the last known heading for contacts that are not observed.
@@ -25,7 +27,8 @@ internal static class UnitMapIconPlanePatch
         else
         {
             var map = SceneSingleton<DynamicMap>.i;
-            if (map?.mapBackground != null) icon.rotation = map.mapBackground.transform.rotation;
+            if (map?.mapBackground != null)
+                icon.rotation = map.mapBackground.transform.rotation;
         }
     }
 }
@@ -36,10 +39,13 @@ internal static class AirbaseMapIconPlanePatch
     [HarmonyPostfix]
     private static void Postfix(AirbaseMapIcon __instance)
     {
-        if (!XRSettings.enabled || __instance.iconImage == null) return;
+        if (!XRSettings.enabled || __instance.iconImage == null)
+            return;
         var map = SceneSingleton<DynamicMap>.i;
-        if (map?.mapBackground == null) return;
-        if (__instance.iconImage.transform != __instance.transform) __instance.transform.localRotation = Quaternion.identity;
+        if (map?.mapBackground == null)
+            return;
+        if (__instance.iconImage.transform != __instance.transform)
+            __instance.transform.localRotation = Quaternion.identity;
         __instance.iconImage.transform.rotation = map.mapBackground.transform.rotation;
     }
 }

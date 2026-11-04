@@ -68,7 +68,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         if (visible && !_wasVisible)
         {
@@ -159,7 +160,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void SelectTab(WorkshopTab tab)
     {
-        if (_tab == tab) return;
+        if (_tab == tab)
+            return;
 
         _tab = tab;
         RefreshFirstSteamPage();
@@ -169,7 +171,8 @@ public class NativeWorkshopPanel : MonoBehaviour
     {
         var values = new[] { OrderBy.Trend30Days, OrderBy.TopAllTime, OrderBy.New };
         var index = Array.IndexOf(values, _orderBy);
-        if (index < 0) index = 0;
+        if (index < 0)
+            index = 0;
 
         _orderBy = values[WrapIndex(index + direction, values.Length)];
         RefreshFirstSteamPage();
@@ -177,7 +180,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void RefreshFirstSteamPage()
     {
-        if (_queryInProgress) return;
+        if (_queryInProgress)
+            return;
 
         _steamPage = 1;
         _displayPage = 0;
@@ -186,7 +190,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void LoadNextSteamPage()
     {
-        if (_queryInProgress || !_hasMoreSteamPages) return;
+        if (_queryInProgress || !_hasMoreSteamPages)
+            return;
 
         _steamPage++;
         _displayPage = 0;
@@ -195,7 +200,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private async UniTaskVoid QuerySteamPageAsync(bool clearExisting)
     {
-        if (_steamWorkshop == null || _queryInProgress) return;
+        if (_steamWorkshop == null || _queryInProgress)
+            return;
 
         _queryInProgress = true;
         SetStatus($"Loading Workshop {_tab} page {_steamPage}.");
@@ -246,7 +252,8 @@ public class NativeWorkshopPanel : MonoBehaviour
         for (var index = 0; index < _items.Count; index++)
         {
             var item = _items[index];
-            if (!MatchesSearch(item, searchText)) continue;
+            if (!MatchesSearch(item, searchText))
+                continue;
 
             _visibleItems.Add(item);
         }
@@ -258,7 +265,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private static bool MatchesSearch(SteamWorkshopItem item, string searchText)
     {
-        if (string.IsNullOrWhiteSpace(searchText)) return true;
+        if (string.IsNullOrWhiteSpace(searchText))
+            return true;
 
         var terms = searchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         for (var index = 0; index < terms.Length; index++)
@@ -285,7 +293,8 @@ public class NativeWorkshopPanel : MonoBehaviour
             var hasItem = itemIndex >= 0 && itemIndex < _visibleItems.Count;
             var row = _rows[index];
             row.Button.gameObject.SetActive(hasItem);
-            if (!hasItem) continue;
+            if (!hasItem)
+                continue;
 
             var item = _visibleItems[itemIndex];
             row.NameText.text = "  " + Shorten(item.Name, 54);
@@ -311,10 +320,14 @@ public class NativeWorkshopPanel : MonoBehaviour
         {
             _selectedIndex = -1;
             _selectedItem = null;
-            if (_titleText != null) _titleText.text = "";
-            if (_ownerText != null) _ownerText.text = "";
-            if (_descriptionText != null) _descriptionText.text = "";
-            if (_detailsStatusText != null) _detailsStatusText.text = "Select a Workshop item.";
+            if (_titleText != null)
+                _titleText.text = "";
+            if (_ownerText != null)
+                _ownerText.text = "";
+            if (_descriptionText != null)
+                _descriptionText.text = "";
+            if (_detailsStatusText != null)
+                _detailsStatusText.text = "Select a Workshop item.";
             if (_previewImage != null)
             {
                 _previewImage.sprite = null;
@@ -330,10 +343,14 @@ public class NativeWorkshopPanel : MonoBehaviour
         _selectedItem = _visibleItems[index];
         _selectedItem.OwnerNameChanged += OnSelectedOwnerNameChanged;
 
-        if (_titleText != null) _titleText.text = _selectedItem.Name;
-        if (_ownerText != null) _ownerText.text = GetOwnerText(_selectedItem);
-        if (_descriptionText != null) _descriptionText.text = _selectedItem.Description ?? "";
-        if (_detailsStatusText != null) _detailsStatusText.text = _selectedItem.Subscribed ? "Installed locally." : "Not installed.";
+        if (_titleText != null)
+            _titleText.text = _selectedItem.Name;
+        if (_ownerText != null)
+            _ownerText.text = GetOwnerText(_selectedItem);
+        if (_descriptionText != null)
+            _descriptionText.text = _selectedItem.Description ?? "";
+        if (_detailsStatusText != null)
+            _detailsStatusText.text = _selectedItem.Subscribed ? "Installed locally." : "Not installed.";
         if (_previewImage != null)
         {
             _selectedItem.SetPreviewImageAsync(_previewImage, ref _previewCancellation).Forget();
@@ -345,7 +362,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void OnSelectedOwnerNameChanged()
     {
-        if (_selectedItem == null || _ownerText == null) return;
+        if (_selectedItem == null || _ownerText == null)
+            return;
 
         _ownerText.text = GetOwnerText(_selectedItem);
         RefreshRows();
@@ -360,14 +378,16 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void ToggleSubscribe()
     {
-        if (_selectedItem == null || _steamWorkshop == null || _itemActionInProgress) return;
+        if (_selectedItem == null || _steamWorkshop == null || _itemActionInProgress)
+            return;
 
         ToggleSubscribeAsync(_selectedItem).Forget();
     }
 
     private async UniTaskVoid ToggleSubscribeAsync(SteamWorkshopItem item)
     {
-        if (_steamWorkshop == null) return;
+        if (_steamWorkshop == null)
+            return;
 
         _itemActionInProgress = true;
         RefreshButtons();
@@ -402,7 +422,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void UpdateAllSubscribed()
     {
-        if (_itemActionInProgress) return;
+        if (_itemActionInProgress)
+            return;
 
         UpdateAllSubscribedAsync().Forget();
     }
@@ -437,14 +458,16 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void OpenSelectedLocalFiles()
     {
-        if (_selectedItem == null || !_selectedItem.Subscribed) return;
+        if (_selectedItem == null || !_selectedItem.Subscribed)
+            return;
 
         _selectedItem.OpenLocalContent();
     }
 
     private void PreviousPage()
     {
-        if (_displayPage <= 0) return;
+        if (_displayPage <= 0)
+            return;
 
         _displayPage--;
         SelectItem(_displayPage * PageSize);
@@ -452,7 +475,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void NextPage()
     {
-        if ((_displayPage + 1) * PageSize >= _visibleItems.Count) return;
+        if ((_displayPage + 1) * PageSize >= _visibleItems.Count)
+            return;
 
         _displayPage++;
         SelectItem(_displayPage * PageSize);
@@ -460,7 +484,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private void ClearSearch()
     {
-        if (_searchInput == null) return;
+        if (_searchInput == null)
+            return;
 
         if (string.IsNullOrEmpty(_searchInput.text))
         {
@@ -675,7 +700,8 @@ public class NativeWorkshopPanel : MonoBehaviour
 
     private static int WrapIndex(int index, int count)
     {
-        if (count <= 0) return 0;
+        if (count <= 0)
+            return 0;
 
         var wrapped = index % count;
         return wrapped < 0 ? wrapped + count : wrapped;
@@ -713,9 +739,21 @@ public class NativeWorkshopPanel : MonoBehaviour
             StateText = stateText;
         }
 
-        public Button Button { get; }
-        public Text NameText { get; }
-        public Text OwnerText { get; }
-        public Text StateText { get; }
+        public Button Button
+        {
+            get;
+        }
+        public Text NameText
+        {
+            get;
+        }
+        public Text OwnerText
+        {
+            get;
+        }
+        public Text StateText
+        {
+            get;
+        }
     }
 }

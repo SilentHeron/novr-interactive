@@ -17,7 +17,8 @@ internal static class ManagedPayloadUpgrade
             string.Equals(Path.GetFileName(source), Path.GetFileName(destination), comparison) &&
             string.Equals(Path.GetFullPath(Path.GetDirectoryName(source)!), Path.GetFullPath(payloadDirectory), comparison) &&
             string.Equals(Path.GetFullPath(Path.GetDirectoryName(destination)!), Path.GetFullPath(managedDirectory), comparison) &&
-            File.Exists(destination))) return false;
+            File.Exists(destination)))
+            return false;
         try
         {
             using var installed = AssemblyDefinition.ReadAssembly(destination);
@@ -36,8 +37,10 @@ internal static class ManagedPayloadUpgrade
     internal static bool Apply(ref AssemblyDefinition assembly, string source, string destination, Action<string> log,
         Action<string, string>? persist = null, Action<AssemblyDefinition>? prepare = null)
     {
-        if (!IsOwned(assembly.Name.Name)) return false;
-        if (File.Exists(destination) && PayloadFile.SameContents(source, destination)) return false;
+        if (!IsOwned(assembly.Name.Name))
+            return false;
+        if (File.Exists(destination) && PayloadFile.SameContents(source, destination))
+            return false;
         foreach (var loaded in AppDomain.CurrentDomain.GetAssemblies())
             if (string.Equals(loaded.GetName().Name, assembly.Name.Name, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Cannot upgrade already loaded " + assembly.Name.Name +
@@ -47,7 +50,10 @@ internal static class ManagedPayloadUpgrade
         try
         {
             replacement = AssemblyDefinition.ReadAssembly(source, new ReaderParameters
-            { InMemory = true, ReadingMode = ReadingMode.Deferred });
+            {
+                InMemory = true,
+                ReadingMode = ReadingMode.Deferred
+            });
             // Keep resolver ownership independent: disposing the old module
             // must not dispose the replacement's dependency resolver as well.
             if (replacement.MainModule.AssemblyResolver is BaseAssemblyResolver resolver)
@@ -55,7 +61,8 @@ internal static class ManagedPayloadUpgrade
                 resolver.AddSearchDirectory(Path.GetDirectoryName(source)!);
                 resolver.AddSearchDirectory(Path.GetDirectoryName(destination)!);
                 if (assembly.MainModule.AssemblyResolver is BaseAssemblyResolver previousResolver)
-                    foreach (var directory in previousResolver.GetSearchDirectories()) resolver.AddSearchDirectory(directory);
+                    foreach (var directory in previousResolver.GetSearchDirectories())
+                        resolver.AddSearchDirectory(directory);
             }
             if (!string.Equals(replacement.Name.FullName, assembly.Name.FullName, StringComparison.Ordinal))
                 throw new InvalidDataException("XR payload identity does not match " + assembly.Name.FullName + ".");
@@ -85,7 +92,10 @@ internal static class ManagedPayloadUpgrade
         assembly = replacement;
         // Never let a failure after this point escape: BepInEx propagates the
         // replacement ref only when its reflection invocation returns normally.
-        try { previous.Dispose(); }
+        try
+        {
+            previous.Dispose();
+        }
         catch (Exception error) { Report(log, "Could not release the previous XR reader: " + error.Message); }
         try
         {
@@ -102,7 +112,10 @@ internal static class ManagedPayloadUpgrade
 
     private static void Report(Action<string> log, string message)
     {
-        try { log("[NOVR.Patcher] " + message); }
+        try
+        {
+            log("[NOVR.Patcher] " + message);
+        }
         catch { /* Logging must not discard a usable replacement definition. */ }
     }
 
@@ -114,13 +127,20 @@ internal static class ManagedPayloadUpgrade
         try
         {
             File.Copy(source, staged, false);
-            if (!PayloadFile.SameContents(source, staged)) throw new IOException("XR payload changed while staging.");
-            if (File.Exists(destination)) File.Replace(staged, destination, null);
-            else File.Move(staged, destination);
+            if (!PayloadFile.SameContents(source, staged))
+                throw new IOException("XR payload changed while staging.");
+            if (File.Exists(destination))
+                File.Replace(staged, destination, null);
+            else
+                File.Move(staged, destination);
         }
         finally
         {
-            try { if (File.Exists(staged)) File.Delete(staged); }
+            try
+            {
+                if (File.Exists(staged))
+                    File.Delete(staged);
+            }
             catch { /* Do not mask the replacement error or invalidate the session. */ }
         }
     }

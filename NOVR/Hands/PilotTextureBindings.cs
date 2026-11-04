@@ -9,8 +9,8 @@ internal static class PilotTextureBindings
     {
         // A cropped atlas must retain its sampler transform, strength and
         // unrelated maps. Never replace a slot another owner has since changed.
-        foreach(var property in normal ? Normal : Albedo)
-            if(material.HasProperty(property) && material.GetTexture(property)==original)
-                material.SetTexture(property,replacement);
+        foreach (var property in normal ? Normal : Albedo)
+            if (material.HasProperty(property) && material.GetTexture(property) == original)
+                material.SetTexture(property, replacement);
     }
 }

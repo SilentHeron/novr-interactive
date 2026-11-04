@@ -7,7 +7,8 @@ public readonly struct ReleaseVersion : IEquatable<ReleaseVersion>, IComparable<
     public ReleaseVersion(string meta)
     {
         var tag = meta.Split('\n')[0].Trim();
-        if (tag.StartsWith('v') || tag.StartsWith('V')) tag = tag[1..];
+        if (tag.StartsWith('v') || tag.StartsWith('V'))
+            tag = tag[1..];
         var parts = tag.Split('.');
         if (parts.Length is not (3 or 4) || parts.Any(p => p.Length == 0 || p.Any(c => c < '0' || c > '9')) ||
             !System.Version.TryParse(tag, out var version))

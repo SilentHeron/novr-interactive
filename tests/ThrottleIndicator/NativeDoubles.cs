@@ -14,7 +14,10 @@ public sealed class Aircraft
     public AircraftParameters parameters = new();
     public AircraftParameters GetAircraftParameters() => parameters;
 }
-public sealed class AircraftParameters { public GaugeObject? HUDExtras; }
+public sealed class AircraftParameters
+{
+    public GaugeObject? HUDExtras;
+}
 public sealed class GaugeObject
 {
     public ThrottleGauge[] gauges = Array.Empty<ThrottleGauge>();
@@ -25,8 +28,14 @@ public sealed class ThrottleGauge
     public bool afterburner = true;
     public GaugeRegion[] throttleRegions = Array.Empty<GaugeRegion>();
 }
-public sealed class GaugeRegion(float threshold) { public float start = threshold; }
-public class Turbojet { public JetNozzle[] nozzles = Array.Empty<JetNozzle>(); }
+public sealed class GaugeRegion(float threshold)
+{
+    public float start = threshold;
+}
+public class Turbojet
+{
+    public JetNozzle[] nozzles = Array.Empty<JetNozzle>();
+}
 public class Turbofan
 {
     // The game keeps this field private; derived/modded engines still use it.
@@ -35,8 +44,14 @@ public class Turbofan
 }
 public sealed class ModdedTurbofan(params JetNozzle[] sources) : Turbofan(sources);
 public sealed class ModdedTurbojet : Turbojet;
-public sealed class DuctedThrustSystem { public JetNozzle[] nozzles = Array.Empty<JetNozzle>(); }
-public sealed class JetNozzle { public Burner[] afterburners = Array.Empty<Burner>(); }
+public sealed class DuctedThrustSystem
+{
+    public JetNozzle[] nozzles = Array.Empty<JetNozzle>();
+}
+public sealed class JetNozzle
+{
+    public Burner[] afterburners = Array.Empty<Burner>();
+}
 public sealed class Burner(float threshold, float maximum = 1, float force = 35000)
 {
     public float throttleStart = threshold, throttleEnd = maximum, thrust = force;

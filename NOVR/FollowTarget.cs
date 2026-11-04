@@ -1,8 +1,8 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace NOVR;
 
-public class FollowTarget: NOVRBehaviour
+public class FollowTarget : NOVRBehaviour
 {
 #if CPP
     public FollowTarget(System.IntPtr pointer) : base(pointer)
@@ -16,7 +16,8 @@ public class FollowTarget: NOVRBehaviour
 
     protected override void OnBeforeRender()
     {
-        if (Target == null) return;
+        if (Target == null)
+            return;
 
         transform.position = Target.TransformPoint(LocalPosition);
         transform.rotation = Target.rotation * LocalRotation;

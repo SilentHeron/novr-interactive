@@ -11,8 +11,10 @@ internal static class HudWidgetTwoHandChecks
         var localSpan = new Vector3(.22f, .15f, .018f);
         var midpoint = pose.Position - rotation * offset;
         var span = rotation * localSpan;
-        var left = midpoint - span * .5f; var right = midpoint + span * .5f;
-        var leftAngles = new Vector2(-7, 155); var rightAngles = new Vector2(15, -120);
+        var left = midpoint - span * .5f;
+        var right = midpoint + span * .5f;
+        var leftAngles = new Vector2(-7, 155);
+        var rightAngles = new Vector2(15, -120);
         var gesture = new HudWidgetTwoHandGesture(pose, left, right, leftAngles, rightAngles);
         var joined = gesture.Move(pose, left, right, leftAngles, rightAngles);
         Near((joined.Position - pose.Position).magnitude, 0, "Acquiring the second hand does not move the displayed panel");

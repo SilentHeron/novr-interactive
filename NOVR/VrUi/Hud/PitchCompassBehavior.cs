@@ -46,7 +46,8 @@ public class PitchCompassBehavior : MonoBehaviour
         var targetUp = inverseCockpitRotation * Vector3.up;
         var targetRight = Vector3.Cross(targetUp, Vector3.forward).normalized;
         // Avoid a zero LookRotation vector at exactly vertical pitch.
-        if (targetRight.sqrMagnitude < .000001f) targetRight = Vector3.right;
+        if (targetRight.sqrMagnitude < .000001f)
+            targetRight = Vector3.right;
         var targetForward = Vector3.Cross(targetUp, targetRight).normalized;
         root.rotation = Quaternion.LookRotation(targetForward, targetUp);
 
@@ -74,17 +75,21 @@ public class PitchCompassBehavior : MonoBehaviour
 
     private void BuildSlices()
     {
-        if (_flightHud == null) _flightHud = GetComponent<global::FlightHud>();
+        if (_flightHud == null)
+            _flightHud = GetComponent<global::FlightHud>();
         var source = _flightHud != null ? PitchCompassField?.GetValue(_flightHud) as RawImage : null;
         var texture = source != null ? source.texture : null;
         if (_sliceRoot != null && source != null && texture != null &&
-            source == _sourcePitchCompass && texture == _sourceTexture) return;
+            source == _sourcePitchCompass && texture == _sourceTexture)
+            return;
         ReleaseSlices();
-        if (_flightHud == null || source == null || texture == null) return;
+        if (_flightHud == null || source == null || texture == null)
+            return;
         var sourceRect = source.rectTransform;
         var height = sourceRect.rect.height / source.uvRect.height;
         if (source.uvRect.height <= Mathf.Epsilon || sourceRect.rect.width <= 0 ||
-            height <= 0 || float.IsNaN(height) || float.IsInfinity(height)) return;
+            height <= 0 || float.IsNaN(height) || float.IsInfinity(height))
+            return;
 
         _sourcePitchCompass = source;
         _sourceTexture = texture;
@@ -114,15 +119,18 @@ public class PitchCompassBehavior : MonoBehaviour
 
     private void SuspendSlices()
     {
-        if (_sliceRoot != null) _sliceRoot.gameObject.SetActive(false);
-        if (_suppressedSource && _sourcePitchCompass != null) _sourcePitchCompass.enabled = _sourceWasEnabled;
+        if (_sliceRoot != null)
+            _sliceRoot.gameObject.SetActive(false);
+        if (_suppressedSource && _sourcePitchCompass != null)
+            _sourcePitchCompass.enabled = _sourceWasEnabled;
         _suppressedSource = false;
     }
 
     private void ReleaseSlices()
     {
         SuspendSlices();
-        if (_sliceRoot != null) Destroy(_sliceRoot.gameObject);
+        if (_sliceRoot != null)
+            Destroy(_sliceRoot.gameObject);
         _sliceRoot = null;
         _sourcePitchCompass = null;
         _sourceTexture = null;
@@ -176,8 +184,8 @@ public class PitchCompassBehavior : MonoBehaviour
         sliceImage.raycastTarget = false;
         sliceImage.uvRect = new Rect(0f, normalizedSliceBottom, 1f, normalizedSliceHeight);
         return sliceObject;
- 
-    } 
+
+    }
 
     private static GameObject CreateWrappedEndCapSliceImage(RawImage source, Texture sourceTexture, RectTransform root, float height)
     {

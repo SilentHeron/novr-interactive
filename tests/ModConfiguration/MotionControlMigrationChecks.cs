@@ -14,27 +14,27 @@ internal static class MotionControlMigrationChecks
     internal static void Run(Action<bool, string> check)
     {
         foreach (var travel in new[] { .25f, .22f, .12f })
-        foreach (var wrist in new[] { Vector3.zero, new Vector3(25, 0, 0), new Vector3(0, 0, 90) })
-        {
-            var config = Stored(1, .25f, travel, wrist);
-            var settings = new MotionControlSettings(config);
-            check(settings.HapticStrength.Value == 1.5f && settings.InteractionVolume.Value == .4f,
-                "Historical default feedback levels migrate to the same current values.");
-            check(settings.ThrottleTravel.Value == .12f && settings.GloveRotation.Value == new Vector3(0, 0, 90),
-                "Ordered travel and wrist migrations reach the current defaults from every previous stock state.");
-            check(config.BoundKeys.Where(Flags.Contains).SequenceEqual(Flags),
-                "Historical migration flags are bound and applied in their original order.");
-            foreach (var key in Flags)
-                check(config.Bind(Section, key, false, "").Value, "Each historical flag keeps its persisted key.");
-            settings.HapticStrength.Value = 1;
-            settings.InteractionVolume.Value = .25f;
-            settings.ThrottleTravel.Value = .25f;
-            settings.GloveRotation.Value = Vector3.zero;
-            var reloaded = new MotionControlSettings(config);
-            check(reloaded.HapticStrength.Value == 1 && reloaded.InteractionVolume.Value == .25f &&
-                reloaded.ThrottleTravel.Value == .25f && reloaded.GloveRotation.Value == Vector3.zero,
-                "Already-applied migrations never overwrite later user changes, even when they match old defaults.");
-        }
+            foreach (var wrist in new[] { Vector3.zero, new Vector3(25, 0, 0), new Vector3(0, 0, 90) })
+            {
+                var config = Stored(1, .25f, travel, wrist);
+                var settings = new MotionControlSettings(config);
+                check(settings.HapticStrength.Value == 1.5f && settings.InteractionVolume.Value == .4f,
+                    "Historical default feedback levels migrate to the same current values.");
+                check(settings.ThrottleTravel.Value == .12f && settings.GloveRotation.Value == new Vector3(0, 0, 90),
+                    "Ordered travel and wrist migrations reach the current defaults from every previous stock state.");
+                check(config.BoundKeys.Where(Flags.Contains).SequenceEqual(Flags),
+                    "Historical migration flags are bound and applied in their original order.");
+                foreach (var key in Flags)
+                    check(config.Bind(Section, key, false, "").Value, "Each historical flag keeps its persisted key.");
+                settings.HapticStrength.Value = 1;
+                settings.InteractionVolume.Value = .25f;
+                settings.ThrottleTravel.Value = .25f;
+                settings.GloveRotation.Value = Vector3.zero;
+                var reloaded = new MotionControlSettings(config);
+                check(reloaded.HapticStrength.Value == 1 && reloaded.InteractionVolume.Value == .25f &&
+                    reloaded.ThrottleTravel.Value == .25f && reloaded.GloveRotation.Value == Vector3.zero,
+                    "Already-applied migrations never overwrite later user changes, even when they match old defaults.");
+            }
         foreach (var level in new[] { 0f, .6f, 1.0002f, 2f })
         {
             var customWrist = new Vector3(10, -8, 70);

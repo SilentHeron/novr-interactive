@@ -41,7 +41,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         if (!visible && _wasVisible)
         {
@@ -61,9 +62,11 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void Update()
     {
-        if (_wasVisible) _vrBindings?.Refresh();
+        if (_wasVisible)
+            _vrBindings?.Refresh();
         var readyBinding = _bindingCapture.TakeReady(Time.unscaledTime);
-        if (readyBinding != null) StartBindingCapture(readyBinding);
+        if (readyBinding != null)
+            StartBindingCapture(readyBinding);
 
         if (_wasVisible && _currentTab == SettingsTab.Bindings)
         {
@@ -110,7 +113,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void SelectTab(SettingsTab tab)
     {
-        if (_currentTab == tab) return;
+        if (_currentTab == tab)
+            return;
 
         if (_currentTab == SettingsTab.Bindings)
         {
@@ -133,7 +137,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void RenderCurrentTab()
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         ClearContent();
         _nextRowY = RowStartY;
@@ -162,7 +167,10 @@ public partial class NativeSettingsPanel : MonoBehaviour
                 break;
             case SettingsTab.Hud:
                 CreateContentTitle(_lookCueSettings ? "LOOK DIRECTION CUE" : "HUD");
-                if (_lookCueSettings) RenderLookCueSettings(); else RenderHudTab();
+                if (_lookCueSettings)
+                    RenderLookCueSettings();
+                else
+                    RenderHudTab();
                 break;
             case SettingsTab.Chat:
                 CreateContentTitle("CHAT");
@@ -175,7 +183,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void ClearContent()
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         _vrBindings = null;
         _bindingAxisValueTexts.Clear();
@@ -188,7 +197,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void CreateContentTitle(string title)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         CreateText($"{title} Title", _contentRoot, title, new Vector2(0f, 420f), new Vector2(1320f, 32f), 20, TextAnchor.MiddleCenter, Color.white);
     }
@@ -248,9 +258,15 @@ public partial class NativeSettingsPanel : MonoBehaviour
         AddActionRow("Visual VR Controller Bindings", "OPEN", RenderVrControllerBindings);
         var gripModes = new[] { "HOLD", "TOGGLE" };
         AddOptionRow("Stick Grip", gripModes, () => motion.StickTapGrip.Value ? 1 : 0, value =>
-        { motion.StickTapGrip.Value = value == 1; ModConfiguration.Instance.Config.Save(); });
+        {
+            motion.StickTapGrip.Value = value == 1;
+            ModConfiguration.Instance.Config.Save();
+        });
         AddOptionRow("Throttle Grip", gripModes, () => motion.ThrottleTapGrip.Value ? 1 : 0, value =>
-        { motion.ThrottleTapGrip.Value = value == 1; ModConfiguration.Instance.Config.Save(); });
+        {
+            motion.ThrottleTapGrip.Value = value == 1;
+            ModConfiguration.Instance.Config.Save();
+        });
         if (_contentRoot != null)
         {
             StickSensitivitySlider.Create(_contentRoot, new Vector2(0, ConsumeRowY() - 14), 1000, _font!, 18);
@@ -277,11 +293,14 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void RenderVrControllerBindings()
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
         CancelBindingCapture("Binding capture canceled.");
-        ClearContent(); CreateContentTitle("VISUAL VR CONTROLLER BINDINGS");
+        ClearContent();
+        CreateContentTitle("VISUAL VR CONTROLLER BINDINGS");
         var host = CreateContainer("Controller binding editor", _contentRoot, new Vector2(540, 500));
-        host.anchoredPosition = new Vector2(0, 20); host.localScale = Vector3.one * 1.7f;
+        host.anchoredPosition = new Vector2(0, 20);
+        host.localScale = Vector3.one * 1.7f;
         _vrBindings = new ControllerBindingPanel(host, _font!, RenderCurrentTab);
     }
 
@@ -310,7 +329,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void RenderLookCueSettings()
     {
-        var config = ModConfiguration.Instance; var cue = config.LookCue;
+        var config = ModConfiguration.Instance;
+        var cue = config.LookCue;
         AddActionRow("HUD Settings", "BACK", () => { _lookCueSettings = false; RenderCurrentTab(); });
         AddFloatRow("Cue Size", () => cue.Scale, value => cue.Size.Value = value,
             MotionControls.GazeCueSettings.MinSize, MotionControls.GazeCueSettings.MaxSize, .1f, value => $"{value * 100:0}%");
@@ -346,7 +366,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddToggleRow(string label, Func<bool> getValue, Action<bool> setValue)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(-310f, y), new Vector2(420f, 32f), 15, TextAnchor.MiddleLeft, Color.white);
@@ -366,7 +387,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddOptionRow(string label, IList<string> options, Func<int> getValue, Action<int> setValue)
     {
-        if (_contentRoot == null || options.Count == 0) return;
+        if (_contentRoot == null || options.Count == 0)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(-310f, y), new Vector2(420f, 32f), 15, TextAnchor.MiddleLeft, Color.white);
@@ -386,7 +408,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddFloatRow(string label, Func<float> getValue, Action<float> setValue, float min, float max, float step, Func<float, string> format)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(-310f, y), new Vector2(420f, 32f), 15, TextAnchor.MiddleLeft, Color.white);
@@ -405,7 +428,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddIntRow(string label, Func<int> getValue, Action<int> setValue, int min, int max, int step, Func<int, string> format)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(-310f, y), new Vector2(420f, 32f), 15, TextAnchor.MiddleLeft, Color.white);
@@ -424,7 +448,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddActionRow(string label, string buttonLabel, UnityEngine.Events.UnityAction action)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(-310f, y), new Vector2(420f, 32f), 15, TextAnchor.MiddleLeft, Color.white);
@@ -433,7 +458,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void AddReadOnlyRow(string label)
     {
-        if (_contentRoot == null) return;
+        if (_contentRoot == null)
+            return;
 
         var y = ConsumeRowY();
         CreateText($"{label} Label", _contentRoot, label, new Vector2(0f, y), new Vector2(820f, 32f), 15, TextAnchor.MiddleCenter, new Color(0.84f, 0.88f, 0.90f, 1f));
@@ -458,7 +484,8 @@ public partial class NativeSettingsPanel : MonoBehaviour
 
     private void ResetGraphicsSettings()
     {
-        if (PlayerSettings.graphics == null || PlayerSettings.DetailSettings == null) return;
+        if (PlayerSettings.graphics == null || PlayerSettings.DetailSettings == null)
+            return;
 
         PlayerSettings.graphics.Clear();
         PlayerSettings.DetailSettings.Clear();

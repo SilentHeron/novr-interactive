@@ -4,11 +4,15 @@ namespace NOVR.VrUi.Native;
 // re-showing a panel must not permit a second launch while the first awaits.
 internal sealed class MissionLaunchGate
 {
-    internal bool IsBusy { get; private set; }
+    internal bool IsBusy
+    {
+        get; private set;
+    }
 
     internal bool TryBegin(bool sessionActive)
     {
-        if (IsBusy || sessionActive) return false;
+        if (IsBusy || sessionActive)
+            return false;
         IsBusy = true;
         return true;
     }

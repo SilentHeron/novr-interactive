@@ -22,7 +22,8 @@ internal static class InteractionHaptics
     internal static void PulseOnly(InputDevice device, float strength, float seconds)
     {
         var level = ModConfiguration.Instance.MotionControls.HapticStrength.Value;
-        if (level <= 0 || !device.isValid || !device.TryGetHapticCapabilities(out var caps) || !caps.supportsImpulse) return;
+        if (level <= 0 || !device.isValid || !device.TryGetHapticCapabilities(out var caps) || !caps.supportsImpulse)
+            return;
         device.SendHapticImpulse(0, Mathf.Clamp01(strength * level), seconds);
     }
 }

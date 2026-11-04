@@ -20,25 +20,32 @@ internal static class HudWidgetAspectPersistenceChecks
             var aspects = new[] { .5f, 1.25f, 2f, .75f, 1.5f, 3f, .25f, 1f, 4f };
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
             for (var a = 0; a < aircraft.Length; a++)
-            for (var slot = 1; slot <= 3; slot++)
-            {
-                var layout = profiles.Load(aircraft[a], slot);
-                var map = layout["map"];
-                map.Position = new Vector3(.21f + a * .03f, -.19f - slot * .02f, .67f + slot * .04f);
-                map.Euler = new Vector3(12.5f, -18.75f + a, 0);
-                map.Scale = 1f + a * .05f;
-                map.Opacity = .45f + slot * .1f; map.Background = .12f + a * .11f; map.Visible = slot != 2;
-                map.Aspect = aspects[a * 3 + slot - 1]; layout["map"] = map;
-                var feed = layout["feed"]; feed.Background = .13f * slot; feed.Opacity = .4f + a * .1f; feed.Visible = a != 1;
-                layout["feed"] = feed;
-                profiles.Save(aircraft[a], layout, slot);
-                expected[(aircraft[a], slot)] = layout;
-                var encoded = Entry(config, aircraft[a], slot, "map").Value;
-                check(encoded.Split('|').Length == (map.Aspect == 1 ? 10 : 11), "Only reshaped maps append an aspect field");
-                check(!encoded.Contains(','), "Map dimensions serialize with invariant decimal separators");
-            }
+                for (var slot = 1; slot <= 3; slot++)
+                {
+                    var layout = profiles.Load(aircraft[a], slot);
+                    var map = layout["map"];
+                    map.Position = new Vector3(.21f + a * .03f, -.19f - slot * .02f, .67f + slot * .04f);
+                    map.Euler = new Vector3(12.5f, -18.75f + a, 0);
+                    map.Scale = 1f + a * .05f;
+                    map.Opacity = .45f + slot * .1f;
+                    map.Background = .12f + a * .11f;
+                    map.Visible = slot != 2;
+                    map.Aspect = aspects[a * 3 + slot - 1];
+                    layout["map"] = map;
+                    var feed = layout["feed"];
+                    feed.Background = .13f * slot;
+                    feed.Opacity = .4f + a * .1f;
+                    feed.Visible = a != 1;
+                    layout["feed"] = feed;
+                    profiles.Save(aircraft[a], layout, slot);
+                    expected[(aircraft[a], slot)] = layout;
+                    var encoded = Entry(config, aircraft[a], slot, "map").Value;
+                    check(encoded.Split('|').Length == (map.Aspect == 1 ? 10 : 11), "Only reshaped maps append an aspect field");
+                    check(!encoded.Contains(','), "Map dimensions serialize with invariant decimal separators");
+                }
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            config = Open(path); profiles = new HudWidgetProfiles(config);
+            config = Open(path);
+            profiles = new HudWidgetProfiles(config);
             foreach (var pair in expected)
             {
                 var actual = profiles.Load(pair.Key.aircraft, pair.Key.slot);
@@ -83,7 +90,8 @@ internal static class HudWidgetAspectPersistenceChecks
             Entry(config, aircraft, slot, "map").Value = tenFields;
         }
         config.Save();
-        config = Open(path); var profiles = new HudWidgetProfiles(config);
+        config = Open(path);
+        var profiles = new HudWidgetProfiles(config);
         for (var slot = 1; slot <= 3; slot++)
         {
             var actual = profiles.Load(aircraft, slot)["map"];
@@ -99,27 +107,36 @@ internal static class HudWidgetAspectPersistenceChecks
     private static void CheckInvalidAndNonMap(string directory, Action<bool, string> check)
     {
         var path = Path.Combine(directory, "map-aspect-invalid.cfg");
-        var config = Open(path); var profiles = new HudWidgetProfiles(config);
+        var config = Open(path);
+        var profiles = new HudWidgetProfiles(config);
         const string aircraft = "shape-validation";
         var original = new HudWidgetPose(new Vector3(.25f, -.33f, .73f), new Vector3(10, -20, 0), 1, .63f, .38f, false);
         foreach (var aspect in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity, -100f, 0f, .01f, .25f, 1f, 4f, 100f })
-        foreach (var scale in new[] { .35f, 1f, 3f })
-        {
-            var candidate = original; candidate.Aspect = aspect; candidate.Scale = scale;
-            profiles.Save(aircraft, new Dictionary<string, HudWidgetPose> { ["map"] = candidate });
-            var loaded = new HudWidgetProfiles(Open(path)).Load(aircraft)["map"];
-            check(float.IsFinite(loaded.Aspect) && loaded.Aspect >= .25f && loaded.Aspect <= 4f,
-                "Malformed/out-of-range aspect always reloads within supported bounds");
-            if (!float.IsFinite(aspect) || aspect <= 0) check(loaded.Aspect == 1, "Nonfinite/nonpositive map aspect falls back to square");
-            if (float.IsFinite(aspect) && aspect > 4) check(loaded.Aspect == 4, "Excessively wide map clamps to the widest supported shape");
-            if (aspect > 0 && aspect < .25f) check(loaded.Aspect == .25f, "Excessively tall map clamps to the tallest supported shape");
-            Dimensions(loaded, check);
-            var untouched = loaded; untouched.Scale = original.Scale; untouched.Aspect = original.Aspect;
-            Same(untouched, original, check, "Shape sanitization preserves map position, angles, opacity, backing and visibility");
-        }
+            foreach (var scale in new[] { .35f, 1f, 3f })
+            {
+                var candidate = original;
+                candidate.Aspect = aspect;
+                candidate.Scale = scale;
+                profiles.Save(aircraft, new Dictionary<string, HudWidgetPose> { ["map"] = candidate });
+                var loaded = new HudWidgetProfiles(Open(path)).Load(aircraft)["map"];
+                check(float.IsFinite(loaded.Aspect) && loaded.Aspect >= .25f && loaded.Aspect <= 4f,
+                    "Malformed/out-of-range aspect always reloads within supported bounds");
+                if (!float.IsFinite(aspect) || aspect <= 0)
+                    check(loaded.Aspect == 1, "Nonfinite/nonpositive map aspect falls back to square");
+                if (float.IsFinite(aspect) && aspect > 4)
+                    check(loaded.Aspect == 4, "Excessively wide map clamps to the widest supported shape");
+                if (aspect > 0 && aspect < .25f)
+                    check(loaded.Aspect == .25f, "Excessively tall map clamps to the tallest supported shape");
+                Dimensions(loaded, check);
+                var untouched = loaded;
+                untouched.Scale = original.Scale;
+                untouched.Aspect = original.Aspect;
+                Same(untouched, original, check, "Shape sanitization preserves map position, angles, opacity, backing and visibility");
+            }
         foreach (var id in HudWidgetProfiles.Ids.Where(id => id != "map"))
         {
-            var attempted = original; attempted.Aspect = 2.7f;
+            var attempted = original;
+            attempted.Aspect = 2.7f;
             profiles.Save(aircraft, new Dictionary<string, HudWidgetPose> { [id] = attempted });
             var actual = new HudWidgetProfiles(Open(path)).Load(aircraft)[id];
             check(actual.Aspect == 1, "Non-map widget cannot acquire rectangular geometry: " + id);
@@ -132,11 +149,14 @@ internal static class HudWidgetAspectPersistenceChecks
         const string validPrefix = "0.25|-0.33|0.73|10|-20|0|1|0.63|0.38|0|";
         foreach (var token in new[] { "NaN", "Infinity", "-Infinity", "0", "-2", "not-a-number", "0.01", "100" })
         {
-            Entry(config, aircraft, 1, "map").Value = validPrefix + token; config.Save();
+            Entry(config, aircraft, 1, "map").Value = validPrefix + token;
+            config.Save();
             var decoded = new HudWidgetProfiles(Open(path)).Load(aircraft)["map"];
             check(decoded.Aspect == (token == "0.01" ? .25f : token == "100" ? 4f : 1f), "Eleven-field malformed aspect is sanitized on load");
             Dimensions(decoded, check);
-            var unchanged = decoded; unchanged.Aspect = original.Aspect; unchanged.Scale = original.Scale;
+            var unchanged = decoded;
+            unchanged.Aspect = original.Aspect;
+            unchanged.Scale = original.Scale;
             Same(unchanged, original, check, "Aspect parsing retains the valid legacy fields");
         }
     }
@@ -144,7 +164,8 @@ internal static class HudWidgetAspectPersistenceChecks
     private static void Dimensions(HudWidgetPose pose, Action<bool, string> check)
     {
         var ratio = Math.Sqrt(pose.Aspect);
-        var width = pose.Scale * ratio; var height = pose.Scale / ratio;
+        var width = pose.Scale * ratio;
+        var height = pose.Scale / ratio;
         check(width >= .35 - 1e-6 && width <= 3 + 1e-6 && height >= .35 - 1e-6 && height <= 3 + 1e-6,
             "Both effective map dimensions stay within .35–3, including extreme aspect/scale pairs");
     }

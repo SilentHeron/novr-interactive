@@ -14,16 +14,21 @@ internal static class NavigationHudProjection
 
     internal static bool PinToEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle)
     {
-        hudPosition = Vector3.zero; arrowAngle = 0;
-        var main = APIBus.MainCamera; var hud = APIBus.CockpitHudCamera;
-        if (main == null || hud == null) return false;
+        hudPosition = Vector3.zero;
+        arrowAngle = 0;
+        var main = APIBus.MainCamera;
+        var hud = APIBus.CockpitHudCamera;
+        if (main == null || hud == null)
+            return false;
         var direction = main.transform.InverseTransformPoint(worldPosition).normalized;
-        if (direction.sqrMagnitude <= Mathf.Epsilon) direction = Vector3.forward;
+        if (direction.sqrMagnitude <= Mathf.Epsilon)
+            direction = Vector3.forward;
         RefreshBounds(main);
         var offScreen = direction.z <= 0;
         if (!offScreen)
         {
-            var x = direction.x / direction.z; var y = direction.y / direction.z;
+            var x = direction.x / direction.z;
+            var y = direction.y / direction.z;
             offScreen = x < _view.x || x > _view.y || y < _view.z || y > _view.w;
         }
         if (offScreen)
@@ -32,13 +37,16 @@ internal static class NavigationHudProjection
             var pitch = Mathf.Atan2(direction.y, new Vector2(direction.x, direction.z).magnitude) * Mathf.Rad2Deg;
             // A point exactly behind has no unique left/right choice. Keep a
             // deterministic rightward cue instead of collapsing it to center.
-            if (Mathf.Abs(yaw) < .001f && Mathf.Abs(pitch) < .001f) yaw = 180;
+            if (Mathf.Abs(yaw) < .001f && Mathf.Abs(pitch) < .001f)
+                yaw = 180;
             arrowAngle = Mathf.Atan2(pitch, yaw);
             var horizontal = yaw < 0 ? _band.x : _band.y;
             var vertical = pitch < 0 ? _band.z : _band.w;
             var ratio = Mathf.Max(Mathf.Abs(yaw) / horizontal, Mathf.Abs(pitch) / vertical);
-            yaw /= Mathf.Max(1, ratio); pitch /= Mathf.Max(1, ratio);
-            var yawRadians = yaw * Mathf.Deg2Rad; var pitchRadians = pitch * Mathf.Deg2Rad;
+            yaw /= Mathf.Max(1, ratio);
+            pitch /= Mathf.Max(1, ratio);
+            var yawRadians = yaw * Mathf.Deg2Rad;
+            var pitchRadians = pitch * Mathf.Deg2Rad;
             // Bounds are independent projected eye-frustum slopes. Spherical
             // yaw/pitch would increase y/z at diagonal corners by 1/cos(yaw).
             direction = new Vector3(Mathf.Tan(yawRadians), Mathf.Tan(pitchRadians), 1).normalized;
@@ -70,10 +78,13 @@ internal static class NavigationHudProjection
 
     private static void RefreshBounds(Camera camera)
     {
-        if (_camera == camera && _frame == Time.frameCount) return;
-        _camera = camera; _frame = Time.frameCount;
+        if (_camera == camera && _frame == Time.frameCount)
+            return;
+        _camera = camera;
+        _frame = Time.frameCount;
         // Only used while the runtime has not supplied usable stereo matrices.
-        var x = Mathf.Tan(50 * Mathf.Deg2Rad); var y = Mathf.Tan(42 * Mathf.Deg2Rad);
+        var x = Mathf.Tan(50 * Mathf.Deg2Rad);
+        var y = Mathf.Tan(42 * Mathf.Deg2Rad);
         _view = new Vector4(-x, x, -y, y);
         var overlap = _view;
         if (camera.stereoEnabled && TryExtents(camera.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left), out var left) &&
@@ -94,7 +105,8 @@ internal static class NavigationHudProjection
         extents = default;
         if (!FlightControlMath.IsFinite(projection.m00) || !FlightControlMath.IsFinite(projection.m11) ||
             !FlightControlMath.IsFinite(projection.m02) || !FlightControlMath.IsFinite(projection.m12) ||
-            projection.m00 <= .01f || projection.m11 <= .01f) return false;
+            projection.m00 <= .01f || projection.m11 <= .01f)
+            return false;
         extents = new Vector4((projection.m02 - 1) / projection.m00, (projection.m02 + 1) / projection.m00,
             (projection.m12 - 1) / projection.m11, (projection.m12 + 1) / projection.m11);
         return extents.x < 0 && extents.y > 0 && extents.z < 0 && extents.w > 0;

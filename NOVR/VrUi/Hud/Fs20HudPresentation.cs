@@ -24,12 +24,16 @@ internal sealed class Fs20HudPresentation : MonoBehaviour
         // One component owns the existing group's alpha; Unity rejects a second
         // CanvasGroup, and two independent writers would fight over opacity.
         foreach (var panel in _panels)
-            if (panel != null) panel.SetWidgetSourcesMoved(CockpitStatusSources.EmptiedStatusPanel(panel.transform));
+            if (panel != null)
+                panel.SetWidgetSourcesMoved(CockpitStatusSources.EmptiedStatusPanel(panel.transform));
     }
     private void Release()
     {
-        foreach (var panel in _panels) if (panel != null) panel.SetWidgetSourcesMoved(false);
-        _panels.Clear(); _nextFind = 0;
+        foreach (var panel in _panels)
+            if (panel != null)
+                panel.SetWidgetSourcesMoved(false);
+        _panels.Clear();
+        _nextFind = 0;
     }
     private void OnDisable() => Release();
     private void OnDestroy() => Release();

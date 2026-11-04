@@ -15,6 +15,6 @@ public static class InstallerConstants
 
     public const string BepInExOwner = "BepInEx";
     public const string BepInExRepo = "BepInEx";
-    
+
     public const string VersionFileName = "version.txt";
 }

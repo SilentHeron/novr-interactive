@@ -3,7 +3,10 @@ namespace BepInEx.Configuration
     public sealed class ConfigFile
     {
         public Action<int>? BeforeBind;
-        public int BindCount { get; private set; }
+        public int BindCount
+        {
+            get; private set;
+        }
         private readonly Dictionary<(string Section, string Key), object> _entries = new();
         public List<string> BoundKeys { get; } = new();
         public void Seed<T>(string section, string key, T value) => _entries[(section, key)] = new ConfigEntry<T>(value);
@@ -14,13 +17,17 @@ namespace BepInEx.Configuration
             BindCount++;
             BoundKeys.Add(key);
             BeforeBind?.Invoke(BindCount);
-            if (_entries.TryGetValue((section, key), out var entry)) return (ConfigEntry<T>)entry;
+            if (_entries.TryGetValue((section, key), out var entry))
+                return (ConfigEntry<T>)entry;
             var created = new ConfigEntry<T>(value);
             _entries.Add((section, key), created);
             return created;
         }
     }
-    public sealed class ConfigEntry<T>(T value) { public T Value { get; set; } = value; }
+    public sealed class ConfigEntry<T>(T value)
+    {
+        public T Value { get; set; } = value;
+    }
     public sealed class ConfigDescription(string description, object? values = null)
     {
         public string Description { get; } = description;
@@ -44,7 +51,10 @@ namespace NOVR.MotionControls
     {
         public GazeCueSettings(ConfigFile config) => config.Bind("Gaze", "Test boundary", true, "");
     }
-    public enum TargetCueMode { Context, Always, Off }
+    public enum TargetCueMode
+    {
+        Context, Always, Off
+    }
 }
 
 namespace NOVR.VrUi.SpecialBehavior
@@ -73,5 +83,8 @@ namespace UnityEngine
         public override bool Equals(object? other) => other is Vector3 value && this == value;
         public override int GetHashCode() => HashCode.Combine(x, y, z);
     }
-    public static class Mathf { public static float Abs(float value) => MathF.Abs(value); }
+    public static class Mathf
+    {
+        public static float Abs(float value) => MathF.Abs(value);
+    }
 }

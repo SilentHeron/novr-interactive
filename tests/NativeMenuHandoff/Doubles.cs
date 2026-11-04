@@ -9,9 +9,18 @@ namespace UnityEngine
         public override bool Equals(object? other) => ReferenceEquals(this, other);
         public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
     }
-    public class MonoBehaviour : Object { public GameObject gameObject = new(); }
-    public sealed class Canvas : MonoBehaviour { public bool enabled = true; }
-    public sealed class CanvasGroup : MonoBehaviour { public float alpha = 1; public bool interactable = true, blocksRaycasts = true; }
+    public class MonoBehaviour : Object
+    {
+        public GameObject gameObject = new();
+    }
+    public sealed class Canvas : MonoBehaviour
+    {
+        public bool enabled = true;
+    }
+    public sealed class CanvasGroup : MonoBehaviour
+    {
+        public float alpha = 1; public bool interactable = true, blocksRaycasts = true;
+    }
     public sealed class GameObject : Object
     {
         public string name = "";
@@ -32,15 +41,27 @@ namespace UnityEngine
     {
         public static readonly List<Object> Loaded = new();
         public static int Searches;
-        public static T[] FindObjectsOfTypeAll<T>() { Searches++; return Loaded.OfType<T>().ToArray(); }
+        public static T[] FindObjectsOfTypeAll<T>()
+        {
+            Searches++;
+            return Loaded.OfType<T>().ToArray();
+        }
     }
-    public static class Mathf { public static float Min(float a, float b) => Math.Min(a, b); }
+    public static class Mathf
+    {
+        public static float Min(float a, float b) => Math.Min(a, b);
+    }
 }
 namespace UnityEngine.SceneManagement
 {
     public readonly record struct Scene(int handle, bool isLoaded = true)
-    { public bool IsValid() => handle != 0; }
-    public enum LoadSceneMode { Single, Additive }
+    {
+        public bool IsValid() => handle != 0;
+    }
+    public enum LoadSceneMode
+    {
+        Single, Additive
+    }
     public static class SceneManager
     {
         public static event Action<Scene, LoadSceneMode>? sceneLoaded;
@@ -50,14 +71,21 @@ namespace UnityEngine.SceneManagement
         public static Scene GetActiveScene() => Active;
         public static void Load(Scene scene) => sceneLoaded?.Invoke(scene, LoadSceneMode.Additive);
         public static void Unload(Scene scene) => sceneUnloaded?.Invoke(scene);
-        public static void SetActive(Scene scene) { var before = Active; Active = scene; activeSceneChanged?.Invoke(before, scene); }
+        public static void SetActive(Scene scene)
+        {
+            var before = Active;
+            Active = scene;
+            activeSceneChanged?.Invoke(before, scene);
+        }
         public static int Subscribers => (sceneLoaded?.GetInvocationList().Length ?? 0) +
             (sceneUnloaded?.GetInvocationList().Length ?? 0) + (activeSceneChanged?.GetInvocationList().Length ?? 0);
     }
 }
 namespace NuclearOption.MissionEditorScripts
 {
-    public sealed class FileMenu : UnityEngine.MonoBehaviour { }
+    public sealed class FileMenu : UnityEngine.MonoBehaviour
+    {
+    }
 }
 public sealed class CustomizeMissionMenu : UnityEngine.MonoBehaviour
 {
@@ -67,13 +95,23 @@ public sealed class CustomizeMissionMenu : UnityEngine.MonoBehaviour
 namespace NuclearOption.SavedMission
 {
     public readonly record struct MissionKey(string Name);
-    public sealed class Mission { public string Name = "", Description = ""; }
+    public sealed class Mission
+    {
+        public string Name = "", Description = "";
+    }
 }
 public sealed class MissionSelectPanel
 {
-    public NuclearOption.SavedMission.MissionKey SelectedMission { get; private set; }
+    public NuclearOption.SavedMission.MissionKey SelectedMission
+    {
+        get; private set;
+    }
     public Action<NuclearOption.SavedMission.MissionKey>? OnSelect;
-    public void SetSelectedMission(NuclearOption.SavedMission.MissionKey key) { SelectedMission = key; OnSelect?.Invoke(key); }
+    public void SetSelectedMission(NuclearOption.SavedMission.MissionKey key)
+    {
+        SelectedMission = key;
+        OnSelect?.Invoke(key);
+    }
 }
 public sealed class MissionPicker
 {
@@ -81,7 +119,17 @@ public sealed class MissionPicker
     public NuclearOption.SavedMission.Mission? Mission;
     public int Loads;
     public MissionPicker(MissionSelectPanel? selection)
-    { missionSelect = selection; if (selection != null) selection.OnSelect = SelectMission; }
+    {
+        missionSelect = selection;
+        if (selection != null)
+            selection.OnSelect = SelectMission;
+    }
     public void SelectMission(NuclearOption.SavedMission.MissionKey key)
-    { Loads++; Mission = new() { Name = key.Name }; }
+    {
+        Loads++;
+        Mission = new()
+        {
+            Name = key.Name
+        };
+    }
 }

@@ -21,26 +21,43 @@ internal sealed class HelmetNightVision : MonoBehaviour
             WristMenu.IsOpen || CockpitLayout.Active || CockpitHudWidgets.Editing || DynamicMap.mapMaximized || CursorManager.GetFlags() != CursorFlags.None ||
             !GameManager.GetLocalAircraft(out var aircraft) || aircraft.cockpit == null || aircraft.cockpit.IsDetached() ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()))
-        { Reset(); return; }
+        {
+            Reset();
+            return;
+        }
         var head = NOVRHeadsetData.Translation + CockpitProfiles.SeatOffset;
         var inverse = Quaternion.Inverse(NOVRHeadsetData.Rotation);
         var controls = MotionFlightController.Instance;
         for (var i = 0; i < 2; i++)
         {
-            var left = i == 0; var hand = TrackedControllers.Read(left);
+            var left = i == 0;
+            var hand = TrackedControllers.Read(left);
             var held = left == config.MotionControls.LeftHanded.Value ? controls?.StickHeld == true : controls?.ThrottleHeld == true;
             var relative = inverse * (hand.Position - head);
             var near = hand.Valid && !held && !NativeHandOptionWheel.OwnsHand(left) && HelmetGestureMath.AtBrow(relative.x, relative.y, relative.z);
-            if (near && !_near[i]) InteractionHaptics.Pulse(hand.Device, .12f, .02f, InteractionCue.Grab);
+            if (near && !_near[i])
+                InteractionHaptics.Pulse(hand.Device, .12f, .02f, InteractionCue.Grab);
             _near[i] = near;
             _triggers[i].Update(near, hand.Trigger);
-            if (!_triggers[i].Pressed || Time.unscaledTime < _nextToggle) continue;
-            NightVision.Toggle(); _nextToggle = Time.unscaledTime + .35f;
+            if (!_triggers[i].Pressed || Time.unscaledTime < _nextToggle)
+                continue;
+            NightVision.Toggle();
+            _nextToggle = Time.unscaledTime + .35f;
             InteractionHaptics.Pulse(hand.Device, .5f, .065f, InteractionCue.Helmet);
         }
     }
     private void Reset()
-    { for (var i = 0; i < 2; i++) { _near[i] = false; _triggers[i].Reset(); } }
+    {
+        for (var i = 0; i < 2; i++)
+        {
+            _near[i] = false;
+            _triggers[i].Reset();
+        }
+    }
     private void OnDisable() => Reset();
-    private void OnDestroy() { if (_instance == this) _instance = null; }
+    private void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
 }

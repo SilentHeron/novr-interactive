@@ -2,8 +2,14 @@ using System;
 
 namespace NOVR.MotionControls;
 
-internal enum ControllerBindingProfile { Auto, Frame, Touch }
-internal enum ControllerHandRole { Stick, Throttle, Left, Right }
+internal enum ControllerBindingProfile
+{
+    Auto, Frame, Touch
+}
+internal enum ControllerHandRole
+{
+    Stick, Throttle, Left, Right
+}
 internal enum ControllerActionId
 {
     Guns, WeaponRelease, SelectTarget, UnlockTarget, ClearTargets, NextWeapon,
@@ -15,7 +21,11 @@ internal readonly struct ControllerActionBinding
 {
     internal readonly ControllerButton Button;
     internal readonly ControllerHandRole Hand;
-    internal ControllerActionBinding(ControllerButton button, ControllerHandRole hand) { Button = button; Hand = hand; }
+    internal ControllerActionBinding(ControllerButton button, ControllerHandRole hand)
+    {
+        Button = button;
+        Hand = hand;
+    }
 }
 
 // Hardware-independent preset and collision rules, shared by the editor and
@@ -52,7 +62,12 @@ internal static class ControllerBindingDefaults
     }
 
     internal static bool ResolveLeft(ControllerHandRole role, bool leftHanded) => role switch
-    { ControllerHandRole.Left => true, ControllerHandRole.Right => false, ControllerHandRole.Stick => leftHanded, _ => !leftHanded };
+    {
+        ControllerHandRole.Left => true,
+        ControllerHandRole.Right => false,
+        ControllerHandRole.Stick => leftHanded,
+        _ => !leftHanded
+    };
     internal static bool RequiresGrip(ControllerActionId action) => action != ControllerActionId.Map &&
         action != ControllerActionId.WristMenu;
     internal static bool ShareContext(ControllerActionId first, ControllerActionId second) =>
@@ -74,14 +89,21 @@ internal static class ControllerBindingDefaults
             ControllerButtonNames.Resolve(button, profile == ControllerBindingProfile.Frame) is ControllerButton.Trigger or ControllerButton.StickClick);
     internal static string ActionLabel(ControllerActionId action) => action switch
     {
-        ControllerActionId.Guns => "Guns", ControllerActionId.WeaponRelease => "Missile / weapon release",
-        ControllerActionId.SelectTarget => "Select target", ControllerActionId.UnlockTarget => "Unselect latest target",
-        ControllerActionId.ClearTargets => "Clear all targets", ControllerActionId.NextWeapon => "Next weapon",
-        ControllerActionId.Countermeasures => "Countermeasures", ControllerActionId.NextCountermeasure => "Next CM type",
-        ControllerActionId.Brake => "Wheel / air brake", ControllerActionId.Map => "Map / respawn",
+        ControllerActionId.Guns => "Guns",
+        ControllerActionId.WeaponRelease => "Missile / weapon release",
+        ControllerActionId.SelectTarget => "Select target",
+        ControllerActionId.UnlockTarget => "Unselect latest target",
+        ControllerActionId.ClearTargets => "Clear all targets",
+        ControllerActionId.NextWeapon => "Next weapon",
+        ControllerActionId.Countermeasures => "Countermeasures",
+        ControllerActionId.NextCountermeasure => "Next CM type",
+        ControllerActionId.Brake => "Wheel / air brake",
+        ControllerActionId.Map => "Map / respawn",
         ControllerActionId.WristMenu => "View menu",
-        ControllerActionId.Gear => "Landing gear", ControllerActionId.Radar => "Radar",
-        ControllerActionId.FlightAssist => "Flight assist", ControllerActionId.HoverAssist => "Hover assist",
+        ControllerActionId.Gear => "Landing gear",
+        ControllerActionId.Radar => "Radar",
+        ControllerActionId.FlightAssist => "Flight assist",
+        ControllerActionId.HoverAssist => "Hover assist",
         _ => action.ToString()
     };
     internal static string ContextLabel(ControllerActionId action) => action switch

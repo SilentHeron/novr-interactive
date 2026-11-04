@@ -29,39 +29,39 @@ internal static class CockpitWidgetSpaceChecks
         // also use the imported viewpoint bone, but their offsets are meters.
         // Use an analytical 90-degree yaw result rather than a roundtrip alone.
         foreach (var side in new[] { -.30f, .30f })
-        foreach (var height in new[] { -.40f, -.22f })
-        {
-            var offset = new Vector3(side, height, 1.4f);
-            var alert = CockpitWidgetSpace.ToWorld(origin, yaw, offset);
-            Near(alert, origin + new Vector3(1.4f, height, -side),
-                "Fallback alert remains 1.4 m forward and 30 cm beside the factory eye line");
-            Length(alert - origin, MathF.Sqrt(side * side + height * height + 1.4f * 1.4f),
-                "Fallback alert distance is physical meters, not 100x bone units");
-            Near(CockpitWidgetSpace.ToLocal(origin, yaw, alert), offset,
-                "Fallback alert preserves its side and height after aircraft rotation");
-        }
+            foreach (var height in new[] { -.40f, -.22f })
+            {
+                var offset = new Vector3(side, height, 1.4f);
+                var alert = CockpitWidgetSpace.ToWorld(origin, yaw, offset);
+                Near(alert, origin + new Vector3(1.4f, height, -side),
+                    "Fallback alert remains 1.4 m forward and 30 cm beside the factory eye line");
+                Length(alert - origin, MathF.Sqrt(side * side + height * height + 1.4f * 1.4f),
+                    "Fallback alert distance is physical meters, not 100x bone units");
+                Near(CockpitWidgetSpace.ToLocal(origin, yaw, alert), offset,
+                    "Fallback alert preserves its side and height after aircraft rotation");
+            }
 
         foreach (var rotation in new[] { Quaternion.identity, yaw, Quaternion.Euler(-18, 143, 27) })
-        foreach (var position in new[] { Vector3.zero, origin, new Vector3(-93, 42, 71) })
-        {
-            var hand = new Vector3(-.23f, -.31f, .46f);
-            var handWorld = CockpitWidgetSpace.ToWorld(position, rotation, hand);
-            Near(CockpitWidgetSpace.ToLocal(position, rotation, handWorld), hand,
-                "Hand and widget share the same meter-space under aircraft translation/rotation");
-            var saved = new Vector3(.28f, -.40f, .28f);
-            var fixedWidget = CockpitWidgetSpace.ToWorld(position, rotation, saved);
-            foreach (var seat in new[] { new Vector3(.12f, .08f, -.16f), new Vector3(-.2f, -.15f, .25f) })
+            foreach (var position in new[] { Vector3.zero, origin, new Vector3(-93, 42, 71) })
             {
-                var seatedHand = CockpitWidgetSpace.ToWorld(position, rotation, hand + seat);
-                Near(CockpitWidgetSpace.ToLocal(position, rotation, seatedHand), hand + seat,
-                    "Seat translation changes mapped controller coordinates in meters");
-                Near(CockpitWidgetSpace.ToWorld(position, rotation, saved), fixedWidget,
-                    "Seat translation does not drag the fixed widget");
-                var seatedEye = position + rotation * seat;
-                Near(Quaternion.Inverse(rotation) * (fixedWidget - seatedEye), saved - seat,
-                    "Seat movement changes viewer-to-widget distance without changing saved placement");
+                var hand = new Vector3(-.23f, -.31f, .46f);
+                var handWorld = CockpitWidgetSpace.ToWorld(position, rotation, hand);
+                Near(CockpitWidgetSpace.ToLocal(position, rotation, handWorld), hand,
+                    "Hand and widget share the same meter-space under aircraft translation/rotation");
+                var saved = new Vector3(.28f, -.40f, .28f);
+                var fixedWidget = CockpitWidgetSpace.ToWorld(position, rotation, saved);
+                foreach (var seat in new[] { new Vector3(.12f, .08f, -.16f), new Vector3(-.2f, -.15f, .25f) })
+                {
+                    var seatedHand = CockpitWidgetSpace.ToWorld(position, rotation, hand + seat);
+                    Near(CockpitWidgetSpace.ToLocal(position, rotation, seatedHand), hand + seat,
+                        "Seat translation changes mapped controller coordinates in meters");
+                    Near(CockpitWidgetSpace.ToWorld(position, rotation, saved), fixedWidget,
+                        "Seat translation does not drag the fixed widget");
+                    var seatedEye = position + rotation * seat;
+                    Near(Quaternion.Inverse(rotation) * (fixedWidget - seatedEye), saved - seat,
+                        "Seat movement changes viewer-to-widget distance without changing saved placement");
+                }
             }
-        }
 
         void Near(Vector3 a, Vector3 b, string label) => check((a - b).magnitude < .00003f, label);
         void Length(Vector3 value, float expected, string label) => check(MathF.Abs(value.magnitude - expected) < .00003f, label);

@@ -29,42 +29,66 @@ internal sealed partial class ControllerBindingPanel
 
     internal ControllerBindingPanel(Transform parent, Font font, Action close)
     {
-        _font = font; _close = close;
+        _font = font;
+        _close = close;
         _root = new GameObject("Visual controller bindings", typeof(RectTransform));
         _root.transform.SetParent(parent, false);
         ((RectTransform)_root.transform).sizeDelta = new Vector2(540, 500);
         CreateBindingPages();
-        Footer("Back", -176, Back); Footer("Bindings", 0, Home); Footer("Done", 176, _close);
-        Home(); OpenDiagram();
+        Footer("Back", -176, Back);
+        Footer("Bindings", 0, Home);
+        Footer("Done", 176, _close);
+        Home();
+        OpenDiagram();
         LayerHelper.SetLayerRecursive(_root.transform, LayerHelper.GetVrUiLayer());
     }
     internal void Refresh()
     {
-        if (_root == null || !_root.activeInHierarchy) { _diagram?.ClearActivity(); return; }
+        if (_root == null || !_root.activeInHierarchy)
+        {
+            _diagram?.ClearActivity();
+            return;
+        }
         foreach (var item in _liveLabels)
-            if (item.label != null && item.label.gameObject.activeInHierarchy) item.label.text = item.text();
+            if (item.label != null && item.label.gameObject.activeInHierarchy)
+                item.label.text = item.text();
         RefreshBindingEditor();
     }
     private GameObject Page(string title)
     {
-        var page = new GameObject(title, typeof(RectTransform)); page.transform.SetParent(_root.transform, false);
-        page.SetActive(false); _pages.Add(page); _buttonParent = page.transform; return page;
+        var page = new GameObject(title, typeof(RectTransform));
+        page.transform.SetParent(_root.transform, false);
+        page.SetActive(false);
+        _pages.Add(page);
+        _buttonParent = page.transform;
+        return page;
     }
     private void ShowPage(GameObject page)
     {
-        if (_history.Count == 0 || _history[_history.Count - 1] != page) _history.Add(page);
-        foreach (var item in _pages) item.SetActive(item == page);
+        if (_history.Count == 0 || _history[_history.Count - 1] != page)
+            _history.Add(page);
+        foreach (var item in _pages)
+            item.SetActive(item == page);
         Refresh();
     }
     private void Back()
     {
-        if (_history.Count <= 1) { _close(); return; }
+        if (_history.Count <= 1)
+        {
+            _close();
+            return;
+        }
         _history.RemoveAt(_history.Count - 1);
         var page = _history[_history.Count - 1];
-        foreach (var item in _pages) item.SetActive(item == page);
+        foreach (var item in _pages)
+            item.SetActive(item == page);
         Refresh();
     }
-    private void Home() { _history.Clear(); ShowPage(_bindingsPage); }
+    private void Home()
+    {
+        _history.Clear();
+        ShowPage(_bindingsPage);
+    }
     private void OpenDiagram() => ShowPage(_diagramPage);
     private void AddLiveButton(Func<string> text, int column, int row, Action action) =>
         _liveLabels.Add((AddButton(text(), column, row, action), text));
@@ -78,18 +102,32 @@ internal sealed partial class ControllerBindingPanel
     private Text Button(Transform parent, string text, Vector2 position, Vector2 size, Action action, int fontSize)
     {
         var go = new GameObject(text, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        var rect = (RectTransform)go.transform; rect.SetParent(parent, false); rect.anchoredPosition = position; rect.sizeDelta = size;
-        var button = go.GetComponent<Button>(); button.targetGraphic = go.GetComponent<Image>();
-        button.navigation = new Navigation { mode = Navigation.Mode.None }; button.onClick.AddListener(() => action());
+        var rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        var button = go.GetComponent<Button>();
+        button.targetGraphic = go.GetComponent<Image>();
+        button.navigation = new Navigation { mode = Navigation.Mode.None };
+        button.onClick.AddListener(() => action());
         NativeButtonFeedback.Configure(button, new Color(.1f, .24f, .29f));
         return Label(rect, text, Vector2.zero, new Vector2(size.x - 10, size.y - 4), fontSize);
     }
     private Text Label(Transform parent, string text, Vector2 position, Vector2 size, int fontSize)
     {
         var go = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-        var rect = (RectTransform)go.transform; rect.SetParent(parent, false); rect.anchoredPosition = position; rect.sizeDelta = size;
-        var label = go.GetComponent<Text>(); label.font = _font; label.fontSize = fontSize; label.alignment = TextAnchor.MiddleCenter;
-        label.color = Color.white; label.raycastTarget = false; label.text = text; return label;
+        var rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        var label = go.GetComponent<Text>();
+        label.font = _font;
+        label.fontSize = fontSize;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.color = Color.white;
+        label.raycastTarget = false;
+        label.text = text;
+        return label;
     }
     private void CreateDiagramPages()
     {
@@ -102,7 +140,8 @@ internal sealed partial class ControllerBindingPanel
         for (var i = 0; i < ActionsPerPage; i++)
         {
             var index = i;
-            var label = AddButton("", i % 2, 2 + i / 2, () => EditDiagramAction(index)); label.fontSize = 17;
+            var label = AddButton("", i % 2, 2 + i / 2, () => EditDiagramAction(index));
+            label.fontSize = 17;
             _diagramActions.Add((label.transform.parent.GetComponent<Button>(), label));
         }
         _diagramPrevious = AddButton("Previous actions", 0, 5, () => { _diagramActionPage--; RefreshDiagram(); }).transform.parent.GetComponent<Button>();
@@ -111,17 +150,28 @@ internal sealed partial class ControllerBindingPanel
     }
     private void SelectDiagramButton(bool left, ControllerButton? button)
     {
-        _diagramLeft = left; _diagramButton = button; _diagramActionPage = 0;
-        _diagramProfile = Bindings.EffectiveProfile; _diagramHardware = Bindings.ButtonProfile(left);
+        _diagramLeft = left;
+        _diagramButton = button;
+        _diagramActionPage = 0;
+        _diagramProfile = Bindings.EffectiveProfile;
+        _diagramHardware = Bindings.ButtonProfile(left);
         ShowPage(_diagramButtonPage);
     }
     private void RefreshDiagram()
     {
-        if (_diagramPage == null) return;
-        if (_diagramPage.activeSelf) _diagram.Refresh(Bindings, StickLeft);
-        else _diagram.ClearActivity();
-        if (!_diagramButtonPage.activeSelf) return;
-        if (_diagramProfile != Bindings.EffectiveProfile || _diagramHardware != Bindings.ButtonProfile(_diagramLeft)) { Back(); return; }
+        if (_diagramPage == null)
+            return;
+        if (_diagramPage.activeSelf)
+            _diagram.Refresh(Bindings, StickLeft);
+        else
+            _diagram.ClearActivity();
+        if (!_diagramButtonPage.activeSelf)
+            return;
+        if (_diagramProfile != Bindings.EffectiveProfile || _diagramHardware != Bindings.ButtonProfile(_diagramLeft))
+        {
+            Back();
+            return;
+        }
         var fixedGrip = _diagramButton == null;
         var actions = ControllerBindingDefaults.Actions;
         _diagramActionPage = Mathf.Clamp(_diagramActionPage, 0, (actions.Length - 1) / ActionsPerPage);
@@ -134,28 +184,38 @@ internal sealed partial class ControllerBindingPanel
                 (a == ControllerActionId.Map ? " · free" : a == ControllerActionId.WristMenu ? " · any grip" : " · gripped"))) + (assigned.Length > 3 ? "\nMore assignments below." : ""));
         for (var i = 0; i < _diagramActions.Count; i++)
         {
-            var index = _diagramActionPage * ActionsPerPage + i; var item = _diagramActions[i];
-            var visible = !fixedGrip && index < actions.Length; item.button.gameObject.SetActive(visible);
-            if (!visible) continue;
+            var index = _diagramActionPage * ActionsPerPage + i;
+            var item = _diagramActions[i];
+            var visible = !fixedGrip && index < actions.Length;
+            item.button.gameObject.SetActive(visible);
+            if (!visible)
+                continue;
             var action = actions[index];
             item.label.text = (assigned.Contains(action) ? "Edit · " : "Assign · ") + ControllerBindings.ActionLabel(action);
             item.button.interactable = ControllerBindings.IsBindingAvailable(_diagramHardware, _diagramLeft, action, selected);
         }
-        _diagramPrevious.gameObject.SetActive(!fixedGrip); _diagramNext.gameObject.SetActive(!fixedGrip);
-        _diagramPrevious.interactable = _diagramActionPage > 0; _diagramNext.interactable = (_diagramActionPage + 1) * ActionsPerPage < actions.Length;
+        _diagramPrevious.gameObject.SetActive(!fixedGrip);
+        _diagramNext.gameObject.SetActive(!fixedGrip);
+        _diagramPrevious.interactable = _diagramActionPage > 0;
+        _diagramNext.interactable = (_diagramActionPage + 1) * ActionsPerPage < actions.Length;
         _diagramPageNumber.text = fixedGrip ? "Thumbstick axes retain their flight / nozzle functions.\nFree click opens the native option wheel.\nThese fixed interactions are not binding assignments." :
             $"Actions {_diagramActionPage + 1} / {(actions.Length + ActionsPerPage - 1) / ActionsPerPage}\n" +
             (selected == ControllerButton.StickClick ? "Held click is editable; free click stays the wheel." : "Choose an action to review before saving.") + "\nExisting sharing and undo rules still apply.";
     }
     private void EditDiagramAction(int index)
     {
-        if (_diagramButton == null || _diagramProfile != Bindings.EffectiveProfile || _diagramHardware != Bindings.ButtonProfile(_diagramLeft)) return;
+        if (_diagramButton == null || _diagramProfile != Bindings.EffectiveProfile || _diagramHardware != Bindings.ButtonProfile(_diagramLeft))
+            return;
         index += _diagramActionPage * ActionsPerPage;
-        if (index < 0 || index >= ControllerBindingDefaults.Actions.Length) return;
+        if (index < 0 || index >= ControllerBindingDefaults.Actions.Length)
+            return;
         var action = ControllerBindingDefaults.Actions[index];
-        if (!ControllerBindings.IsBindingAvailable(_diagramHardware, _diagramLeft, action, _diagramButton.Value)) return;
-        _editingAction = action; _editingProfile = Bindings.EffectiveProfile;
+        if (!ControllerBindings.IsBindingAvailable(_diagramHardware, _diagramLeft, action, _diagramButton.Value))
+            return;
+        _editingAction = action;
+        _editingProfile = Bindings.EffectiveProfile;
         _pendingBinding = ControllerDiagramModel.Proposed(Bindings.Get(action), _diagramLeft, _diagramButton.Value, StickLeft);
-        ShowPage(_bindingEditPage!); RefreshBindingEditor();
+        ShowPage(_bindingEditPage!);
+        RefreshBindingEditor();
     }
 }

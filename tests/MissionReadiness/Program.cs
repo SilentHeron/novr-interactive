@@ -16,27 +16,39 @@ void Reset()
 {
     Call("Shutdown");
     Chainloader.PluginInfos.Clear();
-    Field("_initialized", false); Field("_routineObserved", false);
+    Field("_initialized", false);
+    Field("_routineObserved", false);
     Blueprinter.EncyclopediaAfterLoadPatch.Started = false;
     // Finish a fresh successful operation to reset the production state without
     // adding test-only state mutation methods to shipped code.
     var state = (MissionContentState)adapter.GetField("State", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
-    state.Begin(); state.ObserveSuccess(); state.End(true);
+    state.Begin();
+    state.ObserveSuccess();
+    state.End(true);
 }
 void Install(Version? version = null)
 {
     Chainloader.PluginInfos["com.nikkorap.blueprinter"] = new PluginInfo
-    { Instance = new Blueprinter.Plugin(), Metadata = new PluginMetadata { Version = version ?? new Version(2, 0, 1) } };
+    {
+        Instance = new Blueprinter.Plugin(),
+        Metadata = new PluginMetadata { Version = version ?? new Version(2, 0, 1) }
+    };
 }
 IEnumerator Wrap(IEnumerator routine)
 {
-    object?[] begin = { false }; Call("RoutineStarting", begin);
-    object?[] created = { routine, begin[0] }; Call("RoutineCreated", created);
+    object?[] begin = { false };
+    Call("RoutineStarting", begin);
+    object?[] created = { routine, begin[0] };
+    Call("RoutineCreated", created);
     return (IEnumerator)created[0]!;
 }
 IEnumerator Sequence(params Action[] steps)
 {
-    foreach (var step in steps) { step(); yield return null; }
+    foreach (var step in steps)
+    {
+        step();
+        yield return null;
+    }
 }
 void Drain(IEnumerator routine) { while (routine.MoveNext()) { } }
 var source = Blueprinter.Plugin.Log;
@@ -44,7 +56,8 @@ const string success = "[Plugin] Done in 73.56s";
 
 Check("No add-on preserves immediate mission launch without hooks", () =>
 {
-    Reset(); var s = BlueprinterContentReadiness.Read();
+    Reset();
+    var s = BlueprinterContentReadiness.Read();
     Assert(s.CanLaunch && s.Phase == MissionContentPhase.Ready && s.Status == "");
     Assert(Harmony.Patches == 0 && source.Subscribers == 0);
 });
@@ -52,10 +65,12 @@ Check("Supported loader is blocked before its first work, without a timer", () =
 {
     // The previous read found no add-on. A later chainloader entry must still
     // be discovered if Encyclopedia is requested early by another plugin.
-    Install(); var s = BlueprinterContentReadiness.Read();
+    Install();
+    var s = BlueprinterContentReadiness.Read();
     Assert(!s.CanLaunch && s.Phase == MissionContentPhase.Preparing);
     Assert(Harmony.Target!.Name == "RunRoutine" && Harmony.Patches == 1);
-    for (var i = 0; i < 100000; i++) Assert(!BlueprinterContentReadiness.Read().CanLaunch);
+    for (var i = 0; i < 100000; i++)
+        Assert(!BlueprinterContentReadiness.Read().CanLaunch);
 });
 Check("Early hook targets the instance AfterLoad before the loader's postfix", () =>
 {
@@ -64,7 +79,8 @@ Check("Early hook targets the instance AfterLoad before the loader's postfix", (
 });
 Check("Actual completion event alone never unlocks an unfinished coroutine", () =>
 {
-    var s = BlueprinterContentReadiness.Read(); var routine = Wrap(Sequence(() => source.Emit(success)));
+    var s = BlueprinterContentReadiness.Read();
+    var routine = Wrap(Sequence(() => source.Emit(success)));
     Assert(source.Subscribers == 1 && routine.MoveNext() && !s.CanLaunch);
     Assert(!routine.MoveNext() && s.CanLaunch && source.Subscribers == 0);
 });
@@ -95,57 +111,74 @@ Check("Unrelated loader warnings do not turn successful work into failure", () =
 });
 Check("Stale success outside the observed operation cannot authorize a later one", () =>
 {
-    source.Emit(success); Drain(Wrap(Array.Empty<object>().GetEnumerator()));
+    source.Emit(success);
+    Drain(Wrap(Array.Empty<object>().GetEnumerator()));
     Assert(!BlueprinterContentReadiness.Read().CanLaunch && source.Subscribers == 0);
 });
 Check("Exception propagates to the loader and releases the subscription", () =>
 {
     var routine = Wrap(Sequence(() => throw new InvalidOperationException("loader failed")));
-    try { routine.MoveNext(); throw new Exception("Exception suppressed"); }
+    try
+    {
+        routine.MoveNext();
+        throw new Exception("Exception suppressed");
+    }
     catch (InvalidOperationException) { }
     Assert(!BlueprinterContentReadiness.Read().CanLaunch && source.Subscribers == 0);
 });
 Check("Disposing interrupted work fails once and releases the subscription", () =>
 {
     var routine = Wrap(Sequence(() => source.Emit(success)));
-    Assert(routine.MoveNext()); ((IDisposable)routine).Dispose(); ((IDisposable)routine).Dispose();
+    Assert(routine.MoveNext());
+    ((IDisposable)routine).Dispose();
+    ((IDisposable)routine).Dispose();
     Assert(!BlueprinterContentReadiness.Read().CanLaunch && source.Subscribers == 0);
 });
 Check("Disposal after successful completion cannot erase the success", () =>
 {
-    var routine = Wrap(Sequence(() => source.Emit(success))); Drain(routine); ((IDisposable)routine).Dispose();
+    var routine = Wrap(Sequence(() => source.Emit(success)));
+    Drain(routine);
+    ((IDisposable)routine).Dispose();
     Assert(BlueprinterContentReadiness.Read().CanLaunch);
 });
 Check("A failed coroutine factory releases its observation immediately", () =>
 {
-    object?[] begin = { false }; Call("RoutineStarting", begin);
+    object?[] begin = { false };
+    Call("RoutineStarting", begin);
     Call("RoutineCreationFailed", new InvalidOperationException("factory"), begin[0]);
     Assert(!BlueprinterContentReadiness.Read().CanLaunch && source.Subscribers == 0);
 });
 Check("The wrapper preserves yielded objects and order", () =>
 {
-    var first = new object(); var second = new object();
-    var observed = new List<bool>(); var routine = new ObservedContentRoutine(new[] { first, second }.GetEnumerator(), observed.Add);
+    var first = new object();
+    var second = new object();
+    var observed = new List<bool>();
+    var routine = new ObservedContentRoutine(new[] { first, second }.GetEnumerator(), observed.Add);
     Assert(routine.MoveNext() && ReferenceEquals(routine.Current, first));
     Assert(routine.MoveNext() && ReferenceEquals(routine.Current, second));
     Assert(!routine.MoveNext() && observed.SequenceEqual(new[] { true }));
 });
 Check("Shutdown detaches only its own hooks and log handler", () =>
 {
-    _ = Wrap(Sequence(() => { })); Assert(source.Subscribers == 1);
+    _ = Wrap(Sequence(() => { }));
+    Assert(source.Subscribers == 1);
     Assert(UnityEngine.Application.QuitHandlers == 1);
     UnityEngine.Application.Quit();
     Assert(source.Subscribers == 0 && Harmony.Patches == 0 && UnityEngine.Application.QuitHandlers == 0);
 });
 Check("Late attachment remains truthfully unverified without locking a completed loader", () =>
 {
-    Reset(); Install(); Blueprinter.EncyclopediaAfterLoadPatch.Started = true;
+    Reset();
+    Install();
+    Blueprinter.EncyclopediaAfterLoadPatch.Started = true;
     var s = BlueprinterContentReadiness.Read();
     Assert(s.CanLaunch && s.Phase == MissionContentPhase.Unverified && Harmony.Patches == 0);
 });
 Check("Unknown loader versions retain stock behavior with unverified status", () =>
 {
-    Reset(); Install(new Version(3, 0, 0)); var s = BlueprinterContentReadiness.Read();
+    Reset();
+    Install(new Version(3, 0, 0));
+    var s = BlueprinterContentReadiness.Read();
     Assert(s.CanLaunch && s.Phase == MissionContentPhase.Unverified && Harmony.Patches == 0);
 });
 Check("Only the exact known terminal message shape is accepted", () =>

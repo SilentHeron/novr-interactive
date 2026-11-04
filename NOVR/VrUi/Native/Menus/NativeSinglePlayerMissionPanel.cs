@@ -64,7 +64,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         if (visible && !_visible && !_launch.IsBusy)
         {
@@ -219,8 +220,10 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         for (var index = 0; index < _missions.Count; index++)
         {
             var mission = _missions[index];
-            if (!MatchesGroupFilter(mission)) continue;
-            if (!MatchesTagFilter(mission)) continue;
+            if (!MatchesGroupFilter(mission))
+                continue;
+            if (!MatchesTagFilter(mission))
+                continue;
 
             _filteredMissions.Add(mission);
         }
@@ -240,7 +243,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
             var button = _missionButtons[index];
             var text = _missionButtonTexts[index];
             button.gameObject.SetActive(hasMission);
-            if (!hasMission) continue;
+            if (!hasMission)
+                continue;
 
             var mission = _filteredMissions[missionIndex];
             text.text = $"  {mission.Key.Name}";
@@ -274,25 +278,34 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SelectMission(int index)
     {
-        if (_launch.IsBusy) return;
+        if (_launch.IsBusy)
+            return;
         SetIdleLaunchStatus();
         if (index < 0 || index >= _filteredMissions.Count)
         {
             _selectedIndex = -1;
-            if (_titleText != null) _titleText.text = "";
-            if (_tagsText != null) _tagsText.text = "";
-            if (_descriptionText != null) _descriptionText.text = "";
-            if (_startButton != null) _startButton.interactable = false;
-            if (_customizeButton != null) _customizeButton.interactable = false;
+            if (_titleText != null)
+                _titleText.text = "";
+            if (_tagsText != null)
+                _tagsText.text = "";
+            if (_descriptionText != null)
+                _descriptionText.text = "";
+            if (_startButton != null)
+                _startButton.interactable = false;
+            if (_customizeButton != null)
+                _customizeButton.interactable = false;
             RefreshList();
             return;
         }
 
         _selectedIndex = index;
         var mission = _filteredMissions[_selectedIndex];
-        if (_titleText != null) _titleText.text = mission.Key.Name;
-        if (_tagsText != null) _tagsText.text = string.Join("   ", mission.Mission.missionSettings.Tags.Select(tag => tag.Tag));
-        if (_descriptionText != null) _descriptionText.text = mission.Mission.missionSettings.description ?? "";
+        if (_titleText != null)
+            _titleText.text = mission.Key.Name;
+        if (_tagsText != null)
+            _tagsText.text = string.Join("   ", mission.Mission.missionSettings.Tags.Select(tag => tag.Tag));
+        if (_descriptionText != null)
+            _descriptionText.text = mission.Mission.missionSettings.description ?? "";
         RefreshLaunchButtons();
         _actions?.TrySelectOriginalMission(mission.Key);
         RefreshList();
@@ -300,7 +313,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void PreviousPage()
     {
-        if (_launch.IsBusy || _page <= 0) return;
+        if (_launch.IsBusy || _page <= 0)
+            return;
 
         _page--;
         SelectMission(Mathf.Clamp(_selectedIndex, _page * PageSize, Mathf.Min(_filteredMissions.Count - 1, (_page + 1) * PageSize - 1)));
@@ -309,7 +323,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void NextPage()
     {
-        if (_launch.IsBusy || (_page + 1) * PageSize >= _filteredMissions.Count) return;
+        if (_launch.IsBusy || (_page + 1) * PageSize >= _filteredMissions.Count)
+            return;
 
         _page++;
         SelectMission(_page * PageSize);
@@ -318,7 +333,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SetGroupFilter(MissionGroupFilter filter)
     {
-        if (_launch.IsBusy || _activeGroupFilter == filter) return;
+        if (_launch.IsBusy || _activeGroupFilter == filter)
+            return;
 
         _activeGroupFilter = filter;
         _page = 0;
@@ -328,7 +344,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SetTagFilter(int filterIndex)
     {
-        if (_launch.IsBusy || filterIndex < 0 || filterIndex >= _tagFilters.Count || _activeTagFilterIndex == filterIndex) return;
+        if (_launch.IsBusy || filterIndex < 0 || filterIndex >= _tagFilters.Count || _activeTagFilterIndex == filterIndex)
+            return;
 
         _activeTagFilterIndex = filterIndex;
         _page = 0;
@@ -338,19 +355,22 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void BackToMainMenu()
     {
-        if (_launch.IsBusy) return;
+        if (_launch.IsBusy)
+            return;
         _actions?.TryInvokeCurrentMenuButton("Back", "< BACK", "BACK", "MenuExit_Button");
     }
 
     private void OpenUserFolder()
     {
-        if (_launch.IsBusy) return;
+        if (_launch.IsBusy)
+            return;
         _actions?.TryInvokeCurrentMenuButton("Open User Folder", "Open User Folder", "OPEN USER FOLDER");
     }
 
     private void CustomizeSelectedMission()
     {
-        if (_launch.IsBusy || HasActiveSession() || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
+        if (_launch.IsBusy || HasActiveSession() || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count)
+            return;
         if (!BlueprinterContentReadiness.Read().CanLaunch)
         {
             SetIdleLaunchStatus();
@@ -363,7 +383,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void StartSelectedMission()
     {
-        if (_launch.IsBusy || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count) return;
+        if (_launch.IsBusy || _selectedIndex < 0 || _selectedIndex >= _filteredMissions.Count)
+            return;
         if (!BlueprinterContentReadiness.Read().CanLaunch)
         {
             SetIdleLaunchStatus();
@@ -421,7 +442,11 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
                 Debug.LogWarning($"[NOVR] Native single player failed to load mission '{missionKey}': {error}");
                 return;
             }
-            if (mission == null) { SetLaunchStatus("No mission selected. Choose a mission and try again."); return; }
+            if (mission == null)
+            {
+                SetLaunchStatus("No mission selected. Choose a mission and try again.");
+                return;
+            }
 
             _launchPhase = "Loading map";
             SetLaunchStatus("Loading map…");
@@ -433,17 +458,20 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         }
         catch (OperationCanceledException)
         {
-            if (this != null) SetLaunchStatus("Mission loading stopped. Return to the main menu to try again.");
+            if (this != null)
+                SetLaunchStatus("Mission loading stopped. Return to the main menu to try again.");
         }
         catch (Exception exception)
         {
             Debug.LogError($"[NOVR] Native single player launch failed: {exception}");
-            if (this != null) SetLaunchStatus("Couldn't start the mission. Return to the main menu and try again.");
+            if (this != null)
+                SetLaunchStatus("Couldn't start the mission. Return to the main menu and try again.");
         }
         finally
         {
             _launch.Finish();
-            if (this != null) RestoreLaunchButtons();
+            if (this != null)
+                RestoreLaunchButtons();
         }
     }
 
@@ -462,12 +490,14 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
             if (_contentRevision != content.Revision)
             {
                 _contentRevision = content.Revision;
-                if (content.Phase == MissionContentPhase.Ready) RefreshContentMissions();
+                if (content.Phase == MissionContentPhase.Ready)
+                    RefreshContentMissions();
                 SetIdleLaunchStatus();
             }
             RefreshLaunchButtons();
         }
-        if (!_launch.IsBusy || Time.unscaledTime < _nextLaunchStatusTime) return;
+        if (!_launch.IsBusy || Time.unscaledTime < _nextLaunchStatusTime)
+            return;
         _nextLaunchStatusTime = Time.unscaledTime + 1;
         var elapsed = Mathf.Max(0, Mathf.FloorToInt(Time.unscaledTime - _launchStartedAt));
         SetLaunchStatus(elapsed < 3 ? _launchPhase + "…" : $"{_launchPhase}… {elapsed}s\nPlease wait for loading to finish.");
@@ -475,7 +505,8 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
 
     private void SetLaunchStatus(string status)
     {
-        if (_launchStatusText != null) _launchStatusText.text = status;
+        if (_launchStatusText != null)
+            _launchStatusText.text = status;
     }
 
     private void SetIdleLaunchStatus() => SetLaunchStatus(BlueprinterContentReadiness.Read().Status);
@@ -487,9 +518,11 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         MissionKey? selected = _selectedIndex >= 0 && _selectedIndex < _filteredMissions.Count
             ? _filteredMissions[_selectedIndex].Key : null;
         LoadMissions();
-        if (!selected.HasValue) return;
+        if (!selected.HasValue)
+            return;
         var index = _filteredMissions.FindIndex(entry => entry.Key.Equals(selected.Value));
-        if (index < 0) return;
+        if (index < 0)
+            return;
         _page = index / PageSize;
         SelectMission(index);
     }
@@ -503,13 +536,15 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
                 _launchButtonStates.Add((button, button.interactable));
                 button.interactable = false;
             }
-        if (_startButtonText != null) _startButtonText.text = "LOADING…";
+        if (_startButtonText != null)
+            _startButtonText.text = "LOADING…";
     }
 
     private void RestoreLaunchButtons()
     {
         foreach (var state in _launchButtonStates)
-            if (state.button != null) state.button.interactable = state.interactable;
+            if (state.button != null)
+                state.button.interactable = state.interactable;
         _launchButtonStates.Clear();
         RefreshLaunchButtons();
     }
@@ -519,9 +554,12 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
         var selectable = !_launch.IsBusy && _selectedIndex >= 0 && _selectedIndex < _filteredMissions.Count;
         var activeSession = HasActiveSession();
         var content = BlueprinterContentReadiness.Read();
-        if (_startButton != null) _startButton.interactable = selectable && !activeSession && content.CanLaunch;
-        if (_customizeButton != null) _customizeButton.interactable = selectable && !activeSession && content.CanLaunch;
-        if (_startButtonText != null) _startButtonText.text = _launch.IsBusy ? "LOADING…"
+        if (_startButton != null)
+            _startButton.interactable = selectable && !activeSession && content.CanLaunch;
+        if (_customizeButton != null)
+            _customizeButton.interactable = selectable && !activeSession && content.CanLaunch;
+        if (_startButtonText != null)
+            _startButtonText.text = _launch.IsBusy ? "LOADING…"
             : content.Phase == MissionContentPhase.Preparing ? "PREPARING CONTENT"
             : content.Phase == MissionContentPhase.Failed ? "CONTENT NOT READY"
             : activeSession ? "SESSION OPEN" : "START MISSION";
@@ -685,9 +723,18 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
             HasTag = tag.HasValue;
         }
 
-        public string Label { get; }
-        public MissionTag Tag { get; }
-        public bool HasTag { get; }
+        public string Label
+        {
+            get;
+        }
+        public MissionTag Tag
+        {
+            get;
+        }
+        public bool HasTag
+        {
+            get;
+        }
     }
 
     private readonly struct MissionEntry
@@ -698,7 +745,13 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
             Mission = mission;
         }
 
-        public MissionKey Key { get; }
-        public MissionQuickLoad Mission { get; }
+        public MissionKey Key
+        {
+            get;
+        }
+        public MissionQuickLoad Mission
+        {
+            get;
+        }
     }
 }

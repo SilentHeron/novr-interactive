@@ -14,10 +14,12 @@ internal static class SeparateWeaponControls
     {
         var actions = ControllerActions.Instance;
         if (actions == null || !(actions.GunsHeld || actions.WeaponReleaseHeld) ||
-            !GameManager.GetLocalAircraft(out var aircraft) || aircraft.weaponManager != __instance) return true;
+            !GameManager.GetLocalAircraft(out var aircraft) || aircraft.weaponManager != __instance)
+            return true;
 
         var selectedGun = __instance.currentWeaponStation != null && __instance.currentWeaponStation.WeaponInfo.gun;
-        if (selectedGun) return actions.GunsHeld;
+        if (selectedGun)
+            return actions.GunsHeld;
 
         if (actions.GunsHeld && !aircraft.remoteSim)
         {

@@ -45,7 +45,8 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         if (visible)
         {
@@ -200,9 +201,12 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
     {
         var config = ModConfiguration.Instance;
         RefreshNativeUiToggle(config.EnableNativeMenuUi.Value);
-        if (_scaleValueText != null) _scaleValueText.text = $"{config.NativeMenuScale.Value:0.00}x";
-        if (_distanceValueText != null) _distanceValueText.text = $"{config.NativeMenuDistance.Value:0.0} m";
-        if (_heightValueText != null) _heightValueText.text = $"{config.NativeMenuHeightOffset.Value:+0.00;-0.00;0.00} m";
+        if (_scaleValueText != null)
+            _scaleValueText.text = $"{config.NativeMenuScale.Value:0.00}x";
+        if (_distanceValueText != null)
+            _distanceValueText.text = $"{config.NativeMenuDistance.Value:0.0} m";
+        if (_heightValueText != null)
+            _heightValueText.text = $"{config.NativeMenuHeightOffset.Value:+0.00;-0.00;0.00} m";
     }
 
     private void RefreshNativeUiToggle(bool enabled)

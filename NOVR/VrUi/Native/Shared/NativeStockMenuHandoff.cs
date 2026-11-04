@@ -16,17 +16,25 @@ internal sealed class NativeStockMenuHandoff
 
     internal bool IsVisible(GameObject? canvas)
     {
-        if (canvas == null) { _canvas = null; _dialogs.Clear(); return false; }
+        if (canvas == null)
+        {
+            _canvas = null;
+            _dialogs.Clear();
+            return false;
+        }
         if (_canvas != canvas)
         {
-            _canvas = canvas; _dialogs.Clear();
+            _canvas = canvas;
+            _dialogs.Clear();
             foreach (var fileMenu in canvas.GetComponentsInChildren<FileMenu>(true))
                 _dialogs.Add(fileMenu.gameObject);
             foreach (var customize in canvas.GetComponentsInChildren<CustomizeMissionMenu>(true))
-                if (CustomizeHolder?.GetValue(customize) is GameObject holder) _dialogs.Add(holder);
+                if (CustomizeHolder?.GetValue(customize) is GameObject holder)
+                    _dialogs.Add(holder);
         }
         foreach (var dialog in _dialogs)
-            if (dialog != null && dialog.activeInHierarchy) return true;
+            if (dialog != null && dialog.activeInHierarchy)
+                return true;
         return false;
     }
 }

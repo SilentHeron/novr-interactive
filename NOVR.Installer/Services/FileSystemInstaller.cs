@@ -60,14 +60,20 @@ public sealed class FileSystemInstaller
         }
         catch (Exception installError)
         {
-            try { RecoverTransaction(game, transaction, progress); }
+            try
+            {
+                RecoverTransaction(game, transaction, progress);
+            }
             catch (Exception recoveryError)
             {
                 throw new IOException("The update failed and automatic recovery could not finish. Your previous NOVR files are retained in " + transaction + ". Close the game and retry the installer. " + recoveryError.Message, installError);
             }
             throw;
         }
-        try { TryDeleteDirectory(transaction); }
+        try
+        {
+            TryDeleteDirectory(transaction);
+        }
         catch (IOException) { progress.Report("NOVR installed. Previous-file cleanup will finish on the next update."); }
         catch (UnauthorizedAccessException) { progress.Report("NOVR installed. Previous-file cleanup will finish on the next update."); }
     }
@@ -89,13 +95,15 @@ public sealed class FileSystemInstaller
     private static void SwapDirectory(string target, string staged, string backup, bool existed)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        if (existed) Directory.Move(target, backup);
+        if (existed)
+            Directory.Move(target, backup);
         Directory.Move(staged, target);
     }
 
     private static void RecoverTransaction(GameInstallInfo game, string transaction, IProgress<string> progress)
     {
-        if (!Directory.Exists(transaction)) return;
+        if (!Directory.Exists(transaction))
+            return;
         if (File.Exists(Path.Combine(transaction, "committed")))
         {
             TryDeleteDirectory(transaction);
@@ -121,8 +129,10 @@ public sealed class FileSystemInstaller
             TryDeleteDirectory(target);
             Directory.Move(backup, target);
         }
-        else if (!existed) TryDeleteDirectory(target);
-        else if (!Directory.Exists(target)) throw new IOException("A previous NOVR directory is missing: " + target);
+        else if (!existed)
+            TryDeleteDirectory(target);
+        else if (!Directory.Exists(target))
+            throw new IOException("A previous NOVR directory is missing: " + target);
     }
 
     private static void EnsureNormalPath(string path)
@@ -138,7 +148,8 @@ public sealed class FileSystemInstaller
     private static FileStream? AcquireLegacyLock(GameInstallInfo game)
     {
         EnsureNormalPath(game.BepInExDir);
-        if (!Directory.Exists(game.BepInExDir)) return null;
+        if (!Directory.Exists(game.BepInExDir))
+            return null;
         // Also coordinate with older installers that only lock inside BepInEx.
         return new FileStream(Path.Combine(game.BepInExDir, ".novr-install.lock"),
             FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);

@@ -9,12 +9,24 @@ public class NOVRHeadsetData : NOVRBehaviour
 {
     private static Func<XRNode, Quaternion>? _trackingRotation;
     private static Func<XRNode, Vector3>? _trackingPosition;
-    public static Vector3 TranslationAnchor { get; private set; }
-    public static Vector3 Translation { get; private set; }
-    public static Vector3 TranslationCalibrationOffset { get; private set; }
+    public static Vector3 TranslationAnchor
+    {
+        get; private set;
+    }
+    public static Vector3 Translation
+    {
+        get; private set;
+    }
+    public static Vector3 TranslationCalibrationOffset
+    {
+        get; private set;
+    }
     public static Vector3 TranslationError => Quaternion.Inverse(RotationCalibrationOffset) * (Translation - TranslationAnchor) - TranslationCalibrationOffset;
 
-    public static Quaternion Rotation { get; private set; }
+    public static Quaternion Rotation
+    {
+        get; private set;
+    }
     public static Quaternion RotationCalibrationOffset { get; private set; } = Quaternion.identity;
     public static Quaternion RotationError => Quaternion.Inverse(RotationCalibrationOffset) * Rotation;
 
@@ -31,9 +43,10 @@ public class NOVRHeadsetData : NOVRBehaviour
 
     public static void CalibrateTranslation(CalibrationAxes calibrationAxes = CalibrationAxes.All, bool overrideExistingInNonCalibratedAxes = false)
     {
-        if (_trackingPosition == null) return;
+        if (_trackingPosition == null)
+            return;
         Vector3 currentError = -_trackingPosition(XRNode.CenterEye);
-        bool ov  = overrideExistingInNonCalibratedAxes;
+        bool ov = overrideExistingInNonCalibratedAxes;
         TranslationCalibrationOffset = new Vector3(
             (calibrationAxes & CalibrationAxes.X) != 0 ? currentError.x : ov ? TranslationCalibrationOffset.x : 0,
             (calibrationAxes & CalibrationAxes.Y) != 0 ? currentError.y : ov ? TranslationCalibrationOffset.y : 0,
@@ -43,7 +56,8 @@ public class NOVRHeadsetData : NOVRBehaviour
 
     public static void CalibrateRotation(CalibrationAxes calibrationAxes = CalibrationAxes.Yaw, bool overrideExistingInNonCalibratedAxes = false)
     {
-        if (_trackingRotation == null) return;
+        if (_trackingRotation == null)
+            return;
         var currentRotation = _trackingRotation(XRNode.CenterEye);
         var currentEuler = currentRotation.eulerAngles;
         Vector3 currentError = new(
@@ -52,7 +66,7 @@ public class NOVRHeadsetData : NOVRBehaviour
             -Mathf.DeltaAngle(0f, currentEuler.z)
         );
 
-        bool ov  = overrideExistingInNonCalibratedAxes;
+        bool ov = overrideExistingInNonCalibratedAxes;
         RotationCalibrationOffset = Quaternion.Euler(
             (calibrationAxes & CalibrationAxes.X) != 0 ? currentError.x : ov ? RotationCalibrationOffset.eulerAngles.x : 0,
             (calibrationAxes & CalibrationAxes.Y) != 0 ? currentError.y : ov ? RotationCalibrationOffset.eulerAngles.y : 0,
@@ -70,7 +84,7 @@ public class NOVRHeadsetData : NOVRBehaviour
         _trackingPosition = InputTracking.GetLocalPosition;
 #pragma warning restore CS0618
     }
-    
+
     protected override void OnBeforeRender()
     {
         base.OnBeforeRender();

@@ -37,10 +37,12 @@ internal static class BlueprinterContentReadiness
 
     private static void Initialize()
     {
-        if (_initialized) return;
+        if (_initialized)
+            return;
         // Main-menu initialization occurs after the chainloader. Encyclopedia's
         // prefix is the earlier normal path; both precede the first mission click.
-        if (!Chainloader.PluginInfos.TryGetValue(PluginId, out var plugin)) return;
+        if (!Chainloader.PluginInfos.TryGetValue(PluginId, out var plugin))
+            return;
         _initialized = true;
         try
         {
@@ -92,7 +94,8 @@ internal static class BlueprinterContentReadiness
     private static void RoutineStarting(out bool __state)
     {
         __state = !_routineObserved;
-        if (!__state) return;
+        if (!__state)
+            return;
         _routineObserved = true;
         State.Begin();
         if (_source != null)
@@ -102,7 +105,8 @@ internal static class BlueprinterContentReadiness
             _handler = (_, args) =>
             {
                 if (ReferenceEquals(args.Source, _source) && args.Level == LogLevel.Info &&
-                    BlueprinterCompletionMessage.IsSuccess(args.Data as string)) State.ObserveSuccess();
+                    BlueprinterCompletionMessage.IsSuccess(args.Data as string))
+                    State.ObserveSuccess();
             };
             _source.LogEvent += _handler;
         }
@@ -110,14 +114,20 @@ internal static class BlueprinterContentReadiness
 
     private static void RoutineCreated(ref IEnumerator __result, bool __state)
     {
-        if (!__state) return;
-        if (__result == null) { Finished(false); return; }
+        if (!__state)
+            return;
+        if (__result == null)
+        {
+            Finished(false);
+            return;
+        }
         __result = new ObservedContentRoutine(__result, Finished);
     }
 
     private static void RoutineCreationFailed(Exception? __exception, bool __state)
     {
-        if (__state && __exception != null) Finished(false);
+        if (__state && __exception != null)
+            Finished(false);
     }
 
     private static void Finished(bool normal)
@@ -132,16 +142,19 @@ internal static class BlueprinterContentReadiness
 
     private static void Unsubscribe()
     {
-        if (_source != null && _handler != null) _source.LogEvent -= _handler;
+        if (_source != null && _handler != null)
+            _source.LogEvent -= _handler;
         _handler = null;
     }
 
     private static void Shutdown()
     {
         Unsubscribe();
-        if (_quittingHook) Application.quitting -= Shutdown;
+        if (_quittingHook)
+            Application.quitting -= Shutdown;
         _quittingHook = false;
-        if (_harmony != null && _routine != null) _harmony.Unpatch(_routine, HarmonyPatchType.All, PatchId);
+        if (_harmony != null && _routine != null)
+            _harmony.Unpatch(_routine, HarmonyPatchType.All, PatchId);
         _harmony = null;
     }
 }

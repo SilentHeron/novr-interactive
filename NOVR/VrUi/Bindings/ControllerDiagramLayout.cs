@@ -9,7 +9,8 @@ internal static class ControllerDiagramLayout
 {
     internal static Vector2 Position(bool frame, bool left, ControllerButton? button)
     {
-        bool columnLeft; float y;
+        bool columnLeft;
+        float y;
         if (frame)
         {
             columnLeft = left ? button is ControllerButton.Top or ControllerButton.Outside or ControllerButton.Primary :
@@ -19,7 +20,9 @@ internal static class ControllerDiagramLayout
                 ControllerButton.Menu or ControllerButton.Top => 124,
                 ControllerButton.Secondary or ControllerButton.Outside => 76,
                 ControllerButton.StickClick or ControllerButton.Primary => 28,
-                ControllerButton.Shoulder => -68, ControllerButton.Trigger => -116, _ => -20
+                ControllerButton.Shoulder => -68,
+                ControllerButton.Trigger => -116,
+                _ => -20
             };
         }
         else
@@ -28,9 +31,12 @@ internal static class ControllerDiagramLayout
             columnLeft = thumbstickSide ? left : !left;
             y = button switch
             {
-                ControllerButton.Trigger => 124, ControllerButton.Secondary => 76,
-                ControllerButton.StickClick => 60, ControllerButton.Primary => 20,
-                ControllerButton.Menu => 4, _ => -44
+                ControllerButton.Trigger => 124,
+                ControllerButton.Secondary => 76,
+                ControllerButton.StickClick => 60,
+                ControllerButton.Primary => 20,
+                ControllerButton.Menu => 4,
+                _ => -44
             };
         }
         return new Vector2(columnLeft ? -195 : 195, y);

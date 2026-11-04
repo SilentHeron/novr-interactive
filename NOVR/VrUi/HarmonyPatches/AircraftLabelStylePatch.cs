@@ -14,6 +14,7 @@ internal static class AircraftLabelStylePatch
     private static void Postfix(TextMeshProUGUI ___hoveredAllyInfo, Aircraft? ___hoveredAlly)
     {
         var style = HudElementStyle.Add(___hoveredAllyInfo, HudElementKind.Label);
-        if (style != null) style.SetAircraftLabelAffiliation(TargetingHudStyle.LabelAffiliation(___hoveredAlly));
+        if (style != null)
+            style.SetAircraftLabelAffiliation(TargetingHudStyle.LabelAffiliation(___hoveredAlly));
     }
 }

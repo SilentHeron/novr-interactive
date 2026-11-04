@@ -110,7 +110,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         if (visible && !_wasVisible)
         {
@@ -128,7 +129,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void Update()
     {
-        if (!_wasVisible || Time.unscaledTime < _nextSourceRefreshTime) return;
+        if (!_wasVisible || Time.unscaledTime < _nextSourceRefreshTime)
+            return;
 
         _nextSourceRefreshTime = Time.unscaledTime + SourceRefreshIntervalSeconds;
         RefreshFromOriginalLobbyList();
@@ -268,7 +270,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void BuildHostSetupPanel()
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         _hostPanel = CreatePanel("Host Setup Panel", _container, PanelColor, new Vector2(0f, -15f), new Vector2(1600f, 950f));
         CreateText("Host Header", _hostPanel, "CREATE MULTIPLAYER LOBBY", new Vector2(0f, 420f), new Vector2(1000f, 34f), 22, TextAnchor.MiddleCenter, Color.white);
@@ -326,7 +329,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void BuildPasswordPanel()
     {
-        if (_container == null) return;
+        if (_container == null)
+            return;
 
         _passwordPanel = CreatePanel("Join Password Panel", _container, new Color(0.02f, 0.026f, 0.032f, 0.98f), new Vector2(0f, -20f), new Vector2(640f, 320f));
         _passwordTitleText = CreateText("Join Password Title", _passwordPanel, "PASSWORD REQUIRED", new Vector2(0f, 110f), new Vector2(560f, 34f), 20, TextAnchor.MiddleCenter, Color.white);
@@ -354,7 +358,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
         for (var index = 0; index < lobbyItems.Length; index++)
         {
             var item = lobbyItems[index];
-            if (item == null || !IsLobbyItemShown(item) || item.lobby == null) continue;
+            if (item == null || !IsLobbyItemShown(item) || item.lobby == null)
+                continue;
 
             _lobbies.Add(new NativeLobbyEntry(item));
         }
@@ -368,7 +373,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
         for (var index = 0; index < _lobbies.Count; index++)
         {
             var lobby = _lobbies[index];
-            if (!MatchesFilters(lobby)) continue;
+            if (!MatchesFilters(lobby))
+                continue;
 
             _visibleLobbies.Add(lobby);
         }
@@ -407,19 +413,29 @@ public class NativeMultiplayerPanel : MonoBehaviour
             MissionPvpType.Pvp => _showPvp,
             _ => _showPve || _showPvp
         };
-        if (!missionMatches) return false;
+        if (!missionMatches)
+            return false;
 
-        if (lobby.HasPassword && !_showPasswordedLobbies) return false;
-        if (!lobby.HasPassword && !_showOpenLobbies) return false;
+        if (lobby.HasPassword && !_showPasswordedLobbies)
+            return false;
+        if (!lobby.HasPassword && !_showOpenLobbies)
+            return false;
 
-        if (lobby.IsModded && !_showModdedLobbies) return false;
-        if (!lobby.IsModded && !_showVanillaLobbies) return false;
+        if (lobby.IsModded && !_showModdedLobbies)
+            return false;
+        if (!lobby.IsModded && !_showVanillaLobbies)
+            return false;
 
-        if (lobby.IsDedicated && !_showDedicatedServers) return false;
-        if (!lobby.IsDedicated && !_showPlayerHostedServers) return false;
-        if (_hideFullLobbies && lobby.IsFull) return false;
-        if (_hideEmptyLobbies && lobby.CurrentPlayers <= 0) return false;
-        if (!MatchesSearch(lobby)) return false;
+        if (lobby.IsDedicated && !_showDedicatedServers)
+            return false;
+        if (!lobby.IsDedicated && !_showPlayerHostedServers)
+            return false;
+        if (_hideFullLobbies && lobby.IsFull)
+            return false;
+        if (_hideEmptyLobbies && lobby.CurrentPlayers <= 0)
+            return false;
+        if (!MatchesSearch(lobby))
+            return false;
 
         var pingLimit = GetActivePingLimit();
         if (pingLimit.HasValue && (!lobby.Ping.HasValue || lobby.Ping.Value > pingLimit.Value))
@@ -433,7 +449,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
     private bool MatchesSearch(NativeLobbyEntry lobby)
     {
         var searchText = _searchInput?.text ?? "";
-        if (string.IsNullOrWhiteSpace(searchText)) return true;
+        if (string.IsNullOrWhiteSpace(searchText))
+            return true;
 
         var terms = searchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         for (var index = 0; index < terms.Length; index++)
@@ -530,7 +547,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void ClearSearch()
     {
-        if (_searchInput == null) return;
+        if (_searchInput == null)
+            return;
 
         if (string.IsNullOrEmpty(_searchInput.text))
         {
@@ -550,7 +568,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
     private void CycleDistanceFilter(int direction)
     {
         var currentIndex = Array.IndexOf(DistanceFilters, _distanceFilter);
-        if (currentIndex < 0) currentIndex = 0;
+        if (currentIndex < 0)
+            currentIndex = 0;
 
         _distanceFilter = DistanceFilters[WrapIndex(currentIndex + direction, DistanceFilters.Length)];
         ReapplyFiltersFromFirstPage();
@@ -560,8 +579,10 @@ public class NativeMultiplayerPanel : MonoBehaviour
     {
         var maxPingLimit = MaxPingFilters[Mathf.Clamp(_maxPingFilterIndex, 0, MaxPingFilters.Length - 1)];
         var distanceLimit = GetDistancePingLimit(_distanceFilter);
-        if (!maxPingLimit.HasValue) return distanceLimit;
-        if (!distanceLimit.HasValue) return maxPingLimit;
+        if (!maxPingLimit.HasValue)
+            return distanceLimit;
+        if (!distanceLimit.HasValue)
+            return maxPingLimit;
 
         return Math.Min(maxPingLimit.Value, distanceLimit.Value);
     }
@@ -596,7 +617,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private static int WrapIndex(int index, int count)
     {
-        if (count <= 0) return 0;
+        if (count <= 0)
+            return 0;
 
         var wrapped = index % count;
         return wrapped < 0 ? wrapped + count : wrapped;
@@ -610,7 +632,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
             var hasLobby = lobbyIndex >= 0 && lobbyIndex < _visibleLobbies.Count;
             var row = _lobbyRows[index];
             row.Button.gameObject.SetActive(hasLobby);
-            if (!hasLobby) continue;
+            if (!hasLobby)
+                continue;
 
             var lobby = _visibleLobbies[lobbyIndex];
             row.TypeText.text = lobby.MissionTypeText;
@@ -635,17 +658,22 @@ public class NativeMultiplayerPanel : MonoBehaviour
         if (index < 0 || index >= _visibleLobbies.Count)
         {
             _selectedIndex = -1;
-            if (_titleText != null) _titleText.text = "";
-            if (_summaryText != null) _summaryText.text = "";
-            if (_descriptionText != null) _descriptionText.text = "";
-            if (_joinButton != null) _joinButton.interactable = false;
+            if (_titleText != null)
+                _titleText.text = "";
+            if (_summaryText != null)
+                _summaryText.text = "";
+            if (_descriptionText != null)
+                _descriptionText.text = "";
+            if (_joinButton != null)
+                _joinButton.interactable = false;
             RefreshList();
             return;
         }
 
         _selectedIndex = index;
         var lobby = _visibleLobbies[_selectedIndex];
-        if (_titleText != null) _titleText.text = lobby.LobbyName;
+        if (_titleText != null)
+            _titleText.text = lobby.LobbyName;
         if (_summaryText != null)
         {
             _summaryText.text = $"{lobby.MissionName}\n{lobby.MapName}   {lobby.PlayerCountText}   {lobby.PingText}   {lobby.StatusText}";
@@ -707,7 +735,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
             var entries = NativeMissionHeaders.QuickLoadMany(MissionGroup.All.GetMissions());
             foreach (var entry in entries)
             {
-                if (!HasTag(entry.mission, MissionTag.Multiplayer)) continue;
+                if (!HasTag(entry.mission, MissionTag.Multiplayer))
+                    continue;
 
                 _hostMissions.Add(new HostMissionEntry(entry.key, entry.mission));
             }
@@ -728,7 +757,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
     private static bool HasTag(MissionQuickLoad mission, MissionTag tag)
     {
         var tags = mission.missionSettings.Tags;
-        if (tags == null) return false;
+        if (tags == null)
+            return false;
 
         foreach (var existing in tags)
         {
@@ -774,7 +804,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
             var button = _hostMissionButtons[index];
             var text = _hostMissionButtonTexts[index];
             button.gameObject.SetActive(hasMission);
-            if (!hasMission) continue;
+            if (!hasMission)
+                continue;
 
             var mission = _hostMissions[missionIndex];
             text.text = $"  {Shorten(mission.Key.Name, 72)}";
@@ -792,16 +823,20 @@ public class NativeMultiplayerPanel : MonoBehaviour
         if (index < 0 || index >= _hostMissions.Count)
         {
             _hostSelectedMissionIndex = -1;
-            if (_hostMissionTitleText != null) _hostMissionTitleText.text = "";
-            if (_hostMissionDescriptionText != null) _hostMissionDescriptionText.text = "";
+            if (_hostMissionTitleText != null)
+                _hostMissionTitleText.text = "";
+            if (_hostMissionDescriptionText != null)
+                _hostMissionDescriptionText.text = "";
             RefreshHostMissionList();
             return;
         }
 
         _hostSelectedMissionIndex = index;
         var mission = _hostMissions[index];
-        if (_hostMissionTitleText != null) _hostMissionTitleText.text = mission.Key.Name;
-        if (_hostMissionDescriptionText != null) _hostMissionDescriptionText.text = mission.Mission.missionSettings.description ?? "";
+        if (_hostMissionTitleText != null)
+            _hostMissionTitleText.text = mission.Key.Name;
+        if (_hostMissionDescriptionText != null)
+            _hostMissionDescriptionText.text = mission.Mission.missionSettings.description ?? "";
         if (_hostNameInput != null && string.IsNullOrWhiteSpace(_hostNameInput.text))
         {
             _hostNameInput.text = $"{mission.Key.Name} [Hosted by {PlayerSettings.playerName_Unsanitized}]";
@@ -812,7 +847,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void PreviousHostMissionPage()
     {
-        if (_hostMissionPage <= 0) return;
+        if (_hostMissionPage <= 0)
+            return;
 
         _hostMissionPage--;
         SelectHostMission(Mathf.Clamp(_hostSelectedMissionIndex, _hostMissionPage * HostMissionPageSize, Mathf.Min(_hostMissions.Count - 1, (_hostMissionPage + 1) * HostMissionPageSize - 1)));
@@ -820,7 +856,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void NextHostMissionPage()
     {
-        if ((_hostMissionPage + 1) * HostMissionPageSize >= _hostMissions.Count) return;
+        if ((_hostMissionPage + 1) * HostMissionPageSize >= _hostMissions.Count)
+            return;
 
         _hostMissionPage++;
         SelectHostMission(_hostMissionPage * HostMissionPageSize);
@@ -842,10 +879,12 @@ public class NativeMultiplayerPanel : MonoBehaviour
     {
         var values = new[] { HostLobbyVisibility.Public, HostLobbyVisibility.FriendsOnly, HostLobbyVisibility.Private };
         var currentIndex = Array.IndexOf(values, _hostVisibility);
-        if (currentIndex < 0) currentIndex = 0;
+        if (currentIndex < 0)
+            currentIndex = 0;
 
         var nextIndex = (currentIndex + direction) % values.Length;
-        if (nextIndex < 0) nextIndex += values.Length;
+        if (nextIndex < 0)
+            nextIndex += values.Length;
 
         _hostVisibility = values[nextIndex];
         RefreshHostControls();
@@ -869,7 +908,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void HostLobbyClicked()
     {
-        if (_isHosting) return;
+        if (_isHosting)
+            return;
 
         if (_hostSelectedMissionIndex < 0 || _hostSelectedMissionIndex >= _hostMissions.Count)
         {
@@ -1004,7 +1044,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void JoinSelectedLobby()
     {
-        if (_selectedIndex < 0 || _selectedIndex >= _visibleLobbies.Count) return;
+        if (_selectedIndex < 0 || _selectedIndex >= _visibleLobbies.Count)
+            return;
 
         var lobby = _visibleLobbies[_selectedIndex];
         if (lobby.HasPassword)
@@ -1060,7 +1101,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void SubmitJoinPassword()
     {
-        if (!_pendingPasswordLobby.HasValue) return;
+        if (!_pendingPasswordLobby.HasValue)
+            return;
 
         var lobby = _pendingPasswordLobby.Value;
         var password = _joinPasswordInput?.text?.Trim();
@@ -1097,7 +1139,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void PreviousPage()
     {
-        if (_page <= 0) return;
+        if (_page <= 0)
+            return;
 
         _page--;
         SelectLobby(Mathf.Clamp(_selectedIndex, _page * PageSize, Mathf.Min(_visibleLobbies.Count - 1, (_page + 1) * PageSize - 1)));
@@ -1105,7 +1148,8 @@ public class NativeMultiplayerPanel : MonoBehaviour
 
     private void NextPage()
     {
-        if ((_page + 1) * PageSize >= _visibleLobbies.Count) return;
+        if ((_page + 1) * PageSize >= _visibleLobbies.Count)
+            return;
 
         _page++;
         SelectLobby(_page * PageSize);
@@ -1314,15 +1358,42 @@ public class NativeMultiplayerPanel : MonoBehaviour
             PingText = pingText;
         }
 
-        public Button Button { get; }
-        public Text TypeText { get; }
-        public Text LockText { get; }
-        public Text ModsText { get; }
-        public Text HostText { get; }
-        public Text LobbyText { get; }
-        public Text MissionText { get; }
-        public Text PlayersText { get; }
-        public Text PingText { get; }
+        public Button Button
+        {
+            get;
+        }
+        public Text TypeText
+        {
+            get;
+        }
+        public Text LockText
+        {
+            get;
+        }
+        public Text ModsText
+        {
+            get;
+        }
+        public Text HostText
+        {
+            get;
+        }
+        public Text LobbyText
+        {
+            get;
+        }
+        public Text MissionText
+        {
+            get;
+        }
+        public Text PlayersText
+        {
+            get;
+        }
+        public Text PingText
+        {
+            get;
+        }
     }
 
     private readonly struct SortHeaderBinding
@@ -1335,10 +1406,22 @@ public class NativeMultiplayerPanel : MonoBehaviour
             Text = text;
         }
 
-        public LobbySortColumn Column { get; }
-        public string Label { get; }
-        public Button Button { get; }
-        public Text Text { get; }
+        public LobbySortColumn Column
+        {
+            get;
+        }
+        public string Label
+        {
+            get;
+        }
+        public Button Button
+        {
+            get;
+        }
+        public Text Text
+        {
+            get;
+        }
     }
 
     private readonly struct FilterToggleBinding
@@ -1351,10 +1434,22 @@ public class NativeMultiplayerPanel : MonoBehaviour
             IsEnabled = isEnabled;
         }
 
-        public string Label { get; }
-        public Button Button { get; }
-        public Text Text { get; }
-        public Func<bool> IsEnabled { get; }
+        public string Label
+        {
+            get;
+        }
+        public Button Button
+        {
+            get;
+        }
+        public Text Text
+        {
+            get;
+        }
+        public Func<bool> IsEnabled
+        {
+            get;
+        }
     }
 
     private readonly struct HostMissionEntry
@@ -1365,8 +1460,14 @@ public class NativeMultiplayerPanel : MonoBehaviour
             Mission = mission;
         }
 
-        public MissionKey Key { get; }
-        public MissionQuickLoad Mission { get; }
+        public MissionKey Key
+        {
+            get;
+        }
+        public MissionQuickLoad Mission
+        {
+            get;
+        }
     }
 
     private readonly struct NativeLobbyEntry
@@ -1414,37 +1515,107 @@ public class NativeMultiplayerPanel : MonoBehaviour
             }
         }
 
-        public LobbyInstance Lobby { get; }
-        public string LobbyName { get; }
-        public string MissionName { get; }
-        public string MapName { get; }
-        public string FlagsText { get; }
-        public string PlayerCountText { get; }
-        public int CurrentPlayers { get; }
-        public int MaxPlayers { get; }
-        public int? Ping { get; }
-        public string PingText { get; }
-        public bool IsFull { get; }
-        public bool IsDedicated { get; }
-        public bool IsModded { get; }
-        public bool HasPassword { get; }
-        public MissionPvpType MissionType { get; }
-        public string MissionTypeText { get; }
-        public string AccessText { get; }
-        public string ModsText { get; }
-        public string ServerColumnText { get; }
-        public string ServerTypeText { get; }
-        public string StatusText { get; }
-        public string Description { get; }
+        public LobbyInstance Lobby
+        {
+            get;
+        }
+        public string LobbyName
+        {
+            get;
+        }
+        public string MissionName
+        {
+            get;
+        }
+        public string MapName
+        {
+            get;
+        }
+        public string FlagsText
+        {
+            get;
+        }
+        public string PlayerCountText
+        {
+            get;
+        }
+        public int CurrentPlayers
+        {
+            get;
+        }
+        public int MaxPlayers
+        {
+            get;
+        }
+        public int? Ping
+        {
+            get;
+        }
+        public string PingText
+        {
+            get;
+        }
+        public bool IsFull
+        {
+            get;
+        }
+        public bool IsDedicated
+        {
+            get;
+        }
+        public bool IsModded
+        {
+            get;
+        }
+        public bool HasPassword
+        {
+            get;
+        }
+        public MissionPvpType MissionType
+        {
+            get;
+        }
+        public string MissionTypeText
+        {
+            get;
+        }
+        public string AccessText
+        {
+            get;
+        }
+        public string ModsText
+        {
+            get;
+        }
+        public string ServerColumnText
+        {
+            get;
+        }
+        public string ServerTypeText
+        {
+            get;
+        }
+        public string StatusText
+        {
+            get;
+        }
+        public string Description
+        {
+            get;
+        }
 
         private static string BuildFlagsText(bool hasPassword, bool isModded, bool isFull, bool isDedicated, MissionPvpType missionType)
         {
             var flags = new List<string>();
             flags.Add(MissionTypeLabel(missionType));
-            if (hasPassword) flags.Add("PWD");
-            if (isModded) flags.Add("MOD");
-            if (isFull) flags.Add("FULL");
-            if (isDedicated) flags.Add("DED");
+            if (hasPassword)
+                flags.Add("PWD");
+            if (isModded)
+                flags.Add("MOD");
+            if (isFull)
+                flags.Add("FULL");
+            if (isDedicated)
+                flags.Add("DED");
 
             return string.Join(" ", flags);
         }

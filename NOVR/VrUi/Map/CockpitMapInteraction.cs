@@ -23,10 +23,12 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
     internal static bool Pointing(bool left) => _instance?._pointing[left ? 0 : 1] == true;
     internal static bool ReservesThumbstick(bool left)
     {
-        if (left || _instance == null) return false;
+        if (left || _instance == null)
+            return false;
         // The opposite hand's wheel can leave flight controls active. Retain
         // an outstanding neutral handoff even while map interaction pauses.
-        if (_instance._input.Reserved) return true;
+        if (_instance._input.Reserved)
+            return true;
         var controls = MotionFlightController.Instance;
         return _instance.ContextAvailable() && _instance._navigation?.Selected == true &&
             controls != null && controls.FlightActive && controls.StickHeld;
@@ -46,28 +48,41 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
 
     private void Update()
     {
-        var navigation = CockpitMapWidget.Navigation; var viewport = CockpitMapWidget.Viewport;
+        var navigation = CockpitMapWidget.Navigation;
+        var viewport = CockpitMapWidget.Viewport;
         if (_navigation != navigation || _viewport != viewport)
         {
-            Release(); _navigation = navigation; _viewport = viewport;
-            if (navigation != null && viewport != null) CreateView(viewport);
+            Release();
+            _navigation = navigation;
+            _viewport = viewport;
+            if (navigation != null && viewport != null)
+                CreateView(viewport);
         }
         var available = ContextAvailable();
         if (!available)
         {
-            _navigation?.Deactivate(); _input.Update(false, false, false, 0, 0, false); ResetTouches();
-            if (_view != null) _view.gameObject.SetActive(false);
+            _navigation?.Deactivate();
+            _input.Update(false, false, false, 0, 0, false);
+            ResetTouches();
+            if (_view != null)
+                _view.gameObject.SetActive(false);
             return;
         }
         // Lost map-controller tracking cancels selection. Reacquire it
         // deliberately instead of inheriting stale pan or selection input.
         var right = TrackedControllers.Read(false);
         if (!right.Valid || !right.HasAxis)
-        { _navigation!.Deactivate(); _input.Update(false, false, false, 0, 0, false); }
-        if (_view == null || _viewport == null) return;
-        _view.gameObject.SetActive(true); _view.SetAsLastSibling();
+        {
+            _navigation!.Deactivate();
+            _input.Update(false, false, false, 0, 0, false);
+        }
+        if (_view == null || _viewport == null)
+            return;
+        _view.gameObject.SetActive(true);
+        _view.SetAsLastSibling();
         Layout(_viewport.rect.size);
-        for (var side = 0; side < 2; side++) UpdateHand(side, right.Valid && right.HasAxis);
+        for (var side = 0; side < 2; side++)
+            UpdateHand(side, right.Valid && right.HasAxis);
         RefreshVisuals();
     }
 
@@ -75,7 +90,9 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
     // This lets flight movement and button dispatch share one ownership rule.
     internal static void UpdateNavigation()
     {
-        var self = _instance; if (self == null) return;
+        var self = _instance;
+        if (self == null)
+            return;
         var hand = TrackedControllers.Read(false);
         var controls = MotionFlightController.Instance;
         // A hidden map still needs a neutral handoff. Gate ordinary controls
@@ -83,19 +100,23 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         var available = ControllerContextAvailable() && hand.Valid && hand.HasAxis;
         self._input.Update(available, self.ContextAvailable() && self._navigation?.Selected == true,
             controls != null && controls.FlightActive && controls.StickHeld, hand.Axis.x, hand.Axis.y, hand.StickClick);
-        if (!available || !self.ContextAvailable()) return;
+        if (!available || !self.ContextAvailable())
+            return;
         self._navigation!.Pan(new Vector2(self._input.PanX, self._input.PanY), Time.unscaledDeltaTime);
         if (self._input.SelectPressed)
         {
             var selected = self._navigation.SelectCenter();
-            if (selected) InteractionHaptics.Pulse(hand.Device, MapInteractionFeedback.TargetStrength, MapInteractionFeedback.TargetSeconds, InteractionCue.Click);
-            else InteractionHaptics.PulseOnly(hand.Device, .10f, .02f);
+            if (selected)
+                InteractionHaptics.Pulse(hand.Device, MapInteractionFeedback.TargetStrength, MapInteractionFeedback.TargetSeconds, InteractionCue.Click);
+            else
+                InteractionHaptics.PulseOnly(hand.Device, .10f, .02f);
         }
     }
 
     private void UpdateHand(int side, bool canSelect)
     {
-        var left = side == 0; var sample = TrackedControllers.Read(left);
+        var left = side == 0;
+        var sample = TrackedControllers.Read(left);
         var controls = MotionFlightController.Instance;
         var isStick = left == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         var held = controls != null && (isStick ? controls.StickHeld : controls.ThrottleHeld);
@@ -103,11 +124,18 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         var uiRoot = APIBus.CockpitHudCamera != null ? APIBus.CockpitHudCamera.transform.parent : null;
         if (!sample.Valid || held || NativeHandOptionWheel.OwnsHand(left) || HelmetNightVision.OwnsHand(left) ||
             gameRoot == null || uiRoot == null || _viewport == null)
-        { ResetHand(side); return; }
+        {
+            ResetHand(side);
+            return;
+        }
         var tip = PilotHandVisuals.TouchPoint(left, sample, gameRoot, true);
         var point = _viewport.InverseTransformPoint(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(tip)));
         var metres = _viewport.TransformVector(Vector3.forward).magnitude;
-        if (!TrackedControllers.Finite(point) || metres <= 0) { ResetHand(side); return; }
+        if (!TrackedControllers.Finite(point) || metres <= 0)
+        {
+            ResetHand(side);
+            return;
+        }
         var depth = -point.z * metres;
         var near = depth >= -.025f && depth <= .075f;
         var hit = -1;
@@ -119,34 +147,47 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
             // the nearer key rather than always favoring the first (+) key.
             if (Mathf.Abs(delta.x) <= 26 + .006f / metres && Mathf.Abs(delta.y) <= 26 + .006f / metres &&
                 delta.sqrMagnitude < nearest)
-            { hit = button + 1; nearest = delta.sqrMagnitude; }
+            {
+                hit = button + 1;
+                nearest = delta.sqrMagnitude;
+            }
         }
-        if (hit < 0 && Mathf.Abs(point.x) <= _size.x * .5f && Mathf.Abs(point.y) <= _size.y * .5f) hit = 0;
+        if (hit < 0 && Mathf.Abs(point.x) <= _size.x * .5f && Mathf.Abs(point.y) <= _size.y * .5f)
+            hit = 0;
         var hover = near ? hit : -1;
         if (hover >= 0 && hover != _hover[side])
             InteractionHaptics.Pulse(sample.Device, MapInteractionFeedback.TouchStrength, MapInteractionFeedback.TouchSeconds, InteractionCue.Touch);
-        _hover[side] = hover; _pointing[side] = hover >= 0;
+        _hover[side] = hover;
+        _pointing[side] = hover >= 0;
         for (var item = 0; item < 3; item++)
         {
             // Zoom remains useful with either hand. Selection requires the
             // physical right thumbstick, and must be rearmed after tracking
             // returns instead of inheriting a fingertip already on the map.
-            if (!_touch[side, item].Update(item != 0 || canSelect, hit == item, depth) || Time.unscaledTime < _nextTouch) continue;
+            if (!_touch[side, item].Update(item != 0 || canSelect, hit == item, depth) || Time.unscaledTime < _nextTouch)
+                continue;
             _nextTouch = Time.unscaledTime + .25f;
             var changed = true;
             if (item == 0)
             {
-                if (_navigation!.Selected) _navigation.Deactivate(); else changed = _navigation.Activate();
+                if (_navigation!.Selected)
+                    _navigation.Deactivate();
+                else
+                    changed = _navigation.Activate();
             }
-            else changed = _navigation!.Zoom(item == 1 ? 1 : -1);
-            if (changed) InteractionHaptics.Pulse(sample.Device,
+            else
+                changed = _navigation!.Zoom(item == 1 ? 1 : -1);
+            if (changed)
+                InteractionHaptics.Pulse(sample.Device,
                 item == 0 ? MapInteractionFeedback.SelectStrength : MapInteractionFeedback.ZoomStrength,
                 item == 0 ? MapInteractionFeedback.SelectSeconds : MapInteractionFeedback.ZoomSeconds, InteractionCue.Click);
-            else InteractionHaptics.PulseOnly(sample.Device, .22f, .025f);
+            else
+                InteractionHaptics.PulseOnly(sample.Device, .22f, .025f);
             // Both fingertips must withdraw after a contact. Crossing a button
             // laterally while already inside the face is not another press.
             for (var hand = 0; hand < 2; hand++)
-                for (var control = 0; control < 3; control++) _touch[hand, control].Reset();
+                for (var control = 0; control < 3; control++)
+                    _touch[hand, control].Reset();
             break;
         }
     }
@@ -154,7 +195,8 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
     private void CreateView(RectTransform parent)
     {
         var go = new GameObject("NOVR map touch controls", typeof(RectTransform));
-        _view = (RectTransform)go.transform; _view.SetParent(parent, false);
+        _view = (RectTransform)go.transform;
+        _view.SetParent(parent, false);
         _view.localPosition = new Vector3(0, 0, -2);
         for (var i = 0; i < 4; i++)
         {
@@ -165,8 +207,13 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         for (var i = 0; i < 2; i++)
         {
             _buttons[i] = Plate(i == 0 ? "Zoom in" : "Zoom out", _view, Vector2.zero, new Vector2(52, 52));
-            var stroke = Plate("Minus", _buttons[i].transform, Vector2.zero, new Vector2(24, 3)); stroke.color = Color.white;
-            if (i == 0) { stroke = Plate("Plus", _buttons[i].transform, Vector2.zero, new Vector2(3, 24)); stroke.color = Color.white; }
+            var stroke = Plate("Minus", _buttons[i].transform, Vector2.zero, new Vector2(24, 3));
+            stroke.color = Color.white;
+            if (i == 0)
+            {
+                stroke = Plate("Plus", _buttons[i].transform, Vector2.zero, new Vector2(3, 24));
+                stroke.color = Color.white;
+            }
         }
         LayerHelper.SetLayerRecursive(_view, LayerHelper.GetVrUiLayer());
         Layout(parent.rect.size);
@@ -181,36 +228,64 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
             _border[i].rectTransform.sizeDelta = i < 2 ? new Vector2(size.x, 2.5f) : new Vector2(2.5f, size.y);
             _border[i].rectTransform.anchoredPosition = i < 2 ? new Vector2(0, (i == 0 ? -1 : 1) * size.y * .5f) : new Vector2((i == 2 ? -1 : 1) * size.x * .5f, 0);
         }
-        for (var i = 0; i < 2; i++) _buttons[i].rectTransform.anchoredPosition = ButtonCenter(i);
+        for (var i = 0; i < 2; i++)
+            _buttons[i].rectTransform.anchoredPosition = ButtonCenter(i);
     }
     private void RefreshVisuals()
     {
         var selected = _navigation?.Selected == true;
-        foreach (var edge in _border) { edge.enabled = selected; edge.color = new Color(.42f, .96f, .78f, .6f); }
-        foreach (var line in _crosshair) { line.enabled = selected; line.color = new Color(.86f, 1f, .93f, .85f); }
-        for (var i = 0; i < 2; i++) _buttons[i].color = _hover[0] == i + 1 || _hover[1] == i + 1
+        foreach (var edge in _border)
+        {
+            edge.enabled = selected;
+            edge.color = new Color(.42f, .96f, .78f, .6f);
+        }
+        foreach (var line in _crosshair)
+        {
+            line.enabled = selected;
+            line.color = new Color(.86f, 1f, .93f, .85f);
+        }
+        for (var i = 0; i < 2; i++)
+            _buttons[i].color = _hover[0] == i + 1 || _hover[1] == i + 1
             ? new Color(.16f, .38f, .36f, .9f) : new Color(.035f, .08f, .09f, .8f);
     }
     private static Image Plate(string name, Transform parent, Vector2 position, Vector2 size)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         go.transform.SetParent(parent, false);
-        var image = go.GetComponent<Image>(); image.raycastTarget = false;
-        image.rectTransform.anchoredPosition = position; image.rectTransform.sizeDelta = size;
+        var image = go.GetComponent<Image>();
+        image.raycastTarget = false;
+        image.rectTransform.anchoredPosition = position;
+        image.rectTransform.sizeDelta = size;
         return image;
     }
     private void ResetHand(int side)
     {
-        _pointing[side] = false; _hover[side] = -1;
-        for (var item = 0; item < 3; item++) _touch[side, item].Reset();
+        _pointing[side] = false;
+        _hover[side] = -1;
+        for (var item = 0; item < 3; item++)
+            _touch[side, item].Reset();
     }
-    private void ResetTouches() { ResetHand(0); ResetHand(1); }
+    private void ResetTouches()
+    {
+        ResetHand(0);
+        ResetHand(1);
+    }
     private void Release()
     {
-        _navigation?.Deactivate(); _navigation = null; _viewport = null;
-        _input.Reset(); ResetTouches();
-        if (_view != null) Destroy(_view.gameObject); _view = null;
+        _navigation?.Deactivate();
+        _navigation = null;
+        _viewport = null;
+        _input.Reset();
+        ResetTouches();
+        if (_view != null)
+            Destroy(_view.gameObject);
+        _view = null;
     }
     private void OnDisable() => Release();
-    private void OnDestroy() { Release(); if (_instance == this) _instance = null; }
+    private void OnDestroy()
+    {
+        Release();
+        if (_instance == this)
+            _instance = null;
+    }
 }

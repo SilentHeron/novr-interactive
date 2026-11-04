@@ -9,7 +9,8 @@ internal static class ThrottleDetent
     internal const float TravelMeters = .016f;
     internal static float MilitaryCommand(float afterburnerStart)
     {
-        if (!FlightControlMath.IsFinite(afterburnerStart) || afterburnerStart <= 0 || afterburnerStart >= 1) return 1f;
+        if (!FlightControlMath.IsFinite(afterburnerStart) || afterburnerStart <= 0 || afterburnerStart >= 1)
+            return 1f;
         // Native ThrottleGauge regions are inclusive and the later region wins:
         // at the exact nozzle start it displays AFTERBURNER 0%. Leave a tiny dry
         // margin (0.01 percentage point for stock jets), also large enough to

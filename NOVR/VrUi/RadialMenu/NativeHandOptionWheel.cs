@@ -44,11 +44,19 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             CursorManager.GetFlags() == CursorFlags.None &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
             APIBus.CockpitHudCamera != null && native != null && native.isActiveAndEnabled;
-        if (!GameManager.GetLocalAircraft(out var aircraft) || aircraft.disabled || aircraft.HasEjected() || aircraft.cockpit == null || aircraft.cockpit.IsDetached()) ready = false;
+        if (!GameManager.GetLocalAircraft(out var aircraft) || aircraft.disabled || aircraft.HasEjected() || aircraft.cockpit == null || aircraft.cockpit.IsDetached())
+            ready = false;
         if (!ready || _lease != null && (!_lease.Valid || _lease.Native != native || aircraft != _aircraft))
-        { Cancel(); return; }
+        {
+            Cancel();
+            return;
+        }
         // Do not hijack a wheel already opened through the game's desktop input.
-        if (_lease == null && RadialMenuMain.IsInUse()) { ResetGestures(); return; }
+        if (_lease == null && RadialMenuMain.IsInUse())
+        {
+            ResetGestures();
+            return;
+        }
 
         if (Owner >= 0)
         {
@@ -64,18 +72,26 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
                 hand.Axis.x, hand.Axis.y, _lease!.Count);
             if (change == HandOptionWheelEvent.Cancel)
             {
-                if (hand.Valid && hand.StickClick) InteractionHaptics.Pulse(hand.Device, .14f, .02f, InteractionCue.Release);
-                Close(); return;
+                if (hand.Valid && hand.StickClick)
+                    InteractionHaptics.Pulse(hand.Device, .14f, .02f, InteractionCue.Release);
+                Close();
+                return;
             }
             if (change == HandOptionWheelEvent.Commit)
             {
                 var action = _lease.ActionAt(gesture.Committed);
                 if (action != null && action.GetActionType() == RadialMenuAction.ActionType.Eject)
                 {
-                    if (aircraft == null || !action.AllowedOnAircraft(aircraft)) { Close(); return; }
+                    if (aircraft == null || !action.AllowedOnAircraft(aircraft))
+                    {
+                        Close();
+                        return;
+                    }
                     // Selecting Eject only arms the confirmation. Keep ownership
                     // of this hand and the borrowed native wheel throughout it.
-                    _pendingEject = action; _eject.Begin(); _lease.Hover(-1);
+                    _pendingEject = action;
+                    _eject.Begin();
+                    _lease.Hover(-1);
                     _ejectGraphic!.Show(ActionIcon?.GetValue(action) as Sprite);
                     _title!.text = "EJECT?";
                     _guidance!.text = "Centre + hold stick click: eject\nRelease: reset  ·  Tilt stick / trigger: cancel";
@@ -93,10 +109,12 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             }
             if (change == HandOptionWheelEvent.ChangePage)
             {
-                _lease.ChangePage(); UpdateTitle();
+                _lease.ChangePage();
+                UpdateTitle();
                 InteractionHaptics.Pulse(hand.Device, .18f, .025f);
             }
-            if (_lease.Hover(gesture.Hovered)) InteractionHaptics.PulseOnly(hand.Device, .10f, .015f);
+            if (_lease.Hover(gesture.Hovered))
+                InteractionHaptics.PulseOnly(hand.Device, .10f, .015f);
             return;
         }
 
@@ -105,13 +123,17 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             var hand = TrackedControllers.Read(side == 0);
             var change = _gestures[side].Update(HandAvailable(side, hand), hand.StickClick, hand.Trigger,
                 hand.Axis.x, hand.Axis.y, 0);
-            if (change != HandOptionWheelEvent.Open) continue;
+            if (change != HandOptionWheelEvent.Open)
+                continue;
             try
             {
                 EnsureView();
-                _ownership.Open(side, Time.frameCount); _aircraft = aircraft;
+                _ownership.Open(side, Time.frameCount);
+                _aircraft = aircraft;
                 _lease = new NativeRadialMenuLease(native!, (RectTransform)_view!.transform);
-                _gestures[1 - side].Reset(); _view.SetActive(true); UpdateTitle();
+                _gestures[1 - side].Reset();
+                _view.SetActive(true);
+                UpdateTitle();
                 _ejectGraphic!.transform.SetAsLastSibling();
                 InteractionHaptics.Pulse(hand.Device, .22f, .025f);
                 _reportedFailure = false;
@@ -119,7 +141,8 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             catch (System.Exception error)
             {
                 Cancel();
-                if (!_reportedFailure) Debug.LogWarning("[NOVR] Native hand option wheel unavailable: " + error);
+                if (!_reportedFailure)
+                    Debug.LogWarning("[NOVR] Native hand option wheel unavailable: " + error);
                 _reportedFailure = true;
             }
             break;
@@ -135,7 +158,8 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         if (result == EjectConfirmationEvent.Cancel)
         {
             Close();
-            if (hand.Valid) InteractionHaptics.Pulse(hand.Device, .14f, .02f, InteractionCue.Release);
+            if (hand.Valid)
+                InteractionHaptics.Pulse(hand.Device, .14f, .02f, InteractionCue.Release);
             return;
         }
         if (result == EjectConfirmationEvent.Confirm)
@@ -151,10 +175,15 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             return;
         }
         _ejectGraphic!.Progress = _eject.Progress;
-        if (!_eject.Holding) { StopEjectHaptics(); return; }
+        if (!_eject.Holding)
+        {
+            StopEjectHaptics();
+            return;
+        }
         if (!_ejectHapticActive || Time.unscaledTime >= _nextEjectHaptic)
         {
-            _ejectHapticDevice = hand.Device; _ejectHapticActive = true;
+            _ejectHapticDevice = hand.Device;
+            _ejectHapticActive = true;
             _nextEjectHaptic = Time.unscaledTime + .025f;
             // Short overlapping impulses feel like one rising vibration. They
             // expire quickly on lost tracking and never play repeated audio.
@@ -164,23 +193,31 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
 
     private void StopEjectHaptics()
     {
-        if (_ejectHapticActive && _ejectHapticDevice.isValid) _ejectHapticDevice.StopHaptics();
-        _ejectHapticActive = false; _nextEjectHaptic = 0;
+        if (_ejectHapticActive && _ejectHapticDevice.isValid)
+            _ejectHapticDevice.StopHaptics();
+        _ejectHapticActive = false;
+        _nextEjectHaptic = 0;
     }
 
     private static bool HandAvailable(int side, ControllerSample hand)
     {
-        if (!hand.Valid || !hand.HasAxis || HelmetNightVision.OwnsHand(side == 0) || CockpitMapInteraction.ReservesThumbstick(side == 0)) return false;
+        if (!hand.Valid || !hand.HasAxis || HelmetNightVision.OwnsHand(side == 0) || CockpitMapInteraction.ReservesThumbstick(side == 0))
+            return false;
         var controls = MotionFlightController.Instance;
         var stick = (side == 0) == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         return controls == null || !(stick ? controls.StickHeld : controls.ThrottleHeld);
     }
     private void LateUpdate()
     {
-        if (_lease == null || _view == null || Owner < 0) return;
+        if (_lease == null || _view == null || Owner < 0)
+            return;
         var camera = APIBus.CockpitHudCamera;
         var hand = TrackedControllers.Read(Owner == 0);
-        if (camera == null || !hand.Valid) { Cancel(); return; }
+        if (camera == null || !hand.Valid)
+        {
+            Cancel();
+            return;
+        }
         var trackingRoot = camera.transform.parent;
         var origin = trackingRoot != null ? trackingRoot.position : Vector3.zero;
         var basis = trackingRoot != null ? trackingRoot.rotation : Quaternion.identity;
@@ -197,55 +234,88 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
 
     private void EnsureView()
     {
-        if (_view != null) return;
+        if (_view != null)
+            return;
         _view = new GameObject("NOVR Native Hand Wheel", typeof(RectTransform), typeof(Canvas));
         // Deliberately independent of scaled aircraft/helmet bones.
         _view.transform.localScale = Vector3.one * .00065f;
         ((RectTransform)_view.transform).sizeDelta = new Vector2(320, 380);
         _view.layer = (int)LayerHelper.GetVrUiLayer();
-        _canvas = _view.GetComponent<Canvas>(); _canvas.renderMode = RenderMode.WorldSpace;
-        _canvas.overrideSorting = true; _canvas.sortingOrder = 480; _canvas.worldCamera = APIBus.CockpitHudCamera;
+        _canvas = _view.GetComponent<Canvas>();
+        _canvas.renderMode = RenderMode.WorldSpace;
+        _canvas.overrideSorting = true;
+        _canvas.sortingOrder = 480;
+        _canvas.worldCamera = APIBus.CockpitHudCamera;
         _title = Label("Options", 161, 20, 30);
         _guidance = Label("", -173, 13, 42);
         var confirm = new GameObject("Eject confirmation", typeof(RectTransform), typeof(EjectConfirmationGraphic));
-        confirm.transform.SetParent(_view.transform, false); confirm.layer = _view.layer;
+        confirm.transform.SetParent(_view.transform, false);
+        confirm.layer = _view.layer;
         ((RectTransform)confirm.transform).sizeDelta = new Vector2(128, 128);
         _ejectGraphic = confirm.GetComponent<EjectConfirmationGraphic>();
-        _ejectGraphic.raycastTarget = false; confirm.SetActive(false);
+        _ejectGraphic.raycastTarget = false;
+        confirm.SetActive(false);
         _view.SetActive(false);
     }
     private Text Label(string text, float y, int size, float height)
     {
         var go = new GameObject("Wheel guidance", typeof(RectTransform), typeof(Text));
-        go.transform.SetParent(_view!.transform, false); go.layer = _view.layer;
-        var label = go.GetComponent<Text>(); label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        label.text = text; label.fontSize = size; label.color = Color.white; label.alignment = TextAnchor.MiddleCenter;
+        go.transform.SetParent(_view!.transform, false);
+        go.layer = _view.layer;
+        var label = go.GetComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        label.text = text;
+        label.fontSize = size;
+        label.color = Color.white;
+        label.alignment = TextAnchor.MiddleCenter;
         label.raycastTarget = false;
-        label.rectTransform.sizeDelta = new Vector2(340, height); label.rectTransform.anchoredPosition = new Vector2(0, y);
+        label.rectTransform.sizeDelta = new Vector2(340, height);
+        label.rectTransform.anchoredPosition = new Vector2(0, y);
         return label;
     }
     private void UpdateTitle()
     {
-        if (_title != null) _title.text = _lease?.WeaponsPage == true ? "Weapons" : "Options";
-        if (_guidance != null) _guidance.text = "Trigger: change page\nCentre stick: select  ·  Click stick: cancel";
+        if (_title != null)
+            _title.text = _lease?.WeaponsPage == true ? "Weapons" : "Options";
+        if (_guidance != null)
+            _guidance.text = "Trigger: change page\nCentre stick: select  ·  Click stick: cancel";
     }
-    private void ResetGestures() { foreach (var gesture in _gestures) gesture.Reset(); }
+    private void ResetGestures()
+    {
+        foreach (var gesture in _gestures)
+            gesture.Reset();
+    }
     private void Close()
     {
-        StopEjectHaptics(); _eject.Reset(); _pendingEject = null;
-        if (_ejectGraphic != null) _ejectGraphic.gameObject.SetActive(false);
+        StopEjectHaptics();
+        _eject.Reset();
+        _pendingEject = null;
+        if (_ejectGraphic != null)
+            _ejectGraphic.gameObject.SetActive(false);
         _ownership.Close(Time.frameCount);
-        try { _lease?.Dispose(); }
+        try
+        {
+            _lease?.Dispose();
+        }
         finally
         {
-            _lease = null; _aircraft = null;
-            if (_view != null) _view.SetActive(false);
+            _lease = null;
+            _aircraft = null;
+            if (_view != null)
+                _view.SetActive(false);
             ResetGestures();
         }
     }
     internal static void Cancel() => _instance?.Close();
     private void OnDisable() => Close();
-    private void OnDestroy() { Close(); if (_view != null) Destroy(_view); if (_instance == this) _instance = null; }
+    private void OnDestroy()
+    {
+        Close();
+        if (_view != null)
+            Destroy(_view);
+        if (_instance == this)
+            _instance = null;
+    }
 }
 
 [HarmonyPatch(typeof(RadialMenuMain), "Update")]

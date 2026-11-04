@@ -18,14 +18,14 @@ public abstract class XrPluginToggler: VrToggler
         _managerSetings = ScriptableObject.CreateInstance<XRManagerSettings>();
         _generalSettings.Manager = _managerSetings;
         
-        #pragma warning disable CS0618
+#pragma warning disable CS0618
         /*
          * ManagerSettings.loaders is deprecated but very useful, allows me to add the xr loader without reflection.
          * Should be fine unless the game's Unity version gets majorly updated, in which case the whole mod will be
          * broken, so I'll have to update it anyway.
          */
         _managerSetings.loaders.Add(CreateLoader());
-        #pragma warning restore CS0618
+#pragma warning restore CS0618
         
         return true;
     }

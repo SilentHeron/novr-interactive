@@ -8,33 +8,36 @@ internal static class HudWidgetDefaultPlacementChecks
     {
         var defaults = HudWidgetProfiles.FactoryDefaults;
         foreach (var center in new[] { Vector3.zero, new Vector3(.4f, 1.3f, -.7f), new Vector3(-.6f, -.4f, .8f) })
-        foreach (var origin in new[] { Vector3.zero, new Vector3(31, 8, -19), new Vector3(-73, 44, 51) })
-        foreach (var rotation in new[] { Quaternion.identity, Quaternion.Euler(0, 90, 0), Quaternion.Euler(-22, 137, 17) })
-        {
-            var actual = HudWidgetDefaultPlacement.AtHead(center);
-            var seatedWorld = CockpitWidgetSpace.ToWorld(origin, rotation, center);
-            foreach (var id in HudWidgetProfiles.Ids)
-            {
-                var pose = actual[id]; var offset = defaults[id].Position;
-                var world = CockpitWidgetSpace.ToWorld(origin, rotation, pose.Position);
-                Near(world, seatedWorld + rotation * offset, "New " + id + " uses seated center across cockpit origins/heights/orientations");
-                check(pose.Position.z > center.z + .2f, "New widget stays forward of the seated head: " + id);
-                check(pose.Euler.x == defaults[id].Euler.x && pose.Euler.y == defaults[id].Euler.y && pose.Scale == defaults[id].Scale,
-                    "First placement preserves default tilt and physical scale: " + id);
-                var size = Size(id); var half = size * (.0007f * pose.Scale * .5f);
-                foreach (var x in new[] { -half.x, half.x }) foreach (var y in new[] { -half.y, half.y })
+            foreach (var origin in new[] { Vector3.zero, new Vector3(31, 8, -19), new Vector3(-73, 44, 51) })
+                foreach (var rotation in new[] { Quaternion.identity, Quaternion.Euler(0, 90, 0), Quaternion.Euler(-22, 137, 17) })
                 {
-                    var corner = offset + new Vector3(x, y, 0);
-                    var reach = Math.Min((corner - new Vector3(-.16f, -.18f, 0)).magnitude,
-                        (corner - new Vector3(.16f, -.18f, 0)).magnitude);
-                    check(reach < .60f, "Every new widget corner remains within a 60cm shoulder reach: " + id);
+                    var actual = HudWidgetDefaultPlacement.AtHead(center);
+                    var seatedWorld = CockpitWidgetSpace.ToWorld(origin, rotation, center);
+                    foreach (var id in HudWidgetProfiles.Ids)
+                    {
+                        var pose = actual[id];
+                        var offset = defaults[id].Position;
+                        var world = CockpitWidgetSpace.ToWorld(origin, rotation, pose.Position);
+                        Near(world, seatedWorld + rotation * offset, "New " + id + " uses seated center across cockpit origins/heights/orientations");
+                        check(pose.Position.z > center.z + .2f, "New widget stays forward of the seated head: " + id);
+                        check(pose.Euler.x == defaults[id].Euler.x && pose.Euler.y == defaults[id].Euler.y && pose.Scale == defaults[id].Scale,
+                            "First placement preserves default tilt and physical scale: " + id);
+                        var size = Size(id);
+                        var half = size * (.0007f * pose.Scale * .5f);
+                        foreach (var x in new[] { -half.x, half.x })
+                            foreach (var y in new[] { -half.y, half.y })
+                            {
+                                var corner = offset + new Vector3(x, y, 0);
+                                var reach = Math.Min((corner - new Vector3(-.16f, -.18f, 0)).magnitude,
+                                    (corner - new Vector3(.16f, -.18f, 0)).magnitude);
+                                check(reach < .60f, "Every new widget corner remains within a 60cm shoulder reach: " + id);
+                            }
+                        // No TransformPoint is involved for the original pilot bone:
+                        // its 100x imported scale cannot multiply these meter offsets.
+                        Near(CockpitWidgetSpace.ToLocal(origin, rotation, world), pose.Position,
+                            "Default can be stored/reloaded as rigid cockpit meters: " + id);
+                    }
                 }
-                // No TransformPoint is involved for the original pilot bone:
-                // its 100x imported scale cannot multiply these meter offsets.
-                Near(CockpitWidgetSpace.ToLocal(origin, rotation, world), pose.Position,
-                    "Default can be stored/reloaded as rigid cockpit meters: " + id);
-            }
-        }
         Near(defaults["weapons"].Position, HudWidgetProfiles.FactoryDefaults["weapons"].Position,
             "Seated placement cannot mutate the common offset template");
 
@@ -63,7 +66,9 @@ internal static class HudWidgetDefaultPlacementChecks
         var profiles = new HudWidgetProfiles(new ConfigFile(file, false) { SaveOnConfigSet = false });
         var fitted = HudWidgetDefaultPlacement.AtHead(new Vector3(.19f, .34f, -.25f));
         check(!profiles.HasSavedLayout("different-cockpit", 3), "Fitting initial defaults does not silently save a slot");
-        var custom = fitted["map"]; custom.Euler = new Vector3(13, -24, 0); fitted["map"] = custom;
+        var custom = fitted["map"];
+        custom.Euler = new Vector3(13, -24, 0);
+        fitted["map"] = custom;
         profiles.Save("different-cockpit", fitted, 3);
         profiles = new HudWidgetProfiles(new ConfigFile(file, false) { SaveOnConfigSet = false });
         check(profiles.HasSavedLayout("different-cockpit", 3), "Explicit saved slot bypasses default-placement initialization on spawn");
@@ -83,9 +88,13 @@ internal static class HudWidgetDefaultPlacementChecks
     }
     private static Vector3 Size(string id) => id switch
     {
-        "weapons" => new Vector3(420, 170, 0), "countermeasures" => new Vector3(260, 135, 0),
-        "power" => new Vector3(420, 80, 0), "threats" => new Vector3(460, 190, 0),
-        "ew" => new Vector3(260, 260, 0), "map" or "damage" => new Vector3(300, 300, 0),
-        "objectives" => new Vector3(420, 150, 0), _ => new Vector3(460, 270, 0)
+        "weapons" => new Vector3(420, 170, 0),
+        "countermeasures" => new Vector3(260, 135, 0),
+        "power" => new Vector3(420, 80, 0),
+        "threats" => new Vector3(460, 190, 0),
+        "ew" => new Vector3(260, 260, 0),
+        "map" or "damage" => new Vector3(300, 300, 0),
+        "objectives" => new Vector3(420, 150, 0),
+        _ => new Vector3(460, 270, 0)
     };
 }

@@ -23,8 +23,9 @@ internal static class DynamicMapVrCursorPatch
 
         if (mapIcon is global::UnitMapIcon unitMapIcon)
         {
-            if (unitMapIcon.unit == null) return false;
-            
+            if (unitMapIcon.unit == null)
+                return false;
+
             if (global::SceneSingleton<global::TargetListSelector>.i != null &&
                 global::SceneSingleton<global::TargetListSelector>.i.CheckExclusions(unitMapIcon.unit))
             {
@@ -48,7 +49,8 @@ internal static class DynamicMapVrCursorPatch
             if (cursor != null && cursor.IsActive)
             {
                 var camera = APIBus.CockpitHudCamera;
-                if (camera == null) return true;
+                if (camera == null)
+                    return true;
 
                 // Calculate screen point exactly in the VR camera's screen/viewport space
                 // to match the coordinate system of iconWorldPositions projected via the same camera.
@@ -79,14 +81,15 @@ internal static class DynamicMapVrCursorPatch
                 var icons = UnityEngine.Object.FindObjectsOfType<global::MapIcon>();
                 global::MapIcon? closestIcon = null;
                 float closestSqrDistance = float.MaxValue;
-                
+
                 foreach (var icon in icons)
                 {
-                    if (!IsSelectableMapIcon(icon)) continue;
-                    
+                    if (!IsSelectableMapIcon(icon))
+                        continue;
+
                     Vector3 iconWorldPosition = icon.transform.position;
                     Vector2 iconScreenPoint = camera.WorldToScreenPoint(iconWorldPosition);
-                    
+
                     float sqrDistance = (iconScreenPoint - cursorScreenPoint).sqrMagnitude;
                     if (sqrDistance < closestSqrDistance)
                     {
@@ -94,12 +97,12 @@ internal static class DynamicMapVrCursorPatch
                         closestIcon = icon;
                     }
                 }
-                
+
                 if (closestIcon != null && closestSqrDistance <= 10000f)
                 {
                     closestIcon.ClickIcon(global::MapIcon.ClickSource.Mouse);
                 }
-                
+
                 return false;
             }
             return true;
@@ -118,7 +121,8 @@ internal static class DynamicMapVrCursorPatch
             if (cursor != null && cursor.IsActive)
             {
                 var camera = APIBus.CockpitHudCamera;
-                if (camera == null) return true;
+                if (camera == null)
+                    return true;
 
                 var screenPoint = cursor.GetScreenPoint();
                 __result = RectTransformUtility.RectangleContainsScreenPoint(
@@ -144,21 +148,22 @@ internal static class DynamicMapVrCursorPatch
             if (cursor != null && cursor.IsActive)
             {
                 var camera = APIBus.CockpitHudCamera;
-                if (camera == null) return true;
+                if (camera == null)
+                    return true;
 
                 var screenPoint = cursor.GetScreenPoint();
                 var mapImageRect = __instance.mapImage.GetComponent<RectTransform>();
-                
+
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     mapImageRect,
                     screenPoint,
                     camera,
                     out var localPoint
                 );
-                
+
                 float scaleFactor = __instance.mapDimension / 900.0f;
                 Vector2 worldCoords = localPoint * scaleFactor;
-                
+
                 __result = new global::GlobalPosition(worldCoords.x, 0f, worldCoords.y);
                 return false;
             }
@@ -201,7 +206,7 @@ internal static class DynamicMapVrCursorPatch
         bool updateRotation)
     {
         marker.transform.localScale = Vector3.one * scale;
-        
+
         // Flatten the previous waypoint local coordinate relative to the map canvas plane
         previousWaypoint = new Vector3(previousWaypoint.x, previousWaypoint.y, 0f);
 
@@ -236,7 +241,8 @@ internal static class DynamicMapVrCursorPatch
             if (VrUiCursor.I != null)
             {
                 var dynamicMap = SceneSingleton<global::DynamicMap>.i;
-                if (dynamicMap == null) return true;
+                if (dynamicMap == null)
+                    return true;
 
                 // Flatten waypoint position on the map's iconLayer local plane (Z = 0)
                 var iconLayer = dynamicMap.iconLayer.transform;
@@ -272,7 +278,8 @@ internal static class DynamicMapVrCursorPatch
             if (VrUiCursor.I != null)
             {
                 var dynamicMap = SceneSingleton<global::DynamicMap>.i;
-                if (dynamicMap == null || ___marker == null || ___vector == null) return true;
+                if (dynamicMap == null || ___marker == null || ___vector == null)
+                    return true;
 
                 float scale = 1f / dynamicMap.mapImage.transform.localScale.x;
                 AlignWaypoint(___marker, ___vector, ref ___previousWaypoint, scale, updateRotation: false);

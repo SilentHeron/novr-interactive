@@ -28,7 +28,10 @@ internal sealed class CockpitProfiles : MonoBehaviour
     private string? _key;
     private bool _leftHanded;
     private Vector3? _seatPreview;
-    internal static CockpitProfiles? Instance { get; private set; }
+    internal static CockpitProfiles? Instance
+    {
+        get; private set;
+    }
     internal static int ActiveSlot => Instance?._slots?.Active.Value ?? 1;
     internal static Vector3 SeatOffset => Instance?._seatPreview ?? Instance?._current?.Seat.Value ?? Vector3.zero;
     internal static Vector3 StickPosition => CockpitLayout.StickPreview ?? Instance?._current?.Stick.Value ?? (Vector3)ModConfiguration.Instance.MotionControls.StickPosition.DefaultValue;
@@ -42,14 +45,20 @@ internal sealed class CockpitProfiles : MonoBehaviour
     {
         if (CameraStateManager.cameraMode != CameraMode.cockpit || !GameManager.GetLocalAircraft(out var aircraft) || aircraft.definition == null)
         {
-            _current = null; _slots = null; _key = null; _seatPreview = null;
+            _current = null;
+            _slots = null;
+            _key = null;
+            _seatPreview = null;
             AircraftName = "No aircraft";
             return;
         }
         var identity = AircraftLayoutIdentity.Resolve(aircraft.definition.jsonKey, aircraft.definition.name);
         if (identity.Length == 0)
         {
-            _current = null; _slots = null; _key = null; _seatPreview = null;
+            _current = null;
+            _slots = null;
+            _key = null;
+            _seatPreview = null;
             AircraftName = "Aircraft loading";
             return;
         }
@@ -57,10 +66,15 @@ internal sealed class CockpitProfiles : MonoBehaviour
         if (_key == identity)
         {
             if (_leftHanded != leftHanded)
-            { _leftHanded = leftHanded; MotionFlightController.Instance?.ResetGrips(); }
+            {
+                _leftHanded = leftHanded;
+                MotionFlightController.Instance?.ResetGrips();
+            }
             return;
         }
-        _key = identity; _leftHanded = leftHanded; _seatPreview = null;
+        _key = identity;
+        _leftHanded = leftHanded;
+        _seatPreview = null;
         AircraftName = string.IsNullOrEmpty(aircraft.definition.unitName) ? identity : aircraft.definition.unitName;
         if (!_profiles.TryGetValue(identity, out _slots))
         {
@@ -70,7 +84,8 @@ internal sealed class CockpitProfiles : MonoBehaviour
             {
                 Active = config.Bind(section, "Active Layout Slot", 1, "Selected layout slot (1, 2 or 3) for " + identity + ". Slots never inherit another aircraft's layout.")
             };
-            if (!ValidSlot(_slots.Active.Value)) _slots.Active.Value = 1;
+            if (!ValidSlot(_slots.Active.Value))
+                _slots.Active.Value = 1;
             var collective = MotionFlightController.UsesLiftCollective(aircraft);
             _slots.Slots[0] = LegacyProfile(identity, leftHanded, collective);
             for (var slot = 2; slot <= SlotCount; slot++)
@@ -88,24 +103,29 @@ internal sealed class CockpitProfiles : MonoBehaviour
         // for a new aircraft or silently leak into its second/third slots.
         var stick = (Vector3)settings.StickPosition.DefaultValue;
         var throttle = (Vector3)settings.ThrottlePosition.DefaultValue;
-        if (collective) throttle.y = Mathf.Min(throttle.y, stick.y - .15f);
+        if (collective)
+            throttle.y = Mathf.Min(throttle.y, stick.y - .15f);
         var config = ModConfiguration.Instance.Config;
         var profile = new Profile
         {
             Seat = config.Bind(section, "Seat Offset", Vector3.zero, "Seat translation in meters for " + identity),
             Stick = config.Bind(section, "Stick Position", stick, "Saved stick placement for " + identity),
             Throttle = config.Bind(section, "Throttle Position", throttle, "Saved throttle/collective travel center for " + identity),
-            DefaultStick = stick, DefaultThrottle = throttle
+            DefaultStick = stick,
+            DefaultThrottle = throttle
         };
         profile.Seat.Value = BoundSeat(profile.Seat.Value);
-        if (!TrackedControllers.Finite(profile.Stick.Value)) profile.Stick.Value = stick;
-        if (!TrackedControllers.Finite(profile.Throttle.Value)) profile.Throttle.Value = throttle;
+        if (!TrackedControllers.Finite(profile.Stick.Value))
+            profile.Stick.Value = stick;
+        if (!TrackedControllers.Finite(profile.Throttle.Value))
+            profile.Throttle.Value = throttle;
         return profile;
     }
 
     private static Profile LegacyProfile(string identity, bool leftHanded, bool collective)
     {
-        var section = Section(identity); var config = ModConfiguration.Instance.Config;
+        var section = Section(identity);
+        var config = ModConfiguration.Instance.Config;
         var profile = BindProfile(section, identity, collective);
         var anchored = config.Bind(section, "Cockpit Anchored Handles Applied", false,
             "One-time conversion of old seat-relative handles to fixed cockpit coordinates.");
@@ -120,7 +140,8 @@ internal sealed class CockpitProfiles : MonoBehaviour
             profile.Stick.Value = config.Bind(legacy, "Stick Position", profile.DefaultStick, "Legacy stick placement for " + identity).Value;
             profile.Throttle.Value = config.Bind(legacy, "Throttle Position", profile.DefaultThrottle, "Legacy throttle placement for " + identity).Value;
             anchored.Value = config.Bind(legacy, "Cockpit Anchored Handles Applied", false, "Legacy cockpit anchoring migration state.").Value;
-            if (lowered != null) lowered.Value = config.Bind(legacy, "Lower Collective Default Applied", false, "Legacy collective default migration state.").Value;
+            if (lowered != null)
+                lowered.Value = config.Bind(legacy, "Lower Collective Default Applied", false, "Legacy collective default migration state.").Value;
         }
         if (lowered != null && !lowered.Value)
         {
@@ -129,13 +150,17 @@ internal sealed class CockpitProfiles : MonoBehaviour
             lowered.Value = true;
         }
         profile.Seat.Value = BoundSeat(profile.Seat.Value);
-        if (!TrackedControllers.Finite(profile.Stick.Value)) profile.Stick.Value = profile.DefaultStick;
-        if (!TrackedControllers.Finite(profile.Throttle.Value)) profile.Throttle.Value = profile.DefaultThrottle;
+        if (!TrackedControllers.Finite(profile.Stick.Value))
+            profile.Stick.Value = profile.DefaultStick;
+        if (!TrackedControllers.Finite(profile.Throttle.Value))
+            profile.Throttle.Value = profile.DefaultThrottle;
         if (!anchored.Value)
         {
             var offset = profile.Seat.Value;
-            if (leftHanded) offset.x = -offset.x;
-            profile.Stick.Value += offset; profile.Throttle.Value += offset;
+            if (leftHanded)
+                offset.x = -offset.x;
+            profile.Stick.Value += offset;
+            profile.Throttle.Value += offset;
             anchored.Value = true;
         }
         sharedHandedness.Value = true;
@@ -144,10 +169,14 @@ internal sealed class CockpitProfiles : MonoBehaviour
 
     internal bool SelectSlot(int slot)
     {
-        if (!ValidSlot(slot)) return false;
+        if (!ValidSlot(slot))
+            return false;
         Refresh();
-        if (_slots == null) return false;
-        _slots.Active.Value = slot; _current = _slots.Slots[slot - 1]; _seatPreview = null;
+        if (_slots == null)
+            return false;
+        _slots.Active.Value = slot;
+        _current = _slots.Slots[slot - 1];
+        _seatPreview = null;
         MotionFlightController.Instance?.ResetGrips();
         ModConfiguration.Instance.Config.Save();
         return true;
@@ -157,11 +186,15 @@ internal sealed class CockpitProfiles : MonoBehaviour
     // after both HUD and handle snapshots are saved, and discards preview state.
     internal bool SaveSlot(int slot, Vector3 seat, Vector3 stick, Vector3 throttle)
     {
-        if (!ValidSlot(slot) || !TrackedControllers.Finite(seat) || !TrackedControllers.Finite(stick) || !TrackedControllers.Finite(throttle)) return false;
+        if (!ValidSlot(slot) || !TrackedControllers.Finite(seat) || !TrackedControllers.Finite(stick) || !TrackedControllers.Finite(throttle))
+            return false;
         Refresh();
-        if (_slots == null) return false;
+        if (_slots == null)
+            return false;
         var target = _slots.Slots[slot - 1];
-        target.Seat.Value = BoundSeat(seat); target.Stick.Value = stick; target.Throttle.Value = throttle;
+        target.Seat.Value = BoundSeat(seat);
+        target.Stick.Value = stick;
+        target.Throttle.Value = throttle;
         ModConfiguration.Instance.Config.Save();
         return true;
     }
@@ -169,31 +202,41 @@ internal sealed class CockpitProfiles : MonoBehaviour
     internal void SaveHandles(Vector3 stick, Vector3 throttle)
     {
         Refresh();
-        if (_current != null) SaveSlot(ActiveSlot, SeatOffset, stick, throttle);
+        if (_current != null)
+            SaveSlot(ActiveSlot, SeatOffset, stick, throttle);
     }
     internal void BeginPreview()
     {
         Refresh();
-        if (_current != null && !_seatPreview.HasValue) _seatPreview = _current.Seat.Value;
+        if (_current != null && !_seatPreview.HasValue)
+            _seatPreview = _current.Seat.Value;
     }
     internal void EndPreview()
     {
-        if (!_seatPreview.HasValue) return;
-        _seatPreview = null; MotionFlightController.Instance?.ResetGrips();
+        if (!_seatPreview.HasValue)
+            return;
+        _seatPreview = null;
+        MotionFlightController.Instance?.ResetGrips();
     }
     internal void MoveSeat(Vector3 delta)
     {
         Refresh();
-        if (_current == null) return;
-        if (_seatPreview.HasValue) _seatPreview = BoundSeat(_seatPreview.Value + delta);
-        else _current.Seat.Value = BoundSeat(_current.Seat.Value + delta);
+        if (_current == null)
+            return;
+        if (_seatPreview.HasValue)
+            _seatPreview = BoundSeat(_seatPreview.Value + delta);
+        else
+            _current.Seat.Value = BoundSeat(_current.Seat.Value + delta);
         MotionFlightController.Instance?.ResetGrips();
     }
     internal void ResetProfile()
     {
         Refresh();
-        if (_current == null) return;
-        _current.Seat.Value = Vector3.zero; _current.Stick.Value = _current.DefaultStick; _current.Throttle.Value = _current.DefaultThrottle;
+        if (_current == null)
+            return;
+        _current.Seat.Value = Vector3.zero;
+        _current.Stick.Value = _current.DefaultStick;
+        _current.Throttle.Value = _current.DefaultThrottle;
         MotionFlightController.Instance?.ResetGrips();
         ModConfiguration.Instance.Config.Save();
     }
@@ -205,5 +248,9 @@ internal sealed class CockpitProfiles : MonoBehaviour
         using var hash = SHA256.Create();
         return "Cockpit " + System.BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-", "").Substring(0, 16);
     }
-    private void OnDestroy() { if (Instance == this) Instance = null; }
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
 }

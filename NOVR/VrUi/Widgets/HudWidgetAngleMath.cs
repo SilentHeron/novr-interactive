@@ -10,9 +10,11 @@ internal static class HudWidgetAngleMath
     internal static float Yaw(float value, float fallback = 0) => Finite(value) ? (float)Math.IEEERemainder(value, 360) : fallback;
     internal static (float pitch, float yaw) Direction(float x, float y, float z, float fallbackPitch, float fallbackYaw, bool continuous = false)
     {
-        if (!Finite(x) || !Finite(y) || !Finite(z)) return (fallbackPitch, fallbackYaw);
+        if (!Finite(x) || !Finite(y) || !Finite(z))
+            return (fallbackPitch, fallbackYaw);
         var horizontal = Math.Sqrt((double)x * x + (double)z * z);
-        if (horizontal * horizontal + (double)y * y < .000001) return (fallbackPitch, fallbackYaw);
+        if (horizontal * horizontal + (double)y * y < .000001)
+            return (fallbackPitch, fallbackYaw);
         var pitch = (float)(Math.Atan2(-y, horizontal) * 180 / Math.PI);
         // Yaw is undefined when pointing almost vertically; retain the last
         // usable heading instead of flipping a panel as tracking crosses it.
@@ -30,9 +32,13 @@ internal static class HudWidgetAngleMath
             var alternateDeltaYaw = Yaw(alternateYaw - fallbackYaw);
             if (alternateDeltaPitch * alternateDeltaPitch + alternateDeltaYaw * alternateDeltaYaw <
                 deltaPitch * deltaPitch + deltaYaw * deltaYaw)
-            { pitch = alternatePitch; yaw = alternateYaw; }
+            {
+                pitch = alternatePitch;
+                yaw = alternateYaw;
+            }
         }
-        if (horizontal < .15) yaw = fallbackYaw;
+        if (horizontal < .15)
+            yaw = fallbackYaw;
         return (pitch, yaw);
     }
     internal static (float pitch, float yaw) Drag(float startPitch, float startYaw, float gripPitch, float gripYaw,
@@ -45,7 +51,8 @@ internal static class HudWidgetAngleMath
          Yaw(startYaw + MeanDelta(leftYaw - leftGripYaw, rightYaw - rightGripYaw), startYaw));
     private static float MeanDelta(float left, float right)
     {
-        left = Yaw(left); right = Yaw(right);
+        left = Yaw(left);
+        right = Yaw(right);
         // Follow the short arc: +179 and -179 are adjacent directions, not zero.
         return Yaw(left + Yaw(right - left) * .5f);
     }

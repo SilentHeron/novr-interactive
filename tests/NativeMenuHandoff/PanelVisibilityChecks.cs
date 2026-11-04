@@ -7,16 +7,20 @@ internal static class PanelVisibilityChecks
     {
         var checks = 0;
         void Check(bool condition, string message)
-        { if (!condition) throw new Exception(message); checks++; }
+        {
+            if (!condition)
+                throw new Exception(message);
+            checks++;
+        }
         var root = new NativeVrUiRoot();
         for (var from = 0; from <= 6; from++)
-        for (var to = 0; to <= 6; to++)
-        {
-            root.ShowForCheck(from);
-            root.ShowForCheck(to);
-            Check(root.Panels.Select((panel, index) => panel.Visible == (to == index + 1)).All(value => value),
-                $"Panel transition {from}->{to} leaves exactly the requested panel visible");
-        }
+            for (var to = 0; to <= 6; to++)
+            {
+                root.ShowForCheck(from);
+                root.ShowForCheck(to);
+                Check(root.Panels.Select((panel, index) => panel.Visible == (to == index + 1)).All(value => value),
+                    $"Panel transition {from}->{to} leaves exactly the requested panel visible");
+            }
         root.Root.SetActive(false);
         root.ActivateForCheck(2);
         Check(root.Root.activeSelf && root.Suppressed && root.Panels[1].Visible,
@@ -29,7 +33,8 @@ internal static class PanelVisibilityChecks
         root.ShowForCheck(0);
         Check(root.Panels.All(panel => !panel.Visible), "Startup splash can hide every panel without selecting a destination");
         var empty = new NativeVrUiRoot(false);
-        empty.ShowForCheck(1); empty.ActivateForCheck(6);
+        empty.ShowForCheck(1);
+        empty.ActivateForCheck(6);
         Check(empty.Suppressed, "Panel changes tolerate scene initialization without panel instances");
         return checks;
     }
@@ -45,7 +50,11 @@ namespace NOVR.VrUi.Native
         {
             internal bool Visible;
             internal int Updates;
-            public void SetVisible(bool visible) { Visible = visible; Updates++; }
+            public void SetVisible(bool visible)
+            {
+                Visible = visible;
+                Updates++;
+            }
         }
         private readonly PanelProbe? _mainMenuShell, _singlePlayerMissionPanel, _multiplayerPanel,
             _settingsPanel, _workshopPanel, _vrUiSettingsPanel;
@@ -56,10 +65,15 @@ namespace NOVR.VrUi.Native
         internal NativeVrUiRoot(bool create = true)
         {
             Panels = Enumerable.Range(0, 6).Select(_ => new PanelProbe()).ToArray();
-            if (!create) return;
+            if (!create)
+                return;
             _root = new GameObject();
-            _mainMenuShell = Panels[0]; _singlePlayerMissionPanel = Panels[1]; _multiplayerPanel = Panels[2];
-            _settingsPanel = Panels[3]; _workshopPanel = Panels[4]; _vrUiSettingsPanel = Panels[5];
+            _mainMenuShell = Panels[0];
+            _singlePlayerMissionPanel = Panels[1];
+            _multiplayerPanel = Panels[2];
+            _settingsPanel = Panels[3];
+            _workshopPanel = Panels[4];
+            _vrUiSettingsPanel = Panels[5];
         }
         private void SuppressOriginalMainCanvas(bool value) => Suppressed = value;
         internal void ShowForCheck(int panel) => ShowPanel((MenuPanel)panel);

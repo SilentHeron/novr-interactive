@@ -9,7 +9,7 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 // Ensures our hud markers are in our VR UI camera's space
 internal static class HUDUnitMarkerViewPositionPatch
-{ 
+{
     private static readonly FieldInfo HiddenField = AccessTools.Field(typeof(global::HUDUnitMarker), "hidden");
     private static readonly FieldInfo TransformField = AccessTools.Field(typeof(global::HUDUnitMarker), "_transform");
     private static readonly FieldInfo IconField = AccessTools.Field(typeof(global::HUDUnitMarker), "icon");
@@ -73,7 +73,7 @@ internal static class HUDUnitMarkerViewPositionPatch
                 }
 
                 if (!__instance.unit.HasRadarEmission())
-                  return false;
+                    return false;
 
                 if (__instance.unit.radar is Radar radar && radar.IsJammed())
                 {
@@ -127,7 +127,7 @@ internal static class HUDUnitMarkerViewPositionPatch
         }
 
 
-        
+
         private static void SetTargetArrow(global::CombatHUD instance, bool enabled, Vector3 position, Vector3 targetPosition, Vector3 up, Component screenSpaceCamera)
         {
             var targetArrow = TargetArrowField.GetValue(instance) as Behaviour;
@@ -162,5 +162,5 @@ internal static class HUDUnitMarkerViewPositionPatch
             targetArrow.transform.rotation = Quaternion.LookRotation(desiredForward.normalized, desiredUp);
         }
     }
-    
+
 }

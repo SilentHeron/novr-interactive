@@ -15,27 +15,37 @@ internal sealed class HudCanvasGroupLease
         var existing = owner.GetComponent<CanvasGroup>();
         _owned = existing == null;
         _group = existing != null ? existing : owner.AddComponent<CanvasGroup>();
-        _alpha = _group.alpha; _blocksRaycasts = _group.blocksRaycasts; _interactable = _group.interactable;
+        _alpha = _group.alpha;
+        _blocksRaycasts = _group.blocksRaycasts;
+        _interactable = _group.interactable;
     }
 
     internal void Apply(float multiplier)
     {
-        if (_group == null) return;
+        if (_group == null)
+            return;
         var alpha = _alpha * multiplier;
-        if (_group.alpha != alpha) _group.alpha = alpha;
-        if (_group.blocksRaycasts) _group.blocksRaycasts = false;
-        if (_group.interactable) _group.interactable = false;
+        if (_group.alpha != alpha)
+            _group.alpha = alpha;
+        if (_group.blocksRaycasts)
+            _group.blocksRaycasts = false;
+        if (_group.interactable)
+            _group.interactable = false;
     }
 
     internal void Restore()
     {
-        if (_group == null) return;
-        _group.alpha = _alpha; _group.blocksRaycasts = _blocksRaycasts; _group.interactable = _interactable;
+        if (_group == null)
+            return;
+        _group.alpha = _alpha;
+        _group.blocksRaycasts = _blocksRaycasts;
+        _group.interactable = _interactable;
     }
 
     internal void Release()
     {
         Restore();
-        if (_owned && _group != null) UnityEngine.Object.Destroy(_group);
+        if (_owned && _group != null)
+            UnityEngine.Object.Destroy(_group);
     }
 }

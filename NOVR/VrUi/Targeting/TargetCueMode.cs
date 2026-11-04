@@ -1,6 +1,9 @@
 namespace NOVR.MotionControls;
 
-internal enum TargetCueMode { Context, Always, Off }
+internal enum TargetCueMode
+{
+    Context, Always, Off
+}
 
 internal static class TargetCueVisibility
 {

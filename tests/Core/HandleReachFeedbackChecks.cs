@@ -27,7 +27,8 @@ internal static class HandleReachFeedbackChecks
         });
         check("Handle reach cues reset on invalid tracking and remain independent per hand", () =>
         {
-            var left = new HandleReachFeedback(); var right = new HandleReachFeedback();
+            var left = new HandleReachFeedback();
+            var right = new HandleReachFeedback();
             assert(left.Update(true, false, .1f, .12f, 1));
             assert(right.Update(true, false, .1f, .12f, 1));
             assert(!left.Update(false, false, .1f, .12f, 2));
@@ -35,7 +36,8 @@ internal static class HandleReachFeedbackChecks
             assert(!left.Update(true, false, float.NaN, .12f, 3));
             assert(!left.Update(true, false, .1f, 0, 3));
             assert(left.Update(true, false, .1f, .12f, 4));
-            left.Reset(); assert(left.Update(true, false, .1f, .12f, 0));
+            left.Reset();
+            assert(left.Update(true, false, .1f, .12f, 0));
         });
     }
 }

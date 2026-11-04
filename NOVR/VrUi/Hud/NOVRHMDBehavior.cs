@@ -16,9 +16,11 @@ public class NOVRHMDBehavior : UIRenderedCanvasBehavior
 
     private void LateUpdate()
     {
-        if (NOUIManager.I == null) return;
+        if (NOUIManager.I == null)
+            return;
         var reference = APIBus.CockpitHudReference;
-        if (reference == null) return;
+        if (reference == null)
+            return;
         transform.position = reference.transform.position + reference.transform.forward * 1000f;
         transform.rotation = reference.transform.rotation;
 

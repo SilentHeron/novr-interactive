@@ -19,7 +19,8 @@ internal sealed class MirroredControlGeometry : IDisposable
         {
             foreach (var filter in filters)
             {
-                if (filter == null || filter.sharedMesh == null) continue;
+                if (filter == null || filter.sharedMesh == null)
+                    continue;
                 var original = filter.sharedMesh;
                 var copy = NativeCockpitMesh.ReadableCopy(original);
                 _meshes.Add((filter, original, copy));
@@ -31,17 +32,24 @@ internal sealed class MirroredControlGeometry : IDisposable
                     matrix.m01, matrix.m11, matrix.m21, matrix.m31,
                     matrix.m02, matrix.m12, matrix.m22, matrix.m32,
                     matrix.m03, matrix.m13, matrix.m23, matrix.m33));
-                var vertices = copy.vertices; var normals = copy.normals; var tangents = copy.tangents;
-                for (var i = 0; i < vertices.Length; i++) vertices[i] = Unity(math.Position(Numerics(vertices[i])));
-                for (var i = 0; i < normals.Length; i++) normals[i] = Unity(math.Normal(Numerics(normals[i])));
+                var vertices = copy.vertices;
+                var normals = copy.normals;
+                var tangents = copy.tangents;
+                for (var i = 0; i < vertices.Length; i++)
+                    vertices[i] = Unity(math.Position(Numerics(vertices[i])));
+                for (var i = 0; i < normals.Length; i++)
+                    normals[i] = Unity(math.Normal(Numerics(normals[i])));
                 for (var i = 0; i < tangents.Length; i++)
                 {
-                    var source = tangents[i]; var result = math.Tangent(new N.Vector4(source.x, source.y, source.z, source.w));
+                    var source = tangents[i];
+                    var result = math.Tangent(new N.Vector4(source.x, source.y, source.z, source.w));
                     tangents[i] = new Vector4(result.X, result.Y, result.Z, result.W);
                 }
                 copy.vertices = vertices;
-                if (normals.Length > 0) copy.normals = normals;
-                if (tangents.Length > 0) copy.tangents = tangents;
+                if (normals.Length > 0)
+                    copy.normals = normals;
+                if (tangents.Length > 0)
+                    copy.tangents = tangents;
                 for (var submesh = 0; submesh < copy.subMeshCount; submesh++)
                 {
                     if (copy.GetTopology(submesh) != MeshTopology.Triangles)
@@ -50,7 +58,8 @@ internal sealed class MirroredControlGeometry : IDisposable
                     ControlMirrorMath.ReverseTriangles(indices);
                     copy.SetTriangles(indices, submesh, false);
                 }
-                if (normals.Length == 0) copy.RecalculateNormals();
+                if (normals.Length == 0)
+                    copy.RecalculateNormals();
                 copy.RecalculateBounds();
             }
         }
@@ -59,10 +68,12 @@ internal sealed class MirroredControlGeometry : IDisposable
 
     internal void SetMirrored(bool mirrored)
     {
-        if (_mirrored == mirrored) return;
+        if (_mirrored == mirrored)
+            return;
         _mirrored = mirrored;
         foreach (var item in _meshes)
-            if (item.filter != null) item.filter.sharedMesh = mirrored ? item.mirrored : item.original;
+            if (item.filter != null)
+                item.filter.sharedMesh = mirrored ? item.mirrored : item.original;
     }
 
     private static N.Vector3 Numerics(Vector3 value) => new(value.x, value.y, value.z);
@@ -72,9 +83,11 @@ internal sealed class MirroredControlGeometry : IDisposable
     {
         foreach (var item in _meshes)
         {
-            if (item.filter != null && item.filter.sharedMesh == item.mirrored) item.filter.sharedMesh = item.original;
+            if (item.filter != null && item.filter.sharedMesh == item.mirrored)
+                item.filter.sharedMesh = item.original;
             Object.Destroy(item.mirrored);
         }
-        _meshes.Clear(); _mirrored = false;
+        _meshes.Clear();
+        _mirrored = false;
     }
 }

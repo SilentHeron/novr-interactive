@@ -23,19 +23,26 @@ internal sealed class ClosedMfdBorder : MonoBehaviour
 
     internal void Refresh()
     {
-        if (_screen == null || _border == null) return;
+        if (_screen == null || _border == null)
+            return;
         if (UnityEngine.XR.XRSettings.enabled && !_screen.isActive)
         {
-            if (!_suppressed) { _originalEnabled = _border.enabled; _suppressed = true; }
+            if (!_suppressed)
+            {
+                _originalEnabled = _border.enabled;
+                _suppressed = true;
+            }
             _border.enabled = false;
         }
-        else Restore();
+        else
+            Restore();
     }
 
     private void LateUpdate() => Refresh();
     private void Restore()
     {
-        if (_suppressed && _border != null) _border.enabled = _originalEnabled;
+        if (_suppressed && _border != null)
+            _border.enabled = _originalEnabled;
         _suppressed = false;
     }
     private void OnDisable() => Restore();
@@ -47,7 +54,8 @@ internal static class ClosedMfdBorderPatch
     private static void Refresh(MFDScreen screen)
     {
         var border = screen.GetComponent<ClosedMfdBorder>();
-        if (border == null) border = screen.gameObject.AddComponent<ClosedMfdBorder>();
+        if (border == null)
+            border = screen.gameObject.AddComponent<ClosedMfdBorder>();
         border.Refresh();
     }
 

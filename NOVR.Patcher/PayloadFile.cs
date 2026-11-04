@@ -6,7 +6,8 @@ internal static class PayloadFile
     // Do not attempt to overwrite a mapped DLL when the payload is already installed.
     internal static bool CopyIfChanged(string source, string destination)
     {
-        if (File.Exists(destination) && SameContents(source, destination)) return false;
+        if (File.Exists(destination) && SameContents(source, destination))
+            return false;
         File.Copy(source, destination, true);
         return true;
     }
@@ -15,7 +16,8 @@ internal static class PayloadFile
     {
         using var a = File.OpenRead(first);
         using var b = File.OpenRead(second);
-        if (a.Length != b.Length) return false;
+        if (a.Length != b.Length)
+            return false;
         var bufferA = new byte[8192];
         var bufferB = new byte[8192];
         int count;
@@ -25,11 +27,13 @@ internal static class PayloadFile
             while (read < count)
             {
                 var next = b.Read(bufferB, read, count - read);
-                if (next == 0) return false;
+                if (next == 0)
+                    return false;
                 read += next;
             }
             for (var i = 0; i < count; i++)
-                if (bufferA[i] != bufferB[i]) return false;
+                if (bufferA[i] != bufferB[i])
+                    return false;
         }
         return b.ReadByte() == -1;
     }

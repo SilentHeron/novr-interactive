@@ -152,12 +152,14 @@ public class Patcher
             // libraries or duplicates in subdirectories; deleting a current DLL first
             // would defeat the unchanged-file check and can fail when Unity maps it.
             if (Path.GetDirectoryName(pluginPath) == gamePluginsPath &&
-                File.Exists(Path.Combine(nativePayload, Path.GetFileName(pluginPath)))) continue;
+                File.Exists(Path.Combine(nativePayload, Path.GetFileName(pluginPath))))
+                continue;
             try
             {
                 Console.WriteLine($"Deleting plugin `{pluginPath}`");
                 File.Delete(pluginPath);
-            } catch (Exception exception)
+            }
+            catch (Exception exception)
             {
                 Console.WriteLine($"Failed to delete plugin before patching. Path: `{pluginPath}`. Exception: `{exception}`");
             }
