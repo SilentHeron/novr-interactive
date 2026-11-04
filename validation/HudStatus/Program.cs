@@ -126,4 +126,5 @@ backgroundHide.Apply(); Canvas.Render();
 Check(!fallback.GetComponent<CanvasRenderer>().cull, "Background-only suppression does not hide unrelated descendant graphics");
 backgroundHide.Release(); backgroundHide.Release();
 
-Console.WriteLine($"HUD status checks passed: {assertions} assertions (source-linked draw suppression, group ownership, backplates and crash canvas recovery).");
+assertions += CockpitAlerts.RunThreatChecks();
+Console.WriteLine($"HUD status checks passed: {assertions} assertions (source-linked draw suppression, ownership, recovery and threat refresh).");

@@ -10,5 +10,7 @@
     <Compile Include="../../NOVR/VrUi/Components/HudReadability.cs" Link="HudReadability.cs" />
     <Compile Include="../../NOVR/VrUi/Components/Fs20HudPresentation.cs" Link="Fs20HudPresentation.cs" />
     <Compile Include="../../NOVR/VrUi/Components/NativeWeaponSafetyIndicator.cs" Link="NativeWeaponSafetyIndicator.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/CockpitAlerts.Threats.cs" Link="CockpitAlerts.Threats.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
   </ItemGroup>
 </Project>

@@ -31,6 +31,8 @@ foreach(var graphic in graphics)
     Check(graphic.material.shader==additive,"Native shared material is never assigned or changed");
 }
 var target=graphics[0];var adapter=target.GetComponent<CockpitWidgetDepthMaterial>()!;var original=target.material;
+var nameReads=additive.NameReads;adapter.GetModifiedMaterial(original);
+Check(additive.NameReads==nameReads+1,"A material callback reads the native shader name only once");
 var atlas=new object();original.Properties["_MainTex"]=atlas;original.Properties["_GradientScale"]=5f;original.Properties["_FaceDilate"]=.07f;
 original.Properties["_Stencil"]=3;original.Properties["_StencilComp"]=8;original.Properties["_ClipRect"]="native rect";original.Properties["_UnderlaySoftness"]=.4f;
 original.Keywords=new[]{"UNDERLAY_ON","UNITY_UI_CLIP_RECT"};

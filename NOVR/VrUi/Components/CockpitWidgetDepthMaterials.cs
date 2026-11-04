@@ -115,10 +115,11 @@ internal sealed class CockpitWidgetDepthMaterial : MonoBehaviour, IMaterialModif
         // stencil/clip variants. Keep its additive blend: native map-grid
         // textures have opaque black pixels that must not cover the terrain.
         // Only these inspected native font shaders hard-code ZTest Always.
-        if (source.name == "TextMeshPro/Distance Field Additive" ||
-            source.name == "TextMeshPro/Mobile/Distance Field Additive" ||
-            source.name == "TextMeshPro/Distance Field Additive with Glow" ||
-            source.name == "TextMeshPro/Distance Field Overlay")
+        var name = source.name;
+        if (name == "TextMeshPro/Distance Field Additive" ||
+            name == "TextMeshPro/Mobile/Distance Field Additive" ||
+            name == "TextMeshPro/Distance Field Additive with Glow" ||
+            name == "TextMeshPro/Distance Field Overlay")
             return _font != null ? _font : _font = Shader.Find("TextMeshPro/Mobile/Distance Field");
         return null;
     }

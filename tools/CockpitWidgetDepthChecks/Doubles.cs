@@ -58,6 +58,8 @@ namespace UnityEngine
     public sealed class Canvas:Component { public RenderMode renderMode; }
     public sealed class Shader:Object
     {
+        public int NameReads;
+        public new string name { get { NameReads++; return base.name; } set => base.name = value; }
         private static readonly Dictionary<string,Shader> All=new();
         public Shader(string name){this.name=name;All[name]=this;}
         public static Shader? Find(string name)=>All.TryGetValue(name,out var shader)?shader:null;
