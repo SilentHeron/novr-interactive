@@ -279,4 +279,5 @@ Console.WriteLine("PASS collective defaults lower once, custom placement retaine
     Near(CockpitProfiles.ThrottlePosition, secondThrottle);
     Console.WriteLine("PASS live configured slot changes discard old previews; active and cached slots reject invalid values");
 }
-Console.WriteLine(assertions + " profile migration and slot assertions passed.");
+LayoutChecks.Run(Yes);
+Console.WriteLine(assertions + " profile migration, slot and layout assertions passed.");

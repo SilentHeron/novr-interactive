@@ -9,5 +9,8 @@
   <ItemGroup>
     <Compile Include="../../NOVR/Profiles/AircraftLayoutIdentity.cs" Link="AircraftLayoutIdentity.cs" />
     <Compile Include="../../NOVR/Profiles/CockpitProfiles.cs" Link="CockpitProfiles.cs" />
+    <Compile Include="../../NOVR/Profiles/CockpitLayout.cs" Link="CockpitLayout.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
   </ItemGroup>
 </Project>

@@ -24,6 +24,7 @@ internal sealed class CockpitLayout : MonoBehaviour
         get; private set;
     }
     internal static bool Active => Instance?._active == true;
+    private static bool HandlesEnabled => ModConfiguration.Instance.MotionControls.Enabled.Value;
     private bool _active, _leftHanded, _unified;
     internal static bool Unified => Active && Instance!._unified;
     private Aircraft? _aircraft;
@@ -35,11 +36,13 @@ internal sealed class CockpitLayout : MonoBehaviour
     internal static Vector3? StickPreview => Active ? Instance!._stick : null;
     internal static Vector3? ThrottlePreview => Active ? Instance!._throttle : null;
     internal static string Hint => Unified
-        ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
+        ? HandlesEnabled
+            ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
+            : "EDIT LAYOUT  •  GRIP HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
         : "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
-    internal static bool Held(Element element) => Active && (Instance!._hands[0].Element == element || Instance._hands[1].Element == element);
-    internal static bool Hovered(Element element) => Active && (Instance!._hands[0].Hover == element || Instance._hands[1].Hover == element);
-    internal static Element HeldByHand(bool left) => Active ? Instance!._hands[left ? 0 : 1].Element : Element.None;
+    internal static bool Held(Element element) => Active && HandlesEnabled && (Instance!._hands[0].Element == element || Instance._hands[1].Element == element);
+    internal static bool Hovered(Element element) => Active && HandlesEnabled && (Instance!._hands[0].Hover == element || Instance._hands[1].Hover == element);
+    internal static Element HeldByHand(bool left) => Active && HandlesEnabled ? Instance!._hands[left ? 0 : 1].Element : Element.None;
     private Vector3 Mirror(Vector3 p) => _leftHanded ? new Vector3(-p.x, p.y, p.z) : p;
     private void Awake() => Instance = this;
 
@@ -86,7 +89,8 @@ internal sealed class CockpitLayout : MonoBehaviour
         _anchor = NOVRHeadsetData.TranslationAnchor;
         _seatOffset = CockpitProfiles.SeatOffset;
         _recenterRotation = NOVRHeadsetData.RotationCalibrationOffset;
-        ModConfiguration.Instance.MotionControls.Enabled.Value = true;
+        // HUD editing also serves hardware HOTAS users. Keep their flight-input
+        // mode unchanged; hidden handles must not participate in this preview.
         MotionFlightController.Instance?.CancelPlacement();
         ControllerActions.Instance?.ResetButtons();
         _unified = unified;
@@ -123,7 +127,7 @@ internal sealed class CockpitLayout : MonoBehaviour
 
     internal void BringWithinReach()
     {
-        if (!_active || !SameContext)
+        if (!_active || !SameContext || !HandlesEnabled)
             return;
         var seat = CockpitProfiles.SeatOffset;
         var stick = seat + Mirror(new Vector3(.22f, -.35f, .30f));
@@ -140,7 +144,7 @@ internal sealed class CockpitLayout : MonoBehaviour
     internal static float GrabDistance(bool left, ControllerSample hand)
     {
         var self = Instance;
-        if (self?._active != true || !self.SameContext || !hand.Valid || !TrackedControllers.Finite(hand.Position))
+        if (self?._active != true || !HandlesEnabled || !self.SameContext || !hand.Valid || !TrackedControllers.Finite(hand.Position))
             return float.PositiveInfinity;
         return self.SelectNearby(hand.Position, left ? 0 : 1, out var distance) != Element.None
             ? distance : float.PositiveInfinity;
@@ -169,7 +173,7 @@ internal sealed class CockpitLayout : MonoBehaviour
             _recenterRotation = NOVRHeadsetData.RotationCalibrationOffset;
             _seatOffset = CockpitProfiles.SeatOffset;
         }
-        if (!TrackedControllers.Available || WristMenu.IsOpen || Time.timeScale <= 0 || DynamicMap.mapMaximized ||
+        if (!HandlesEnabled || !TrackedControllers.Available || WristMenu.IsOpen || Time.timeScale <= 0 || DynamicMap.mapMaximized ||
             !GameManager.flightControlsEnabled || CursorManager.GetFlag(CursorFlags.GameMenu) ||
             (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) ||
             (GameManager.controlMapper != null && GameManager.controlMapper.isOpen))
