@@ -103,6 +103,7 @@ XRController.leftHand = new XRController(); yes(TrackedControllers.Profile(true)
 XRController.leftHand = null; yes(TrackedControllers.Profile(true) == ControllerHardwareProfile.Unknown);
 
 var settings = new OpenXRSettings(); settings.EnableNovrControllerProfiles();
+yes(!settings.features.Any(f => f is EyeGazeInteraction));
 var existingFrame = settings.features.Single(f => f is SteamFrameControllerProfile);
 settings.EnableNovrControllerProfiles();
 yes(settings.features.Count(f => f is SteamFrameControllerProfile) == 1 && settings.features.Contains(existingFrame));
@@ -110,6 +111,34 @@ yes(settings.features.Count(f => f is OculusTouchControllerProfile) == 1);
 yes(settings.features.Single(f => f is MetaQuestTouchPlusControllerProfile).openxrExtensionStrings == "XR_META_touch_controller_plus");
 yes(settings.features.Single(f => f is MetaQuestTouchProControllerProfile).openxrExtensionStrings == "XR_FB_touch_controller_pro");
 yes(existingFrame.openxrExtensionStrings == "XR_VALVE_frame_controller_interaction" && settings.features.All(f => f.enabled));
+yes(!settings.features.Any(f => f is EyeGazeInteraction || f.openxrExtensionStrings == EyeGazeInteraction.extensionString));
+
+// Production report updates once at startup, then only while its page is open.
+var performance = new PcVrCapabilities();
+var updatePerformance = typeof(PcVrCapabilities).GetMethod("Update", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+void performanceTick(float time) { Time.unscaledTime = time; updatePerformance.Invoke(performance, null); }
+Debug.Logs.Clear(); Debug.Warnings.Clear();
+performanceTick(0);
+yes(PcVrCapabilities.Report.Contains("SteamVR") && PcVrCapabilities.Report.Contains("Direct3D11"));
+yes(PcVrCapabilities.Report.Contains("3028 × 3028 per eye") && PcVrCapabilities.Report.Contains("1920 × 1080"));
+yes(!PcVrCapabilities.Report.Contains("gaze", StringComparison.OrdinalIgnoreCase) && !PcVrCapabilities.Report.Contains("foveat", StringComparison.OrdinalIgnoreCase));
+yes(Debug.Logs.Count == 1 && OpenXRRuntime.NameReads == 1);
+XRSettings.eyeTextureWidth = 2400; Screen.width = 1600;
+performanceTick(2);
+yes(OpenXRRuntime.NameReads == 1 && PcVrCapabilities.Report.Contains("3028"));
+NOVR.VrUi.WristMenu.IsPerformancePage = true;
+performanceTick(3);
+yes(PcVrCapabilities.Report.Contains("2400 × 3028") && PcVrCapabilities.Report.Contains("1600 × 1080"));
+yes(Debug.Logs.Count == 1 && OpenXRRuntime.NameReads == 2);
+performanceTick(3.5f);
+yes(OpenXRRuntime.NameReads == 2);
+XRSettings.enabled = false; performanceTick(4);
+yes(PcVrCapabilities.Report == "VR runtime is not active.");
+NOVR.VrUi.WristMenu.IsPerformancePage = false; XRSettings.enabled = true;
+OpenXRRuntime.Fail = true; performanceTick(5); performanceTick(6);
+yes(Debug.Warnings.Count == 1 && PcVrCapabilities.Report.Contains("not available yet"));
+OpenXRRuntime.Fail = false; XRSettings.eyeTextureWidth = 0; performanceTick(7);
+yes(Debug.Logs.Count == 2 && PcVrCapabilities.Report.Contains("Waiting for eye textures"));
 Console.WriteLine($"{assertions} controller runtime/profile assertions passed (source linked; no headset or game). ");
 
 sealed class DerivedTouch : OculusTouchControllerProfile.OculusTouchController { }

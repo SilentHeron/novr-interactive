@@ -10,6 +10,7 @@
     <Compile Include="../../NOVR/MotionControls/TrackedControllers.cs" Link="TrackedControllers.cs" />
     <Compile Include="../../NOVR/MotionControls/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
     <Compile Include="../../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+    <Compile Include="../../NOVR/MotionControls/PcVrCapabilities.cs" Link="PcVrCapabilities.cs" />
     <Compile Include="../../NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs" Link="NovrControllerProfiles.cs" />
   </ItemGroup>
 </Project>

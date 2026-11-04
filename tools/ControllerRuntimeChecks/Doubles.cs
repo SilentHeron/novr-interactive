@@ -14,8 +14,16 @@ namespace UnityEngine
             a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y, a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,
             a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w, a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z);
     }
-    public static class Time { public static int frameCount; }
-    public static class Debug { public static void Log(string message) { } }
+    public class MonoBehaviour { }
+    public static class Time { public static int frameCount; public static float unscaledTime; }
+    public static class Debug
+    {
+        public static readonly List<string> Logs = new(), Warnings = new();
+        public static void Log(string message) => Logs.Add(message);
+        public static void LogWarning(string message) => Warnings.Add(message);
+    }
+    public static class Screen { public static int width = 1920, height = 1080; }
+    public static class SystemInfo { public static string graphicsDeviceType = "Direct3D11"; }
 }
 namespace UnityEngine.InputSystem.Controls
 {
@@ -64,7 +72,7 @@ namespace UnityEngine.XR
         public static readonly Dictionary<XRNode, InputDevice> Devices = new();
         public static InputDevice GetDeviceAtXRNode(XRNode node) => Devices.GetValueOrDefault(node);
     }
-    public static class XRSettings { public static bool enabled = true; }
+    public static class XRSettings { public static bool enabled = true; public static int eyeTextureWidth = 3028, eyeTextureHeight = 3028; }
     public static class CommonUsages
     {
         public static readonly InputFeatureUsage<bool> isTracked = new("isTracked"), userPresence = new("userPresence"),
@@ -90,6 +98,13 @@ namespace UnityEngine.XR.OpenXR.Input
 namespace UnityEngine.XR.OpenXR
 {
     public static class OpenXRUtility { public static bool IsSessionFocused = true; }
+    public static class OpenXRRuntime
+    {
+        public static int NameReads;
+        public static bool Fail;
+        public static string name { get { NameReads++; if (Fail) throw new InvalidOperationException(); return "SteamVR"; } }
+        public static string version => "1.0";
+    }
     public partial class OpenXRSettings
     {
         internal Features.OpenXRFeature[] features = Array.Empty<Features.OpenXRFeature>();
@@ -143,4 +158,8 @@ namespace NOVR
 namespace NOVR.MotionControls
 {
     internal static class CockpitProfiles { public static UnityEngine.Vector3 SeatOffset; }
+}
+namespace NOVR.VrUi
+{
+    internal static class WristMenu { public static bool IsPerformancePage; }
 }
