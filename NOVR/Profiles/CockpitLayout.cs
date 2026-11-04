@@ -25,22 +25,7 @@ internal sealed class CockpitLayout : MonoBehaviour
     }
     internal static bool Active => Instance?._active == true;
     private bool _active, _leftHanded, _unified;
-    private Element _onlyElement;
     internal static bool Unified => Active && Instance!._unified;
-    internal static bool PhysicalHandleEdit => Active && Instance!._onlyElement != Element.None;
-    internal static bool Unlocked(Element element) => Active && (Instance!._onlyElement == Element.None || Instance._onlyElement == element);
-    internal void ToggleHandle(Element element)
-    {
-        if (element != Element.Stick && element != Element.Throttle)
-            return;
-        var close = Unlocked(element);
-        if (_active)
-            Finish(true);
-        if (close)
-            return;
-        CockpitHudWidgets.Instance?.Finish(false);
-        BeginCore(false, element, true);
-    }
     private Aircraft? _aircraft;
     private Vector3 _stick, _throttle, _calibration, _anchor, _seatOffset;
     private Quaternion _recenterRotation;
@@ -65,7 +50,7 @@ internal sealed class CockpitLayout : MonoBehaviour
             CockpitHudWidgets.Instance.Begin();
             return;
         }
-        BeginCore(false, Element.None, true);
+        BeginCore(false, true);
     }
 
     // The HUD manager owns the combined transaction. These entry points never
@@ -76,7 +61,7 @@ internal sealed class CockpitLayout : MonoBehaviour
             return true;
         if (_active)
             FinishCore(false);
-        BeginCore(true, Element.None, false);
+        BeginCore(true, false);
         return _active && _unified;
     }
     internal bool CanSaveUnified => _active && _unified && SameContext;
@@ -88,7 +73,7 @@ internal sealed class CockpitLayout : MonoBehaviour
     private bool SameContext => GameManager.GetLocalAircraft(out var aircraft) && aircraft == _aircraft &&
         _leftHanded == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
 
-    private void BeginCore(bool unified, Element onlyElement, bool closeMenu)
+    private void BeginCore(bool unified, bool closeMenu)
     {
         if (_active || !GameManager.GetLocalAircraft(out var aircraft) || CameraStateManager.cameraMode != CameraMode.cockpit)
             return;
@@ -104,7 +89,6 @@ internal sealed class CockpitLayout : MonoBehaviour
         ModConfiguration.Instance.MotionControls.Enabled.Value = true;
         MotionFlightController.Instance?.CancelPlacement();
         ControllerActions.Instance?.ResetButtons();
-        _onlyElement = onlyElement;
         _unified = unified;
         _active = true;
         Release();
@@ -127,7 +111,6 @@ internal sealed class CockpitLayout : MonoBehaviour
             return;
         var sameAircraft = SameContext;
         _active = _unified = false;
-        _onlyElement = Element.None;
         Release();
         if (save && sameAircraft)
         {
@@ -255,8 +238,6 @@ internal sealed class CockpitLayout : MonoBehaviour
         {
             if (_hands[1 - index].Element == element)
                 continue;
-            if (_onlyElement != Element.None && element != _onlyElement)
-                continue;
             var center = GripPosition(element);
             var along = Vector3.Dot(center - ray.origin, ray.direction);
             if (Vector3.Distance(ray.GetPoint(along), center) > .09f)
@@ -277,8 +258,6 @@ internal sealed class CockpitLayout : MonoBehaviour
         // Reach takes precedence over pointing. Either hand may move any item.
         foreach (var element in new[] { Element.Stick, Element.Throttle })
         {
-            if (_onlyElement != Element.None && element != _onlyElement)
-                continue;
             if (_hands[1 - index].Element == element)
                 continue;
             var d = Vector3.Distance(hand, GripPosition(element));
