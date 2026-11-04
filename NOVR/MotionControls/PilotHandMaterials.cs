@@ -29,27 +29,35 @@ internal sealed class PilotHandMaterials : IDisposable
     private byte[]? _fabricRed;
     private bool _disposed;
     private readonly PilotUniformTeam _team;
-    private readonly Texture2D _fabric, _gloveColor, _gloveNormal;
+    private Texture2D? _fabric;
+    private int _fabricWidth, _fabricHeight;
+    private readonly Texture2D _gloveColor, _gloveNormal;
     internal static PilotUniformTeam Team(Faction? faction) => PilotUniformPalette.Resolve(faction?.factionTag, faction?.factionName);
     internal bool Matches(Faction? faction) => _team == Team(faction);
     internal PilotHandMaterials(Faction? faction)
     {
-        _team = Team(faction);
-        _fabric=Load("PilotFabricDetail.png",true,false);
-        _gloveColor=Load("GloveColor.jpg",false,_team==PilotUniformTeam.Native);
-        if(_team!=PilotUniformTeam.Native)
+        try
         {
-            var native=_gloveColor.GetPixels32();var input=new byte[native.Length*4];
-            for(var i=0;i<native.Length;i++){input[i*4]=native[i].r;input[i*4+1]=native[i].g;input[i*4+2]=native[i].b;input[i*4+3]=native[i].a;}
-            var recolored=PilotTextureEnhancement.Recolor(input,_gloveColor.width,_gloveColor.height,_team,true,default);
-            var texture=new Texture2D(_gloveColor.width,_gloveColor.height,TextureFormat.RGBA32,true)
-                {name="NOVR "+_team+" glove",filterMode=FilterMode.Trilinear,anisoLevel=4,wrapMode=TextureWrapMode.Repeat};
-            _textures.Add(texture);texture.SetPixelData(recolored,0);texture.Apply(true,true);_gloveColor=texture;
+            _team = Team(faction);
+            _fabric=Load("PilotFabricDetail.png",true,false);
+            _gloveColor=Load("GloveColor.jpg",false,_team==PilotUniformTeam.Native);
+            if(_team!=PilotUniformTeam.Native)
+            {
+                var native=_gloveColor.GetPixels32();var input=new byte[native.Length*4];
+                for(var i=0;i<native.Length;i++){input[i*4]=native[i].r;input[i*4+1]=native[i].g;input[i*4+2]=native[i].b;input[i*4+3]=native[i].a;}
+                var recolored=PilotTextureEnhancement.Recolor(input,_gloveColor.width,_gloveColor.height,_team,true,default);
+                var texture=new Texture2D(_gloveColor.width,_gloveColor.height,TextureFormat.RGBA32,true)
+                    {name="NOVR "+_team+" glove",filterMode=FilterMode.Trilinear,anisoLevel=4,wrapMode=TextureWrapMode.Repeat};
+                _textures.Add(texture);texture.SetPixelData(recolored,0);texture.Apply(true,true);
+                var original = _gloveColor; _gloveColor=texture;
+                ReleaseTexture(original); // The recolored copy is now the only glove albedo in use.
+            }
+            _gloveNormal=Load("GloveNormal.png",true,false);
+            // Unity's desktop normal-map unpack expects X in alpha, Y in green.
+            var pixels=_gloveNormal.GetPixels32();for(var i=0;i<pixels.Length;i++)pixels[i]=new Color32(255,pixels[i].g,255,pixels[i].r);
+            _gloveNormal.SetPixels32(pixels);_gloveNormal.Apply(true,true);
         }
-        _gloveNormal=Load("GloveNormal.png",true,false);
-        // Unity's desktop normal-map unpack expects X in alpha, Y in green.
-        var pixels=_gloveNormal.GetPixels32();for(var i=0;i<pixels.Length;i++)pixels[i]=new Color32(255,pixels[i].g,255,pixels[i].r);
-        _gloveNormal.SetPixels32(pixels);_gloveNormal.Apply(true,true);
+        catch { Dispose(); throw; } // The caller cannot own a constructor that failed.
     }
     private Texture2D Load(string file,bool linear,bool discard=true)
     {
@@ -133,8 +141,16 @@ internal sealed class PilotHandMaterials : IDisposable
             var pixelWidth=Mathf.Max(1,Mathf.RoundToInt(next.Source.width*(float)target/longest));
             var pixelHeight=Mathf.Max(1,Mathf.RoundToInt(next.Source.height*(float)target/longest));
             var input=Snapshot(next.Source,pixelWidth,pixelHeight,next.Normal);
-            var fabric=_fabricRed ??= Array.ConvertAll(_fabric.GetPixels32(),pixel=>pixel.r);
-            var width=_fabric.width;var height=_fabric.height;
+            if (_fabricRed == null)
+            {
+                var texture = _fabric!;
+                _fabricRed = Array.ConvertAll(texture.GetPixels32(),pixel=>pixel.r);
+                _fabricWidth = texture.width; _fabricHeight = texture.height;
+                // Filtering uses these bytes only. Do not retain a readable,
+                // mipmapped GPU texture for the rest of the aircraft session.
+                ReleaseTexture(texture); _fabric = null;
+            }
+            var fabric=_fabricRed;var width=_fabricWidth;var height=_fabricHeight;
             next.Width=pixelWidth;next.Height=pixelHeight;next.SnapshotMilliseconds=timer.Elapsed.TotalMilliseconds;_processing=next;
             // Capture arrays/scalars only. Texture creation, reads and uploads stay on Unity's thread.
             var team=_team;var normal=next.Normal;
@@ -200,7 +216,11 @@ internal sealed class PilotHandMaterials : IDisposable
     public void Dispose()
     {
         if(_disposed)return;_disposed=true;
-        _work?.Dispose();_work=null;_processing=null;_pending.Clear();_enhanced.Clear();_fabricRed=null;
+        _work?.Dispose();_work=null;_processing=null;_pending.Clear();_enhanced.Clear();_fabricRed=null;_fabric=null;
         foreach(var m in _materials)Object.Destroy(m);foreach(var t in _textures)Object.Destroy(t);_materials.Clear();_textures.Clear();
+    }
+    private void ReleaseTexture(Texture2D texture)
+    {
+        if (_textures.Remove(texture)) Object.Destroy(texture);
     }
 }

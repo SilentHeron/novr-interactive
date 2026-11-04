@@ -8,3 +8,4 @@ TexturePreparationChecks.Run((name, action) =>
 Console.WriteLine($"{passed} texture preparation checks passed.");
 
 BindingChecks.Run();
+ResourceChecks.Run();

@@ -18,15 +18,3 @@ internal static class BindingChecks
         Console.WriteLine("PASS Material replacement preserves sampler transforms, normal strength, distinct maps and missing slots");
     }
 }
-namespace UnityEngine
-{
-    internal sealed class Texture { }
-    internal sealed class Material
-    {
-        internal readonly Dictionary<string,Texture> Maps=new();
-        internal readonly float NormalStrength=.65f;internal readonly (float,float) Scale=(2f,3f),Offset=(.3f,.1f);internal readonly bool Keyword=true;
-        internal bool HasProperty(string name)=>Maps.ContainsKey(name);
-        internal Texture GetTexture(string name)=>Maps[name];
-        internal void SetTexture(string name,Texture texture)=>Maps[name]=texture;
-    }
-}

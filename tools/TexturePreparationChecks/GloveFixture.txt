@@ -1,0 +1,1 @@
+The boundary texture decoder supplies tiny pixels; this is not an image or game asset.
