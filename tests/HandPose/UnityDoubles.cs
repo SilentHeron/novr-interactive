@@ -6,8 +6,19 @@ namespace UnityEngine
 {
     public class Object
     {
-        public string name = ""; public static void Destroy(Object value)
+        internal static readonly List<Object> Created = new();
+        internal int DestroyCount;
+        public string name = "";
+        protected Object() => Created.Add(this);
+        public static void Destroy(Object value)
         {
+            value.DestroyCount++;
+            if (value is GameObject go)
+            {
+                foreach (var child in go.transform.Children.ToArray())
+                    Destroy(child.gameObject);
+                go.transform.parent?.Children.Remove(go.transform);
+            }
         }
     }
     public class GameObject : Object
@@ -19,14 +30,24 @@ namespace UnityEngine
             transform = new Transform(this);
         }
         public void SetActive(bool active) => activeSelf = active;
-        public T AddComponent<T>() where T : new() => new();
+        public T AddComponent<T>() where T : new()
+        {
+            ResourceFault.Check("renderer");
+            return new();
+        }
     }
     public sealed class Transform
     {
+        internal readonly List<Transform> Children = new();
         public readonly GameObject gameObject; public Transform parent = null!;
         public Vector3 localPosition; public Quaternion localRotation = Quaternion.identity;
         public Transform(GameObject owner) => gameObject = owner;
-        public void SetParent(Transform value, bool worldPositionStays) => parent = value;
+        public void SetParent(Transform value, bool worldPositionStays)
+        {
+            parent?.Children.Remove(this);
+            parent = value;
+            parent?.Children.Add(this);
+        }
         public Vector3 position
         {
             get => parent == null ? localPosition : parent.TransformPoint(localPosition); set => localPosition = parent == null ? value : parent.InverseTransformPoint(value);
@@ -114,11 +135,31 @@ namespace UnityEngine
     public sealed class Material : Object
     {
     }
+    internal static class ResourceFault
+    {
+        internal static string? Operation;
+        internal static void Check(string operation)
+        {
+            if (Operation == operation)
+                throw new InvalidOperationException("Injected " + operation + " failure");
+        }
+    }
     public sealed class Mesh : Object
     {
-        public Vector3[] vertices = [], normals = []; public Vector2[] uv = []; public BoneWeight[] boneWeights = []; public Matrix4x4[] bindposes = []; public int[] triangles = [];
+        private Vector3[] _vertices = [];
+        public Vector3[] vertices
+        {
+            get => _vertices;
+            set
+            {
+                ResourceFault.Check("vertices");
+                _vertices = value;
+            }
+        }
+        public Vector3[] normals = []; public Vector2[] uv = []; public BoneWeight[] boneWeights = []; public Matrix4x4[] bindposes = []; public int[] triangles = [];
         public void RecalculateNormals()
         {
+            ResourceFault.Check("normals");
             normals = new Vector3[vertices.Length];
             for (var i = 0; i < triangles.Length; i += 3)
             {
@@ -135,6 +176,7 @@ namespace UnityEngine
         }
         public void RecalculateTangents()
         {
+            ResourceFault.Check("tangents");
         }
         public void RecalculateBounds()
         {

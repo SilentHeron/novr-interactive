@@ -42,6 +42,7 @@ internal sealed class RiggedGlove : IDisposable
 
     private readonly FingerGroup[] _fingers;
     private readonly Mesh _mesh;
+    private bool _disposed;
     private readonly bool _left;
     private float _grip, _trigger, _thumb, _thumbContact, _indexContact, _triggerPressure;
     private bool _wasFittedStick;
@@ -96,104 +97,114 @@ internal sealed class RiggedGlove : IDisposable
     {
         _left = left;
         var asset = Load(left);
-        Root = new GameObject(left ? "NOVR Left Glove" : "NOVR Right Glove").transform;
-        Root.SetParent(parent, false);
-        _bones = new Transform[asset.bones.Length];
-        _open = new Quaternion[_bones.Length];
-        _closed = new Quaternion[_bones.Length];
-        _fs20Throttle = new Quaternion[_bones.Length];
-        _fs20Stick = new Quaternion[_bones.Length];
-        _throttleThumb = new Quaternion[_bones.Length];
-        _stickThumb = new Quaternion[_bones.Length];
-        _fingers = new FingerGroup[_bones.Length];
-        _fireTouch = new Quaternion[_bones.Length];
-        _firePress = new Quaternion[_bones.Length];
-        _stickTrigger = new Quaternion[_bones.Length];
-        _stickThumbPress = new Quaternion[_bones.Length];
-        _switchPinch = new Quaternion[_bones.Length];
-        _attachmentFromBones = new Quaternion[_bones.Length];
-        _collective = new Quaternion[_bones.Length];
-        _collectiveThumb = new Quaternion[_bones.Length];
-        _collectiveTrigger = new Quaternion[_bones.Length];
-        var bind = new Matrix4x4[_bones.Length];
-        for (var i = 0; i < _bones.Length; i++)
+        try
         {
-            var b = asset.bones[i];
-            var t = new GameObject(b.name).transform;
-            t.SetParent(b.parent < 0 ? Root : _bones[b.parent], false);
-            t.localPosition = V(b.position, 0);
-            _bones[i] = t;
-            bind[i] = t.worldToLocalMatrix * Root.localToWorldMatrix;
-            _open[i] = Q(asset.open[i]);
-            _closed[i] = Q(asset.fist[i]);
-            _fs20Throttle[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i]);
-            _fs20Stick[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i]);
-            _stickTrigger[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], triggerPressure: 1);
-            _throttleThumb[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i], true);
-            _stickThumb[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], true);
-            _switchPinch[i] = Fs20HandPoses.SwitchPinchJoint(i, left, _open[i], _closed[i]);
-            _collective[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i]);
-            _collectiveThumb[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], thumbContact: true);
-            _collectiveTrigger[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], trigger: true);
-            if (GloveBones.IsThumbJoint(i))
+            Root = new GameObject(left ? "NOVR Left Glove" : "NOVR Right Glove").transform;
+            Root.SetParent(parent, false);
+            _bones = new Transform[asset.bones.Length];
+            _open = new Quaternion[_bones.Length];
+            _closed = new Quaternion[_bones.Length];
+            _fs20Throttle = new Quaternion[_bones.Length];
+            _fs20Stick = new Quaternion[_bones.Length];
+            _throttleThumb = new Quaternion[_bones.Length];
+            _stickThumb = new Quaternion[_bones.Length];
+            _fingers = new FingerGroup[_bones.Length];
+            _fireTouch = new Quaternion[_bones.Length];
+            _firePress = new Quaternion[_bones.Length];
+            _stickTrigger = new Quaternion[_bones.Length];
+            _stickThumbPress = new Quaternion[_bones.Length];
+            _switchPinch = new Quaternion[_bones.Length];
+            _attachmentFromBones = new Quaternion[_bones.Length];
+            _collective = new Quaternion[_bones.Length];
+            _collectiveThumb = new Quaternion[_bones.Length];
+            _collectiveTrigger = new Quaternion[_bones.Length];
+            var bind = new Matrix4x4[_bones.Length];
+            for (var i = 0; i < _bones.Length; i++)
             {
-                _stickThumbPress[i] = Fs20HandPoses.HatPressJoint(i, left, _open[i], _closed[i]);
-                _fireTouch[i] = Fs20HandPoses.FireButtonJoint(i, left, _open[i], _closed[i], false);
-                _firePress[i] = Fs20HandPoses.FireButtonJoint(i, left, _open[i], _closed[i], true);
+                var b = asset.bones[i];
+                var t = new GameObject(b.name).transform;
+                t.SetParent(b.parent < 0 ? Root : _bones[b.parent], false);
+                t.localPosition = V(b.position, 0);
+                _bones[i] = t;
+                bind[i] = t.worldToLocalMatrix * Root.localToWorldMatrix;
+                _open[i] = Q(asset.open[i]);
+                _closed[i] = Q(asset.fist[i]);
+                _fs20Throttle[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i]);
+                _fs20Stick[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i]);
+                _stickTrigger[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], triggerPressure: 1);
+                _throttleThumb[i] = Fs20HandPoses.Joint(i, false, left, _open[i], _closed[i], true);
+                _stickThumb[i] = Fs20HandPoses.Joint(i, true, left, _open[i], _closed[i], true);
+                _switchPinch[i] = Fs20HandPoses.SwitchPinchJoint(i, left, _open[i], _closed[i]);
+                _collective[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i]);
+                _collectiveThumb[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], thumbContact: true);
+                _collectiveTrigger[i] = CollectiveHandPoses.Joint(i, left, _open[i], _closed[i], trigger: true);
+                if (GloveBones.IsThumbJoint(i))
+                {
+                    _stickThumbPress[i] = Fs20HandPoses.HatPressJoint(i, left, _open[i], _closed[i]);
+                    _fireTouch[i] = Fs20HandPoses.FireButtonJoint(i, left, _open[i], _closed[i], false);
+                    _firePress[i] = Fs20HandPoses.FireButtonJoint(i, left, _open[i], _closed[i], true);
+                }
+
+                _fingers[i] = b.name.Contains("thumb") ? FingerGroup.Thumb :
+                    b.name.Contains("index") ? FingerGroup.Index :
+                    b.name.Contains("finger") ? FingerGroup.Grasping : FingerGroup.None;
             }
 
-            _fingers[i] = b.name.Contains("thumb") ? FingerGroup.Thumb :
-                b.name.Contains("index") ? FingerGroup.Index :
-                b.name.Contains("finger") ? FingerGroup.Grasping : FingerGroup.None;
-        }
-
-        for (var i = 0; i < _bones.Length; i++)
-            _bones[i].localRotation = _open[i];
-        _indexRest = Root.InverseTransformPoint(_bones[GloveBones.IndexTip].position);
-        var vertices = new Vector3[asset.vertices.Length / 3];
-        var weights = new BoneWeight[vertices.Length];
-        var uv = new Vector2[vertices.Length];
-        for (var i = 0; i < vertices.Length; i++)
-        {
-            vertices[i] = V(asset.vertices, i * 3);
-            var j = i * 4;
-            weights[i] = new BoneWeight
+            for (var i = 0; i < _bones.Length; i++)
+                _bones[i].localRotation = _open[i];
+            _indexRest = Root.InverseTransformPoint(_bones[GloveBones.IndexTip].position);
+            var vertices = new Vector3[asset.vertices.Length / 3];
+            var weights = new BoneWeight[vertices.Length];
+            var uv = new Vector2[vertices.Length];
+            for (var i = 0; i < vertices.Length; i++)
             {
-                boneIndex0 = asset.indices[j],
-                boneIndex1 = asset.indices[j + 1],
-                boneIndex2 = asset.indices[j + 2],
-                boneIndex3 = asset.indices[j + 3],
-                weight0 = asset.weights[j],
-                weight1 = asset.weights[j + 1],
-                weight2 = asset.weights[j + 2],
-                weight3 = asset.weights[j + 3]
-            };
-            uv[i] = new Vector2(asset.uv[i * 2], asset.uv[i * 2 + 1]);
-        }
+                vertices[i] = V(asset.vertices, i * 3);
+                var j = i * 4;
+                weights[i] = new BoneWeight
+                {
+                    boneIndex0 = asset.indices[j],
+                    boneIndex1 = asset.indices[j + 1],
+                    boneIndex2 = asset.indices[j + 2],
+                    boneIndex3 = asset.indices[j + 3],
+                    weight0 = asset.weights[j],
+                    weight1 = asset.weights[j + 1],
+                    weight2 = asset.weights[j + 2],
+                    weight3 = asset.weights[j + 3]
+                };
+                uv[i] = new Vector2(asset.uv[i * 2], asset.uv[i * 2 + 1]);
+            }
 
-        _mesh = new Mesh
+            // Retain ownership before any upload can throw. Object-initializer
+            // assignments would leave a failed mesh outside this owner's cleanup.
+            _mesh = new Mesh();
+            _mesh.name = "Valve slim glove / pilot material";
+            _mesh.vertices = vertices;
+            _mesh.uv = uv;
+            _mesh.boneWeights = weights;
+            _mesh.bindposes = bind;
+            _mesh.triangles = asset.triangles;
+            _mesh.RecalculateNormals();
+            SmoothSkinSeams(vertices, weights);
+            _mesh.RecalculateTangents();
+            _mesh.RecalculateBounds();
+            Renderer = Root.gameObject.AddComponent<SkinnedMeshRenderer>();
+            Renderer.sharedMesh = _mesh;
+            Renderer.bones = _bones;
+            Renderer.rootBone = _bones[GloveBones.Wrist];
+            Renderer.sharedMaterial = material;
+            Renderer.localBounds = new Bounds(new Vector3(0, 0, .06f), Vector3.one * .45f);
+            Renderer.shadowCastingMode = ShadowCastingMode.Off;
+            Renderer.receiveShadows = true;
+            Renderer.updateWhenOffscreen = false;
+            LayerHelper.SetLayerRecursive(Root, LayerHelper.Layers.Cockpit);
+        }
+        catch
         {
-            name = "Valve slim glove / pilot material",
-            vertices = vertices,
-            uv = uv,
-            boneWeights = weights,
-            bindposes = bind,
-            triangles = asset.triangles
-        };
-        _mesh.RecalculateNormals();
-        SmoothSkinSeams(vertices, weights);
-        _mesh.RecalculateTangents();
-        _mesh.RecalculateBounds();
-        Renderer = Root.gameObject.AddComponent<SkinnedMeshRenderer>();
-        Renderer.sharedMesh = _mesh;
-        Renderer.bones = _bones;
-        Renderer.rootBone = _bones[GloveBones.Wrist];
-        Renderer.sharedMaterial = material;
-        Renderer.localBounds = new Bounds(new Vector3(0, 0, .06f), Vector3.one * .45f);
-        Renderer.shadowCastingMode = ShadowCastingMode.Off;
-        Renderer.receiveShadows = true;
-        Renderer.updateWhenOffscreen = false;
-        LayerHelper.SetLayerRecursive(Root, LayerHelper.Layers.Cockpit);
+            // A failed constructor is never assigned to PilotHandVisuals.
+            // Its hierarchy and standalone mesh must be released here.
+            Dispose();
+            throw;
+        }
     }
 
     private Quaternion BaseJointPose(int bone, bool pinching, bool fittedCollective, bool fitted, bool stick)
@@ -452,6 +463,9 @@ internal sealed class RiggedGlove : IDisposable
     private static Quaternion Q(float[] a) => new Quaternion(a[0], a[1], a[2], a[3]).normalized;
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         if (Root != null)
             Object.Destroy(Root.gameObject);
         if (_mesh != null)
