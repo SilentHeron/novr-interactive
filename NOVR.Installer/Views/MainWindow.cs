@@ -39,7 +39,7 @@ public sealed class MainWindow : Window
     {
         var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
-            Title = "Select a NOVR Steam Frame release package",
+            Title = "Select a NOVR release package",
             AllowMultiple = false,
             FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("NOVR release ZIP") { Patterns = ["*.zip"] }]
         });

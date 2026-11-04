@@ -15,6 +15,9 @@ internal static class Boundary
     internal static int Downloads, Scans, Uninstalls;
     internal static readonly List<(string Game, string Package)> Installs = new();
     internal static TaskCompletionSource? PendingInstall;
+    internal static bool MaterializeDownloads;
+    internal static Exception? DownloadError;
+    internal static readonly List<string> DownloadDirectories = new();
 
     internal static void Reset()
     {
@@ -23,6 +26,9 @@ internal static class Boundary
         Downloads = Scans = Uninstalls = 0;
         Installs.Clear();
         PendingInstall = null;
+        MaterializeDownloads = false;
+        DownloadError = null;
+        DownloadDirectories.Clear();
     }
 }
 
@@ -44,6 +50,14 @@ public sealed class GitHubReleaseClient
     public Task<string> DownloadLatestNovrReleaseAsync(string dir, IProgress<string> progress, CancellationToken token)
     {
         Boundary.Downloads++;
+        if (Boundary.MaterializeDownloads)
+        {
+            Boundary.DownloadDirectories.Add(dir);
+            Directory.CreateDirectory(dir);
+            var package = Path.Combine(dir, "NOVR.zip");
+            File.WriteAllText(package, "Fixture download; package validation is a separate boundary.");
+            return Boundary.DownloadError is { } error ? Task.FromException<string>(error) : Task.FromResult(package);
+        }
         return Task.FromResult(Boundary.Package);
     }
     public Task<string> DownloadLatestBepInEx5Async(string dir, IProgress<string> progress, CancellationToken token)

@@ -13,6 +13,7 @@ internal static class Program
         PackageDestinationIsCaptured();
         PackageValidationAndRetry();
         PickerRefreshesInstallationState();
+        DownloadFilesBelongToTheOperation();
         Check(!Directory.Exists(Boundary.Root), "The fake boundaries never create game or package files.");
         Console.WriteLine($"Installer UI: {_checks} checks passed.");
     }
@@ -196,5 +197,68 @@ internal static class Program
         _checks++;
         if (!condition)
             throw new InvalidOperationException($"Check {_checks}: {message}");
+    }
+
+    private static void DownloadFilesBelongToTheOperation()
+    {
+        var vm = Create();
+        Boundary.MaterializeDownloads = true;
+        try
+        {
+            Boundary.PendingInstall = new TaskCompletionSource();
+            vm.PrimaryActionCommand.Execute(null);
+            Check(vm.IsBusy && Boundary.Downloads == 1 && Boundary.Installs.Count == 1,
+                "A download remains owned by its pending installation.");
+            Check(File.Exists(Boundary.Installs[0].Package), "The package survives until the installation finishes reading it.");
+            Boundary.PendingInstall.SetResult();
+            AssertIdle(vm);
+            Check(!Directory.Exists(Boundary.DownloadDirectories[0]), "A successful operation removes its downloaded package directory.");
+
+            Boundary.PendingInstall = new TaskCompletionSource();
+            vm.RepairUpdateCommand.Execute(null);
+            Check(Boundary.Downloads == 2 && Boundary.Installs.Count == 2,
+                "A new explicit update checks the channel again rather than reusing an old release.");
+            Boundary.PendingInstall.SetException(new IOException("Fixture install failed"));
+            AssertIdle(vm);
+            Check(!Directory.Exists(Boundary.DownloadDirectories[1]), "Failed installation also releases its downloaded package.");
+
+            Boundary.PendingInstall = null;
+            foreach (var error in new Exception[] { new IOException("Fixture download failed"), new OperationCanceledException("Fixture download cancelled") })
+            {
+                Boundary.DownloadError = error;
+                var installs = Boundary.Installs.Count;
+                vm.PrimaryActionCommand.Execute(null);
+                AssertIdle(vm);
+                Check(Boundary.Installs.Count == installs, "A failed or cancelled download never reaches installation.");
+                Check(!Directory.Exists(Boundary.DownloadDirectories[^1]), "Partial download files are removed after failure or cancellation.");
+            }
+            Boundary.DownloadError = null;
+            vm.PrimaryActionCommand.Execute(null);
+            AssertIdle(vm);
+            Check(Boundary.Downloads == 5 && Boundary.Installs.Count == 3,
+                "A download failure leaves no poisoned cache and supports a fresh retry.");
+            Check(Boundary.DownloadDirectories.Distinct().Count() == 5 && Boundary.DownloadDirectories.All(dir => !Directory.Exists(dir)),
+                "Each operation owns a unique directory and releases it.");
+        }
+        finally
+        {
+            // A failing regression must not leave its synthetic downloads behind.
+            foreach (var dir in Boundary.DownloadDirectories)
+                if (Directory.Exists(dir))
+                    Directory.Delete(dir, true);
+        }
+
+        vm = Create();
+        Directory.CreateDirectory(Boundary.Root);
+        File.WriteAllText(Boundary.Package, "User-selected package fixture");
+        try
+        {
+            vm.SetPackageBrowser(() => Task.FromResult<string?>(Boundary.Package));
+            vm.InstallPackageCommand.Execute(null);
+            AssertIdle(vm);
+            Check(File.Exists(Boundary.Package) && Boundary.Downloads == 0,
+                "An operation never cleans up the user's original local package.");
+        }
+        finally { Directory.Delete(Boundary.Root, true); }
     }
 }

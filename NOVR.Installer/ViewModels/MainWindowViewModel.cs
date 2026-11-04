@@ -8,9 +8,6 @@ namespace NOVR.Installer.ViewModels;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
-    private sealed record DownloadedNovrRelease(string ZipPath, ReleaseVersion Version, string TempDir);
-
-
     private readonly GameLocator _gameLocator = new();
     private readonly GitHubReleaseClient _releaseClient = new();
     private readonly FileSystemInstaller _installer = new();
@@ -27,10 +24,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _showUninstallFinish;
     private Func<Task<string?>>? _browseForFolderAsync;
     private Func<Task<string?>>? _browseForPackageAsync;
-    private Task<DownloadedNovrRelease>? _latestNovrDownloadTask;
-    private readonly object _downloadLock = new();
-
-
 
     public MainWindowViewModel()
     {
@@ -168,43 +161,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     // Opening the installer must work offline and leave the local-package button immediately available.
     public Task InitializeAsync() => ScanAsync();
 
-    private Task<DownloadedNovrRelease> EnsureLatestNovrReleaseDownloadedAsync(
-        IProgress<string> progress,
-        CancellationToken cancellationToken)
-    {
-        lock (_downloadLock)
-        {
-            if (_latestNovrDownloadTask is null || _latestNovrDownloadTask.IsFaulted || _latestNovrDownloadTask.IsCanceled)
-                _latestNovrDownloadTask = DownloadLatestNovrReleaseAsync(progress, cancellationToken);
-            return _latestNovrDownloadTask;
-        }
-    }
-    private async Task<DownloadedNovrRelease> DownloadLatestNovrReleaseAsync(
-        IProgress<string> progress,
-        CancellationToken cancellationToken)
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "novr-installer-" + Guid.NewGuid().ToString("N"));
-
-        try
-        {
-            var zip = await _releaseClient.DownloadLatestNovrReleaseAsync(tempDir, progress, cancellationToken);
-            progress.Report($"Downloaded latest NOVR release: {_releaseClient.FoundNOVRRelease}");
-            return new DownloadedNovrRelease(zip, _releaseClient.FoundNOVRRelease, tempDir);
-        }
-        catch
-        {
-            TryDeleteDirectory(tempDir);
-
-            lock (_downloadLock)
-            {
-                _latestNovrDownloadTask = null;
-            }
-
-            throw;
-        }
-    }
-
-
     private Task ScanAsync()
     {
         return RunBusyAsync(() =>
@@ -305,12 +261,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         try
         {
-            var release = localPackage is null
-                ? await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None)
-                : new DownloadedNovrRelease(localPackage, NovrPackage.ReadVersion(localPackage), string.Empty);
-            NovrPackage.Validate(release.ZipPath, release.Version.ToString());
-            if (info.ModState == InstallState.FullyInstalled && info.Version > release.Version)
-                throw new InvalidOperationException($"Installed NOVR {info.Version} is newer than {release.Version}. Choose a matching or newer Steam Frame package; your installed files have not been changed.");
+            // One operation owns all downloaded files. Opening the installer
+            // stays offline; a retry checks the release channel again.
+            var package = localPackage ?? await _releaseClient.DownloadLatestNovrReleaseAsync(tempDir, progress, CancellationToken.None);
+            var version = localPackage is null ? _releaseClient.FoundNOVRRelease : NovrPackage.ReadVersion(package);
+            NovrPackage.Validate(package, version.ToString());
+            if (info.ModState == InstallState.FullyInstalled && info.Version > version)
+                throw new InvalidOperationException($"Installed NOVR {info.Version} is newer than {version}. Choose a matching or newer NOVR package; your installed files have not been changed.");
 
             if (!info.HasBepInEx)
             {
@@ -321,8 +278,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             await _installer.InstallOrUpdateNovrAsync(
                 info,
-                release.ZipPath,
-                release.Version.ToString(),
+                package,
+                version.ToString(),
                 progress,
                 CancellationToken.None);
 
