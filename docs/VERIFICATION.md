@@ -45,7 +45,7 @@ this repository, rejecting missing resource globs and binary dependencies.
 | Area | Coverage |
 | --- | --- |
 | Core and lifecycle | Flight-control math, input ownership, detents, ejection rules, complete configuration publication, XR enable/disable and retry, camera discovery/ownership, API event subscriptions, canvas-camera rebinding, paused/reentrant UI attachment and UI open/close ownership |
-| Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, controller artwork/callouts/activity, View settings, binding editor, hand option wheel, native-menu handoff, stable lobby selection/password routing, and Workshop query/preview lifetime |
+| Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, controller artwork/callouts/activity, View settings, binding editor, hand option wheel, native-menu handoff, stable lobby selection/password routing, deferred host ownership, and Workshop query/preview lifetime |
 | Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry, texture preparation/ownership and initialization failure cleanup, UI-depth restoration and feedback dispatch |
 | HUD widgets | Per-aircraft layout slots, migration, saved placement, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources, unchanged threat refresh and depth handling |
 | Map and flight cues | Minimap borrowing, terrain changes/tint/restoration, map interaction, redundant coordinate suppression, gaze candidates, nozzle/collective visibility, threat-vector bounds, delayed pitch-ladder setup and native runway endpoints |
@@ -54,8 +54,11 @@ this repository, rejecting missing resource globs and binary dependencies.
 These are executable check programs, so the runner uses `dotnet run` rather than
 `dotnet test`. It trusts exit status, not a fixed assertion count or expected log
 string. Some suites exercise pure math; others compile production components
-against small Unity/game boundary doubles. Profile suites use real temporary
-BepInEx config files. None of those doubles supplies a rendered game scene.
+against small Unity/game boundary doubles. HUD profile persistence uses real
+temporary BepInEx config files; cockpit seat/handle profile checks use in-memory
+configuration doubles. Installer UI checks replace OS pickers and file/network
+operations; they do not open the native desktop dialogs. None of these doubles
+supplies a rendered game scene.
 
 The runner's regression tests require only Python:
 
