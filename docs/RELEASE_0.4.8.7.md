@@ -15,6 +15,8 @@ source. Package contents and checksum were checked.
 
 Installed and started through SteamVR on Linux/Proton with Direct3D 11 at 90 Hz.
 Content loading completed and the native menu returned. Windows runtime and
-headset comfort remain unverified. A live flight still showed substantial
-rendering delay and intermittent streaming resets; reducing per-game resolution
-is being tested separately. No measured frame-rate improvement is claimed.
+headset compatibility remain unverified. A live flight showed substantial
+rendering delay and intermittent streaming resets. Lowering per-game resolution
+improved reported stability on the test machine, but rendering still exceeded
+the 90 Hz frame budget. This was not a controlled performance comparison;
+no measured frame-rate improvement from these code changes is claimed.
