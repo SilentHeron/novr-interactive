@@ -50,7 +50,7 @@ internal static class NavigationChecks
             Check(!nav.Zoom(1),"Zoom at limit has no false success");
             for (var i=0;i<30;i++) nav.Zoom(-1);
             Near(f.Map.GetZoomLevel(),1,"Cockpit zoom respects lower bound");
-            nav.Deactivate(); Check(!nav.Selected&&!CockpitMapNavigation.TryCenter(f.Map),"Release returns ownship-follow to native centering");
+            nav.Deactivate(); Check(!nav.Selected&&CockpitMapNavigation.TryCenter(f.Map),"Release follows ownship through the owned map hook, without native lookahead");
             Check(nav.Zoom(1),"Plus/minus remains available while unselected");
             nav.Activate(); CockpitHudWidgets.Editing=true; f.Tick();
             Check(!nav.Selected&&!nav.Activate()&&!nav.Zoom(1),"Layout editing clears selection and disables navigation");
@@ -97,6 +97,95 @@ internal static class NavigationChecks
             f.Hud.RefuseSelection=false; f.Hud.aircraft.disabled=true;
             Check(!nav.SelectCenter(),"Dead aircraft cannot issue weapon target selection");
             f.Hud.aircraft.disabled=false; nav.Deactivate(); Check(!nav.SelectCenter(),"Unselected map cannot target");
+        }
+        using (var f = new Fixture())
+        {
+            var aircraft = GameManager.Aircraft!;
+            aircraft.transform.position = new(235,80,-420);
+            aircraft.transform.rotation = Quaternion.Euler(22,63,-31);
+            GlobalPositions.Origin = new(23000,0,-17000);
+            f.Map.mapDisplayFactor = .012f;
+            var camera = new GameObject("world camera").AddComponent<CameraStateManager>();
+            camera.transform.position = new(800,150,950);
+            SceneSingleton<CameraStateManager>.i = camera;
+            var head = new GameObject("VR head").AddComponent<Camera>();
+            head.transform.rotation = Quaternion.Euler(0,-78,0);
+            NOVR.APIBus.MainCamera = head;
+            f.Map.viewIndicator = new GameObject("view indicator");
+            f.Map.viewIndicator.transform.SetParent(f.Map.mapImage.transform,false);
+            f.Slot.localPosition = new(17,-9,2);
+            f.Slot.localRotation = Quaternion.Euler(20,35,17);
+            f.Slot.localScale = Vector3.one * .003f;
+            f.Slot.sizeDelta = new(440,220); f.Slot.pivot = new(.2f,.6f);
+            f.Map.mapBackground.transform.localRotation = Quaternion.Euler(0,0,-31);
+            f.Map.mapBackground.transform.localScale = Vector3.one * 1.4f;
+            var image = f.Map.mapImage.transform;
+            Vector3 OwnshipMapPoint()
+            {
+                var position = aircraft.GlobalPosition().AsVector3() * f.Map.mapDisplayFactor;
+                return new(position.x,position.z,0);
+            }
+            Vector3 OwnshipPanelPoint() => f.Slot.InverseTransformPoint(image.TransformPoint(OwnshipMapPoint()));
+            void Centered(string why) => Near3(OwnshipPanelPoint(),f.Slot.rect.center,why);
+            void HeadingUp(string why)
+            {
+                var forward = aircraft.transform.forward;
+                var panelForward = f.Slot.InverseTransformVector(image.TransformVector(new(forward.x,forward.z,0)));
+                Near(panelForward.x,0,why+" horizontal component");
+                Check(panelForward.y>0,why+" forward points up");
+                Near(panelForward.z,0,why+" stays in panel plane");
+            }
+            f.Tick(); var nav = CockpitMapWidget.Navigation!;
+            Centered("Fresh borrowed map centers exact global ownship, not camera or 4 km ahead");
+            HeadingUp("Follow heading respects tilted panel and rotated native ancestors");
+            Check(nav.Activate(),"Ownship-follow can enter manual slave");
+            nav.Pan(new(1,.5f),.05f); nav.Zoom(1);
+            Check((OwnshipPanelPoint()-(Vector3)f.Slot.rect.center).sqrMagnitude>1,"Manual pan moves ownship away from center");
+            var zoom=f.Map.GetZoomLevel(); var scale=image.localScale; var events=f.Map.Changes;
+            nav.Deactivate();
+            Check(!nav.Selected,"Deliberate deactivation immediately releases map selection");
+            Centered("Deactivate recenters synchronously before another adapter or native update");
+            Near(zoom,f.Map.GetZoomLevel(),"Deactivate retains chosen map zoom");
+            Near3(scale,image.localScale,"Deactivate preserves map scale");
+            Check(events==f.Map.Changes,"Recentering does not issue a zoom change event");
+            var heading=image.rotation; var position=image.position;
+            head.transform.rotation=Quaternion.Euler(11,152,20); camera.transform.position+=new Vector3(300,50,-400);
+            Check(CockpitMapNavigation.TryCenter(f.Map),"Owned native center callback maintains unselected ownship-follow");
+            Centered("Head and camera motion do not move map center away from aircraft");
+            Near3(position,image.position,"Head motion does not introduce lookahead or offset");
+            Near3(heading*Vector3.up,image.rotation*Vector3.up,"Head motion cannot rotate the map");
+            var cameraGlobal=camera.transform.position.ToGlobalPosition().AsVector3()*f.Map.mapDisplayFactor;
+            Near3(f.Map.viewIndicator.transform.localPosition,new(cameraGlobal.x,cameraGlobal.z,0),"View indicator remains at its native global camera position");
+            aircraft.transform.position+=new Vector3(120,30,240);
+            aircraft.transform.rotation=Quaternion.Euler(-15,-122,27);
+            Check(CockpitMapNavigation.TryCenter(f.Map),"Moving aircraft remains owned by follow callback");
+            Centered("Unselected map follows moving aircraft"); HeadingUp("Aircraft heading updates in panel space");
+            position=image.position; heading=image.rotation;
+            var shift=new Vector3(10000,0,-8000);
+            GlobalPositions.Origin+=shift; aircraft.transform.position-=shift; camera.transform.position-=shift;
+            f.Tick(); Centered("Floating-origin shift preserves global ownship centering");
+            Near3(position,image.position,"Floating-origin shift leaves visible map position continuous");
+            Near3(heading*Vector3.up,image.rotation*Vector3.up,"Floating-origin shift leaves map heading continuous");
+            f.Slot.sizeDelta=new(220,400); f.Slot.localRotation=Quaternion.Euler(-15,10,-24); f.Tick();
+            Centered("Follow remains centered after live rectangular resize and panel move"); HeadingUp("Follow tracks the new panel plane");
+            nav.Activate(); nav.Pan(new(-.6f,.8f),.05f);
+            var heldCenter=image.InverseTransformPoint(f.Slot.TransformPoint(f.Slot.rect.center));
+            heading=image.localRotation;
+            aircraft.transform.position+=new Vector3(350,0,170); aircraft.transform.rotation=Quaternion.Euler(0,40,0);
+            CockpitMapNavigation.TryCenter(f.Map);
+            Near3(heldCenter,image.InverseTransformPoint(f.Slot.TransformPoint(f.Slot.rect.center)),"Selected map preserves its manual center while ownship moves");
+            Near3(heading*Vector3.up,image.localRotation*Vector3.up,"Selected map preserves its captured heading");
+            nav.Deactivate(); Centered("Repeated slave deactivation returns to latest aircraft position"); HeadingUp("Deactivation restores latest aircraft heading");
+            position=image.position; heading=image.rotation;
+            DynamicMap.mapMaximized=true; aircraft.transform.position+=new Vector3(250,0,50);
+            Check(!CockpitMapNavigation.TryCenter(f.Map),"Fullscreen native map is never intercepted by ownship-follow");
+            nav.Deactivate(); nav.Tick();
+            Near3(position,image.position,"Inactive fullscreen ownership cannot mutate native position");
+            Near3(heading*Vector3.up,image.rotation*Vector3.up,"Inactive fullscreen ownership cannot mutate native heading");
+            DynamicMap.mapMaximized=false;
+            CockpitMapWidget.ReleaseAll();
+            Check(!CockpitMapNavigation.TryCenter(f.Map),"Disposed map is no longer intercepted");
+            UnityEngine.Object.Destroy(camera.gameObject); UnityEngine.Object.Destroy(head.gameObject);
         }
         return count;
     }

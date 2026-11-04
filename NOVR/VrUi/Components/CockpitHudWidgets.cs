@@ -351,10 +351,13 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private void UpdateHand(int index, ControllerSample hand)
     {
         var drag = _hands[index];
-        if (_appearanceBusy[index]) { drag.Gate.Reset(); _hover[index] = null; return; }
         var valid = HandPosition(hand, index, out var point);
         _points[index] = point;
         drag.Gate.Update(valid, hand.Grip);
+        // Hovering an edit icon must not disarm the next intentional grip.
+        // Appearance contacts yield while squeezing; grip still requires a
+        // neutral sample after tracking or menu context changes.
+        if (_appearanceBusy[index]) { _hover[index] = null; return; }
         var hover = valid && CockpitLayout.HeldByHand(index == 0) == CockpitLayout.Element.None
             ? SelectAt(point, index, out _) : null;
         _hover[index] = hover;
@@ -379,17 +382,28 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
                 drag.Id = id; SelectedId = id;
                 drag.Corner = corner;
                 RebaseDrag(index);
-                if (corner >= 0 && Space(out var gameRoot, out _, out var eye))
-                    drag.CornerRotation = Quaternion.Inverse(eye.rotation * Quaternion.Euler(_poses[id].Euler)) *
-                        PilotHandVisuals.FreeHandRotation(index == 0, hand, gameRoot);
+                if (_hands[1 - index].Id == id && TryPairCorner(point, 1 - index, out _, out var firstCorner))
+                {
+                    _hands[1 - index].Corner = firstCorner;
+                    CaptureCornerRotation(1 - index, _samples[1 - index]);
+                    _resizing = null;
+                }
+                CaptureCornerRotation(index, hand);
                 InteractionHaptics.Pulse(hand.Device, InteractionCue.Grab);
             }
         }
     }
+    private void CaptureCornerRotation(int index, ControllerSample hand)
+    {
+        var drag = _hands[index];
+        if (drag.Id != null && drag.Corner >= 0 && Space(out var gameRoot, out _, out var eye))
+            drag.CornerRotation = Quaternion.Inverse(eye.rotation * Quaternion.Euler(_poses[drag.Id].Euler)) *
+                PilotHandVisuals.FreeHandRotation(index == 0, hand, gameRoot);
+    }
     private void UpdateAppearance(int index, ControllerSample hand)
     {
         _appearanceBusy[index] = false;
-        var available = hand.Valid && _hands[index].Id == null && CockpitLayout.HeldByHand(index == 0) == CockpitLayout.Element.None;
+        var available = hand.Valid && hand.Grip < .65f && _hands[index].Id == null && CockpitLayout.HeldByHand(index == 0) == CockpitLayout.Element.None;
         var tip = Vector3.zero;
         if (available && Space(out var gameRoot, out _, out var eye))
             tip = CockpitWidgetSpace.ToLocal(eye.position, eye.rotation, PilotHandVisuals.TouchPoint(index == 0, hand, gameRoot, true));
@@ -474,24 +488,31 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         // A second grip on the opposite corner belongs to the held widget even
         // when a neighboring panel overlaps that corner in a compact layout.
         var other = _hands[1 - hand];
-        if (other.Id != null && _poses.TryGetValue(other.Id, out var held))
-        {
-            var local = Quaternion.Inverse(Quaternion.Euler(held.Euler)) * (point - held.Position);
-            var half = Size(other.Id) * (PixelSize * held.Scale * .5f);
-            var candidate = HudWidgetGestureMath.Corner(local.x, local.y, local.z, half.x, half.y);
-            if (HudWidgetGestureMath.Opposite(other.Corner, candidate)) { corner = candidate; return other.Id; }
-        }
+        if (TryPairCorner(point, 1 - hand, out var pairCorner, out _)) { corner = pairCorner; return other.Id; }
         foreach (var pair in _poses)
         {
             var local = Quaternion.Inverse(Quaternion.Euler(pair.Value.Euler)) * (point - pair.Value.Position);
             var half = Size(pair.Key) * (PixelSize * pair.Value.Scale * .5f);
             var atCorner = HudWidgetGestureMath.Corner(local.x, local.y, local.z, half.x, half.y);
-            if (_hands[1 - hand].Id == pair.Key && !HudWidgetGestureMath.Opposite(_hands[1 - hand].Corner, atCorner)) continue;
+            if (other.Id == pair.Key) continue; // Same-widget pairing uses the assisted path above.
             if (atCorner < 0 && (Mathf.Abs(local.x) > half.x + .025f || Mathf.Abs(local.y) > half.y + .025f || Mathf.Abs(local.z) > .075f)) continue;
             var distance = WidgetDistance(point, pair.Key);
             if (distance < closest) { closest = distance; result = pair.Key; corner = atCorner; }
         }
         return result;
+    }
+    private bool TryPairCorner(Vector3 point, int heldHand, out int corner, out int firstCorner)
+    {
+        corner = firstCorner = -1;
+        var other = _hands[heldHand];
+        if (other.Id == null || !other.Gate.Held || !_poses.TryGetValue(other.Id, out var held)) return false;
+        var inverse = Quaternion.Inverse(Quaternion.Euler(held.Euler));
+        var local = inverse * (point - held.Position);
+        var first = inverse * (_points[heldHand] - held.Position);
+        var half = Size(other.Id) * (PixelSize * held.Scale * .5f);
+        corner = HudWidgetGestureMath.PairCorner(other.Corner, first.x, first.y, first.z,
+            local.x, local.y, local.z, half.x, half.y, out firstCorner);
+        return corner >= 0;
     }
     private void Snap(string id)
     {

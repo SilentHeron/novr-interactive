@@ -4,7 +4,7 @@ using UnityEngine;
 namespace NOVR.VrUi.SpecialBehavior;
 
 // The live native map still creates and updates terrain, sensors and icons.
-// While selected, only its view transform is held/panned in the cockpit frame.
+// Its view follows ownship until selected, then holds/pans in the cockpit frame.
 internal sealed class CockpitMapNavigation : IDisposable
 {
     private readonly struct Pose
@@ -60,8 +60,13 @@ internal sealed class CockpitMapNavigation : IDisposable
         return true;
     }
 
-    // The game's normal ownship-follow resumes on its next map update.
-    internal void Deactivate() => _selected = false;
+    internal void Deactivate()
+    {
+        _selected = false;
+        // Releasing the slave must visibly return to ownship now, without the
+        // desktop minimap's camera-based 4 km lookahead on its next update.
+        if (CanNavigate) FollowOwnship();
+    }
 
     internal bool Zoom(int direction)
     {
@@ -96,9 +101,33 @@ internal sealed class CockpitMapNavigation : IDisposable
 
     internal void Tick()
     {
-        if (!CanNavigate) { Deactivate(); return; }
-        if (!_selected) return;
+        if (!CanNavigate) { _selected = false; return; }
+        if (!_selected) { FollowOwnship(); return; }
         _image.localRotation = _heading;
+        ApplyCenter();
+    }
+
+    private void FollowOwnship()
+    {
+        if (!GameManager.GetLocalAircraft(out var aircraft) || aircraft == null) return;
+        var position = aircraft.GlobalPosition().AsVector3() * _map.mapDisplayFactor;
+        if (!Finite(position.x) || !Finite(position.z)) return;
+        _center = new Vector3(position.x, position.z, 0);
+        var forward = aircraft.transform.forward;
+        forward.y = 0;
+        if (Finite(forward.x) && Finite(forward.z) && forward.sqrMagnitude > .000001f)
+        {
+            var yaw = Quaternion.LookRotation(forward, Vector3.up).eulerAngles.y;
+            // Heading belongs to the panel plane, even after moving/tilting the
+            // widget or inheriting a rotated native map/background transform.
+            _image.rotation = _viewport.rotation * Quaternion.Euler(0, 0, yaw);
+            _heading = _image.localRotation;
+        }
+        ApplyCenter();
+    }
+
+    private void ApplyCenter()
+    {
         _image.position += CenterWorld - _image.TransformPoint(_center);
         UpdateViewIndicator();
     }
@@ -150,7 +179,7 @@ internal sealed class CockpitMapNavigation : IDisposable
 
     internal static bool TryCenter(DynamicMap map)
     {
-        if (_owner == null || _owner._map != map || !_owner.Selected) return false;
+        if (_owner == null || _owner._map != map || !_owner.Valid) return false;
         _owner.Tick(); return true;
     }
 

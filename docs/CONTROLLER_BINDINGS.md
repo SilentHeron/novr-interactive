@@ -46,7 +46,7 @@ Release that hand’s flight handle, then click its thumbstick. The smaller game
 
 ## Grip and layout
 
-The floating map has **+ / −** buttons operated by fingertip contact. Touch the map face to select it: a subtle border and centre crosshair appear. While holding the flight stick, use the **physical right thumbstick** to pan, then click it to select an eligible target under the crosshair. The map keeps the game's normal visibility and targeting rules. Touch its face again to return to normal right-stick flight bindings. The other buttons, stick tilt and twist keep working. Centre the thumbstick and release its click when taking or returning control; menus, layout editing and tracking loss cancel map selection.
+The floating map has **+ / −** buttons operated by fingertip contact. Touch the map face to select it: a subtle border and centre crosshair appear. While holding the flight stick, use the **physical right thumbstick** to pan, then click it to select an eligible target under the crosshair. The map keeps the game's normal visibility and targeting rules. Touch its face again to return to normal right-stick flight bindings and immediately recenter on your aircraft; zoom is retained. The other buttons, stick tilt and twist keep working. Centre the thumbstick and release its click when taking or returning control; menus, layout editing and tracking loss cancel map selection.
 
 In **View → Flight controls**, choose **Hold** or **Toggle** independently for stick and throttle. Toggle holds after one squeeze and releases on the next. Tracking loss, menus or moving far from a handle releases it.
 

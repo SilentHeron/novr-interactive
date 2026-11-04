@@ -199,7 +199,7 @@ namespace UnityEngine.UI
 }
 namespace TMPro { public sealed class TMP_Text : UnityEngine.UI.Graphic { public string text = ""; } }
 namespace UnityEngine.XR { public static class XRSettings { public static bool enabled = true; } }
-public class Unit : UnityEngine.Object { }
+public class Unit : UnityEngine.Object { public readonly UnityEngine.Transform transform = new UnityEngine.GameObject("unit").transform; }
 public sealed class Aircraft : Unit { public bool disabled; public WeaponManager? weaponManager = new(); }
 public sealed class WeaponManager { public readonly List<Unit> Targets = new(); public List<Unit> GetTargetList() => Targets; }
 public sealed class FlightHud : UnityEngine.MonoBehaviour { }
@@ -263,7 +263,9 @@ public sealed class CameraStateManager : UnityEngine.MonoBehaviour { }
 namespace NOVR { internal static class APIBus { internal static UnityEngine.Camera? MainCamera = null; } }
 public static class GlobalPositions
 {
-    public static UnityEngine.Vector3 ToGlobalPosition(this UnityEngine.Vector3 p) => p;
+    public static UnityEngine.Vector3 Origin;
+    public static UnityEngine.Vector3 ToGlobalPosition(this UnityEngine.Vector3 p) => p + Origin;
+    public static UnityEngine.Vector3 GlobalPosition(this Unit unit) => unit.transform.position.ToGlobalPosition();
     public static UnityEngine.Vector3 AsVector3(this UnityEngine.Vector3 p) => p;
 }
 namespace HarmonyLib

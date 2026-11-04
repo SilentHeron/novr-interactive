@@ -88,6 +88,7 @@ sealed class Fixture : IDisposable
     {
         CockpitMapWidget.ReleaseAll(); CockpitHudWidgets.Slots.Clear(); CockpitHudWidgets.Content.Clear();
         CockpitHudWidgets.Editing = false; CockpitHudWidgets.Visible = true;
+        GlobalPositions.Origin = Vector3.zero;
         Time.unscaledTime = 0; UnityEngine.XR.XRSettings.enabled = true; DynamicMap.mapMaximized = false;
         GameManager.Aircraft = CockpitHudWidgets.CurrentAircraft = new Aircraft();
         Hud = new CombatHUD { aircraft = GameManager.Aircraft }; Selector = new TargetListSelector();
@@ -114,6 +115,7 @@ sealed class Fixture : IDisposable
     {
         CockpitMapWidget.ReleaseAll(); SceneSingleton<DynamicMap>.i = null;
         SceneSingleton<CombatHUD>.i = null; SceneSingleton<TargetListSelector>.i = null;
+        SceneSingleton<CameraStateManager>.i = null; NOVR.APIBus.MainCamera = null;
         typeof(CockpitMapWidget).GetMethod("OnDestroy",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(_adapter,null);
         Object.Destroy(_adapter.gameObject); Object.Destroy(Parent.gameObject); Object.Destroy(Slot.gameObject);
     }

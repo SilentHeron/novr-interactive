@@ -34,6 +34,12 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private readonly PilotSleeveGeometry?[] _sleeveGeometry = new PilotSleeveGeometry?[2];
     private int _attempts;
     internal static bool Visible(bool left) => _instance?._gloves[left?0:1]?.Root.gameObject.activeInHierarchy==true;
+    internal static SkinnedMeshRenderer? GetRenderer(int index) => _instance == null ? null : index switch
+    {
+        0 or 1 => _instance._gloves[index]?.Renderer,
+        2 or 3 => _instance._sleeves[index - 2],
+        _ => null
+    };
     internal static Vector3 TouchPoint(bool left, ControllerSample sample, Transform tracking, bool fingertip = false)
     {
         var glove = _instance?._gloves[left ? 0 : 1];

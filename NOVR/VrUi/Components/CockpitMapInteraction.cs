@@ -88,7 +88,7 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         if (self._input.SelectPressed)
         {
             var selected = self._navigation.SelectCenter();
-            if (selected) InteractionHaptics.Pulse(hand.Device, InteractionCue.Click);
+            if (selected) InteractionHaptics.Pulse(hand.Device, MapInteractionFeedback.TargetStrength, MapInteractionFeedback.TargetSeconds, InteractionCue.Click);
             else InteractionHaptics.PulseOnly(hand.Device, .10f, .02f);
         }
     }
@@ -119,18 +119,23 @@ internal sealed class CockpitMapInteraction : MonoBehaviour
         }
         if (hit < 0 && Mathf.Abs(point.x) <= _size.x * .5f && Mathf.Abs(point.y) <= _size.y * .5f) hit = 0;
         var hover = near ? hit : -1;
-        if (hover >= 0 && hover != _hover[side]) InteractionHaptics.Pulse(sample.Device, InteractionCue.Touch);
+        if (hover >= 0 && hover != _hover[side])
+            InteractionHaptics.Pulse(sample.Device, MapInteractionFeedback.TouchStrength, MapInteractionFeedback.TouchSeconds, InteractionCue.Touch);
         _hover[side] = hover; _pointing[side] = hover >= 0;
         for (var item = 0; item < 3; item++)
         {
             if (!_touch[side, item].Update(true, hit == item, depth) || Time.unscaledTime < _nextTouch) continue;
             _nextTouch = Time.unscaledTime + .25f;
+            var changed = true;
             if (item == 0)
             {
-                if (_navigation!.Selected) _navigation.Deactivate(); else _navigation.Activate();
+                if (_navigation!.Selected) _navigation.Deactivate(); else changed = _navigation.Activate();
             }
-            else _navigation!.Zoom(item == 1 ? 1 : -1);
-            InteractionHaptics.Pulse(sample.Device, InteractionCue.Click);
+            else changed = _navigation!.Zoom(item == 1 ? 1 : -1);
+            if (changed) InteractionHaptics.Pulse(sample.Device,
+                item == 0 ? MapInteractionFeedback.SelectStrength : MapInteractionFeedback.ZoomStrength,
+                item == 0 ? MapInteractionFeedback.SelectSeconds : MapInteractionFeedback.ZoomSeconds, InteractionCue.Click);
+            else InteractionHaptics.PulseOnly(sample.Device, .22f, .025f);
             // Both fingertips must withdraw after a contact. Crossing a button
             // laterally while already inside the face is not another press.
             for (var hand = 0; hand < 2; hand++)

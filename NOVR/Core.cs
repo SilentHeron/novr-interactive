@@ -40,6 +40,8 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<MotionControls.MotionFlightController>();
         gameObject.AddComponent<MotionControls.HelmetNightVision>();
         gameObject.AddComponent<MotionControls.PilotHandVisuals>();
+        gameObject.AddComponent<MotionControls.PilotHandUiDepth>();
+        gameObject.AddComponent<VrUi.SpecialBehavior.CockpitWidgetDepthMaterials>();
         gameObject.AddComponent<MotionControls.InteractionAudio>();
         gameObject.AddComponent<MotionControls.ControllerActions>();
         gameObject.AddComponent<MotionControls.NativeHandOptionWheel>();

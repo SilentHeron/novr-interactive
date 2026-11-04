@@ -172,6 +172,7 @@ try
     Same(intentionalRestore.Load("legacy-aircraft", 3)["weapons"], old["weapons"], "Later intentional old default placement is preserved in its own slot");
     Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
     HudWidgetGestureChecks.Run(True);
+    HudWidgetCornerAcquireChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
     HudWidgetDefaultPlacementChecks.Run(directory, True);

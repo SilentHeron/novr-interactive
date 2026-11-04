@@ -9,14 +9,14 @@ internal static class HudWidgetGestureChecks
             var x = (corner & 1) == 0 ? -.12f : .12f;
             var y = (corner & 2) == 0 ? -.08f : .08f;
             check(HudWidgetGestureMath.Corner(x, y, 0, .12f, .08f) == corner, "Each physical corner has a stable identity");
-            check(HudWidgetGestureMath.Corner(x, y, .0699f, .12f, .08f) == corner, "Corner capture accepts nearby fingertip depth");
-            check(HudWidgetGestureMath.Corner(x, y, .0701f, .12f, .08f) == -1, "Corner capture rejects outside its seven-centimeter radius");
+            check(HudWidgetGestureMath.Corner(x, y, .0899f, .12f, .08f) == corner, "Corner capture accepts nearby fingertip depth");
+            check(HudWidgetGestureMath.Corner(x, y, .0901f, .12f, .08f) == -1, "Corner capture rejects outside its nine-centimeter radius");
             for (var other = 0; other < 4; other++)
                 check(HudWidgetGestureMath.Opposite(corner, other) == ((corner ^ other) == 3),
                     "Only opposite corners can form a resize pair; adjacent/same corners cannot");
         }
-        check(HudWidgetGestureMath.Corner(.12f + .049f, .08f + .049f, 0, .12f, .08f) == 3, "Corner tolerance is radial in the display plane");
-        check(HudWidgetGestureMath.Corner(.12f + .05f, .08f + .05f, 0, .12f, .08f) == -1, "Two near-axis offsets outside radius do not capture");
+        check(HudWidgetGestureMath.Corner(.12f + .063f, .08f + .063f, 0, .12f, .08f) == 3, "Corner tolerance is radial in the display plane");
+        check(HudWidgetGestureMath.Corner(.12f + .064f, .08f + .064f, 0, .12f, .08f) == -1, "Two near-axis offsets outside radius do not capture");
         check(HudWidgetGestureMath.Corner(0, 0, 0, .12f, .08f) == -1, "Grabbing the middle does not masquerade as a resize corner");
         foreach (var invalid in new[] { -1, -2, 4, 7, int.MaxValue })
         {
