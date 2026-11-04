@@ -17,6 +17,9 @@
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/Hands/ArmPoseMath.cs" Link="ArmPoseMath.cs" />
     <Compile Include="../../NOVR/Hands/ArmReachMath.cs" Link="ArmReachMath.cs" />
+    <Compile Include="../../NOVR/Hands/PilotSleeves.cs" Link="PilotSleeves.cs" />
+    <Compile Include="../../NOVR/Hands/PilotSleeveGeometry.cs" Link="PilotSleeveGeometry.cs" />
+    <Compile Include="../../NOVR/Hands/SleeveBoundsMath.cs" Link="SleeveBoundsMath.cs" />
     <EmbeddedResource Include="../../NOVR/Assets/Glove-left.json" LogicalName="NOVR.Glove.left.json" />
     <EmbeddedResource Include="../../NOVR/Assets/Glove-right.json" LogicalName="NOVR.Glove.right.json" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

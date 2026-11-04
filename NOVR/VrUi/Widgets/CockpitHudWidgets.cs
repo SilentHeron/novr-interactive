@@ -10,7 +10,7 @@ namespace NOVR.VrUi.SpecialBehavior;
 // Coordinates belong to the original cockpit viewpoint, never the recentered
 // HMD or adjustable seat. Sources retain their own update and visibility rules.
 [DefaultExecutionOrder(-1260)]
-internal sealed class CockpitHudWidgets : MonoBehaviour
+internal sealed partial class CockpitHudWidgets : MonoBehaviour
 {
     private const float PixelSize = .0007f;
     private sealed class Widget
@@ -35,8 +35,6 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         internal int Corner = -1;
     }
     private readonly Dictionary<string, Widget> _widgets = new();
-    private Dictionary<string, HudWidgetPose> _poses = new();
-    private Dictionary<string, HudWidgetPose>? _editStart;
     private readonly Drag[] _hands = { new(), new() };
     private readonly ControllerSample[] _samples = new ControllerSample[2];
     private readonly Vector3[] _points = new Vector3[2];
@@ -47,24 +45,12 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private readonly string?[] _hover = new string?[2];
     private string? _resizing;
     private HudWidgetTwoHandGesture _resizeGesture;
-    private HudWidgetProfiles _profiles = null!;
     private ConfigEntry<bool> _snap = null!;
-    private Aircraft? _aircraft;
-    private string _key = "";
-    private int _slot = 1;
-    internal int ProfileSlot => _slot;
-    internal string ProfileAircraftName => CanSaveProfile ? CockpitProfiles.Instance?.AircraftName ?? AircraftName : "Aircraft loading";
-    internal bool CanSaveProfile => _key.Length > 0 && CockpitProfiles.Instance?.AircraftIdentity == _key;
-    private bool _editing, _initialPlacementDone;
-    private readonly HudWidgetDefaultPlacement _defaultPlacement = new();
-    private Vector3 _seat, _anchor, _calibration;
-    private Quaternion _recenter;
     private Font? _font;
     internal static CockpitHudWidgets? Instance
     {
         get; private set;
     }
-    internal static bool Editing => Instance?._editing == true;
     internal static bool IsHandBusy(bool left) => Editing &&
         (Instance!._hands[left ? 0 : 1].Id != null || Instance._appearanceBusy[left ? 0 : 1]);
     internal static bool AppearancePointing(bool left) => Editing &&
@@ -87,14 +73,11 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         worldRotation = eye.rotation * rotation * drag.CornerRotation;
         return true;
     }
-    internal static Aircraft? CurrentAircraft => Instance?._aircraft;
     internal string SelectedId { get; private set; } = "weapons";
-    internal string AircraftName => _aircraft?.definition?.unitName ?? "No aircraft";
     internal bool SnapEnabled
     {
         get => _snap.Value; set => _snap.Value = value;
     }
-    internal bool Available => _aircraft != null && _initialPlacementDone && Ready();
 
     private void Awake()
     {
@@ -163,55 +146,12 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
 
     private void Update()
     {
-        GameManager.GetLocalAircraft(out var aircraft);
-        if (!XRSettings.enabled || CockpitAlerts.LostCockpit(aircraft))
-            aircraft = null;
-        var key = aircraft != null && aircraft.definition != null
-            ? AircraftLayoutIdentity.Resolve(aircraft.definition.jsonKey, aircraft.definition.name) : "";
-        if (aircraft != _aircraft || _slot != CockpitProfiles.ActiveSlot || _key != key ||
-            aircraft != null && _widgets.Count != HudWidgetProfiles.Ids.Length)
-        {
-            Finish(false);
-            ReleaseWidgets();
-            _aircraft = aircraft;
-            _slot = CockpitProfiles.ActiveSlot;
-            _key = key;
-            _initialPlacementDone = false;
-            _defaultPlacement.Reset();
-            if (aircraft != null)
-            {
-                // Every cockpit gets every widget, regardless of native HUD
-                // sources or mod metadata timing. Missing sources stay editable.
-                _poses = _profiles.Load(_key, _slot);
-                _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot);
-                CaptureCalibration();
-                foreach (var id in HudWidgetProfiles.Ids)
-                    CreateWidget(id);
-            }
-        }
+        RefreshContext();
         if (!_initialPlacementDone)
             InitializeDefaults();
         Place();
-        if (!_editing)
+        if (!CanUpdateEdit())
             return;
-        if (!Ready() || CameraStateManager.cameraMode != CameraMode.cockpit)
-        {
-            Finish(false);
-            return;
-        }
-        if (_seat != CockpitProfiles.SeatOffset || _anchor != NOVRHeadsetData.TranslationAnchor ||
-            _calibration != NOVRHeadsetData.TranslationCalibrationOffset || _recenter != NOVRHeadsetData.RotationCalibrationOffset)
-        {
-            ReleaseHands();
-            CaptureCalibration();
-        }
-        if (!TrackedControllers.Available || WristMenu.IsOpen || Time.timeScale <= 0 || !GameManager.flightControlsEnabled ||
-            (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) ||
-            (GameManager.controlMapper != null && GameManager.controlMapper.isOpen))
-        {
-            ReleaseHands();
-            return;
-        }
         for (var i = 0; i < 2; i++)
         {
             _samples[i] = TrackedControllers.Read(i == 0);
@@ -221,86 +161,6 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         MoveHeldWidgets();
     }
 
-    internal void Begin()
-    {
-        if (_editing || !Available)
-            return;
-        CockpitLayout.Instance?.Finish(false);
-        MotionFlightController.Instance?.CancelPlacement();
-        MotionFlightController.Instance?.ResetGrips();
-        ControllerActions.Instance?.ResetButtons();
-
-        _editing = true;
-        if (CockpitLayout.Instance?.BeginUnified() != true)
-        {
-            _editing = false;
-            return;
-        }
-        CockpitProfiles.Instance?.BeginPreview();
-        // Begin at the exact displayed/saved layout. Reach recovery is an
-        // explicit command, never a side effect of opening the editor.
-        _editStart = new Dictionary<string, HudWidgetPose>(_poses);
-        CaptureCalibration();
-        ReleaseHands();
-        Place();
-    }
-    internal void Finish(bool save)
-    {
-        if (!_editing)
-            return;
-        if (save)
-        {
-            SaveToSlot(_slot);
-            return;
-        }
-        _editing = false;
-        ReleaseHands();
-        CockpitLayout.Instance?.FinishUnified(false);
-        CockpitProfiles.Instance?.EndPreview();
-        if (_editStart != null)
-            _poses = _editStart;
-        _editStart = null;
-        MotionFlightController.Instance?.ResetGrips();
-        ControllerActions.Instance?.ResetButtons();
-        Place();
-    }
-    internal bool SaveToSlot(int slot)
-    {
-        CockpitProfiles.Instance?.Refresh();
-        if (slot < 1 || slot > 3 || !_editing || !Available || !CanSaveProfile || CockpitLayout.Instance?.CanSaveUnified != true ||
-            !GameManager.GetLocalAircraft(out var aircraft) || aircraft != _aircraft || CockpitProfiles.Instance == null)
-            return false;
-        var stick = CockpitLayout.StickPreview ?? CockpitProfiles.StickPosition;
-        var throttle = CockpitLayout.ThrottlePreview ?? CockpitProfiles.ThrottlePosition;
-        if (!CockpitProfiles.Instance.SaveSlot(slot, CockpitProfiles.SeatOffset, stick, throttle))
-            return false;
-        _profiles.Save(_key, _poses, slot);
-        Finish(false);
-        CockpitProfiles.Instance.SelectSlot(slot);
-        ReloadProfile();
-        return true;
-    }
-    internal bool LoadSlot(int slot)
-    {
-        // Loading never silently discards a live placement preview.
-        if (_editing || !Available || !CanSaveProfile || CockpitProfiles.Instance?.SelectSlot(slot) != true)
-            return false;
-        ReloadProfile();
-        return true;
-    }
-    internal bool HasSavedSlot(int slot) => _profiles.HasSavedLayout(_key, slot);
-    private void ReloadProfile()
-    {
-        _slot = CockpitProfiles.ActiveSlot;
-        _poses = _profiles.Load(_key, _slot);
-        _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot);
-        _defaultPlacement.Reset();
-        ReleaseHands();
-        CaptureCalibration();
-        MotionFlightController.Instance?.ResetGrips();
-        ControllerActions.Instance?.ResetButtons();
-        Place();
-    }
     internal void ResetPreview()
     {
         if (!_editing || !TryGetSeatedHead(out var head))
@@ -408,13 +268,6 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         return HudWidgetDefaultPlacement.Finite(head);
     }
 
-    private void CaptureCalibration()
-    {
-        _seat = CockpitProfiles.SeatOffset;
-        _anchor = NOVRHeadsetData.TranslationAnchor;
-        _calibration = NOVRHeadsetData.TranslationCalibrationOffset;
-        _recenter = NOVRHeadsetData.RotationCalibrationOffset;
-    }
     private bool HandPosition(ControllerSample hand, int index, out Vector3 position)
     {
         position = default;
@@ -836,42 +689,6 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
                 widget.Placeholder.color = _editing ? new Color(1, 1, 1, emphasis) : new Color(.56f, .9f, .68f, pose.Opacity * .65f * emphasis);
             }
         }
-    }
-    private void ReleaseHands()
-    {
-        foreach (var hand in _hands)
-        {
-            hand.Id = null;
-            hand.Corner = -1;
-            hand.Gate.Reset();
-        }
-        _hover[0] = _hover[1] = null;
-        _resizing = null;
-        _angleValid[0] = _angleValid[1] = false;
-        _appearanceBusy[0] = _appearanceBusy[1] = false;
-        foreach (var widget in _widgets.Values)
-            widget.Appearance.ReleaseHands();
-    }
-    private void ReleaseWidgets()
-    {
-        CockpitStatusSources.ReleaseAll();
-        CockpitMapWidget.ReleaseAll();
-        CockpitAlerts.ReleaseWidgetParents();
-        foreach (var widget in _widgets.Values)
-        {
-            widget.Appearance.Dispose();
-            if (widget.Root != null)
-                Destroy(widget.Root.gameObject);
-        }
-        _widgets.Clear();
-        _menuAppearanceFocus = null;
-    }
-    private void OnDisable()
-    {
-        Application.onBeforeRender -= Place;
-        Finish(false);
-        ReleaseWidgets();
-        _aircraft = null;
     }
     private void OnDestroy()
     {

@@ -3,7 +3,7 @@ using Rewired;
 namespace NOVR.VrUi.Native;
 
 // Owns the global Rewired mapper and its delayed start. The settings view owns
-// row labels, map interpretation and save/error messages; hiding that view must
+// save/error messages; the catalog interprets maps. Hiding the view must
 // always cancel this session because InputMapper polls independently of Unity UI.
 internal sealed class NativeBindingCaptureSession<TBinding> where TBinding : class
 {

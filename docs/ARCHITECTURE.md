@@ -65,9 +65,19 @@ examples of state that must be discarded when its original context disappears.
   pilot viewpoint's rigid pose, ignoring imported bone scale. Saved layout offsets
   stay aircraft-fixed when the player recenters or changes their seat.
 - [`RiggedGlove`](../NOVR/Hands/RiggedGlove.cs) blends visual attachments;
-  `PilotHandVisuals` then stabilizes free hands and solves sleeves. Snapped/smoothed
+  `PilotHandVisuals` then stabilizes free hands and updates
+  [`PilotSleeves`](../NOVR/Hands/PilotSleeves.cs), which owns the copied arm bones,
+  fitted meshes, sleeve solving and bounds. Its native pilot and hand-material
+  owner are borrowed; failed creation releases the partial sleeve resources.
+  Snapped/smoothed
   meshes and capacitive finger animation must never feed back into contact tests,
   grip acquisition or button presses.
+
+[`CockpitHudWidgets.Session`](../NOVR/VrUi/Widgets/CockpitHudWidgets.Session.cs)
+owns the combined HUD/seat/handle editing transaction. Aircraft or profile changes
+cancel it before releasing borrowed UI. Seat calibration, recentering and temporary
+input suspension release contacts without discarding the preview. Rendering and
+gesture geometry remain in the main component; neither path owns profile storage.
 
 ## Borrowed native UI
 
@@ -98,6 +108,11 @@ A missing selected server leaves JOIN disabled; it must not select another row
 implicitly. Password prompts retain their original lobby and the exact entered
 password, including spaces.
 
+`NativeMultiplayerPanel` coordinates source refresh and visibility. Its
+`BrowserView`, `HostSetup` and `PasswordView` partials hold their respective view
+state; `LobbyData` adapts native metadata. `LobbyBrowserQuery` owns filter/sort
+rules and receives search text explicitly, without referencing UI controls.
+
 Hosting retains the mission, scene and native service context that accepted the
 request. Hiding the menu does not cancel it, but a context change prevents an old
 Steam completion from starting a host. Apply the selected mission only after
@@ -124,13 +139,24 @@ editor consumes the shared model. Check both hardware profiles and handedness:
 python tools/verify.py portable --suite controller-bindings --suite controller-runtime
 ```
 
+**A native game binding:** this is separate from NOVR's controller profile editor.
+[`NativeBindingCatalog`](../NOVR/VrUi/Native/Settings/NativeBindingCatalog.cs)
+discovers assignable maps and whole/half-axis slots; `NativeBindingNames` owns
+display names. Entries retain the original Rewired map references. The settings
+panel applies edits, while `NativeBindingCaptureSession` owns delayed capture and
+mapper subscriptions. Check discovery and capture together:
+
+```sh
+python tools/verify.py portable --suite native-binding-catalog --suite native-menu-handoff
+```
+
 **A HUD widget:** add stable ID, defaults and presentation to
 [`HudWidgetCatalog`](../NOVR/VrUi/Widgets/HudWidgetCatalog.cs), then supply its
 content through the appropriate source owner. Catalog metadata does not acquire
 or restore native objects. Preserve saved IDs and test missing/destroyed sources:
 
 ```sh
-python tools/verify.py portable --suite hud-widgets --suite cockpit-status-sources
+python tools/verify.py portable --suite hud-widgets --suite hud-widget-session --suite cockpit-status-sources
 ```
 
 **Hand fit:** adjust [`Fs20HandPoses`](../NOVR/Hands/Fs20HandPoses.cs),

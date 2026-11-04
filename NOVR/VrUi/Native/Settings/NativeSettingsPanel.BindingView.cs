@@ -16,7 +16,7 @@ public partial class NativeSettingsPanel
     private const float BindingScrollIndicatorMinThumbHeight = 42f;
     private const float BindingActivePollSeconds = 0.08f;
     private const float BindingAxisValueRefreshSeconds = 0.08f;
-    private readonly Dictionary<BindingEntry, Text> _bindingAxisValueTexts = new();
+    private readonly Dictionary<NativeBindingEntry, Text> _bindingAxisValueTexts = new();
     private int _bindingDeviceFilterIndex;
     private BindingVisibilityFilter _bindingVisibilityFilter = BindingVisibilityFilter.All;
     private float _bindingScrollOffset;
@@ -80,7 +80,7 @@ public partial class NativeSettingsPanel
         CreateText("Bindings Status", _contentRoot, _bindingStatus, new Vector2(0f, -345f), new Vector2(880f, 30f), 13, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
     }
 
-    private void RenderBindingScrollList(IList<BindingEntry> visibleEntries)
+    private void RenderBindingScrollList(IList<NativeBindingEntry> visibleEntries)
     {
         if (_contentRoot == null)
             return;
@@ -179,7 +179,7 @@ public partial class NativeSettingsPanel
         CreateText("Bindings Header Value", _contentRoot, "VALUE", new Vector2(220f, y), new Vector2(90f, 24f), 12, TextAnchor.MiddleCenter, new Color(0.68f, 0.76f, 0.78f, 1f));
     }
 
-    private int GetFocusedBindingIndex(IList<BindingEntry> visibleEntries)
+    private int GetFocusedBindingIndex(IList<NativeBindingEntry> visibleEntries)
     {
         if (string.IsNullOrWhiteSpace(_focusedBindingKey))
         {
@@ -209,7 +209,7 @@ public partial class NativeSettingsPanel
             return;
 
         var filter = GetCurrentBindingDeviceFilter();
-        var label = ShortenLabel(filter.Label, 42);
+        var label = NativeBindingNames.ShortenLabel(filter.Label, 42);
         const float y = 252f;
 
         CreateText("Bindings Device Filter Label", _contentRoot, "DEVICE", new Vector2(-385f, y), new Vector2(120f, 30f), 13, TextAnchor.MiddleLeft, new Color(0.78f, 0.84f, 0.86f, 1f));
@@ -279,21 +279,21 @@ public partial class NativeSettingsPanel
         };
     }
 
-    private BindingDeviceFilter GetCurrentBindingDeviceFilter()
+    private NativeBindingDevice GetCurrentBindingDeviceFilter()
     {
         if (_bindingDeviceFilters.Count == 0)
         {
-            return new BindingDeviceFilter(string.Empty, "NO DEVICE");
+            return new NativeBindingDevice(string.Empty, "NO DEVICE");
         }
 
         _bindingDeviceFilterIndex = ClampInt(_bindingDeviceFilterIndex, 0, _bindingDeviceFilters.Count - 1);
         return _bindingDeviceFilters[_bindingDeviceFilterIndex];
     }
 
-    private IList<BindingEntry> GetVisibleBindingEntries()
+    private IList<NativeBindingEntry> GetVisibleBindingEntries()
     {
         var filter = GetCurrentBindingDeviceFilter();
-        var visibleEntries = new List<BindingEntry>();
+        var visibleEntries = new List<NativeBindingEntry>();
         for (var index = 0; index < _bindingEntries.Count; index++)
         {
             var entry = _bindingEntries[index];
@@ -306,7 +306,7 @@ public partial class NativeSettingsPanel
         return visibleEntries;
     }
 
-    private bool IsBindingVisible(BindingEntry entry)
+    private bool IsBindingVisible(NativeBindingEntry entry)
     {
         return _bindingVisibilityFilter switch
         {
@@ -323,7 +323,7 @@ public partial class NativeSettingsPanel
         _lastActiveBindingKey = null;
     }
 
-    private void AddBindingRow(BindingEntry entry, RectTransform parent, int rowIndex)
+    private void AddBindingRow(NativeBindingEntry entry, RectTransform parent, int rowIndex)
     {
         var y = -BindingScrollRowHeight * rowIndex - BindingScrollRowHeight * 0.5f;
         var active = IsBindingButtonInputActive(entry);
@@ -388,7 +388,7 @@ public partial class NativeSettingsPanel
 
         EnsureBindingEntriesLoaded();
         var visibleEntries = GetVisibleBindingEntries();
-        BindingEntry? activeEntry = null;
+        NativeBindingEntry? activeEntry = null;
         for (var index = 0; index < visibleEntries.Count; index++)
         {
             if (!IsBindingButtonInputActive(visibleEntries[index]))
@@ -429,7 +429,7 @@ public partial class NativeSettingsPanel
         }
     }
 
-    private static bool IsBindingButtonInputActive(BindingEntry entry)
+    private static bool IsBindingButtonInputActive(NativeBindingEntry entry)
     {
         if (!entry.IsAssigned || GameManager.playerInput == null || !ReInput.isReady)
         {
@@ -451,7 +451,7 @@ public partial class NativeSettingsPanel
         }
     }
 
-    private static string GetBindingAxisValueText(BindingEntry entry)
+    private static string GetBindingAxisValueText(NativeBindingEntry entry)
     {
         if (!entry.CanShowAxisValue || GameManager.playerInput == null || !ReInput.isReady)
         {

@@ -7,6 +7,7 @@ void Near(Vector3 a, Vector3 b, string message, float tolerance = .00001f) => Ch
 void SameRotation(Quaternion a, Quaternion b, string message) => Check(Quaternion.Angle(a, b) < .08f, message);
 GloveBoneChecks.Run(Check);
 GloveResourceChecks.Run(Check);
+SleeveResourceChecks.Run(Check);
 foreach (var collectiveAircraft in new[] { false, true })
 {
     Check(NativeControlSelection.Source(true, collectiveAircraft) == "SmallFighter1", "Helicopter stick lost the shared FS20 model");

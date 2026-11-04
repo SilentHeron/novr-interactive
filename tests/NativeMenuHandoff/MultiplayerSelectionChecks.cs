@@ -235,17 +235,17 @@ namespace NOVR.VrUi.Native
         {
             internal string? text = "";
         }
-        private readonly struct NativeLobbyEntry
+        private readonly partial struct NativeLobbyEntry
         {
             internal readonly LobbyInstance Lobby;
             internal NativeLobbyEntry(LobbyInstance lobby) => Lobby = lobby;
             internal string LobbyName => Lobby.Name;
-            internal string MissionName => "Mission";
-            internal string MapName => "Map";
+            internal string MissionName => Lobby.QueryMissionName;
+            internal string MapName => Lobby.QueryMapName;
             internal string PlayerCountText => "1/8";
             internal string PingText => "40 ms";
-            internal string StatusText => "Ready";
-            internal string Description => "Description";
+            internal string StatusText => Lobby.QueryStatus;
+            internal string Description => Lobby.QueryDescription;
             internal bool IsFull => Lobby.Full;
             internal bool HasPassword => Lobby.Password;
         }

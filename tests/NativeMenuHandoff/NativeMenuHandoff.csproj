@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeMultiplayerPanel.Selection.cs" Link="NativeMultiplayerPanel.Selection.cs" />
+    <Compile Include="../../NOVR/VrUi/Native/Menus/NativeMultiplayerPanel.BrowserQuery.cs" Link="NativeMultiplayerPanel.BrowserQuery.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeMultiplayerPanel.Hosting.cs" Link="NativeMultiplayerPanel.Hosting.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeLobbyOwnership.cs" Link="NativeLobbyOwnership.cs" />
     <Compile Include="../../NOVR/VrUi/Native/Menus/NativeSinglePlayerMissionPanel.Launch.cs" Link="NativeSinglePlayerMissionPanel.Launch.cs" />

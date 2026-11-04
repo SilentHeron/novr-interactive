@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Widgets/CockpitHudWidgets.Session.cs" Link="CockpitHudWidgets.Session.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetCatalog.cs" Link="HudWidgetCatalog.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetDefaultPlacement.cs" Link="HudWidgetDefaultPlacement.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetShape.cs" Link="HudWidgetShape.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />
+    <Compile Include="../../NOVR/Profiles/AircraftLayoutIdentity.cs" Link="AircraftLayoutIdentity.cs" />
+    <Compile Include="../../NOVR/Profiles/CockpitProfiles.cs" Link="CockpitProfiles.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
+  </ItemGroup>
+</Project>

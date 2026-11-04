@@ -56,6 +56,7 @@ passed += CaptureLifetimeChecks.Run();
 passed += PanelVisibilityChecks.Run();
 passed += MenuAvailabilityChecks.Run();
 passed += MultiplayerSelectionChecks.Run();
+passed += NativeMultiplayerPanel.RunBrowserQueryChecks();
 passed += await MultiplayerHostingChecks.Run();
 passed += await SinglePlayerLaunchChecks.Run();
 passed += SinglePlayerSelectionChecks.Run();
