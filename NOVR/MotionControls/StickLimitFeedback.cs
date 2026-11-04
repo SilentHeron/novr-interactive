@@ -7,11 +7,11 @@ namespace NOVR.MotionControls;
 internal sealed class StickLimitFeedback
 {
     private const float NearStart = .78f, NearExit = .70f;
-    private const float RefreshInterval = .025f, ImpulseDuration = .065f, Response = 18f;
-    private const float FullCueSeconds = 1f, FadeSeconds = 1.5f, HoldingGain = .2f;
-    private bool _active, _near;
+    private const float RefreshInterval = .025f, ImpulseDuration = .045f, Response = 18f;
+    private const float CueBudget = .45f, RetreatSeconds = .10f;
+    private bool _active, _near, _retreating;
     private int _lastFrame = -1;
-    private float _lastTime, _nextPulse, _strength, _nearSince;
+    private float _lastTime, _nextPulse, _strength, _cutoffAt, _retreatSince;
 
     internal (float strength, float seconds) Update(bool active, float pitch, float roll, float twist, float now, int frame)
     {
@@ -22,40 +22,52 @@ internal sealed class StickLimitFeedback
         // A diagonal is not a circular travel stop: either mapped axis must
         // approach its own limit. All sign combinations have identical feedback.
         var magnitude = Math.Min(1f, Math.Max(Math.Abs(pitch), Math.Max(Math.Abs(roll), Math.Abs(twist))));
-        if (!_active || now < _lastTime || now - _lastTime > .25f)
+        if (!_active)
         {
             _active = true; _lastFrame = frame; _lastTime = now; _strength = 0;
-            _near = magnitude >= NearStart; _nearSince = now; _nextPulse = now + .06f;
-            return default; // Let the grip-acquisition cue finish before sustained feedback starts.
+            _near = magnitude >= NearStart; _cutoffAt = now + CueBudget; _nextPulse = now + .06f;
+            return default; // Let the grip-acquisition cue finish before movement feedback starts.
         }
         var elapsed = now - _lastTime;
         _lastFrame = frame; _lastTime = now;
-        if (magnitude <= NearExit) { _near = false; _strength = 0; return default; }
-        if (magnitude >= NearStart && !_near) { _near = true; _nearSince = now; }
+        if (elapsed < 0f)
+        {
+            // A clock discontinuity must not buy another burst while held at
+            // the stop. Forward gaps consume the existing budget naturally.
+            _cutoffAt = now; _strength = 0; _retreating = false;
+            _nextPulse = now + .06f;
+            return default;
+        }
+        if (magnitude <= NearExit)
+        {
+            _strength = 0;
+            if (!_retreating) { _retreating = true; _retreatSince = now; }
+            if (now - _retreatSince >= RetreatSeconds) _near = false;
+            return default;
+        }
+        _retreating = false;
+        if (magnitude >= NearStart && !_near) { _near = true; _cutoffAt = now + CueBudget; }
         if (!_near) return default;
+        var remaining = _cutoffAt - now;
+        if (remaining <= 0f) { _strength = 0; return default; }
 
         var approach = FlightControlMath.Clamp((magnitude - NearStart) / (1f - NearStart), 0f, 1f);
         approach = approach * approach * (3f - 2f * approach);
         var fade = FlightControlMath.Clamp((magnitude - NearExit) / (NearStart - NearExit), 0f, 1f);
-        // A clear arrival cue becomes a light holding sensation. The timer
-        // survives tracking tremor and changes between saturated axes; only
-        // withdrawing below NearExit (or releasing the grip) rearms it.
-        var held = FlightControlMath.Clamp((now - _nearSince - FullCueSeconds) / FadeSeconds, 0f, 1f);
-        held = held * held * (3f - 2f * held);
-        var gain = 1f - (1f - HoldingGain) * held;
-        var target = (.04f + .61f * approach) * fade * gain;
+        // Position controls the short approach ramp. Its budget is shared by
+        // every axis and never restarts from tremor or a sustained tight turn.
+        var target = (.025f + .425f * approach) * fade;
         _strength += (target - _strength) * FlightControlMath.SmoothingWeight(elapsed, Response);
         if (now < _nextPulse) return default;
-        // Overlapping impulses remove the slow on/off rhythm. Common headset
-        // rates send 30-40 updates/sec, never more than 40, while amplitude
-        // changes smoothly through both approach and sustained-hold fatigue relief.
+        // Overlap short impulses for a steady ramp, then cut out completely.
+        // Even the final impulse must end within this approach's time budget.
         _nextPulse = now + RefreshInterval;
-        return (_strength, ImpulseDuration);
+        return (_strength, Math.Min(ImpulseDuration, remaining));
     }
 
     internal void Reset()
     {
-        _active = _near = false;
-        _lastFrame = -1; _lastTime = _nextPulse = _strength = _nearSince = 0;
+        _active = _near = _retreating = false;
+        _lastFrame = -1; _lastTime = _nextPulse = _strength = _cutoffAt = _retreatSince = 0;
     }
 }

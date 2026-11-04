@@ -4,7 +4,7 @@ internal static class StickLimitFeedbackChecks
 {
     internal static void Run(Action<string, Action> check, Action<bool> truth)
     {
-        check("Continuous stick resistance follows configured pitch and roll in either direction", () =>
+        check("Short stick approach feedback follows configured pitch and roll in either direction", () =>
         {
             foreach (var angle in new[] { 5f, 25f, 60f })
             foreach (var sign in new[] { -1f, 1f })
@@ -14,96 +14,116 @@ internal static class StickLimitFeedbackChecks
                 var command = FlightControlMath.Stick(roll ? sign * MathF.Sin(radians) : 0,
                     MathF.Cos(radians), roll ? 0 : sign * MathF.Sin(radians), angle, .06f, 1.5f);
                 var feedback = new StickLimitFeedback(); feedback.Update(true, 0, 0, 0, 0, 0);
-                var strength = 0f;
+                var peak = 0f;
                 for (var frame = 1; frame <= 90; frame++)
                 {
                     var cue = feedback.Update(true, command.pitch, command.roll, 0, frame / 90f, frame);
-                    if (cue.strength > 0) strength = cue.strength;
+                    peak = Math.Max(peak, cue.strength);
+                    if (frame >= 45) truth(cue == default);
                 }
-                truth(strength > .64f && strength <= .651f);
+                truth(peak > .44f && peak <= .451f);
             }
         });
         check("Diagonal movement does not invent a circular travel limit", () =>
         {
             var feedback = new StickLimitFeedback(); feedback.Update(true, 0, 0, 0, 0, 0);
             for (var frame = 1; frame < 200; frame++)
-                truth(feedback.Update(true, .71f, -.71f, 0, frame / 90f, frame).strength == 0);
+                truth(feedback.Update(true, .71f, -.71f, 0, frame / 90f, frame) == default);
         });
-        check("Overlapping stick impulses stay continuous while sustained feedback tapers", () =>
+        check("Overlapping approach impulses end within 450ms and stay silent at every held near-limit position", () =>
         {
             foreach (var rate in new[] { 72, 90, 120, 144 })
             {
-                var strengths = new List<float>();
+                var peaks = new List<float>();
                 foreach (var position in new[] { .8f, .90f, .95f, 1f })
                 {
                     var feedback = new StickLimitFeedback(); feedback.Update(true, 0, 0, 0, 0, 0);
-                    var count = 0; var last = -1f; var strength = 0f; var priorDuration = 0f;
+                    var count = 0; var last = -1f; var peak = 0f; var priorDuration = 0f;
+                    var cutoff = 1f / rate + .45f;
                     for (var frame = 1; frame <= rate * 5; frame++)
                     {
                         var now = frame / (float)rate;
                         var cue = feedback.Update(true, position, 0, 0, now, frame);
+                        truth(feedback.Update(true, position, 0, 0, now, frame) == default);
+                        if (now >= cutoff) truth(cue == default);
                         if (cue.strength <= 0) continue;
-                        truth(cue.strength <= .651f && cue.seconds == .065f);
+                        truth(cue.strength <= .451f && cue.seconds > 0 && cue.seconds <= .045f);
+                        truth(now + cue.seconds <= cutoff + .000001f);
                         if (last >= 0)
                         {
                             truth(now - last >= .025f - .000001f);
-                            truth(now <= last + priorDuration);
-                            if (now <= 1f) truth(cue.strength >= strength - .000001f);
-                            if (now >= 1.15f) truth(cue.strength <= strength + .000001f);
+                            truth(now <= last + priorDuration + .000001f);
+                            truth(cue.strength >= peak - .000001f);
                         }
-                        truth(feedback.Update(true, position, 0, 0, now, frame).strength == 0);
-                        last = now; strength = cue.strength; priorDuration = cue.seconds; count++;
+                        last = now; peak = cue.strength; priorDuration = cue.seconds; count++;
                     }
-                    truth(count >= 145 && count <= 200);
-                    strengths.Add(strength);
+                    truth(count >= 9 && count <= 18);
+                    truth(Math.Abs(last + priorDuration - cutoff) < .000001f);
+                    peaks.Add(peak);
                 }
-                truth(strengths.Zip(strengths.Skip(1), (a, b) => b > a).All(x => x));
-                truth(strengths[0] < .012f && strengths[3] > .129f && strengths[3] < .131f);
+                truth(peaks.Zip(peaks.Skip(1), (a, b) => b > a).All(x => x));
+                truth(peaks[0] < .04f && peaks[3] > .44f);
             }
         });
-        check("Tracking jitter cannot retrigger the initial strong cue during a sustained hold", () =>
-        {
-            var feedback = new StickLimitFeedback(); feedback.Update(true, 1, 0, 0, 0, 0);
-            var last = 0f; var strength = 0f;
-            for (var frame = 1; frame <= 270; frame++)
-            {
-                var now = frame / 90f;
-                var cue = feedback.Update(true, frame % 2 == 0 ? 1 : .99f, 0, 0, now, frame);
-                if (cue.strength == 0) continue;
-                if (now > .5f && now <= 1f) truth(cue.strength > .64f);
-                if (now > 1f) truth(Math.Abs(cue.strength - strength) < .025f);
-                if (now > 2.8f) truth(cue.strength > .128f && cue.strength < .132f);
-                if (last > 0) truth(now - last < .065f);
-                last = now; strength = cue.strength;
-            }
-            truth(last > 2.95f);
-        });
-        check("Withdrawing from the limit rearms a fresh cue while small movements retain the taper", () =>
+        check("An approaching stick produces a growing steady ramp without a separate arrival pulse", () =>
         {
             foreach (var rate in new[] { 72, 90, 120, 144 })
             {
-                var feedback = new StickLimitFeedback();
-                var frame = 0; var now = 0f; var strength = 0f;
-                void Advance(float magnitude, int frames)
+                var feedback = new StickLimitFeedback(); feedback.Update(true, 0, 0, 0, 0, 0);
+                var lastStrength = 0f; var lastEnd = 0f; var count = 0;
+                for (var frame = 1; frame <= rate; frame++)
                 {
-                    for (var i = 0; i < frames; i++)
-                    {
-                        now = frame / (float)rate;
-                        var cue = feedback.Update(true, magnitude, 0, 0, now, frame++);
-                        if (cue.strength > 0) strength = cue.strength;
-                    }
+                    var now = frame / (float)rate;
+                    var position = .78f + .22f * Math.Min(now / .36f, 1f);
+                    var cue = feedback.Update(true, position, 0, 0, now, frame);
+                    if (now > .47f) truth(cue == default);
+                    if (cue.strength == 0) continue;
+                    truth(cue.strength > lastStrength);
+                    if (count > 0) truth(now <= lastEnd + .000001f);
+                    lastStrength = cue.strength; lastEnd = now + cue.seconds; count++;
                 }
-                Advance(1, rate * 4);
-                truth(strength > .129f && strength < .131f);
-                Advance(.75f, rate / 5); // Inside hysteresis: not a deliberate withdrawal.
-                Advance(1, rate / 2);
-                truth(strength < .131f);
-                Advance(.69f, 2);
-                Advance(1, rate / 2);
-                truth(strength > .64f && strength <= .651f);
+                truth(count >= 9 && lastStrength > .40f && lastStrength < .451f);
             }
         });
-        check("Physical twist shares one resistance cue without stacking saturated axes", () =>
+        check("Jitter, short retreats and changing saturated axes cannot rearm spent feedback", () =>
+        {
+            var feedback = new StickLimitFeedback(); feedback.Update(true, 1, 0, 0, 0, 0);
+            for (var frame = 1; frame <= 90; frame++) feedback.Update(true, 1, 0, 0, frame / 90f, frame);
+            for (var frame = 91; frame <= 900; frame++)
+            {
+                var magnitude = (frame % 7) switch { 0 => .69f, 1 => .71f, 2 => .75f, 3 => .79f, _ => .99f };
+                var axis = frame % 3;
+                truth(feedback.Update(true, axis == 0 ? magnitude : 0, axis == 1 ? -magnitude : 0,
+                    axis == 2 ? magnitude : 0, frame / 90f, frame) == default);
+            }
+        });
+        check("Only a deliberate retreat rearms a fresh bounded cue without stacking axes", () =>
+        {
+            foreach (var rate in new[] { 72, 90, 120, 144 })
+            {
+                var feedback = new StickLimitFeedback(); var frame = 0;
+                float Advance(float magnitude, int frames)
+                {
+                    var peak = 0f;
+                    for (var i = 0; i < frames; i++)
+                    {
+                        var now = frame / (float)rate;
+                        var cue = feedback.Update(true, magnitude, -magnitude, magnitude, now, frame++);
+                        peak = Math.Max(peak, cue.strength);
+                    }
+                    return peak;
+                }
+                truth(Advance(1, rate) > .44f);
+                truth(Advance(.75f, rate / 2) == 0); // Hysteresis band is not a withdrawal.
+                truth(Advance(1, rate / 2) == 0);
+                truth(Advance(.69f, 2) == 0); // A brief low sample must not recharge the cue.
+                truth(Advance(1, rate / 2) == 0);
+                truth(Advance(.69f, (int)Math.Ceiling(rate * .12f)) == 0);
+                truth(Advance(1, rate / 2) > .44f);
+                truth(Advance(1, rate * 3) == 0);
+            }
+        });
+        check("Physical twist shares the same bounded cue without adding saturated axes", () =>
         {
             var twist = new StickLimitFeedback(); var all = new StickLimitFeedback();
             twist.Update(true, 0, 0, 0, 0, 0); all.Update(true, 0, 0, 0, 0, 0);
@@ -114,21 +134,27 @@ internal static class StickLimitFeedbackChecks
                 truth(a == b);
             }
         });
-        check("Grip loss, tracking loss, discontinuity and withdrawal reset continuous feedback", () =>
+        check("Timing gaps cannot recharge a held stick; release and tracking loss reset safely", () =>
         {
             var feedback = new StickLimitFeedback(); feedback.Update(true, 0, 0, 0, 0, 0);
             truth(feedback.Update(true, 1, 0, 0, .1f, 1).strength > 0);
-            truth(feedback.Update(false, 1, 1, 1, .11f, 2).strength == 0);
-            truth(feedback.Update(true, 1, 1, 1, .12f, 3).strength == 0);
-            truth(feedback.Update(true, 1, 1, 1, .13f, 4).strength == 0);
-            truth(feedback.Update(true, 1, 1, 1, .20f, 5).strength > 0);
-            truth(feedback.Update(true, .70f, 0, 0, .21f, 6).strength == 0);
-            truth(feedback.Update(true, .75f, 0, 0, .25f, 7).strength == 0);
-            truth(feedback.Update(true, 1, 0, 0, 2, 8).strength == 0);
-            truth(feedback.Update(true, 1, 0, 0, 1, 9).strength == 0);
+            truth(feedback.Update(true, 1, 0, 0, 1f, 2) == default);
+            truth(feedback.Update(true, 1, 0, 0, 1.1f, 3) == default);
+            truth(feedback.Update(true, 1, 0, 0, .2f, 4) == default); // Clock rewind must not rearm.
+            truth(feedback.Update(true, 1, 0, 0, .3f, 5) == default);
+            truth(feedback.Update(false, 1, 1, 1, .31f, 6) == default);
+            truth(feedback.Update(true, 1, 1, 1, .32f, 7) == default);
+            truth(feedback.Update(true, 1, 1, 1, .33f, 8) == default);
+            truth(feedback.Update(true, 1, 1, 1, .40f, 9).strength > 0);
             foreach (var invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
-                truth(feedback.Update(true, invalid, 0, 0, 3, 10).strength == 0);
-            feedback.Reset(); truth(feedback.Update(true, 1, 0, 0, 4, 11).strength == 0);
+            foreach (var channel in new[] { 0, 1, 2, 3 })
+            {
+                truth(feedback.Update(true, channel == 0 ? invalid : 1, channel == 1 ? invalid : 1,
+                    channel == 2 ? invalid : 1, channel == 3 ? invalid : 3, 10) == default);
+                truth(feedback.Update(true, 1, 1, 1, 4, 11) == default);
+                truth(feedback.Update(true, 1, 1, 1, 4.1f, 12).strength > 0);
+            }
+            feedback.Reset(); truth(feedback.Update(true, 1, 0, 0, 5, 13) == default);
         });
     }
 }
