@@ -34,8 +34,10 @@ jobs:
             /tests/
             /tools/
             /NOVR.Installer/InstallerConstants.cs
+            /NOVR.Installer/InstallType.cs
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
+            /NOVR.Installer/ViewModels/
             /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
             /NOVR.Patcher/PayloadFile.cs
             /NOVR.Patcher/ManagedPayloadUpgrade.cs

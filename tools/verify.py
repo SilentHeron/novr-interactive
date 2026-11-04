@@ -59,6 +59,7 @@ PORTABLE = (
     ("mission-readiness", "tests/MissionReadiness/NOVR.MissionReadiness.Tests.csproj"),
     ("startup-splash", "tests/StartupSplash/NOVR.StartupSplash.Tests.csproj"),
     ("installer", "tests/Installer/NOVR.Installer.Tests.csproj"),
+    ("installer-ui", "tests/InstallerUi/InstallerUi.csproj"),
 )
 TEST_ROOTS = ("tests",)
 

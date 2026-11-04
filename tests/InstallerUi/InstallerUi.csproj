@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR.Installer/ViewModels/*.cs" Link="ViewModels/%(Filename)%(Extension)" />
+    <Compile Include="../../NOVR.Installer/Models/GameInstallInfo.cs" Link="GameInstallInfo.cs" />
+    <Compile Include="../../NOVR.Installer/Models/InstallState.cs" Link="InstallState.cs" />
+    <Compile Include="../../NOVR.Installer/Services/ReleaseVersion.cs" Link="ReleaseVersion.cs" />
+    <Compile Include="../../NOVR.Installer/InstallerConstants.cs" Link="InstallerConstants.cs" />
+    <Compile Include="../../NOVR.Installer/InstallType.cs" Link="InstallType.cs" />
+  </ItemGroup>
+</Project>

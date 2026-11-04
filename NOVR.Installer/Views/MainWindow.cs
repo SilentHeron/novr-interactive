@@ -83,6 +83,7 @@ public sealed class MainWindow : Window
             MinHeight = 38
         };
         pathBox.Bind(TextBox.TextProperty, new Avalonia.Data.Binding(nameof(MainWindowViewModel.GamePath)) { Mode = Avalonia.Data.BindingMode.TwoWay });
+        pathBox.Bind(IsEnabledProperty, new Avalonia.Data.Binding(nameof(MainWindowViewModel.CanEditGamePath)));
 
         var browseButton = new Button
         {

@@ -83,10 +83,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _isBusy, value))
             {
+                OnPropertyChanged(nameof(CanEditGamePath));
                 RaiseCommandStates();
             }
         }
     }
+
+    public bool CanEditGamePath => !IsBusy;
 
     public bool IsInstalledMode
     {
@@ -231,21 +234,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         });
     }
 
-    private async Task BrowseAsync()
+    private Task BrowseAsync()
     {
-        if (_browseForFolderAsync is null)
+        return RunBusyAsync(async () =>
         {
-            Status = "Folder picker is unavailable. Paste the Nuclear Option path into the box.";
-            return;
-        }
+            if (_browseForFolderAsync is null)
+            {
+                Status = "Folder picker is unavailable. Paste the Nuclear Option path into the box.";
+                return;
+            }
 
-        var path = await _browseForFolderAsync();
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            GamePath = path;
-            Status = "Selected game folder.";
-            Details = BuildDetails(GameInfo);
-        }
+            var path = await _browseForFolderAsync();
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                GamePath = path;
+                Status = "Selected game folder.";
+                Details = BuildDetails(GameInfo);
+            }
+        });
     }
 
     private Task PrimaryActionAsync()
@@ -258,62 +264,78 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return InstallOrUpdateAsync(InstallType.Repair);
     }
 
-    private async Task InstallPackageAsync()
+    private Task InstallPackageAsync()
     {
-        if (_browseForPackageAsync is null)
-            return;
-        var path = await _browseForPackageAsync();
-        if (!string.IsNullOrEmpty(path))
-            await InstallOrUpdateAsync(InstallType.Install, path);
-    }
-
-    private async Task InstallOrUpdateAsync(InstallType installType, string? localPackage = null)
-    {
-        var info = ValidateSelectedGame();
-        if (info is null)
+        return RunBusyAsync(async () =>
         {
-            return;
-        }
-
-        await RunBusyAsync(async () =>
-        {
-            var progress = new Progress<string>(message => Status = message);
-            var tempDir = Path.Combine(Path.GetTempPath(), "novr-installer-" + Guid.NewGuid().ToString("N"));
-
-            try
+            if (_browseForPackageAsync is null)
+                return;
+            // Keep the chosen destination throughout the picker and installation.
+            // A delayed dialog result must not install into a later selection.
+            var info = ValidateSelectedGame();
+            if (info is null)
+                return;
+            var path = await _browseForPackageAsync();
+            if (!string.IsNullOrEmpty(path))
             {
-                var release = localPackage is null
-                    ? await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None)
-                    : new DownloadedNovrRelease(localPackage, NovrPackage.ReadVersion(localPackage), string.Empty);
-                NovrPackage.Validate(release.ZipPath, release.Version.ToString());
-                if (info.ModState == InstallState.FullyInstalled && info.Version > release.Version)
-                    throw new InvalidOperationException($"Installed NOVR {info.Version} is newer than {release.Version}. Choose a matching or newer Steam Frame package; your installed files have not been changed.");
-
-                if (!info.HasBepInEx)
-                {
-                    var bepInExZip = await _releaseClient.DownloadLatestBepInEx5Async(tempDir, progress, CancellationToken.None);
-                    await _installer.InstallBepInExAsync(info, bepInExZip, progress, CancellationToken.None);
-                    info = _gameLocator.Inspect(info.GameDir);
-                }
-
-                await _installer.InstallOrUpdateNovrAsync(
-                    info,
-                    release.ZipPath,
-                    release.Version.ToString(),
-                    progress,
-                    CancellationToken.None);
-
-                var protonMessage = await _protonPrefixService.TryConfigureWinHttpOverrideAsync(info, progress, CancellationToken.None);
-
-                GameInfo = _gameLocator.Inspect(info.GameDir);
-                Status = $"{installType} complete.";
-                Details = BuildDetails(GameInfo) + Environment.NewLine + protonMessage;
-            }
-            finally
-            {
-                TryDeleteDirectory(tempDir);
+                // The folder identity stays fixed, but another installer may
+                // have changed its contents while the system picker was open.
+                var current = ValidateGame(info.GameDir);
+                if (current is not null)
+                    await InstallOrUpdateCoreAsync(current, InstallType.Install, path);
             }
         });
+    }
+
+    private Task InstallOrUpdateAsync(InstallType installType)
+    {
+        return RunBusyAsync(async () =>
+        {
+            var info = ValidateSelectedGame();
+            if (info is not null)
+                await InstallOrUpdateCoreAsync(info, installType);
+        });
+    }
+
+    // The caller owns RunBusyAsync for the complete picker/download/install flow.
+    private async Task InstallOrUpdateCoreAsync(GameInstallInfo info, InstallType installType, string? localPackage = null)
+    {
+        var progress = new Progress<string>(message => Status = message);
+        var tempDir = Path.Combine(Path.GetTempPath(), "novr-installer-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var release = localPackage is null
+                ? await EnsureLatestNovrReleaseDownloadedAsync(progress, CancellationToken.None)
+                : new DownloadedNovrRelease(localPackage, NovrPackage.ReadVersion(localPackage), string.Empty);
+            NovrPackage.Validate(release.ZipPath, release.Version.ToString());
+            if (info.ModState == InstallState.FullyInstalled && info.Version > release.Version)
+                throw new InvalidOperationException($"Installed NOVR {info.Version} is newer than {release.Version}. Choose a matching or newer Steam Frame package; your installed files have not been changed.");
+
+            if (!info.HasBepInEx)
+            {
+                var bepInExZip = await _releaseClient.DownloadLatestBepInEx5Async(tempDir, progress, CancellationToken.None);
+                await _installer.InstallBepInExAsync(info, bepInExZip, progress, CancellationToken.None);
+                info = _gameLocator.Inspect(info.GameDir);
+            }
+
+            await _installer.InstallOrUpdateNovrAsync(
+                info,
+                release.ZipPath,
+                release.Version.ToString(),
+                progress,
+                CancellationToken.None);
+
+            var protonMessage = await _protonPrefixService.TryConfigureWinHttpOverrideAsync(info, progress, CancellationToken.None);
+
+            GameInfo = _gameLocator.Inspect(info.GameDir);
+            Status = $"{installType} complete.";
+            Details = BuildDetails(GameInfo) + Environment.NewLine + protonMessage;
+        }
+        finally
+        {
+            TryDeleteDirectory(tempDir);
+        }
     }
 
     private async Task UninstallAsync()
@@ -359,16 +381,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         });
     }
 
-    private GameInstallInfo? ValidateSelectedGame()
+    private GameInstallInfo? ValidateSelectedGame() => ValidateGame(GamePath);
+
+    private GameInstallInfo? ValidateGame(string gamePath)
     {
-        if (string.IsNullOrWhiteSpace(GamePath))
+        if (string.IsNullOrWhiteSpace(gamePath))
         {
             Status = "Select your Nuclear Option folder first.";
             Details = "The selected path must contain NuclearOption_Data/Managed.";
             return null;
         }
 
-        var info = _gameLocator.Inspect(GamePath);
+        var info = _gameLocator.Inspect(gamePath);
         if (!info.IsValid)
         {
             Status = "Invalid Nuclear Option folder.";
