@@ -32,7 +32,7 @@ The installer project targets .NET 10. To compile without also generating both d
 dotnet build NOVR.Installer/NOVR.Installer.csproj -c Release -p:IsPublishingInstaller=true
 ```
 
-The release build project emits `NOVR.zip.sha256` beside `NOVR.zip`. Set `-p:NovrReleaseVersion=<release version>` when building a release to write matching version metadata for local installation. Upload the ZIP and its checksum together to this fork's release. Runtime compilation still requires the game's private reference assemblies.
+The release build project emits `NOVR.zip.sha256` beside `NOVR.zip`. It reads the compiled plugin's release version, checks it against `NOVR/NOVRPlugin.cs`, and writes fresh metadata for local installation. An optional `-p:NovrReleaseVersion=<release version>` must match; stale binaries, missing payloads and conflicting versions are rejected before packaging. Upload the ZIP and its checksum together to this fork's release. Runtime compilation still requires the game's private reference assemblies.
 
 The installer pins `Tmds.DBus.Protocol` to the compatible 0.21.3 backport for [the upstream D-Bus advisory](https://github.com/advisories/GHSA-xrw6-gwf8-vvr9); the runtime game plugin does not use this dependency.
 
@@ -46,4 +46,4 @@ dotnet run --project NOVR.Installer.Tests/NOVR.Installer.Tests.csproj -c Release
 
 An optional ZIP argument validates a real release package without installing it. Tests cover four-part versions, malformed archives, settings/other-mod preservation, forced second-swap failure, cancellation, interrupted-update recovery, concurrent updates, mocked release selection and checksums. Temporary fixture files are removed on completion.
 
-With SDK 10 and Python available, `python3 NOVR.Installer.Tests/check_build.py /path/to/dotnet` also verifies default/invalid/explicit deployment settings and generated release checksums against isolated dummy game directories. It does not build or deploy the runtime plugin.
+With SDK 10 and Python available, `python3 NOVR.Installer.Tests/check_build.py /path/to/dotnet` also verifies deployment settings, compiled release identity, stale metadata/binary rejection, missing payloads and generated checksums in temporary directories. It compiles tiny fake plugin fixtures, without building or deploying the runtime plugin.

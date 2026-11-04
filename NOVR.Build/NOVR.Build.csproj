@@ -10,12 +10,14 @@
     <ReleasePackagePath>$(ReleasePackageDistDir)/NOVR.zip</ReleasePackagePath>
     <ReleasePackageSourceDir>$(GameLayoutOutputDir)/BepInEx</ReleasePackageSourceDir>
     <ReleasePackageStagingDir>$(MSBuildThisFileDirectory)obj/release-package</ReleasePackageStagingDir>
+    <PackageValidationBuildDir Condition="'$(PackageValidationBuildDir)' == ''">$(MSBuildThisFileDirectory)obj/package-validation</PackageValidationBuildDir>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="NOVR.Build.props" />
     <None Include="NOVR.Build.targets" />
     <None Include="NOVR.Sources.props" />
+    <None Include="ValidatePackageVersion.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,11 +26,29 @@
     <ProjectReference Include="../NOVR.Patcher/NOVR.Patcher.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
-  <Target Name="CreateReleaseZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+  <UsingTask TaskName="ValidatePackageVersion" AssemblyFile="$(PackageValidationBuildDir)/bin/NOVR.Build.Tasks.dll" />
+
+  <Target Name="BuildPackageValidation">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)Tasks/NOVR.Build.Tasks.csproj" Targets="Restore;Build"
+             Properties="Configuration=$(Configuration);BaseIntermediateOutputPath=$(PackageValidationBuildDir)/obj/;OutputPath=$(PackageValidationBuildDir)/bin/;AppendTargetFrameworkToOutputPath=false" />
+  </Target>
+
+  <Target Name="CreateReleaseZip" AfterTargets="Build" DependsOnTargets="BuildPackageValidation" Condition="'$(Configuration)' == 'Release'">
+    <!-- Never infer release identity from a previous staging directory. A normal
+         build clears that directory; a direct target invocation may not. -->
+    <Error Condition="!Exists('$(ReleasePackageSourceDir)/plugins/NOVR/NOVR.dll')"
+           Text="Cannot package NOVR: staged plugins/NOVR/NOVR.dll is missing. Build the Release projects first." />
+    <Error Condition="!Exists('$(ReleasePackageSourceDir)/patchers/NOVR/NOVR.Patcher.dll')"
+           Text="Cannot package NOVR: staged patchers/NOVR/NOVR.Patcher.dll is missing. Build the Release projects first." />
+    <ValidatePackageVersion PluginFile="$(ReleasePackageSourceDir)/plugins/NOVR/NOVR.dll"
+                            PatcherFile="$(ReleasePackageSourceDir)/patchers/NOVR/NOVR.Patcher.dll"
+                            SourceFile="$(MSBuildThisFileDirectory)../NOVR/NOVRPlugin.cs"
+                            RequestedVersion="$(NovrReleaseVersion)">
+      <Output TaskParameter="ReleaseVersion" PropertyName="_ValidatedReleaseVersion" />
+    </ValidatePackageVersion>
     <MakeDir Directories="$(ReleasePackageDistDir)" />
-    <WriteLinesToFile Condition="'$(NovrReleaseVersion)' != ''"
-                      File="$(ReleasePackageSourceDir)/plugins/NOVR/version.txt"
-                      Lines="$(NovrReleaseVersion)" Overwrite="true" />
+    <WriteLinesToFile File="$(ReleasePackageSourceDir)/plugins/NOVR/version.txt"
+                      Lines="$(_ValidatedReleaseVersion)" Overwrite="true" />
     <RemoveDir Directories="$(ReleasePackageStagingDir)" />
     <ItemGroup>
       <ReleasePluginFiles Include="$(ReleasePackageSourceDir)/plugins/NOVR/**/*" />

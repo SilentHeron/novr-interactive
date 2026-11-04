@@ -26,15 +26,16 @@ dotnet build NOVR.Patcher/NOVR.Patcher.csproj -c Release -p:DeployToGame=false -
 ```
 
 SDK 8 is sufficient for these projects. SDK 10 is used for the full solution and
-release packaging. To create a local package, substitute the version from
-`NOVR/NOVRPlugin.cs`:
+release packaging. To create a local package:
 
 ```sh
-dotnet build NOVR.Build/NOVR.Build.csproj -c Release -p:DeployToGame=false -p:NovrReleaseVersion=X.Y.Z
+dotnet build NOVR.Build/NOVR.Build.csproj -c Release -p:DeployToGame=false
 ```
 
 Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
-Building does not install it. Close the game before installing a local package,
+Its version comes from the compiled plugin and must match `NOVR/NOVRPlugin.cs`.
+An optional `-p:NovrReleaseVersion=X.Y.Z` must match too; old staged metadata is
+always replaced. Building does not install it. Close the game before installing a local package,
 and retain a backup of the previous plugin, patcher and settings.
 
 ## Where code lives
@@ -72,6 +73,9 @@ contact detection.
   the full portable command.
 - Keep per-frame paths allocation-free where practical. Cache reflection and
   component lookups, reuse collections, and dispose only resources NOVR owns.
+- Preserve Windows and Linux/Proton support. Keep OS-specific workarounds guarded;
+  do not assume a particular Steam library, controller or GPU vendor. Portable CI
+  runs on Windows and Linux, but it does not test either platform's live VR driver.
 
 For a runtime build, also run the optional assembly contracts described in the
 verification guide. State separately what was checked in code, in a running game

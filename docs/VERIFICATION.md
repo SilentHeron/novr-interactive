@@ -57,6 +57,13 @@ checks before the portable suites. It uploads verification logs, not build
 binaries or game files. Jobs have read-only repository permission and never
 deploy the mod.
 
+A separate **SDK 10 package-safety job** runs on both operating systems using
+`python NOVR.Installer.Tests/check_build.py`. Its smaller sparse checkout contains
+only build-task source, the fixture and package notices. It creates synthetic
+assemblies in a temporary directory to check deployment opt-in, version matching,
+package metadata/checksums and rejection without overwriting a previous package.
+It never builds or installs the runtime mod or needs game/native binaries.
+
 A passing Linux run does not prove Windows passed; both matrix results need to
 be checked in GitHub Actions. Local test output cannot establish that a hosted
 workflow ran successfully.
@@ -78,9 +85,9 @@ separately under `artifacts/verification/contracts/`. It does not launch the
 game, install a package, send game input, or upload local assemblies. Do not add
 private game files or hardcoded installation paths to CI to make this check run.
 
-The optional installer build/deployment-safety check in
-`NOVR.Installer.Tests/check_build.py` is separate and requires SDK 10. It is not
-part of the SDK 8 portable workflow.
+The SDK 10 package-safety check can also run locally with
+`python NOVR.Installer.Tests/check_build.py /path/to/sdk10/dotnet`. It remains
+separate from the SDK 8 portable command and the local assembly contracts.
 
 ## Runtime evidence still needed
 
