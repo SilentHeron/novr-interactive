@@ -21,8 +21,10 @@ internal sealed class HudCanvasGroupLease
     internal void Apply(float multiplier)
     {
         if (_group == null) return;
-        _group.alpha = _alpha * multiplier;
-        _group.blocksRaycasts = _group.interactable = false;
+        var alpha = _alpha * multiplier;
+        if (_group.alpha != alpha) _group.alpha = alpha;
+        if (_group.blocksRaycasts) _group.blocksRaycasts = false;
+        if (_group.interactable) _group.interactable = false;
     }
 
     internal void Restore()

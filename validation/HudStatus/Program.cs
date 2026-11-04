@@ -56,6 +56,23 @@ Check(owner.GetComponent<CanvasGroup>() != null, "Lease creates group when neede
 lease.Apply(0); Near(owner.GetComponent<CanvasGroup>()!.alpha, 0, "New source hides");
 lease.Release(); Check(owner.GetComponent<CanvasGroup>() == null, "Only lease-owned group is removed");
 
+var stableOwner = new GameObject("Borrowed source");
+var stableGroup = stableOwner.AddComponent<CanvasGroup>(); stableGroup.alpha = .65f;
+var stableLease = new HudCanvasGroupLease(stableOwner);
+stableLease.Apply(.4f);
+var stableWrites = (stableGroup.AlphaWrites, stableGroup.RaycastWrites, stableGroup.InteractionWrites);
+for (var frame = 0; frame < 100; frame++) stableLease.Apply(.4f);
+Check(stableWrites == (stableGroup.AlphaWrites, stableGroup.RaycastWrites, stableGroup.InteractionWrites), "Unchanged widget visibility performs no native group writes");
+stableGroup.alpha = .9f; stableGroup.blocksRaycasts = stableGroup.interactable = true;
+stableLease.Apply(.4f);
+Near(stableGroup.alpha, .26f, "External native opacity changes are repaired on the next application");
+Check(!stableGroup.blocksRaycasts && !stableGroup.interactable, "External native input changes are repaired immediately");
+var inputWrites = (stableGroup.RaycastWrites, stableGroup.InteractionWrites);
+stableLease.Apply(.2f); Near(stableGroup.alpha, .13f, "Changed multiplier takes effect immediately");
+Check(inputWrites == (stableGroup.RaycastWrites, stableGroup.InteractionWrites), "Changing opacity does not rewrite unchanged input state");
+stableLease.Release(); Near(stableGroup.alpha, .65f, "Release still restores the borrowed native opacity");
+Check(!stableGroup.Destroyed && stableGroup.blocksRaycasts && stableGroup.interactable, "Borrowed native input state and ownership survive release");
+
 var weapon = new GameObject("weaponPanel", typeof(RectTransform));
 var safety = new GameObject("weaponDisabled", typeof(RectTransform), typeof(Image)); safety.transform.SetParent(weapon.transform, false);
 var safetyImage = safety.GetComponent<Image>()!; safetyImage.color = new Color(.689f, .689f, .689f, .8f);

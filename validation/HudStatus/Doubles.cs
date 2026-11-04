@@ -118,7 +118,15 @@ namespace UnityEngine
         public float r, g, b, a;
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
     }
-    public class CanvasGroup : Component { public float alpha = 1; public bool blocksRaycasts = true, interactable = true; }
+    public class CanvasGroup : Component
+    {
+        private float _alpha = 1;
+        private bool _blocksRaycasts = true, _interactable = true;
+        public int AlphaWrites, RaycastWrites, InteractionWrites;
+        public float alpha { get => _alpha; set { _alpha = value; AlphaWrites++; } }
+        public bool blocksRaycasts { get => _blocksRaycasts; set { _blocksRaycasts = value; RaycastWrites++; } }
+        public bool interactable { get => _interactable; set { _interactable = value; InteractionWrites++; } }
+    }
     public class Canvas : MonoBehaviour
     {
         public static event Action? willRenderCanvases;
