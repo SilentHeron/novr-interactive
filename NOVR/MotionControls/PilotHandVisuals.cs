@@ -246,12 +246,16 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         var foreSwing=Quaternion.FromToRotation(hand.position-fore.position,target-elbow);
         upper.rotation=upperSwing*upper.rotation;
         fore.position=elbow;fore.rotation=foreSwing*fore.rotation;
-        // The selected pilot rig uses +Y along the bone and +Z on the back of
-        // the hand. Swing preserves that bind convention; the forearm takes
-        // most pronation/supination while the wrist finishes the glove roll.
+        // The selected pilot rig uses +Y along each arm bone and +Z dorsally.
+        // Share cloth roll across both segments: rolling only the forearm
+        // blended opposing rotations through the elbow and collapsed its mesh.
+        // Axial rotation leaves the solved elbow/wrist positions unchanged.
+        // Equal angles also remain continuous through +/-180 and full turns;
+        // fractional upper-arm angles would introduce a new wraparound snap.
         var foreDirection=(target-elbow).normalized;
         var roll=_armPoses[side].ForearmRoll(PoseVector(_root.InverseTransformDirection(foreDirection)),
             PoseVector(_root.InverseTransformDirection(fore.forward)),PoseVector(_root.InverseTransformDirection(glove.up)));
+        upper.rotation=Quaternion.AngleAxis(roll,(elbow-shoulder).normalized)*upper.rotation;
         fore.rotation=Quaternion.AngleAxis(roll,foreDirection)*fore.rotation;
         hand.SetPositionAndRotation(target,Quaternion.LookRotation(glove.up,glove.forward));
         return reach.Opacity;

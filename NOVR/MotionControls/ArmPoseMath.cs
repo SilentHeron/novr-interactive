@@ -113,7 +113,7 @@ internal sealed class ArmPoseMath
 
     private static float SharedRoll(float angle)
     {
-        // Ordinary pronation shares 80% with the forearm. At a fully inverted
+        // Ordinary pronation shares 80% with the sleeve. At a fully inverted
         // wrist, smoothly reach the whole turn: +180 and -180 are then the
         // same rotation, not the discontinuous +/-144 partial-twist pair.
         return angle*(.8f+.2f*Smooth((Math.Abs(angle)-90)/90));

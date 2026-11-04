@@ -17,6 +17,14 @@ internal sealed class PilotSleeveGeometry
         internal Skin(int a,int b,int c,int d,float x,float y,float z,float w)
         { A=a;B=b;C=c;D=d;X=x;Y=y;Z=z;W=w; }
         internal float Weight(int bone) => (A==bone?X:0)+(B==bone?Y:0)+(C==bone?Z:0)+(D==bone?W:0);
+        internal Skin ArmOnly(int upper,int fore,int hand)
+        {
+            var u=Weight(upper);var f=Weight(fore);var h=Weight(hand);var sum=u+f+h;
+            // This is a separate sleeve, not the native torso. Keeping its
+            // original spine/root influences pins cloth against a rolling arm
+            // and moves the twist pinch up to the shoulder.
+            return sum>0 ? new Skin(upper,fore,hand,0,u/sum,f/sum,h/sum,0) : this;
+        }
         internal Skin Toward(int bone,float amount)
         {
             var weights=new Dictionary<int,float>();
@@ -67,7 +75,7 @@ internal sealed class PilotSleeveGeometry
         if(kept.Count<8)throw new ArgumentException("Pilot has no usable sleeve surface.");
         SourceVertexCount=kept.Count;SourceIndices=kept.ToArray();Original=kept.Select(i=>positions[i]).ToArray();
         SourceNormals=kept.Select(i=>normals.Length==positions.Length?normals[i]:V.Zero).ToArray();
-        UV=kept.Select(i=>uv[i]).ToArray();Weights=kept.Select(i=>skin[i]).ToArray();Triangles=groups.ToArray();
+        UV=kept.Select(i=>uv[i]).ToArray();Weights=kept.Select(i=>skin[i].ArmOnly(upper,fore,hand)).ToArray();Triangles=groups.ToArray();
         Positions=new V[Original.Length];Normals=new V[Original.Length];_centers=new V[Original.Length];
         _fitTargets=new V[Original.Length];_fitBlend=new float[Original.Length];
         for(var i=0;i<Original.Length;i++)

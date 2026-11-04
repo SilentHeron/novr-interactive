@@ -23,7 +23,9 @@ for(var ring=0;ring<levels.Length;ring++)for(var i=0;i<=sides;i++)
 {
  var angle=i*MathF.Tau/sides;var normal=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
  verts.Add(new Vector3(normal.X*.047f,levels[ring],normal.Z*.036f));normals.Add(normal);uv.Add(new Vector2(i/(float)sides,ring/5f));
- skin.Add(ring<2?new G.Skin(4,0,0,0,1,0,0,0):new G.Skin(5,6,0,0,ring==5?.65f:1,ring==5?.35f:0,0,0));
+ // Real sleeves include torso/root weights. Those must not pin this separate
+ // cloth mesh while both arm bones follow a twisting tracked wrist.
+ skin.Add(ring<2?new G.Skin(4,1,0,0,.7f,.3f,0,0):new G.Skin(5,6,1,0,ring==5?.5f:.7f,ring==5?.3f:0,ring==5?.2f:.3f,0));
  if(ring>0&&i<sides){var a=(ring-1)*(sides+1)+i;var b=ring*(sides+1)+i;tris.AddRange(new[]{a,b,a+1,a+1,b,b+1});}
 }
 verts.Add(new Vector3(10));normals.Add(Vector3.UnitZ);uv.Add(Vector2.Zero);skin.Add(new G.Skin(0,0,0,0,1,0,0,0));
@@ -37,6 +39,7 @@ foreach(var thickness in new[]{.6f,.82f,1,1.2f,float.NaN})
  {
   Check(Finite(model.Positions[i])&&Finite(model.Normals[i]),"All fitted vertices/normals finite");Check(Math.Abs(model.Normals[i].Length()-1)<1e-4,"Normals normalized");
   var w=model.Weights[i];Check(Math.Abs(w.X+w.Y+w.Z+w.W-1)<1e-5,"Normalized skin weights");
+  Check(Math.Abs(w.Weight(4)+w.Weight(5)+w.Weight(6)-1)<1e-5,"Extracted sleeve is independent of stationary torso/root skin weights");
   if(i<model.SourceVertexCount)Check(model.UV[i]==uv[model.SourceIndices[i]],"Original UV coordinates unchanged");
  }
  for(var j=0;j<model.Cuff.Length;j++)
@@ -52,6 +55,11 @@ foreach(var thickness in new[]{.6f,.82f,1,1.2f,float.NaN})
  }
 }
 Check(original.SequenceEqual(verts),"Native source vertices unchanged");
+var mixed=new G.Skin(4,5,6,1,.2f,.4f,.1f,.3f).ArmOnly(4,5,6);
+Check(Math.Abs(mixed.Weight(4)/mixed.Weight(5)-.5f)<1e-6 && Math.Abs(mixed.Weight(6)/mixed.Weight(5)-.25f)<1e-6,
+ "Removing torso influence preserves the authored elbow/wrist blend ratios");
+var cuffOnly=new G.Skin(6,1,0,0,.8f,.2f,0,0).ArmOnly(4,5,6);
+Check(cuffOnly.Weight(6)==1 && cuffOnly.Weight(1)==0,"Rebased wrist still follows the unchanged glove exactly");
 if(args.Length==2)
 {
  using var doc=JsonDocument.Parse(File.ReadAllText(args[0]));var root=doc.RootElement;
@@ -69,6 +77,7 @@ if(args.Length==2)
   var frame=new G.Frame(V(fr.GetProperty("origin")),V(fr.GetProperty("x")),V(fr.GetProperty("y")),V(fr.GetProperty("z")));
   var fitted=new G(input,ns,tex,weights,tt,bones[0],bones[1],bones[2],V(info.GetProperty("shoulder")),V(info.GetProperty("elbow")),frame,100);
   fitted.Resize(.82f);CheckTopology(fitted,100);Check(fitted.Positions.Length<300,"Actual native sleeve compacts to under300 vertices");Check(fitted.Cuff.Length>=6,"Actual cuff identified");
+  Check(fitted.Weights.All(w=>Math.Abs(w.Weight(bones[0])+w.Weight(bones[1])+w.Weight(bones[2])-1)<1e-5),"Actual pilot sleeve has no remaining torso/root tether");
   foreach(var t in fitted.Triangles)for(var i=0;i<t.Length;i+=3){var cross=Vector3.Cross(fitted.Positions[t[i+1]]-fitted.Positions[t[i]],fitted.Positions[t[i+2]]-fitted.Positions[t[i]]);Check(Finite(cross)&&cross.LengthSquared()>1e-24,"Actual fitted triangles remain finite/nondegenerate");}
   float[] F(Vector3 v)=>new[]{v.X,v.Y,v.Z};
   result[side]=new{sourceVertexCount=fitted.SourceVertexCount,vertices=fitted.Positions.Select(F),normals=fitted.Normals.Select(F),uv=fitted.UV.Select(v=>new[]{v.X,v.Y}),indices=fitted.Weights.Select(w=>new[]{w.A,w.B,w.C,w.D}),weights=fitted.Weights.Select(w=>new[]{w.X,w.Y,w.Z,w.W}),triangles=fitted.Triangles,cuff=fitted.Cuff,sourceIndices=fitted.SourceIndices,original=fitted.Original.Select(F)};
