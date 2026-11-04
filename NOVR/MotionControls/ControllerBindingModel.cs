@@ -7,8 +7,8 @@ internal enum ControllerHandRole { Stick, Throttle, Left, Right }
 internal enum ControllerActionId
 {
     Guns, WeaponRelease, SelectTarget, UnlockTarget, ClearTargets, NextWeapon,
-    Countermeasures, NextCountermeasure, Brake, Map, WristMenu, Zoom,
-    Gear, Radar, FlightAssist, HoverAssist, Eots
+    Countermeasures, NextCountermeasure, Brake, Map, WristMenu,
+    Gear, Radar, FlightAssist, HoverAssist
 }
 
 internal readonly struct ControllerActionBinding
@@ -47,8 +47,6 @@ internal static class ControllerBindingDefaults
             ControllerActionId.Brake => new(ControllerButton.Trigger, ControllerHandRole.Throttle),
             ControllerActionId.Map => new(ControllerButton.OutsideOrSecondary, ControllerHandRole.Stick),
             ControllerActionId.WristMenu => new(ControllerButton.Menu, ControllerHandRole.Left),
-            ControllerActionId.Zoom => new(touch ? ControllerButton.StickClick : ControllerButton.Shoulder,
-                touch ? ControllerHandRole.Throttle : ControllerHandRole.Right),
             _ => new(ControllerButton.None, ControllerHandRole.Throttle)
         };
     }
@@ -56,7 +54,7 @@ internal static class ControllerBindingDefaults
     internal static bool ResolveLeft(ControllerHandRole role, bool leftHanded) => role switch
     { ControllerHandRole.Left => true, ControllerHandRole.Right => false, ControllerHandRole.Stick => leftHanded, _ => !leftHanded };
     internal static bool RequiresGrip(ControllerActionId action) => action != ControllerActionId.Map &&
-        action != ControllerActionId.WristMenu && action != ControllerActionId.Zoom;
+        action != ControllerActionId.WristMenu;
     internal static bool ShareContext(ControllerActionId first, ControllerActionId second) =>
         !(first == ControllerActionId.Map && RequiresGrip(second) || second == ControllerActionId.Map && RequiresGrip(first));
     internal static bool Conflict(ControllerActionId first, ControllerActionBinding a, ControllerActionId second,
@@ -73,7 +71,7 @@ internal static class ControllerBindingDefaults
     }
     internal static bool IsBindingAvailable(ControllerBindingProfile profile, bool left, ControllerActionId action, ControllerButton button) =>
         IsButtonAvailable(profile, left, button) && !((action == ControllerActionId.Map || action == ControllerActionId.WristMenu) &&
-            ControllerButtonNames.Resolve(button, profile == ControllerBindingProfile.Frame) == ControllerButton.Trigger);
+            ControllerButtonNames.Resolve(button, profile == ControllerBindingProfile.Frame) is ControllerButton.Trigger or ControllerButton.StickClick);
     internal static string ActionLabel(ControllerActionId action) => action switch
     {
         ControllerActionId.Guns => "Guns", ControllerActionId.WeaponRelease => "Missile / weapon release",
@@ -81,16 +79,15 @@ internal static class ControllerBindingDefaults
         ControllerActionId.ClearTargets => "Clear all targets", ControllerActionId.NextWeapon => "Next weapon",
         ControllerActionId.Countermeasures => "Countermeasures", ControllerActionId.NextCountermeasure => "Next CM type",
         ControllerActionId.Brake => "Wheel / air brake", ControllerActionId.Map => "Map / respawn",
-        ControllerActionId.WristMenu => "View menu", ControllerActionId.Zoom => "Inspection zoom",
+        ControllerActionId.WristMenu => "View menu",
         ControllerActionId.Gear => "Landing gear", ControllerActionId.Radar => "Radar",
         ControllerActionId.FlightAssist => "Flight assist", ControllerActionId.HoverAssist => "Hover assist",
-        ControllerActionId.Eots => "EOTS HUD", _ => action.ToString()
+        _ => action.ToString()
     };
     internal static string ContextLabel(ControllerActionId action) => action switch
     {
         ControllerActionId.Map => "Free hand or recovery view",
         ControllerActionId.WristMenu => "Either grip state",
-        ControllerActionId.Zoom => "Hold; either grip state",
         ControllerActionId.Guns or ControllerActionId.WeaponRelease or ControllerActionId.Countermeasures or ControllerActionId.Brake => "Hold while gripping the assigned handle",
         _ => "Release while gripping the assigned handle"
     };

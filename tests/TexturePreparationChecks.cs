@@ -4,6 +4,37 @@ internal static class TexturePreparationChecks
 {
     internal static void Run(Action<string, Action> check, Action<bool> assert)
     {
+        check("Pilot palettes identify actual factions and leave unfamiliar teams unchanged", () =>
+        {
+            assert(PilotUniformPalette.Resolve("BDF", null) == PilotUniformTeam.Bdf);
+            assert(PilotUniformPalette.Resolve(null, "Boscali") == PilotUniformTeam.Bdf);
+            assert(PilotUniformPalette.Resolve(" pala ", null) == PilotUniformTeam.Pala);
+            assert(PilotUniformPalette.Resolve(null, "Primeva") == PilotUniformTeam.Pala);
+            assert(PilotUniformPalette.Resolve("custom", "Custom faction") == PilotUniformTeam.Native);
+            assert(PilotUniformPalette.Resolve(null, null) == PilotUniformTeam.Native);
+        });
+        check("Team gloves and sleeves retain folds, alpha and black stitches without mutating source atlases", () =>
+        {
+            var input = new byte[] { 0, 0, 0, 255, 32, 32, 32, 128, 96, 96, 96, 255, 160, 160, 160, 255, 40, 80, 120, 0 };
+            var original = input.ToArray();
+            foreach (var team in new[] { PilotUniformTeam.Bdf, PilotUniformTeam.Pala })
+            foreach (var glove in new[] { false, true })
+            {
+                var output = PilotTextureEnhancement.Recolor(input, 5, 1, team, glove, CancellationToken.None);
+                var target = PilotUniformPalette.Color(team, glove);
+                assert(output[8] == target.red && output[9] == target.green && output[10] == target.blue);
+                assert(output[0] == 0 && output[1] == 0 && output[2] == 0);
+                for (var c = 0; c < 3; c++) assert(output[4+c] < output[8+c] && output[8+c] < output[12+c]);
+                for (var i = 3; i < output.Length; i += 4) assert(output[i] == input[i]);
+                assert(output.Skip(16).SequenceEqual(input.Skip(16)) && input.SequenceEqual(original));
+                if (glove) assert(team == PilotUniformTeam.Bdf ? output[9] > output[8] && output[9] > output[10] : output[8] > output[9] * 2);
+                else assert(team == PilotUniformTeam.Bdf ? output[8] > 140 && output[10] > output[8] : output[10] < 40);
+            }
+            assert(PilotTextureEnhancement.Recolor(input, 5, 1, PilotUniformTeam.Native, false, CancellationToken.None).SequenceEqual(input));
+            using var cancel = new CancellationTokenSource(); cancel.Cancel();
+            try { PilotTextureEnhancement.Recolor(input, 5, 1, PilotUniformTeam.Bdf, true, cancel.Token); assert(false); }
+            catch (OperationCanceledException) { }
+        });
         check("Sleeve enhancement preserves uniform colors, alpha and source bytes", () =>
         {
             var input = Enumerable.Range(0, 64).SelectMany(i => new byte[] { 43, 104, 183, (byte)(i * 4) }).ToArray();

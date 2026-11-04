@@ -13,12 +13,6 @@ public class NOVRTargetDesignatorBehavior : UIRenderedCanvasBehavior
         var uiCam = APIBus.CockpitHudReference;
         if (uiCam == null) return;
         
-        if (MotionControls.OpticalTargetingHud.HeadAimActive)
-        {
-            var view = APIBus.CockpitHudCamera.transform;
-            transform.SetPositionAndRotation(view.position + view.forward * _offset, view.rotation);
-            return;
-        }
         transform.rotation = Quaternion.SlerpUnclamped(Quaternion.identity, uiCam.transform.rotation, 1.1f);
         transform.position = uiCam.transform.position + transform.forward * _offset;
     }

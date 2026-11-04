@@ -29,8 +29,8 @@ internal sealed class ControllerUiPointer
     {
         var settings = ModConfiguration.Instance;
         var leftHand = TrackedControllers.Read(true); var rightHand = TrackedControllers.Read(false);
-        var leftAvailable = leftHand.Valid && !HelmetNightVision.OwnsHand(true);
-        var rightAvailable = rightHand.Valid && !HelmetNightVision.OwnsHand(false);
+        var leftAvailable = leftHand.Valid && !HelmetNightVision.OwnsHand(true) && !NativeHandOptionWheel.OwnsHand(true);
+        var rightAvailable = rightHand.Valid && !HelmetNightVision.OwnsHand(false) && !NativeHandOptionWheel.OwnsHand(false);
         if (!settings.ControllerBindings.PointerEnabled.Value || (!leftAvailable && !rightAvailable) || EventSystem.current == null)
         {
             Cancel();

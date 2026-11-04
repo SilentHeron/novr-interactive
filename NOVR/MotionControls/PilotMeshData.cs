@@ -7,6 +7,31 @@ namespace NOVR.MotionControls;
 // Read only once when an aircraft's pilot is acquired. Never exported or bundled.
 internal static class PilotMeshData
 {
+    internal static Vector3[]? ReadVectors(Mesh mesh, VertexAttribute attribute)
+    {
+        if ((attribute != VertexAttribute.Position && attribute != VertexAttribute.Normal) ||
+            !mesh.HasVertexAttribute(attribute) || (mesh.GetVertexAttributeFormat(attribute) != VertexAttributeFormat.Float32 && mesh.GetVertexAttributeFormat(attribute) != VertexAttributeFormat.Float16) ||
+            mesh.GetVertexAttributeDimension(attribute) < 3) return null;
+        if (mesh.isReadable) return attribute == VertexAttribute.Position ? mesh.vertices : mesh.normals;
+        // Imported pilot meshes may discard the CPU copy. Read their bounded
+        // buffer once at hand creation, with no dependency on cockpit overlays.
+        var stream = mesh.GetVertexAttributeStream(attribute); var stride = mesh.GetVertexBufferStride(stream);
+        var offset = mesh.GetVertexAttributeOffset(attribute);
+        var half = mesh.GetVertexAttributeFormat(attribute) == VertexAttributeFormat.Float16; var size = half ? 2 : 4;
+        using var buffer = mesh.GetVertexBuffer(stream);
+        if (buffer == null || (long)buffer.count * buffer.stride > 8 * 1024 * 1024) return null;
+        var data = new byte[buffer.count * buffer.stride]; buffer.GetData(data);
+        if ((long)(mesh.vertexCount - 1) * stride + offset + size * 3 > data.Length) return null;
+        var values = new Vector3[mesh.vertexCount];
+        for (var i = 0; i < values.Length; i++)
+        {
+            var p = i * stride + offset;
+            values[i] = half ? new Vector3(Mathf.HalfToFloat(BitConverter.ToUInt16(data, p)), Mathf.HalfToFloat(BitConverter.ToUInt16(data, p+2)), Mathf.HalfToFloat(BitConverter.ToUInt16(data, p+4)))
+                : new Vector3(BitConverter.ToSingle(data, p), BitConverter.ToSingle(data, p + 4), BitConverter.ToSingle(data, p + 8));
+        }
+        return values;
+    }
+
     internal static Vector2[] ReadUv(Mesh mesh)
     {
         if (mesh.isReadable) return mesh.uv;

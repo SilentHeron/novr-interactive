@@ -9,7 +9,7 @@ namespace NOVR.MotionControls;
 [DefaultExecutionOrder(-1250)]
 internal sealed class CockpitLayout : MonoBehaviour
 {
-    internal enum Element { None, Stick, Throttle, Panel }
+    internal enum Element { None, Stick, Throttle }
     private sealed class HandDrag
     {
         internal readonly ControllerButtonGate Gate = new();
@@ -40,9 +40,6 @@ internal sealed class CockpitLayout : MonoBehaviour
     private Material? _rayMaterial;
     internal static Vector3? StickPreview => Active ? Instance!._stick : null;
     internal static Vector3? ThrottlePreview => Active ? Instance!._throttle : null;
-    internal static Vector3 PanelPosition => CockpitPanelPlacement.Position;
-    internal static Quaternion PanelRotation => CockpitPanelPlacement.Rotation;
-    internal static float PanelScale => CockpitPanelPlacement.Scale;
     internal static string Hint => Unified
         ? "EDIT LAYOUT  •  GRIP HANDLES OR HUD WIDGETS TO MOVE  •  VIEW → SAVE LAYOUT"
         : "EDIT HANDLES  •  GRIP STICK OR THROTTLE TO MOVE  •  VIEW → SAVE LAYOUT";
@@ -197,7 +194,7 @@ internal sealed class CockpitLayout : MonoBehaviour
     private Element Select(Vector3 hand, Ray ray, int index, out float distance)
     {
         var best = SelectNearby(hand, index, out distance);
-        if (best != Element.None || _unified || Fs20NativeCockpit.Selected) return best;
+        if (best != Element.None || _unified) return best;
         foreach (var element in new[] { Element.Stick, Element.Throttle })
         {
             if (_hands[1 - index].Element == element) continue;
@@ -225,12 +222,10 @@ internal sealed class CockpitLayout : MonoBehaviour
         return best;
     }
 
-    internal static Vector3 BoundPanel(Vector3 p) => !TrackedControllers.Finite(p) ? new Vector3(0, -.32f, .65f) :
-        new Vector3(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.2f, .65f), Mathf.Clamp(p.z, .15f, 1.5f));
     private static Vector3 BoundHandle(Vector3 p) => new(Mathf.Clamp(p.x, -1.2f, 1.2f), Mathf.Clamp(p.y, -1.25f, .7f), Mathf.Clamp(p.z, -.35f, 1.5f));
     private void DrawRay(int index, ControllerSample hand, Element element)
     {
-        if (_unified || Fs20NativeCockpit.Selected || !hand.Valid || element == Element.None) { if (_rays[index] != null) _rays[index]!.enabled = false; return; }
+        if (_unified || !hand.Valid || element == Element.None) { if (_rays[index] != null) _rays[index]!.enabled = false; return; }
         var root = APIBus.CockpitHudCamera?.transform.parent;
         if (root == null) return;
         if (_rays[index] == null)

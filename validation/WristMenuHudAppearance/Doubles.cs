@@ -88,16 +88,32 @@ namespace NOVR.VrUi.SpecialBehavior
         internal static bool Editing => Instance?.Preview == true;
         internal bool Preview, Available = true, SnapEnabled = true;
         internal int Begins, AppearanceSaves, AngleWrites;
+        internal int ProfileSlot = 1;
+        internal string ProfileAircraftName = "FS-20 Revoker";
+        internal readonly List<int> SaveRequests = new(), LoadRequests = new(), SuccessfulSaves = new(), SuccessfulLoads = new();
         internal string SelectedId = "weapons";
         internal string? AppearanceFocus;
         internal void FocusAppearance(string? id) => AppearanceFocus = id;
         private Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new HudWidgetPose { Position = new(.2f, -.3f, .4f), Scale = 1, Opacity = 1, Visible = true });
         private Dictionary<string, HudWidgetPose>? _before;
-        internal void Begin() { Begins++; Preview = true; _before = new(_poses); }
+        internal void Begin() { if (Preview || !Available) return; Begins++; Preview = true; _before = new(_poses); }
         internal void Finish(bool save) { if (!save && _before != null) _poses = _before; _before = null; Preview = false; }
         internal void BringWithinReach() { }
         internal void ResetPreview() { }
-        internal void UseDefaultForAll() => Finish(true);
+        // The fixture records routing; actual persistence and unified layout
+        // transactions are exercised by the profile/manager checks separately.
+        internal bool SaveToSlot(int slot)
+        {
+            SaveRequests.Add(slot);
+            if (slot < 1 || slot > 3 || !Preview || !Available) return false;
+            SuccessfulSaves.Add(slot); ProfileSlot = slot; Finish(true); return true;
+        }
+        internal bool LoadSlot(int slot)
+        {
+            LoadRequests.Add(slot);
+            if (slot < 1 || slot > 3 || Preview || !Available) return false;
+            SuccessfulLoads.Add(slot); ProfileSlot = slot; return true;
+        }
         internal void Select(string id) => SelectedId = id;
         internal HudWidgetPose GetPose(string id) => _poses[id];
         internal void SetAppearance(string id, HudWidgetPose pose) { AppearanceSaves++; _poses[id] = pose; }
@@ -112,28 +128,40 @@ namespace NOVR.VrUi
     internal sealed partial class WristMenu
     {
         private readonly List<(Text label, Func<string> text)> _liveLabels = new();
-        internal readonly Dictionary<(string page, string text), (Text label, Action? action)> Buttons = new();
+        private readonly List<(string page, int column, int row, Text label, Action? action)> _buttons = new();
+        internal Dictionary<(string page, string text), (Text label, Action? action)> Buttons =>
+            _buttons.ToDictionary(b => (b.page, b.label.text), b => (b.label, b.action));
         private readonly List<GameObject> _pages = new();
         private string _building = "";
         internal Slider Backplate => _hudBackplateSlider!;
         internal Text BackplateLabel => _hudBackplateLabel!;
         internal Text AngleInfo => _hudAngleInfo!;
+        internal Text ProfilesInfo => _aircraftProfilesInfo!;
         internal string ActivePage => _pages.Single(page => page.activeSelf).Name;
         internal static int Closes;
         private GameObject Page(string title) { _building = title; var page = new GameObject(title); _pages.Add(page); return page; }
         private Text AddButton(string text, int column, int row, Action? action)
         {
             var button = new GameObject(text, typeof(Button)); var label = Label(button.transform, text, default, default, 20);
-            Buttons[(_building, text)] = (label, action); return label;
+            _buttons.Add((_building, column, row, label, action)); return label;
         }
         private Text Label(Transform parent, string text, Vector2 position, Vector2 size, int fontSize)
         { var go = new GameObject("Label", typeof(Text)); go.transform.SetParent(parent, false); var label = go.GetComponent<Text>(); label.text = text; return label; }
         private void ShowPage(GameObject page) { foreach (var other in _pages) other.activeSelf = other == page; }
         private void Back() { }
         internal static void Close() => Closes++;
-        internal void Build() => CreateHudLayoutPages();
+        internal void Build() { CreateHudLayoutPages(); Refresh(); }
         internal void Appearance() => OpenWidgetAppearance();
-        internal void Refresh() => RefreshHudLayoutEditor();
+        internal void Profiles() => OpenAircraftProfiles();
+        internal void Refresh()
+        {
+            // Match the real menu Update: dynamic labels are refreshed every
+            // frame. Distinct initially-empty labels must retain their callbacks.
+            foreach (var item in _liveLabels) item.label.text = item.text();
+            RefreshHudLayoutEditor();
+        }
+        internal Text Cell(string page, int column, int row) =>
+            _buttons.Single(b => b.page == page && b.column == column && b.row == row).label;
         internal void Click(string page, string text)
         { var button = Buttons[(page, text)]; if (button.label.transform.parent.GetComponent<Button>().interactable) button.action?.Invoke(); }
         internal bool Enabled(string page, string text) => Buttons[(page, text)].label.transform.parent.GetComponent<Button>().interactable;

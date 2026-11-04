@@ -56,6 +56,7 @@ public class NativeMainMenuShell : MonoBehaviour
         {
             new MenuButton("SINGLE PLAYER", () => InvokeAction(NativeGameAction.SinglePlayer)),
             new MenuButton("MULTIPLAYER", () => InvokeAction(NativeGameAction.Multiplayer)),
+            new MenuButton("MISSION EDITOR", () => InvokeAction(NativeGameAction.MissionEditor)),
             new MenuButton("SETTINGS", () => InvokeAction(NativeGameAction.Settings)),
             new MenuButton("VR UI SETTINGS", OpenVrUiSettings),
             new MenuButton("ENCYCLOPEDIA", () => InvokeAction(NativeGameAction.Encyclopedia)),

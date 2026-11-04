@@ -154,7 +154,7 @@ internal sealed class RiggedGlove : IDisposable
                 _attachmentEntryTime = Time.unscaledTime;
             }
         }
-        var fitted = held && !collective && !cockpitGrip.HasValue && Fs20NativeCockpit.Selected;
+        var fitted = held && !collective && !cockpitGrip.HasValue && MotionControlVisuals.HasFittedHandle(stick);
         if (cockpitGrip.HasValue && !buttonContact)
         {
             var socket = cockpitGrip.Value;

@@ -30,6 +30,7 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private readonly NativeGameActionAdapter _actions = new();
     private readonly VrPointerState _pointerState = new();
+    private readonly NativeStockMenuHandoff _stockDialogs = new();
     private readonly List<SuppressedCanvasState> _suppressedCanvasStates = new();
     private GameObject? _root;
     private Canvas? _canvas;
@@ -99,6 +100,17 @@ public class NativeVrUiRoot : NOVRBehaviour
             SetUtilityWidgetMode(ShouldShowStockNativeUiToggle()
                 ? UtilityWidgetMode.EnableNativeUi
                 : UtilityWidgetMode.Hidden);
+            return;
+        }
+
+        if (_stockDialogs.IsVisible(_mainCanvas))
+        {
+            RestoreOriginalMainCanvas();
+            // Suspend the replacement canvas without resetting its panels. On
+            // return, keep the chosen mission and its edited settings intact.
+            if (_root != null) _root.SetActive(false);
+            ClearNativeCursorProjectionReference();
+            SetUtilityWidgetMode(UtilityWidgetMode.Hidden);
             return;
         }
 
@@ -698,7 +710,8 @@ public class NativeVrUiRoot : NOVRBehaviour
         for (var index = 0; index < gameObjects.Length; index++)
         {
             var gameObject = gameObjects[index];
-            if (gameObject.name == "MainCanvas" && gameObject.GetComponent<Canvas>() != null)
+            if (gameObject.name == "MainCanvas" && gameObject.scene.IsValid() && gameObject.scene.isLoaded &&
+                gameObject.GetComponent<Canvas>() != null)
             {
                 return gameObject;
             }

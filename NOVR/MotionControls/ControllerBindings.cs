@@ -9,15 +9,12 @@ internal sealed class ControllerBindingBank
     public readonly ConfigEntry<bool> PointerEnabled, CombatEnabled;
     public readonly ConfigEntry<ControllerButton> Fire, WeaponRelease, Countermeasures, NextWeapon, SelectTarget, NextCountermeasure, Map, WristMenu, ClearTargets, UnlockTarget, Brake;
     public readonly ConfigEntry<float> PointerResponse;
-    public readonly ConfigEntry<bool> RightBumperZoom, SelectTargetOnStick;
-    public readonly ConfigEntry<float> ViewZoomFactor;
+    public readonly ConfigEntry<bool> SelectTargetOnStick;
     internal ControllerBindingBank(ConfigFile config, string section, bool touch)
     {
         PointerEnabled = config.Bind(section, "Controller Pointer", true, "Point at menus and the map with the stick hand; trigger clicks and thumbstick scrolls. Mouse remains available when controllers are untracked.");
         CombatEnabled = config.Bind(section, "Combat Controls", true, "Enable controller weapon and targeting actions while gripping virtual flight controls.");
         PointerResponse = config.Bind(section, "Pointer Response", 24f, new ConfigDescription("Laser aim smoothing. 0 disables smoothing. Higher follows faster.", new AcceptableValueRange<float>(0f, 60f)));
-        RightBumperZoom = config.Bind(section, touch ? "Inspection Zoom Enabled" : "Right Bumper View Zoom", true, "Enable inspection zoom on this profile's assigned button. Change its button and hand in View > Controller bindings.");
-        ViewZoomFactor = config.Bind(section, "View Zoom Factor", 1.7f, new ConfigDescription("Magnification of the fixed-depth inspection window while the assigned zoom button is held. Headset projection is unchanged; release hides the window.", new AcceptableValueRange<float>(1.1f, 3f)));
         Fire = config.Bind(section, "Fire - stick hand", ControllerButton.Trigger, "GUNS ONLY. Hold while gripping the virtual stick. Guns remain available with a missile or bomb selected; native safety and readiness still apply.");
         WeaponRelease = config.Bind(section, "Weapon Release - stick hand", ControllerButton.Primary, "A on the right controller: release the selected non-gun weapon while gripping the stick. Touching the button only animates the thumb.");
         Countermeasures = config.Bind(section, "Countermeasures - throttle hand", ControllerButton.Primary, "Throttle action button: Frame D-pad down or Touch X. Hold while gripping to deploy selected countermeasures.");
@@ -85,13 +82,11 @@ internal sealed class ControllerBindingBank
     {
         Fire.Value = ControllerButton.Trigger; WeaponRelease.Value = ControllerButton.Primary; NextWeapon.Value = ControllerButton.TopOrSecondary;
         UnlockTarget.Value = ControllerButton.OutsideOrNone; ClearTargets.Value = ControllerButton.None;
-        RightBumperZoom.Value = true;
         ApplyThrottleLayout(ThrottleBindingLayout.VtolStyle);
     }
 
     internal float ReadFlight(ControllerSample hand, bool left, ControllerButton button) =>
-        RightBumperZoom.Value && !left && ControllerButtonNames.Resolve(button, hand.NativeFrame) == ControllerButton.Shoulder
-            ? 0 : Read(hand, button);
+        Read(hand, button);
     internal void ApplyThrottleLayout(ThrottleBindingLayout layout)
     {
         var preset = ThrottleBindingProfiles.Get(layout);

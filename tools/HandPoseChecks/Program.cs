@@ -111,6 +111,21 @@ foreach (var fps in new[] { 45, 72, 90, 120 })
 
     Settle(grip);
     Near(glove.Root.position, grip.position + grip.rotation * Fs20HandPoses.Wrist(false, left), "Throttle anchor changed");
+    MotionControlVisuals.FittedStick = false;
+    Settle(grip, true);
+    var genericStick = grip.rotation * Quaternion.Euler(0, 0, left ? 90 : -90);
+    SameRotation(glove.Root.rotation, genericStick, "Aircraft-native helicopter/fallback stick received the fitted FS20 wrist");
+    Near(glove.Root.position, grip.position - genericStick * new Vector3(0, -.019f, .043f), "Unfitted stick palm offset changed");
+    // A successfully acquired standard throttle remains fitted even when the
+    // other handle is unavailable; selection follows each actual visual model.
+    Settle(grip);
+    Near(glove.Root.position, grip.position + grip.rotation * Fs20HandPoses.Wrist(false, left), "Independent fitted throttle lost its pose");
+    MotionControlVisuals.FittedThrottle = false;
+    Settle(grip);
+    SameRotation(glove.Root.rotation, grip.rotation * Quaternion.Euler(8, 0, 0), "Fallback throttle received the fitted FS20 wrist");
+    MotionControlVisuals.FittedStick = MotionControlVisuals.FittedThrottle = true;
+    Settle(grip, true);
+    SameRotation(glove.Root.rotation, grip.rotation * Fs20HandPoses.StickRotation(left), "Standard handle did not restore approved fitted pose");
     Settle(grip, collective: true);
     var collectiveRotation = grip.rotation * Quaternion.Euler(0, 0, left ? 60 : -60) * Quaternion.Euler(0, left ? -90 : 90, 0);
     SameRotation(glove.Root.rotation, collectiveRotation, "Collective cuff orientation changed");

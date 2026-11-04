@@ -46,13 +46,15 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     private string? _menuAppearanceFocus;
     private readonly string?[] _hover = new string?[2];
     private string? _resizing;
-    private Vector3 _resizeOffset, _resizeSpan;
-    private float _resizeScale;
+    private HudWidgetTwoHandGesture _resizeGesture;
     private HudWidgetProfiles _profiles = null!;
     private ConfigEntry<bool> _snap = null!;
     private Aircraft? _aircraft;
     private string _key = "";
-    private bool _editing, _resetToDefault, _initialPlacementDone;
+    private int _slot = 1;
+    internal int ProfileSlot => _slot;
+    internal string ProfileAircraftName => CockpitProfiles.Instance?.AircraftName ?? "Aircraft";
+    private bool _editing, _initialPlacementDone;
     private Vector3 _seat, _anchor, _calibration;
     private Quaternion _recenter;
     private Font? _font;
@@ -149,16 +151,16 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     {
         GameManager.GetLocalAircraft(out var aircraft);
         if (!XRSettings.enabled || CockpitAlerts.LostCockpit(aircraft)) aircraft = null;
-        if (aircraft != _aircraft)
+        if (aircraft != _aircraft || _slot != CockpitProfiles.ActiveSlot)
         {
             Finish(false);
             ReleaseWidgets();
-            _aircraft = aircraft;
+            _aircraft = aircraft; _slot = CockpitProfiles.ActiveSlot;
             _initialPlacementDone = false;
             if (aircraft != null && aircraft.definition != null)
             {
                 _key = string.IsNullOrEmpty(aircraft.definition.jsonKey) ? aircraft.definition.name : aircraft.definition.jsonKey;
-                _poses = _profiles.Load(_key);
+                _poses = _profiles.Load(_key, _slot);
                 foreach (var id in HudWidgetProfiles.Ids) CreateWidget(id);
             }
         }
@@ -166,7 +168,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         {
             // Only untouched first-use defaults may be fitted to the pilot.
             // Saved layouts stay aircraft-fixed, regardless of current reach.
-            _initialPlacementDone = _profiles.HasSavedLayout(_key) || EnsureWidgetsWithinReach(false);
+            _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot) || EnsureWidgetsWithinReach(false);
         }
         Place();
         if (!_editing) return;
@@ -193,9 +195,10 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         MotionFlightController.Instance?.CancelPlacement();
         MotionFlightController.Instance?.ResetGrips();
         ControllerActions.Instance?.ResetButtons();
-        _resetToDefault = false;
+
         _editing = true;
         if (CockpitLayout.Instance?.BeginUnified() != true) { _editing = false; return; }
+        CockpitProfiles.Instance?.BeginPreview();
         // Begin at the exact displayed/saved layout. Reach recovery is an
         // explicit command, never a side effect of opening the editor.
         _editStart = new Dictionary<string, HudWidgetPose>(_poses);
@@ -204,40 +207,52 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
     internal void Finish(bool save)
     {
         if (!_editing) return;
-        save = save && CockpitLayout.Instance?.CanSaveUnified == true &&
-            GameManager.GetLocalAircraft(out var aircraft) && aircraft == _aircraft;
-        if (save)
-        {
-            if (_resetToDefault) _profiles.ResetAircraft(_key);
-            else _profiles.Save(_key, _poses);
-        }
+        if (save) { SaveToSlot(_slot); return; }
         _editing = false; ReleaseHands();
-        CockpitLayout.Instance?.FinishUnified(save);
-        if (save && _key.Length > 0) _poses = _profiles.Load(_key);
-        else if (_editStart != null) _poses = _editStart;
+        CockpitLayout.Instance?.FinishUnified(false);
+        CockpitProfiles.Instance?.EndPreview();
+        if (_editStart != null) _poses = _editStart;
         _editStart = null;
         MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons();
         Place();
     }
+    internal bool SaveToSlot(int slot)
+    {
+        if (slot < 1 || slot > 3 || !_editing || !Available || CockpitLayout.Instance?.CanSaveUnified != true ||
+            !GameManager.GetLocalAircraft(out var aircraft) || aircraft != _aircraft || CockpitProfiles.Instance == null) return false;
+        var stick = CockpitLayout.StickPreview ?? CockpitProfiles.StickPosition;
+        var throttle = CockpitLayout.ThrottlePreview ?? CockpitProfiles.ThrottlePosition;
+        if (!CockpitProfiles.Instance.SaveSlot(slot, CockpitProfiles.SeatOffset, stick, throttle)) return false;
+        _profiles.Save(_key, _poses, slot);
+        Finish(false);
+        CockpitProfiles.Instance.SelectSlot(slot);
+        ReloadProfile();
+        return true;
+    }
+    internal bool LoadSlot(int slot)
+    {
+        // Loading never silently discards a live placement preview.
+        if (_editing || !Available || CockpitProfiles.Instance?.SelectSlot(slot) != true) return false;
+        ReloadProfile(); return true;
+    }
+    internal bool HasSavedSlot(int slot) => _profiles.HasSavedLayout(_key, slot);
+    private void ReloadProfile()
+    {
+        _slot = CockpitProfiles.ActiveSlot; _poses = _profiles.Load(_key, _slot);
+        _initialPlacementDone = false; ReleaseHands(); CaptureCalibration();
+        MotionFlightController.Instance?.ResetGrips(); ControllerActions.Instance?.ResetButtons(); Place();
+    }
     internal void ResetPreview()
     {
         if (!_editing) return;
-        _poses = _profiles.Load(""); _resetToDefault = true;
+        _poses = HudWidgetProfiles.FactoryDefaults;
         CockpitLayout.Instance?.BringWithinReach(); ReleaseHands(); Place();
-    }
-    internal void UseDefaultForAll()
-    {
-        if (!_editing || !Available || CockpitLayout.Instance?.CanSaveUnified != true ||
-            !GameManager.GetLocalAircraft(out var aircraft) || aircraft != _aircraft) return;
-        _profiles.SaveDefault(_poses);
-        // This aircraft follows its newly saved shared default as well.
-        _resetToDefault = true; Finish(true);
     }
     internal HudWidgetPose GetPose(string id) => _poses.TryGetValue(id, out var pose) ? pose : HudWidgetProfiles.FactoryDefaults[id];
     internal void SetPose(string id, HudWidgetPose pose)
     {
         if (!_editing || !_poses.ContainsKey(id)) return;
-        _poses[id] = HudWidgetProfiles.Sanitize(id, pose); _resetToDefault = false; Place();
+        _poses[id] = HudWidgetProfiles.Sanitize(id, pose);  Place();
     }
     internal void Select(string id) { if (_widgets.ContainsKey(id)) SelectedId = id; }
     internal void FocusAppearance(string? id) => _menuAppearanceFocus = id != null && _poses.ContainsKey(id) ? id : null;
@@ -256,7 +271,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         else
         {
             _poses[id] = HudWidgetProfiles.Sanitize(id, pose);
-            if (Available) _profiles.Save(_key, _poses);
+            if (Available) _profiles.Save(_key, _poses, _slot);
             Place();
         }
     }
@@ -287,7 +302,7 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
             pose.Position = head + defaults[id].Position;
             pose.Euler = defaults[id].Euler;
             pose.Scale = Mathf.Min(pose.Scale, defaults[id].Scale);
-            _poses[id] = pose; _resetToDefault = false;
+            _poses[id] = pose;
         }
         return true;
     }
@@ -397,15 +412,12 @@ internal sealed class CockpitHudWidgets : MonoBehaviour
         if (both)
         {
             var id = _hands[0].Id!; var pose = _poses[id];
-            var inverse = Quaternion.Inverse(Quaternion.Euler(pose.Euler));
-            var midpoint = (_points[0] + _points[1]) * .5f;
-            var span = inverse * (_points[1] - _points[0]);
             if (_resizing != id)
             {
-                _resizing = id; _resizeOffset = pose.Position - midpoint; _resizeSpan = span; _resizeScale = pose.Scale;
+                _resizing = id;
+                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handAngles[0], _handAngles[1]);
             }
-            var scale = HudWidgetGestureMath.Resize(_resizeScale, _resizeSpan.x, _resizeSpan.y, span.x, span.y, pose.Scale);
-            pose.Position = midpoint + _resizeOffset * (scale / _resizeScale); pose.Scale = scale;
+            pose = _resizeGesture.Move(pose, _points[0], _points[1], _handAngles[0], _handAngles[1]);
             MovePose(id, pose); return;
         }
         if (_resizing != null)

@@ -195,11 +195,22 @@ public class NativeGameActionAdapter
             var picker = pickers[index];
             if (!picker.gameObject.activeInHierarchy) continue;
 
-            picker.SelectMission(missionKey);
+            // Keep the native list and picker synchronized. Re-selecting an
+            // unchanged key would reload the disk copy and discard Customize.
+            NativeMissionSelection.Select(picker, missionKey);
             return true;
         }
 
         Debug.LogWarning("[NOVR] Native UI could not find an active original mission picker to synchronize mission selection.");
+        return false;
+    }
+
+    internal bool TryGetOriginalSelectedMission(MissionKey missionKey, out Mission? mission)
+    {
+        mission = null;
+        if (_originalMainCanvas == null) return false;
+        foreach (var picker in _originalMainCanvas.GetComponentsInChildren<global::MissionPicker>(true))
+            if (picker.gameObject.activeInHierarchy && NativeMissionSelection.TryGet(picker, missionKey, out mission)) return true;
         return false;
     }
 

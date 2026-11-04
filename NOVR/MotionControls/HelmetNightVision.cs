@@ -30,7 +30,7 @@ internal sealed class HelmetNightVision : MonoBehaviour
             var left = i == 0; var hand = TrackedControllers.Read(left);
             var held = left == config.MotionControls.LeftHanded.Value ? controls?.StickHeld == true : controls?.ThrottleHeld == true;
             var relative = inverse * (hand.Position - head);
-            var near = hand.Valid && !held && HelmetGestureMath.AtBrow(relative.x, relative.y, relative.z);
+            var near = hand.Valid && !held && !NativeHandOptionWheel.OwnsHand(left) && HelmetGestureMath.AtBrow(relative.x, relative.y, relative.z);
             if (near && !_near[i]) InteractionHaptics.Pulse(hand.Device, .12f, .02f, InteractionCue.Grab);
             _near[i] = near;
             _triggers[i].Update(near, hand.Trigger);

@@ -27,11 +27,24 @@ internal sealed class PilotHandMaterials : IDisposable
     private DeferredTextureJob? _work;
     private byte[]? _fabricRed;
     private bool _disposed;
+    private readonly PilotUniformTeam _team;
     private readonly Texture2D _fabric, _gloveColor, _gloveNormal;
-    internal PilotHandMaterials()
+    internal static PilotUniformTeam Team(Faction? faction) => PilotUniformPalette.Resolve(faction?.factionTag, faction?.factionName);
+    internal bool Matches(Faction? faction) => _team == Team(faction);
+    internal PilotHandMaterials(Faction? faction)
     {
+        _team = Team(faction);
         _fabric=Load("PilotFabricDetail.png",true,false);
-        _gloveColor=Load("GloveColor.jpg",false);
+        _gloveColor=Load("GloveColor.jpg",false,_team==PilotUniformTeam.Native);
+        if(_team!=PilotUniformTeam.Native)
+        {
+            var native=_gloveColor.GetPixels32();var input=new byte[native.Length*4];
+            for(var i=0;i<native.Length;i++){input[i*4]=native[i].r;input[i*4+1]=native[i].g;input[i*4+2]=native[i].b;input[i*4+3]=native[i].a;}
+            var recolored=PilotTextureEnhancement.Recolor(input,_gloveColor.width,_gloveColor.height,_team,true,default);
+            var texture=new Texture2D(_gloveColor.width,_gloveColor.height,TextureFormat.RGBA32,true)
+                {name="NOVR "+_team+" glove",filterMode=FilterMode.Trilinear,anisoLevel=4,wrapMode=TextureWrapMode.Repeat};
+            _textures.Add(texture);texture.SetPixelData(recolored,0);texture.Apply(true,true);_gloveColor=texture;
+        }
         _gloveNormal=Load("GloveNormal.png",true,false);
         // Unity's desktop normal-map unpack expects X in alpha, Y in green.
         var pixels=_gloveNormal.GetPixels32();for(var i=0;i<pixels.Length;i++)pixels[i]=new Color32(255,pixels[i].g,255,pixels[i].r);
@@ -49,6 +62,14 @@ internal sealed class PilotHandMaterials : IDisposable
     {
         var material=new Material(native){name="NOVR detailed "+native.name};_materials.Add(material);
         var source=NativeAlbedo(native);
+        if(_team!=PilotUniformTeam.Native)
+        {
+            // The copied atlas supplies the palette once ready; prevent a native
+            // faction tint from multiplying it into a different uniform colour.
+            var tint=PilotUniformPalette.Color(_team,false);
+            var color=source==null?new Color(tint.red/255f,tint.green/255f,tint.blue/255f,1):Color.white;
+            SetColor(material,"_BaseColor",color);SetColor(material,"_Color",color);
+        }
         if(source!=null)
         {
             if(!_enhanced.TryGetValue(source,out var enhancement))
@@ -110,7 +131,12 @@ internal sealed class PilotHandMaterials : IDisposable
             var width=_fabric.width;var height=_fabric.height;
             next.Width=pixelWidth;next.Height=pixelHeight;next.SnapshotMilliseconds=timer.Elapsed.TotalMilliseconds;_processing=next;
             // Capture arrays/scalars only. Texture creation, reads and uploads stay on Unity's thread.
-            _work=new DeferredTextureJob(token=>PilotTextureEnhancement.Apply(input,pixelWidth,pixelHeight,fabric,width,height,token));
+            var team=_team;
+            _work=new DeferredTextureJob(token=>
+            {
+                var pixels=PilotTextureEnhancement.Apply(input,pixelWidth,pixelHeight,fabric,width,height,token);
+                return team==PilotUniformTeam.Native ? pixels : PilotTextureEnhancement.Recolor(pixels,pixelWidth,pixelHeight,team,false,token);
+            });
         }
         catch(Exception e){_processing=null;Debug.LogWarning("[NOVR] Sleeve detail capture skipped; original atlas retained: "+e.Message);}
     }
@@ -130,8 +156,8 @@ internal sealed class PilotHandMaterials : IDisposable
     internal Material Glove(Material native,Rect patch)
     {
         var material=new Material(native){name="NOVR pilot-matched glove"};_materials.Add(material);
-        var color=PilotColor(native,patch);var mean=Mathf.Max(.03f,(color.r+color.g+color.b)/3);
-        var tint=new Color(Mathf.Clamp(color.r/mean*1.1f,.6f,1.3f),Mathf.Clamp(color.g/mean,.6f,1.3f),Mathf.Clamp(color.b/mean*.78f,.5f,1.3f),1);
+        var color=_team==PilotUniformTeam.Native?PilotColor(native,patch):Color.white;var mean=Mathf.Max(.03f,(color.r+color.g+color.b)/3);
+        var tint=_team==PilotUniformTeam.Native?new Color(Mathf.Clamp(color.r/mean*1.1f,.6f,1.3f),Mathf.Clamp(color.g/mean,.6f,1.3f),Mathf.Clamp(color.b/mean*.78f,.5f,1.3f),1):Color.white;
         SetColor(material,"_BaseColor",tint);SetColor(material,"_Color",tint);
         SetTexture(material,"_BaseMap",_gloveColor);SetTexture(material,"_MainTex",_gloveColor);SetTexture(material,"_BumpMap",_gloveNormal);
         foreach(var property in new[]{"_MetallicGlossMap","_OcclusionMap","_EmissionMap","_DetailAlbedoMap","_DetailNormalMap","_DetailMask"})SetTexture(material,property,null);

@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/MotionControls/PilotTextureEnhancement.cs" Link="PilotTextureEnhancement.cs" />
+    <Compile Include="../../NOVR/MotionControls/PilotUniformPalette.cs" Link="PilotUniformPalette.cs" />
     <Compile Include="../../NOVR/MotionControls/DeferredTextureJob.cs" Link="DeferredTextureJob.cs" />
     <Compile Include="../../tests/TexturePreparationChecks.cs" Link="TexturePreparationChecks.cs" />
   </ItemGroup>

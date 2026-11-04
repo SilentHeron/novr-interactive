@@ -49,6 +49,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     {
         if (!GameManager.GetLocalAircraft(out var aircraft) || aircraft.cockpit==null || aircraft.cockpit.IsDetached()) { Release(); return; }
         if (_aircraft!=aircraft) { Release(); _aircraft=aircraft; _attempts=0; _nextRetry=0; }
+        GameManager.GetLocalFaction(out var faction);
+        if(_materials!=null && !_materials.Matches(faction)) { ReleaseVisuals(); _attempts=0; _nextRetry=0; }
         var settings=ModConfiguration.Instance.MotionControls;
         var camera=APIBus.MainCamera;
         var show=settings.RiggedGloves.Value && settings.Enabled.Value && CameraStateManager.cameraMode==CameraMode.cockpit && camera!=null && camera.transform.parent!=null && TrackedControllers.Available;
@@ -85,8 +87,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             var left=side==0; var sample=TrackedControllers.Read(left);
             Pose? attachment = null; var stick = false; var collective = false;
             if (controls != null && controls.TryGetHeldHandPose(left, out var gripPose, out stick, out collective)) attachment = gripPose;
-            var cockpitGrip = Fs20NativeCockpit.HandPose(left, out var pointing) ?? IfritNativeCockpit.HandPose(left) ?? TernionNativeCockpit.HandPose(left);
-            var pinching = Fs20NativeCockpit.Pinching(left) || IfritNativeCockpit.Pinching(left) || TernionNativeCockpit.OwnsHand(left);
+            Pose? cockpitGrip = null;
+            var pointing = false; var pinching = false;
             if (CockpitHudWidgets.TryGetCornerHandPose(left, out var corner, out var cornerRotation))
             {
                 // Corner targets are the midpoint of the posed thumb/index
@@ -125,7 +127,8 @@ internal sealed class PilotHandVisuals : MonoBehaviour
         _source=candidates.Where(r=>r.sharedMesh!=null&&r.bones.Any(b=>b!=null&&b.name=="hand_L")&&r.bones.Any(b=>b!=null&&b.name=="head")).OrderBy(r=>Vector3.Distance(r.bones.First(b=>b!=null&&b.name=="head").position,aircraft.cockpitViewPoint.position)).FirstOrDefault();
         var material=_source?.sharedMaterial;
         if(material==null) material=_fallback=CockpitMaterials.Opaque("NOVR fallback glove",new Color(.12f,.14f,.12f));
-        _materials=new PilotHandMaterials();
+        GameManager.GetLocalFaction(out var faction);
+        _materials=new PilotHandMaterials(faction);
         var patches=new[]{new Rect(0,0,1,1),new Rect(0,0,1,1)};
         if(_source!=null)
         {
@@ -142,13 +145,12 @@ internal sealed class PilotHandVisuals : MonoBehaviour
             catch(Exception e) { Debug.LogWarning("[NOVR] Pilot sleeves unavailable; tracked gloves remain available: "+e.Message); }
         }
         for(var side=0;side<2;side++) _gloves[side]=new RiggedGlove(side==0,_root,_materials.Glove(material,patches[side]),patches[side]);
-        CockpitForeground.Register(_root);
         Debug.Log("[NOVR] Rigged Valve gloves ready; pilot material="+material.name+", sleeve renderers="+_sleeves.Count(s=>s!=null)+". Controller grip/trigger pose fingers; no finger-tracking claim.");
     }
     private void CreateSleeves(Mesh source,BoneWeight[] weights,Vector2[] uv)
     {
         if(source.vertexCount>20000 || weights.Length!=source.vertexCount || uv.Length!=source.vertexCount)return;
-        var vertices=DashboardSurface.Read(source,VertexAttribute.Position);var normals=DashboardSurface.Read(source,VertexAttribute.Normal);if(vertices==null)return;
+        var vertices=PilotMeshData.ReadVectors(source,VertexAttribute.Position);var normals=PilotMeshData.ReadVectors(source,VertexAttribute.Normal);if(vertices==null)return;
         var indices=PilotMeshData.Indices(source);
         _sleeveVertices=vertices; _bindPoses=source.bindposes; _sleeveThickness=-1;
         _copies=new Transform[_sourceBones.Length];
@@ -289,7 +291,6 @@ internal sealed class PilotHandVisuals : MonoBehaviour
     private void ReleaseVisuals()
     {
         ResetHandStabilizers();
-        if (_root != null) CockpitForeground.Unregister(_root);
         for(var i=0;i<2;i++){_gloves[i]?.Dispose();_gloves[i]=null;_sleeves[i]=null;_sleeveFades[i]=null;}
         foreach(var mesh in _ownedMeshes)Object.Destroy(mesh);_ownedMeshes.Clear();
         _materials?.Dispose();_materials=null;

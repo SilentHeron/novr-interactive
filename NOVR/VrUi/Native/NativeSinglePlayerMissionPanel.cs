@@ -410,12 +410,18 @@ public class NativeSinglePlayerMissionPanel : MonoBehaviour
                 SetLaunchStatus("A session is already open. Return to the main menu before starting another mission.");
                 return;
             }
-            if (!missionKey.TryLoad(out var mission, out var error))
+            // Customize edits the native selected mission in memory. Use that
+            // instance when it matches this row, falling back to disk only when
+            // its picker is unavailable (for example during a scene transition).
+            Mission? mission = null;
+            var fromPicker = _actions?.TryGetOriginalSelectedMission(missionKey, out mission) == true;
+            if (!fromPicker && !missionKey.TryLoad(out mission, out var error))
             {
                 SetLaunchStatus("Couldn't open this mission. Choose another mission or try again.\n" + error);
                 Debug.LogWarning($"[NOVR] Native single player failed to load mission '{missionKey}': {error}");
                 return;
             }
+            if (mission == null) { SetLaunchStatus("No mission selected. Choose a mission and try again."); return; }
 
             _launchPhase = "Loading map";
             SetLaunchStatus("Loading map…");

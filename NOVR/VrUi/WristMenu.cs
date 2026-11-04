@@ -20,8 +20,8 @@ internal sealed partial class WristMenu : MonoBehaviour
     private GameObject? _panel;
     private Text? _status;
     private Font? _font;
-    private GameObject? _alertsPage, _nativeCockpitPage;
-    private GameObject? _setupPage, _flightPage, _ejectPage, _controlsPage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _comfortPage, _alignmentPage, _displayPage, _feedbackPage, _brightnessPage, _aimingPage, _opticalPage, _zoomPage;
+    private GameObject? _alertsPage;
+    private GameObject? _setupPage, _flightPage, _ejectPage, _controlsPage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _comfortPage, _alignmentPage, _displayPage, _feedbackPage, _brightnessPage, _aimingPage, _lookCuePage;
     private readonly Dictionary<GameObject, string> _pageTitles = new();
     private GameObject? _performancePage, _handPositionPage, _handAnglesPage;
     private bool _fittingLeftHand = true;
@@ -42,7 +42,6 @@ internal sealed partial class WristMenu : MonoBehaviour
     private bool _anchored;
     private string _pageTitle = "VIEW";
     internal static bool IsOpen => _instance?._panel?.activeSelf == true;
-    internal static bool IsConsoleSetup => false;
     internal static bool IsPerformancePage => IsOpen && _instance?._performancePage?.activeSelf == true;
     private static bool CollectiveControls => GameManager.GetLocalAircraft(out var aircraft) && MotionFlightController.UsesLiftCollective(aircraft);
     private void Awake() => _instance = this;
@@ -67,7 +66,7 @@ internal sealed partial class WristMenu : MonoBehaviour
                       Time.timeScale > 0f && (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
                       (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
         var recoveryMap = !cockpit && ControllerActions.MapAccessAvailable;
-        _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && (cockpit || recoveryMap),
+        _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && !NativeHandOptionWheel.OwnsHand(menuLeft) && (cockpit || recoveryMap),
             ControllerButtonNames.Resolve(menuBinding.Button, hand.NativeFrame) == ControllerButton.Trigger ? 0 : ControllerBindings.Read(hand, menuBinding.Button));
         if (_toggle.Pressed || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
         {
@@ -102,7 +101,7 @@ internal sealed partial class WristMenu : MonoBehaviour
                 _helpFooter!.text = "Hold the assigned handle for flight actions.\n" +
                     "Map: " + DescribeBinding(Bindings.Get(ControllerActionId.Map)) +
                     " · View: " + DescribeBinding(Bindings.Get(ControllerActionId.WristMenu)) +
-                    "\nZoom (hold, any grip): " + DescribeBinding(Bindings.Get(ControllerActionId.Zoom));
+                    "\nFree hand: click thumbstick for the option wheel.";
             }
             RefreshBindingEditor();
             RefreshHudLayoutEditor();
@@ -253,15 +252,13 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddButton("Comfort & display", 1, 1, () => ShowPage(_comfortPage!));
         AddButton("Controller bindings", 0, 2, () => ShowPage(_bindingsPage!));
         AddButton("Recenter view", 1, 2, () => { NOVRHeadsetData.CalibrateTranslation(); NOVRHeadsetData.CalibrateRotation(); Close(); });
-        AddLiveButton(() => "EOTS HUD: " + (config.OpticalHud.Enabled.Value ? "ON" : "OFF"), 0, 3, () => { OpticalTargetingHud.Toggle(); Close(); });
-        AddButton("EOTS setup", 1, 3, () => ShowPage(_opticalPage!));
-        AddButton("Cockpit setup", 0, 4, () => ShowPage(_setupPage!));
-        AddLiveButton(() => "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 4, () => motion.Enabled.Value = !motion.Enabled.Value);
-        Label(_homePage.transform, "EDIT LAYOUT · move the HUD, stick and throttle\nSET UP · seat and cockpit interactions\nTUNE · response, hands and feedback", new Vector2(0,-184), new Vector2(510,108), 19);
+        AddButton("Seat & handles", 0, 3, () => ShowPage(_setupPage!));
+        AddLiveButton(() => "Motion: " + (motion.Enabled.Value ? "ON" : "OFF"), 1, 3, () => motion.Enabled.Value = !motion.Enabled.Value);
+        AddButton("Aircraft profiles", 0, 4, OpenAircraftProfiles);
+        Label(_homePage.transform, "EDIT LAYOUT · move the HUD, stick and throttle\nSET UP · seat and flight handles\nTUNE · response, hands and feedback", new Vector2(0,-184), new Vector2(510,108), 19);
 
         _setupPage = Page("COCKPIT");
         AddButton("Seat position", 0, 0, () => ShowPage(_seatPage!));
-        AddButton("Cockpit interactions", 1, 0, () => ShowPage(_nativeCockpitPage!));
         AddLiveButton(() => "Stick hand: " + (motion.LeftHanded.Value ? "LEFT" : "RIGHT"), 0, 1,
             () => { CockpitHudWidgets.Instance?.Finish(false); motion.LeftHanded.Value = !motion.LeftHanded.Value; Close(); });
         AddButton("Reset seat & handles…", 1, 1, AskReset);
@@ -303,22 +300,10 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddButton("Cancel", 0, 4, Back);
         AddButton("Confirm eject", 1, 4, ConfirmEject);
 
-        _nativeCockpitPage = Page("COCKPIT INTERACTIONS");
-        AddLiveButton(() => "FS-20: " + (config.Fs20NativeCockpitEnabled.Value ? "ON" : "OFF"), 0, 0,
-            () => config.Fs20NativeCockpitEnabled.Value = !config.Fs20NativeCockpitEnabled.Value);
-        AddLiveButton(() => "KR-67: " + (config.IfritNativeCockpitEnabled.Value ? "ON" : "OFF"), 1, 0,
-            () => config.IfritNativeCockpitEnabled.Value = !config.IfritNativeCockpitEnabled.Value);
-        AddLiveButton(() => "FS-3: " + (config.TernionNativeCockpitEnabled.Value ? "ON" : "OFF"), 0, 1,
-            () => config.TernionNativeCockpitEnabled.Value = !config.TernionNativeCockpitEnabled.Value);
-        AddButton("Flight actions", 1, 1, () => ShowPage(_flightPage!));
-        Label(_nativeCockpitPage.transform,
-            "Original displays remain in use.\nVirtual HOTAS and bindings work across aircraft.\n\nFS-20: touch keys; grip and flick switches.\nGear · brake · radar · EOTS · seat / handle locks\nKR-67 / FS-3: grip the gear wheel and flick it.\n\nFS-20 / KR-67 eject: grip a striped handle; pull UP.\nOther actions: View → Flight actions.\n\nThe cockpit stays visible while placing handles.",
-            new Vector2(0,-77), new Vector2(510,300), 18);
-
         _controlsPage = Page("CONTROLS");
-        AddLiveButton(() => "Stick grip: " + (motion.StickTapGrip.Value ? "TAP" : "HOLD"), 0, 0,
+        AddLiveButton(() => "Stick grip: " + (motion.StickTapGrip.Value ? "TOGGLE" : "HOLD"), 0, 0,
             () => { motion.StickTapGrip.Value = !motion.StickTapGrip.Value; MotionFlightController.Instance?.ResetGrips(); });
-        AddLiveButton(() => (CollectiveControls ? "Collective: " : "Throttle grip: ") + (motion.ThrottleTapGrip.Value ? "TAP" : "HOLD"), 1, 0,
+        AddLiveButton(() => (CollectiveControls ? "Collective: " : "Throttle grip: ") + (motion.ThrottleTapGrip.Value ? "TOGGLE" : "HOLD"), 1, 0,
             () => { motion.ThrottleTapGrip.Value = !motion.ThrottleTapGrip.Value; MotionFlightController.Instance?.ResetGrips(); });
         StickSensitivitySlider.Create(_controlsPage.transform, new Vector2(0, 120), 510, _font!, 18);
         AddButton("Deadzone −", 0, 2, () => motion.Deadzone.Value -= .01f);
@@ -408,25 +393,9 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddLiveButton(() => "Declutter: " + (config.HudDeclutter.Value ? "ON" : "OFF"), 1, 2, () => config.HudDeclutter.Value = !config.HudDeclutter.Value);
         AddButton("Brightness", 0, 3, () => ShowPage(_brightnessPage!));
         AddButton("Aiming & markers", 1, 3, () => ShowPage(_aimingPage!));
-        AddButton("EOTS helmet view", 1, 4, () => ShowPage(_opticalPage!));
         AddButton("Reset HUD", 0, 4, () => { config.FocusedFlightHud.Value = true; config.FlightHudScale.Value = .38f; config.MarkerScale.Value = .45f; config.MarkerLabelScale.Value = .55f; config.ReticleScale.Value = .45f; config.WeaponHudScale.Value = .5f; config.HudPanelScale.Value = 1.15f; config.HudPanelDistance.Value = 4; config.HudContrast.Value = true; config.HudDeclutter.Value = false; });
-        AddButton("Inspection zoom", 1, 5, () => ShowPage(_zoomPage!));
         var displayInfo = Label(_displayPage.transform, "", new Vector2(0,-210), new Vector2(510,76), 18);
         _liveLabels.Add((displayInfo, () => $"Flight {config.FlightHudScale.Value*100:0}% • Symbols {config.MarkerScale.Value*100:0}%\nMove things: Edit layout on View home.\nWorld aim points stay aligned."));
-
-        _zoomPage = Page("INSPECTION ZOOM");
-        var zoom = config.InspectionZoom;
-        AddLiveButton(() => "Image: " + InspectionZoomSettings.ResolutionLabels[zoom.Resolution.Value], 0, 0,
-            () => zoom.Resolution.Value = (zoom.Resolution.Value + 1) % InspectionZoomSettings.ResolutionLabels.Length);
-        AddLiveButton(() => "Edges: " + InspectionZoomSettings.AaLabels[zoom.AntiAliasing.Value], 1, 0,
-            () => zoom.AntiAliasing.Value = (zoom.AntiAliasing.Value + 1) % InspectionZoomSettings.AaLabels.Length);
-        AddLiveButton(() => "Scene effects: " + (zoom.SceneEffects.Value ? "ON" : "OFF"), 0, 1,
-            () => zoom.SceneEffects.Value = !zoom.SceneEffects.Value);
-        AddButton("Reset zoom quality", 1, 1, zoom.Reset);
-        AddButton("Less magnification", 0, 2, () => config.ControllerBindings.ViewZoomFactor.Value -= .1f);
-        AddButton("More magnification", 1, 2, () => config.ControllerBindings.ViewZoomFactor.Value += .1f);
-        var zoomInfo = Label(_zoomPage.transform, "", new Vector2(0,-100), new Vector2(510,245), 18);
-        _liveLabels.Add((zoomInfo, () => $"{DescribeBinding(Bindings.Get(ControllerActionId.Zoom))} · {config.ControllerBindings.ViewZoomFactor.Value:0.0}× magnification\nOnly the inspection window changes.\nHigher resolution and smoothing cost GPU time\nwhile held. Scene effects are optional.\n\nMSAA requires main Anti-Aliasing enabled.\nUnsupported smoothing falls back automatically.\nChanges apply the next time you zoom.\nHeadset resolution and eye separation stay fixed."));
 
         _alertsPage = Page("THREATS & FEED");
         var alerts = config.CockpitAlerts;
@@ -438,17 +407,6 @@ internal sealed partial class WristMenu : MonoBehaviour
 
         CreateHudLayoutPages();
 
-        _opticalPage = Page("EOTS HELMET VIEW");
-        AddLiveButton(() => "EOTS HUD: " + (config.OpticalHud.Enabled.Value ? "ON" : "OFF"), 0, 0, OpticalTargetingHud.Toggle);
-        AddButton("Look to aim", 1, 0, () => { config.OpticalHud.Enabled.Value = true; OpticalTargetingHud.LookToAim(); Close(); });
-        AddButton("Less magnification", 0, 1, () => config.OpticalHud.Magnification.Value -= .5f);
-        AddButton("More magnification", 1, 1, () => config.OpticalHud.Magnification.Value += .5f);
-        AddButton("Smaller image", 0, 2, () => config.OpticalHud.Width.Value -= 2);
-        AddButton("Larger image", 1, 2, () => config.OpticalHud.Width.Value += 2);
-        AddButton("Reset optical size", 0, 3, () => { config.OpticalHud.Width.Value = 20; config.OpticalHud.Magnification.Value = 2; });
-        var opticalInfo = Label(_opticalPage.transform, "", new Vector2(0, -163), new Vector2(510, 155), 18);
-        _liveLabels.Add((opticalInfo, () => $"{OpticalTargetingHud.ModeLabel} · Head zoom {config.OpticalHud.Magnification.Value:0.#}× · Width {config.OpticalHud.Width.Value:0}°\nLook with your head, then click target-select\nwhile gripping its assigned handle.\nUnlock returns to head aiming.\nTRACK uses the aircraft's automatic camera zoom.\nYour zoom binding temporarily shows the magnifier."));
-
         _aimingPage = Page("AIMING & MARKERS");
         AddButton("Symbols smaller", 0, 0, () => config.MarkerScale.Value -= .05f);
         AddButton("Symbols larger", 1, 0, () => config.MarkerScale.Value += .05f);
@@ -458,20 +416,34 @@ internal sealed partial class WristMenu : MonoBehaviour
         AddButton("Reticle larger", 1, 2, () => config.ReticleScale.Value += .05f);
         AddButton("Range UI smaller", 0, 3, () => config.WeaponHudScale.Value -= .05f);
         AddButton("Range UI larger", 1, 3, () => config.WeaponHudScale.Value += .05f);
-        AddLiveButton(() => "Aim cue: " + config.TargetCue.Value.ToString().ToUpperInvariant(), 0, 4,
-            () => config.TargetCue.Value = (TargetCueMode)(((int)config.TargetCue.Value + 1) % 3));
+        AddButton("Look direction cue", 0, 4, () => ShowPage(_lookCuePage!));
         var aimingInfo = Label(_aimingPage.transform, "", new Vector2(0, -175), new Vector2(510, 100), 19);
         _liveLabels.Add((aimingInfo, () => $"Symbols {config.MarkerScale.Value*100:0}% • Labels {config.MarkerLabelScale.Value*100:0}%\nReticle {config.ReticleScale.Value*100:0}% • Range {config.WeaponHudScale.Value*100:0}%\nAim points stay aligned with the world."));
 
+        _lookCuePage = Page("LOOK DIRECTION");
+        var cue = config.LookCue;
+        AddButton("Cue smaller", 0, 0, () => cue.Size.Value = cue.Scale - .1f);
+        AddButton("Cue larger", 1, 0, () => cue.Size.Value = cue.Scale + .1f);
+        AddButton("More transparent", 0, 1, () => cue.Opacity.Value = cue.Alpha - .05f);
+        AddButton("More opaque", 1, 1, () => cue.Opacity.Value = cue.Alpha + .05f);
+        AddLiveButton(() => "Shape: " + cue.CurrentShape, 0, 2,
+            () => cue.Shape.Value = (GazeCueShape)(((int)cue.CurrentShape + 1) % 4));
+        AddLiveButton(() => "Show: " + (config.TargetCue.Value == TargetCueMode.Context ? "Near targets" : config.TargetCue.Value.ToString()), 1, 2,
+            () => config.TargetCue.Value = (TargetCueMode)(((int)config.TargetCue.Value + 1) % 3));
+        AddButton("Reset cue", 0, 3, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; });
+        var cueInfo = Label(_lookCuePage.transform, "", new Vector2(0, -135), new Vector2(510, 190), 19);
+        _liveLabels.Add((cueInfo, () => $"Size {cue.Scale*100:0}% · Opacity {cue.Alpha*100:0}%\n" +
+            (config.TargetCue.Value == TargetCueMode.Context ? "Appears near selectable targets." :
+             config.TargetCue.Value == TargetCueMode.Always ? "Visible throughout cockpit flight." : "Look direction cue is hidden.") +
+            "\nHUD brightness still applies.\n\nClose View to inspect the cue.\nTarget markers and weapon sights stay unchanged."));
+
         _brightnessPage = Page("BRIGHTNESS");
-        AddButton("EOTS dimmer", 0, 0, () => config.MfdBrightness.Value -= .1f);
-        AddButton("EOTS brighter", 1, 0, () => config.MfdBrightness.Value += .1f);
-        AddButton("HUD dimmer", 0, 1, () => config.InstrumentBrightness.Value -= .1f);
-        AddButton("HUD brighter", 1, 1, () => config.InstrumentBrightness.Value += .1f);
-        AddButton("Day preset", 0, 3, () => { config.InstrumentBrightness.Value = 1; config.MfdBrightness.Value = 1; });
-        AddButton("Night preset", 1, 3, () => { config.InstrumentBrightness.Value = .5f; config.MfdBrightness.Value = .45f; });
+        AddButton("HUD dimmer", 0, 0, () => config.InstrumentBrightness.Value -= .1f);
+        AddButton("HUD brighter", 1, 0, () => config.InstrumentBrightness.Value += .1f);
+        AddButton("Day preset", 0, 3, () => { config.InstrumentBrightness.Value = 1; });
+        AddButton("Night preset", 1, 3, () => { config.InstrumentBrightness.Value = .5f; });
         var lightInfo = Label(_brightnessPage.transform, "", new Vector2(0,-137), new Vector2(510,215), 19);
-        _liveLabels.Add((lightInfo, () => $"EOTS image {config.MfdBrightness.Value*100:0}%\nHUD instruments {config.InstrumentBrightness.Value*100:0}%\n\nHUD: flight instruments, compass and pitch ladder.\nTarget markers and missile alerts keep native brightness.\nOriginal cockpit displays use the game settings.\nClose View to inspect the displays."));
+        _liveLabels.Add((lightInfo, () => $"HUD instruments {config.InstrumentBrightness.Value*100:0}%\n\nHUD: flight instruments, compass and pitch ladder.\nTarget markers and missile alerts keep native brightness.\nOriginal cockpit displays use the game settings.\nClose View to inspect the displays."));
 
         _performancePage = Page("VR PERFORMANCE");
         var performanceInfo = Label(_performancePage.transform, "", new Vector2(0, -12), new Vector2(510, 390), 18);

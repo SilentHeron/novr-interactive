@@ -40,7 +40,7 @@ internal static class ControllerMapPatch
         {
             // A cockpit map zoom is centered on the aircraft by CenterMinimizedMap;
             // desktop mouse coordinates must never become a world-space pivot.
-            if (!DynamicMap.mapMaximized && (UniversalCockpitPanel.IsDocked(__instance.transform) || CockpitMapWidget.Owns(__instance.transform)))
+            if (!DynamicMap.mapMaximized && CockpitMapWidget.Owns(__instance.transform))
             {
                 var previous = __instance.GetZoomLevel();
                 if (previous <= 0 || !FlightControlMath.IsFinite(__0)) return false;

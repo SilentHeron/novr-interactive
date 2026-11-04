@@ -17,7 +17,7 @@ internal sealed class InstrumentBrightness : MonoBehaviour
     private void LateUpdate()
     {
         if (_group == null) return;
-        var alpha = MotionControls.UniversalCockpitPanel.IsDocked(transform) ? 1f : ModConfiguration.Instance.InstrumentBrightness.Value;
+        var alpha = ModConfiguration.Instance.InstrumentBrightness.Value;
         if (_group.alpha != alpha) _group.alpha = alpha;
     }
     private void OnDisable() { if (_group != null) _group.alpha = 1f; }

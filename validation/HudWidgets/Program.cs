@@ -36,22 +36,22 @@ try
     factory["weapons"] = detached["weapons"];
     Same(HudWidgetProfiles.FactoryDefaults["weapons"], defaults["weapons"], "Caller cannot mutate factory defaults");
 
-    var shared = profiles.Load("");
-    shared["weapons"] = Pose(.2f, .8f, .1f, true);
-    profiles.SaveDefault(shared);
-    Same(profiles.Load("FS-20")["weapons"], shared["weapons"], "Previously loaded uncustomized aircraft picks up new shared layout");
-    Same(profiles.Load("VT-7")["weapons"], shared["weapons"], "New aircraft picks up shared layout");
+    var slotTwo = profiles.Load("FS-20", 2);
+    slotTwo["weapons"] = Pose(.2f, .8f, .1f, true);
+    profiles.Save("FS-20", slotTwo, 2);
+    Same(profiles.Load("FS-20")["weapons"], defaults["weapons"], "Saving slot2 cannot replace slot1");
+    Same(profiles.Load("VT-7", 2)["weapons"], defaults["weapons"], "A different aircraft's slot2 remains independent");
     var customized = profiles.Load("FS-20");
     customized["weapons"] = Pose(.45f, .6f, .4f, false);
     profiles.Save("FS-20", customized);
     True(profiles.HasOverride("FS-20"), "Saving creates an aircraft override");
-    var changedShared = profiles.Load(null);
-    changedShared["weapons"] = Pose(.9f, .5f, .8f, true);
-    changedShared["threats"] = Pose(-.3f, .8f, .2f, true);
-    profiles.SaveDefault(changedShared);
-    Same(profiles.Load("FS-20")["weapons"], customized["weapons"], "Shared update preserves aircraft override");
-    Same(profiles.Load("FS-20")["threats"], customized["threats"], "Full aircraft layout stays stable when another default widget changes");
-    Same(profiles.Load("VT-7")["weapons"], changedShared["weapons"], "Uncustomized cached aircraft inherits later defaults");
+    var slotThree = profiles.Load("FS-20", 3);
+    slotThree["weapons"] = Pose(.9f, .5f, .8f, true);
+    slotThree["threats"] = Pose(-.3f, .8f, .2f, true);
+    profiles.Save("FS-20", slotThree, 3);
+    Same(profiles.Load("FS-20")["weapons"], customized["weapons"], "Slot3 save preserves slot1");
+    Same(profiles.Load("FS-20")["threats"], customized["threats"], "Full slot1 layout stays stable when another slot changes");
+    Same(profiles.Load("VT-7")["weapons"], defaults["weapons"], "Other aircraft never inherits another aircraft's customized layout");
 
     CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
     var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 0), 1.37f, .59f, .31f, false);
@@ -62,15 +62,16 @@ try
     var reloadedConfig = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var reloaded = new HudWidgetProfiles(reloadedConfig);
     Same(reloaded.Load("FS-20")["weapons"], precise, "Positions/rotation/appearance persist across locales and process reload");
-    Same(reloaded.Load("VT-7")["weapons"], changedShared["weapons"], "Shared defaults persist across reload");
+    Same(reloaded.Load("FS-20", 2)["weapons"], slotTwo["weapons"], "Slot2 persists across reload");
+    Same(reloaded.Load("FS-20", 3)["weapons"], slotThree["weapons"], "Slot3 persists across reload");
+    Same(reloaded.Load("VT-7")["weapons"], defaults["weapons"], "New aircraft remains factory after reload");
     reloaded.ResetAircraft("FS-20");
     True(!reloaded.HasOverride("FS-20"), "Reset removes aircraft override");
-    Same(reloaded.Load("FS-20")["weapons"], changedShared["weapons"], "Reset aircraft rejoins shared defaults");
+    Same(reloaded.Load("FS-20")["weapons"], defaults["weapons"], "Reset returns only the requested slot to factory");
     var resetReload = new HudWidgetProfiles(new ConfigFile(path, false) { SaveOnConfigSet = false });
-    Same(resetReload.Load("FS-20")["weapons"], changedShared["weapons"], "Reset override flag persists");
-    resetReload.SaveDefault(new Dictionary<string, HudWidgetPose> { ["weapons"] = shared["weapons"] });
-    Same(resetReload.Load("FS-20")["weapons"], shared["weapons"], "Reset aircraft inherits subsequent defaults");
-    Same(resetReload.Load(null)["threats"], changedShared["threats"], "Partial default update preserves other shared widgets");
+    Same(resetReload.Load("FS-20")["weapons"], defaults["weapons"], "Reset override flag persists");
+    Same(resetReload.Load("FS-20", 2)["weapons"], slotTwo["weapons"], "Resetting slot1 leaves slot2 intact");
+    Same(resetReload.Load("FS-20", 3)["threats"], slotThree["threats"], "Resetting slot1 leaves slot3 intact");
 
     foreach (var id in HudWidgetProfiles.Ids)
     {
@@ -91,14 +92,15 @@ try
 
     var malformed = new ConfigFile(Path.Combine(directory, "malformed.cfg"), false) { SaveOnConfigSet = false };
     var malformedProfiles = new HudWidgetProfiles(malformed);
-    const string section = "VR HUD Widgets - Defaults";
+    var section = "VR HUD Widgets " + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("malformed"))).Substring(0, 32);
+    malformed.Bind(section, "Use aircraft layout", true).Value = true;
     foreach (var value in new[] { "", "1|2|3", "a|b|c|0|0|0|1|1|0|1", "0|0|1|0|0|0|1|1|0|maybe" })
     {
         malformed.Bind(section, "threats", "").Value = value;
-        Same(malformedProfiles.Load("")["threats"], HudWidgetProfiles.FactoryDefaults["threats"], "Malformed config recovers");
+        Same(malformedProfiles.Load("malformed")["threats"], HudWidgetProfiles.FactoryDefaults["threats"], "Malformed config recovers");
     }
     malformed.Bind(section, "threats", "").Value = "NaN|Infinity|-Infinity|NaN|Infinity|-Infinity|NaN|Infinity|-Infinity|0";
-    var malformedSafe = malformedProfiles.Load("")["threats"];
+    var malformedSafe = malformedProfiles.Load("malformed")["threats"];
     True(float.IsFinite(malformedSafe.Position.x) && float.IsFinite(malformedSafe.Scale) && !malformedSafe.Visible, "Nonfinite persisted values sanitized on read");
     var specialKey = "modded/aircraft[variant]\nwith=characters";
     malformedProfiles.Save(specialKey, new Dictionary<string, HudWidgetPose> { ["ew"] = precise });
@@ -120,26 +122,27 @@ try
     };
     var legacyPath = Path.Combine(directory, "legacy.cfg");
     var legacy = new ConfigFile(legacyPath, false) { SaveOnConfigSet = false };
+    const string sharedSection = "VR HUD Widgets - Defaults";
     var aircraftSection = "VR HUD Widgets " + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("legacy-aircraft"))).Substring(0, 32);
     foreach (var pair in old)
     {
-        legacy.Bind(section, pair.Key, Encode(pair.Value));
+        legacy.Bind(sharedSection, pair.Key, Encode(pair.Value));
         legacy.Bind(aircraftSection, pair.Key, Encode(pair.Value));
     }
     legacy.Bind(aircraftSection, "Use aircraft layout", true);
     var customDefault = old["feed"]; customDefault.Position.x += .015f;
-    legacy.Bind(section, "feed", "").Value = Encode(customDefault);
+    legacy.Bind(sharedSection, "feed", "").Value = Encode(customDefault);
     var customAircraft = old["ew"]; customAircraft.Opacity = .45f;
     legacy.Bind(aircraftSection, "ew", "").Value = Encode(customAircraft);
     legacy.Save();
-    // Reload so aircraft entries begin as unbound/orphan config values. Saving
-    // the shared-default migration must not discard those pending overrides.
+    // Reload so aircraft entries begin as unbound/orphan config values. Slot1
+    // migration must preserve the actual aircraft override without importing global settings.
     var upgraded = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
     var upgradedAircraft = upgraded.Load("legacy-aircraft");
     foreach (var pair in old)
     {
-        Same(upgraded.Load(null)[pair.Key], pair.Key == "feed" ? customDefault : HudWidgetProfiles.FactoryDefaults[pair.Key],
-            "Only exact legacy shared defaults migrate " + pair.Key);
+        Same(upgraded.Load(null)[pair.Key], HudWidgetProfiles.FactoryDefaults[pair.Key],
+            "Legacy shared defaults are never imported " + pair.Key);
         Same(upgradedAircraft[pair.Key], pair.Key == "ew" ? customAircraft : HudWidgetProfiles.FactoryDefaults[pair.Key],
             "Only exact legacy aircraft defaults migrate " + pair.Key);
     }
@@ -149,17 +152,18 @@ try
     True(upgraded.HasOverride("legacy-aircraft"), "Migration preserves override selection");
     var migratedReload = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
     Same(migratedReload.Load("legacy-aircraft")["weapons"], HudWidgetProfiles.FactoryDefaults["weapons"], "Migrated positions persist without explicit user save");
-    Same(migratedReload.Load(null)["feed"], customDefault, "Custom shared placement remains untouched on reload");
-    migratedReload.SaveDefault(new Dictionary<string, HudWidgetPose> { ["weapons"] = old["weapons"] });
+    Same(migratedReload.Load(null)["feed"], HudWidgetProfiles.FactoryDefaults["feed"], "Custom shared placement is ignored after reload");
+    migratedReload.Save("legacy-aircraft", new Dictionary<string, HudWidgetPose> { ["weapons"] = old["weapons"] }, 3);
     migratedReload.Save("legacy-aircraft", new Dictionary<string, HudWidgetPose> { ["power"] = old["power"] });
     var intentionalRestore = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
-    Same(intentionalRestore.Load(null)["weapons"], old["weapons"], "Migration runs once; later intentional old default placement is preserved");
+    Same(intentionalRestore.Load("legacy-aircraft", 3)["weapons"], old["weapons"], "Later intentional old default placement is preserved in its own slot");
     Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
     HudWidgetGestureChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
     HudWidgetAngleChecks.Run(True);
     HudWidgetMotionChecks.Run(True);
+    HudWidgetTwoHandChecks.Run(True);
     Console.WriteLine($"HUD widget checks passed: {count} assertions (real config persistence, gesture math, and meter-space conversion).");
 }
 finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directory, true); }

@@ -10,15 +10,13 @@
     <Compile Remove="UiLifecycle/**/*.cs" />
     <Compile Include="../NOVR/VrUi/Components/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
     <Compile Include="../NOVR/VrUi/Components/CockpitFeedPresentation.cs" Link="CockpitFeedPresentation.cs" />
-    <Compile Include="../NOVR/MotionControls/OpticalHudMath.cs" Link="OpticalHudMath.cs" />
     <Compile Include="../NOVR/MotionControls/TargetCueMode.cs" Link="TargetCueMode.cs" />
     <Compile Include="../NOVR/VrUi/Components/HudPresentationMath.cs" Link="HudPresentationMath.cs" />
     <Compile Include="../NOVR/MotionControls/PilotTextureEnhancement.cs" Link="PilotTextureEnhancement.cs" />
+    <Compile Include="../NOVR/MotionControls/PilotUniformPalette.cs" Link="PilotUniformPalette.cs" />
     <Compile Include="../NOVR/MotionControls/DeferredTextureJob.cs" Link="DeferredTextureJob.cs" />
     <Compile Include="../NOVR/MotionControls/InteractionSoundWave.cs" Link="InteractionSoundWave.cs" />
-    <Compile Include="../NOVR/MotionControls/WeaponReadout.cs" Link="WeaponReadout.cs" />
     <Compile Include="../NOVR/MotionControls/MenuHistory.cs" Link="MenuHistory.cs" />
-    <Compile Include="../NOVR/MotionControls/MfdPages.cs" Link="MfdPages.cs" />
     <Compile Include="../NOVR/MotionControls/HelmetGestureMath.cs" Link="HelmetGestureMath.cs" />
     <Compile Include="../NOVR/MotionControls/CockpitTouchGate.cs" Link="CockpitTouchGate.cs" />
     <Compile Include="../NOVR/MotionControls/ThrottleDetent.cs" Link="ThrottleDetent.cs" />
@@ -26,9 +24,7 @@
     <Compile Include="../NOVR/MotionControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../NOVR/MotionControls/ControlMirrorMath.cs" Link="ControlMirrorMath.cs" />
     <Compile Include="../NOVR/MotionControls/StickLimitFeedback.cs" Link="StickLimitFeedback.cs" />
-    <Compile Include="../NOVR/MotionControls/GuardedEjection.cs" Link="GuardedEjection.cs" />
-    <Compile Include="../NOVR/MotionControls/EjectionRequest.cs" Link="EjectionRequest.cs" />
-    <Compile Include="../NOVR/MotionControls/CockpitPanelAsset.cs" Link="CockpitPanelAsset.cs" />
+    <Compile Include="../NOVR/MotionControls/HandleReachFeedback.cs" Link="HandleReachFeedback.cs" />
     <Compile Include="../NOVR/MotionControls/ThrottleBindingProfiles.cs" Link="ThrottleBindingProfiles.cs" />
     <Compile Include="../NOVR/MotionControls/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
     <Compile Include="../NOVR/MotionControls/PointerHandSelection.cs" Link="PointerHandSelection.cs" />

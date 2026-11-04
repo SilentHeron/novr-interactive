@@ -129,14 +129,13 @@ using (var f = new Fixture())
     var damage = f.AddDamage("StatusDisplay_SmallFighter1(Clone)");
     var rect = damage.transform; rect.sizeDelta = new Vector2(270, 270); rect.pivot = new Vector2(1, 0);
     rect.localPosition = new Vector3(4, 7, 0); rect.localScale = new Vector3(.00045f, .00045f, .00045f);
-    var originalParent = rect.parent; var originalPosition = rect.localPosition;
-    var legacy = damage.AddComponent<NOVRStatusDisplayBehavior>();
+    var originalParent = rect.parent; var originalPosition = rect.localPosition; var originalScale = rect.localScale;
     var silhouette = damage.GetComponent<Image>();
     var native = damage.GetComponent<StatusDisplay>();
     var part = rect.GetChild(0).GetComponent<Image>();
     part.color = new Color(1, .2f, 0, .8f);
     f.Tick();
-    Check(legacy.Prepares == 1 && rect.parent == CockpitHudWidgets.Slots["damage"], "Damage lease replaces old fixed docking before capturing transform");
+    Check(rect.parent == CockpitHudWidgets.Slots["damage"], "Damage lease attaches to movable widget");
     Check(silhouette.enabled && silhouette.color.a == 1 && native.enabled, "Native aircraft silhouette and damage logic remain enabled");
     Check(part.enabled && part.color == new Color(1, .2f, 0, .8f), "Native part damage colors survive reparenting unchanged");
     Near(rect.localScale.x, 300f / 270, "Damage source fits its own aspect and ignores old 0.00045 docking scale");
@@ -154,8 +153,8 @@ using (var f = new Fixture())
     originalParent.gameObject.SetActive(true); f.Tick(.01f);
     Check(CockpitHudWidgets.Content["damage"], "Leaving native HUD hiding restores current damage immediately");
     CockpitStatusSources.ReleaseAll();
-    Check(rect.parent == originalParent && rect.localPosition == originalPosition && rect.localScale == Vector3.one && rect.pivot == new Vector2(1, 0),
-        "Damage returns to native anchor with restorable undocked transform");
+    Check(rect.parent == originalParent && rect.localPosition == originalPosition && rect.localScale == originalScale && rect.pivot == new Vector2(1, 0),
+        "Damage returns to native anchor with its exact original transform");
     Check(silhouette.enabled && silhouette.color.a == 0 && part.color == new Color(.7f, 0, .25f, 1) && native.enabled,
         "Restoration preserves live native damage/fade state");
 }

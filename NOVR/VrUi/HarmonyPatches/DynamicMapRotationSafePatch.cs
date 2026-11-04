@@ -44,11 +44,8 @@ internal static class DynamicMapRotationSafePatch
             var mapFocusPosition = cameraPosition + aircraftForward.normalized * __instance.mapDisplayFactor * 4000.0f;
 
             var viewYaw = Quaternion.LookRotation(viewForward.normalized, Vector3.up).eulerAngles.y;
-            var northUp = MotionControls.UniversalCockpitPanel.IsDocked(__instance.transform) && ModConfiguration.Instance.CockpitMapNorthUp.Value;
-            __instance.mapImage.transform.localEulerAngles = new Vector3(0.0f, 0.0f, northUp ? 0 : combatHud.aircraft.transform.eulerAngles.y);
-            __instance.mapImage.transform.localPosition = MapOffsetToLocalPosition(__instance, mapFocusPosition) +
-                (MotionControls.UniversalCockpitPanel.IsDocked(__instance.transform)
-                    ? (Vector3)MotionControls.UniversalCockpitPanel.MapPan * __instance.GetZoomLevel() : Vector3.zero);
+            __instance.mapImage.transform.localEulerAngles = new Vector3(0.0f, 0.0f, combatHud.aircraft.transform.eulerAngles.y);
+            __instance.mapImage.transform.localPosition = MapOffsetToLocalPosition(__instance, mapFocusPosition);
             __instance.viewIndicator.transform.localPosition = new Vector3(cameraPosition.x, cameraPosition.z, 0.0f);
             __instance.viewIndicator.transform.rotation = __instance.mapImage.transform.rotation *
                 Quaternion.Euler(0f, 0f, -viewYaw);

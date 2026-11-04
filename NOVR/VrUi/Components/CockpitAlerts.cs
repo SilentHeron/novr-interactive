@@ -298,24 +298,6 @@ internal sealed class CockpitAlerts : MonoBehaviour
         var ewOwned = AttachWidget("ew", _root.transform, new Vector2(260, 260));
         var threatsOwned = AttachWidget("threats", _missileRoot!.transform, new Vector2(520, 200));
         var feedOwned = AttachWidget("feed", _feedRoot!, new Vector2(520, 300));
-        var fs20 = Fs20NativeCockpit.Cockpit;
-        if (fs20 != null)
-        {
-            var right = fs20.TransformPoint(new Vector3(.39f,.29f,.43f));
-            if (!ewOwned)
-            {
-                _root.transform.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(right)),
-                    uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * fs20.rotation * Quaternion.Euler(12,-12,0));
-                _root.transform.localScale = Vector3.one * (.0007f * Settings.Scale.Value);
-            }
-            // Above the upper coaming, beside the forward sightline. These
-            // authored cockpit anchors do not follow head turns or seat shifts.
-            if (!threatsOwned) PlaceWindow(_missileRoot!.transform, fs20.TransformPoint(new Vector3(-.18f,.645f,.585f)),
-                fs20.rotation * Quaternion.Euler(6,-12.5f,0), .0004f, gameRoot, uiRoot);
-            if (!feedOwned) PlaceWindow(_feedRoot!, fs20.TransformPoint(new Vector3(.18f,.645f,.585f)),
-                fs20.rotation * Quaternion.Euler(6,12.5f,0), .0004f, gameRoot, uiRoot);
-            return;
-        }
         var eye = _aircraft.cockpitViewPoint;
         // Same cockpit-to-UI-space conversion as the dashboard. Physical leaning,
         // head turns and saved seat shifts do not drag the overlay around.

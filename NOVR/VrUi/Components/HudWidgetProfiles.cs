@@ -25,9 +25,7 @@ internal sealed class HudWidgetProfiles
     internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
-    private readonly ConfigEntry<bool> _sharedLayoutSaved;
-    private readonly Dictionary<string, ConfigEntry<string>> _defaults;
-    private readonly Dictionary<string, AircraftProfile> _aircraft = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string key, int slot), AircraftProfile> _aircraft = new();
     private sealed class AircraftProfile
     {
         internal ConfigEntry<bool> Override = null!;
@@ -37,9 +35,6 @@ internal sealed class HudWidgetProfiles
     internal HudWidgetProfiles(ConfigFile config)
     {
         _config = config;
-        _defaults = BindPoses("VR HUD Widgets - Defaults");
-        _sharedLayoutSaved = config.Bind("VR HUD Widgets - Defaults", "Shared layout saved", false,
-            "A user-saved shared layout keeps its exact positions when entering an aircraft or editing.");
     }
     private static readonly Dictionary<string, HudWidgetPose> Factory = new(StringComparer.Ordinal)
     {
@@ -69,56 +64,55 @@ internal sealed class HudWidgetProfiles
         "threats" => "Incoming missiles", "ew" => "Radar / EW", "feed" => "Notifications", "map" => "Map",
         "damage" => "Aircraft damage", "objectives" => "Instructions", _ => "HUD widget"
     };
-    internal Dictionary<string, HudWidgetPose> Load(string? aircraftKey)
+    internal Dictionary<string, HudWidgetPose> Load(string? aircraftKey, int slot = 1)
     {
-        var shared = Read(_defaults, FactoryDefaults);
-        if (string.IsNullOrEmpty(aircraftKey)) return shared;
-        var aircraft = Aircraft(aircraftKey!);
-        return aircraft.Override.Value ? Read(aircraft.Poses, shared) : shared;
+        ValidateSlot(slot);
+        if (string.IsNullOrEmpty(aircraftKey)) return FactoryDefaults;
+        var aircraft = Aircraft(aircraftKey!, slot);
+        return aircraft.Override.Value ? Read(aircraft.Poses, FactoryDefaults) : FactoryDefaults;
     }
-    internal bool HasOverride(string? aircraftKey) => !string.IsNullOrEmpty(aircraftKey) && Aircraft(aircraftKey!).Override.Value;
-    internal bool HasSavedLayout(string? aircraftKey)
+    internal bool HasOverride(string? aircraftKey, int slot = 1)
     {
-        if (HasOverride(aircraftKey) || _sharedLayoutSaved.Value) return true;
-        // Preserve shared layouts saved by versions predating the explicit flag.
-        foreach (var id in Ids)
-            if (_defaults[id].Value != Encode(Factory[id])) return true;
-        return false;
+        ValidateSlot(slot);
+        return !string.IsNullOrEmpty(aircraftKey) && Aircraft(aircraftKey!, slot).Override.Value;
     }
-    internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses)
+    internal bool HasSavedLayout(string? aircraftKey, int slot = 1) => HasOverride(aircraftKey, slot);
+    internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses, int slot = 1)
     {
+        ValidateSlot(slot);
         if (string.IsNullOrEmpty(aircraftKey)) return;
-        var snapshot = Merge(Load(aircraftKey), poses);
-        var aircraft = Aircraft(aircraftKey);
+        var snapshot = Merge(Load(aircraftKey, slot), poses);
+        var aircraft = Aircraft(aircraftKey, slot);
         Store(aircraft.Poses, snapshot);
         aircraft.Override.Value = true;
         _config.Save();
     }
-    internal void SaveDefault(Dictionary<string, HudWidgetPose> poses)
+    internal void ResetAircraft(string aircraftKey, int slot = 1)
     {
-        Store(_defaults, Merge(Load(null), poses));
-        _sharedLayoutSaved.Value = true;
-        _config.Save();
-    }
-    internal void ResetAircraft(string aircraftKey)
-    {
+        ValidateSlot(slot);
         if (string.IsNullOrEmpty(aircraftKey)) return;
-        Aircraft(aircraftKey).Override.Value = false;
+        var profile = Aircraft(aircraftKey, slot);
+        Store(profile.Poses, FactoryDefaults);
+        profile.Override.Value = false;
         _config.Save();
     }
-    private AircraftProfile Aircraft(string key)
+    private AircraftProfile Aircraft(string key, int slot)
     {
-        if (_aircraft.TryGetValue(key, out var profile)) return profile;
-        var section = Section(key);
+        if (_aircraft.TryGetValue((key, slot), out var profile)) return profile;
+        // Slot1 deliberately keeps the pre-slot per-aircraft section. Shared
+        // defaults are not read or imported into any aircraft/slot.
+        var section = Section(key) + (slot == 1 ? "" : " Slot " + slot);
         profile = new AircraftProfile
         {
             Override = _config.Bind(section, "Use aircraft layout", false,
-                "True uses this aircraft's saved HUD positions. False inherits the shared HUD layout."),
+                "Saved HUD layout for " + key + ", slot " + slot + ". False uses untouched factory positions for this slot only."),
             Poses = BindPoses(section)
         };
-        _aircraft.Add(key, profile);
+        _aircraft.Add((key, slot), profile);
         return profile;
     }
+    private static void ValidateSlot(int slot)
+    { if (slot < 1 || slot > 3) throw new ArgumentOutOfRangeException(nameof(slot), "Layout slot must be 1, 2 or 3."); }
     private Dictionary<string, ConfigEntry<string>> BindPoses(string section)
     {
         var entries = new Dictionary<string, ConfigEntry<string>>(StringComparer.Ordinal);

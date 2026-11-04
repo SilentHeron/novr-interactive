@@ -3,23 +3,12 @@ using NOVR.MotionControls;
 var passed = 0;
 TexturePreparationChecks.Run(Check, True);
 HudPresentationChecks.Run(Check, True);
-OpticalHudChecks.Run(Check, True);
 CockpitAlertChecks.Run(Check, True);
-ButtonContactGuideChecks.Run(Check, True);
-SwitchGrabChecks.Run(Check, True);
 StickLimitFeedbackChecks.Run(Check, True);
+HandleReachFeedbackChecks.Run(Check, True);
 ControlMirrorChecks.Run(Check, True);
 FrameActionQueueChecks.Run(Check, True);
-Check("MFD page keys skip unfitted instruments in both directions and preserve a single widget owner", () =>
-{
-    var available = (1 << (int)MfdPage.Weapons) | (1 << (int)MfdPage.Map) | (1 << (int)MfdPage.Sensor);
-    True(MfdPages.Cycle(MfdPage.Map, MfdPage.Weapons, true, 1, available) == (MfdPage.Sensor, MfdPage.Weapons));
-    True(MfdPages.Cycle(MfdPage.Map, MfdPage.Weapons, true, -1, available) == (MfdPage.Weapons, MfdPage.Map));
-    True(MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, false, -1, available) == (MfdPage.Map, MfdPage.Weapons));
-    True(MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, true, -1, available) == (MfdPage.Sensor, MfdPage.Map));
-    True(MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, true, 1, 0) == (MfdPage.Weapons, MfdPage.Map));
-    True(MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, true, 1, 1 << (int)MfdPage.Weapons) == (MfdPage.Weapons, MfdPage.Map));
-});
+
 Check("Idle pointer prefers an actionable control over the other hand's background", () =>
 {
     foreach (var left in new[] { false, true })
@@ -48,28 +37,8 @@ Check("Priority changes cannot convert a held non-owner trigger to a click", () 
     p.Update(false, true, 1, true, true, 0, true, 2, 1);
     True(p.Left && p.Trigger.Pressed);
 });
-Check("Weapon readout never equates target selection with a lock", () =>
-{
-    foreach (var count in new[] { -1, 0, 1, 8 })
-    {
-        var readout = WeaponReadout.Describe(count, true, false, 4, false, true, null);
-        True(readout.text == Math.Max(0, count) + " SELECTED · LOADED" && !readout.caution);
-    }
-    True(WeaponReadout.Describe(0, true, false, 4, false, true, "SHOOT").text == "0 SELECTED · LOADED");
-    True(WeaponReadout.Describe(1, true, false, 4, false, true, "NOT LASED").text == "1 SELECTED · NOT LASED");
-    True(WeaponReadout.Describe(1, true, false, 4, false, true, "SHOOT").text == "1 SELECTED · SHOOT");
-});
-Check("Weapon safety, ammunition and reload constraints precede native guidance", () =>
-{
-    var safety = WeaponReadout.Describe(2, true, true, 4, false, true, "SHOOT");
-    True(safety.text == "2 SELECTED · SAFETY ON" && safety.caution);
-    True(WeaponReadout.Describe(1, true, false, 0, false, true, "SHOOT").text == "1 SELECTED · EMPTY");
-    True(WeaponReadout.Describe(1, true, false, 4, true, false, "SHOOT").text == "1 SELECTED · RELOADING");
-    True(WeaponReadout.Describe(1, true, false, 4, false, false, "SHOOT").text == "1 SELECTED · NOT READY");
-    True(WeaponReadout.Describe(1, false, false, 0, false, false, null).text == "1 SELECTED · NO WEAPON");
-    // One mount can reload while another is already available.
-    True(WeaponReadout.Describe(1, true, false, 4, true, true, "SHOOT").text == "1 SELECTED · SHOOT");
-});
+
+
 Check("Menu history returns shared help to its source and clears confirmations on Home", () =>
 {
     var h = new MenuHistory<string>("Home");
@@ -95,16 +64,7 @@ Check("Physical button touch needs an approach and rearms only after withdrawal"
     gate.Update(false, true, .04f); True(!gate.Update(true, true, 0));
     gate.Update(true, true, .04f); gate.Update(false, true, 0); True(!gate.Update(true, true, 0));
 });
-Check("Seat handle needs a fresh grab and an upward pull; release never ejects", () =>
-{
-    var pull = new SeatHandlePull();
-    True(!pull.Update(true,.08f,0)); pull.Begin();
-    True(!pull.Update(true,.04f,0)); True(pull.Update(true,.046f,.02f)); True(!pull.Update(true,.08f,0));
-    pull.Begin(); True(!pull.Update(false,.08f,0)); True(!pull.Update(true,.08f,0));
-    pull.Begin(); True(!pull.Update(true,.08f,.13f)); True(!pull.Update(true,.08f,0));
-    pull.Begin(); True(!pull.Update(true,float.NaN,0)); True(!pull.Update(true,.08f,0));
-    pull.Begin(); True(!pull.Update(true,-.1f,0)); pull.Reset(); True(!pull.Update(true,.08f,0));
-});
+
 Check("MIL shelf fits entirely inside the chosen throttle range and preserves regrabs", () =>
 {
     foreach (var travel in new[] { .05f, .12f, .22f, .6f })
@@ -318,54 +278,11 @@ void Near(float actual, float expected, float tolerance = 0.00001f)
     if (!float.IsFinite(actual) || Math.Abs(actual - expected) > tolerance)
         throw new Exception($"Expected {expected}, got {actual}");
 }
-Check("Direct MFD selection reaches every page and swaps an occupied page", () =>
-{
-    for (var left = 0; left < MfdPages.Count; left++)
-    for (var right = 0; right < MfdPages.Count; right++)
-    if (left != right) foreach (var side in new[] { false, true })
-    for (var requested = 0; requested < MfdPages.Count; requested++)
-    {
-        var pair = MfdPages.Select((MfdPage)left, (MfdPage)right, side, (MfdPage)requested);
-        True(pair.left != pair.right);
-        True((int)(side ? pair.left : pair.right) == requested);
-        True((int)(side ? pair.right : pair.left) == (requested == (side ? right : left) ? (side ? left : right) : (side ? right : left)));
-    }
-});
-Check("Invalid direct MFD selections preserve both displayed pages", () =>
-{
-    foreach (var value in new[] { -1, 7, 200 })
-    {
-        var pair = MfdPages.Select(MfdPage.Map, MfdPage.Weapons, true, (MfdPage)value);
-        True(pair.left == MfdPage.Map && pair.right == MfdPage.Weapons);
-    }
-});
-Check("MFD pages cycle independently and wrap in both directions", () =>
-{
-    var pages = MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, true, -1);
-    True(pages.left == MfdPage.Sensor && pages.right == MfdPage.Map);
-    pages = MfdPages.Cycle(pages.left, pages.right, true, 1);
-    True(pages.left == MfdPage.Weapons && pages.right == MfdPage.Map);
-    pages = MfdPages.Cycle(pages.left, pages.right, false, 1);
-    True(pages.left == MfdPage.Weapons && pages.right == MfdPage.Flight);
-});
-Check("selecting an occupied MFD page swaps the native widgets between displays", () =>
-{
-    var pages = MfdPages.Cycle(MfdPage.Weapons, MfdPage.Map, true, 1);
-    True(pages.left == MfdPage.Map && pages.right == MfdPage.Weapons);
-    pages = MfdPages.Cycle(pages.left, pages.right, false, 1);
-    True(pages.left == MfdPage.Weapons && pages.right == MfdPage.Map);
-});
-Check("every MFD selection retains two distinct valid pages", () =>
-{
-    for (var left = 0; left < MfdPages.Count; left++)
-        for (var right = 0; right < MfdPages.Count; right++)
-            if (left != right) foreach (var side in new[] { false, true }) foreach (var direction in new[] { -1, 1 })
-            {
-                var p = MfdPages.Cycle((MfdPage)left, (MfdPage)right, side, direction);
-                True(p.left != p.right && Enum.IsDefined(p.left) && Enum.IsDefined(p.right));
-                True(MfdPages.Title(p.left) != "DISPLAY" && MfdPages.Title(p.right) != "DISPLAY");
-            }
-});
+
+
+
+
+
 
 Check("digital squeeze works when a runtime also exposes an idle or partial grip axis", () =>
 {
@@ -477,13 +394,13 @@ FlightGrip TapGrab()
 }
 Check("quick flight grip tap latches without continuous pressure", () =>
     True(TapGrab().Update(true, 0, true, true, 1)));
-Check("a long flight grip hold still releases normally in tap mode", () =>
+Check("toggle grip stays latched after a long squeeze", () =>
 {
     var grip = new FlightGrip();
     grip.Update(true, 0, true, true, 0);
     grip.Update(true, 1, true, true, .1f);
-    True(!grip.Update(true, 0, true, true, .5f));
-    True(!grip.Latched);
+    True(grip.Update(true, 0, true, true, .5f));
+    True(grip.Latched);
 });
 Check("a fresh press releases a latched handle without regrabbing", () =>
 {
@@ -873,146 +790,23 @@ Check("MIL detent preserves every regrab command and reaches idle/full afterburn
     }
 });
 
-Check("eject cover requires a separate released grip before pulling", () =>
-{
-    var eject = new GuardedEjection();
-    True(!eject.BeginPull());
-    eject.LiftCover();
-    True(!eject.BeginPull());
-    True(!eject.Pull(1, 10, true));
-    eject.Release();
-    True(eject.BeginPull());
-    True(!eject.Pull(.044f, 10, true));
-    True(eject.Pull(.045f, 0, true));
-    True(!eject.Open && !eject.Pull(1, 10, true));
-});
-Check("laser ejection is immediate after separate guard release and new press", () =>
-{
-    var eject = new GuardedEjection();
-    eject.LiftCover(); eject.Release(); True(eject.BeginPull());
-    True(eject.Pull(0, 0, false));
-    eject.LiftCover(); eject.Release(); True(eject.BeginPull());
-    eject.Release();
-    True(!eject.Pull(10, 2, false));
-    True(eject.BeginPull());
-    True(eject.Pull(0, 0, false));
-});
-Check("focus, aircraft and menu resets cannot leave ejection armed", () =>
-{
-    var eject = new GuardedEjection();
-    eject.LiftCover(); eject.Release(); True(eject.BeginPull());
-    eject.Reset();
-    True(!eject.Open && !eject.Pull(1, 10, true));
-    eject.Release(); True(!eject.BeginPull());
-});
-Check("invalid hand samples cannot trigger ejection", () =>
-{
-    var eject = new GuardedEjection();
-    eject.LiftCover(); eject.Release(); True(eject.BeginPull());
-    True(!eject.Pull(float.NaN, 1, true));
-    True(!eject.Pull(1, float.PositiveInfinity, false));
-    True(!eject.Pull(-1, 1, true));
-});
 
-Check("an eject request blocks competing input while awaiting native acknowledgement", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100);
-    True(request.State == EjectionRequestState.Pending && request.BlocksInput);
-    request.Update(false, 10.9f, 104);
-    True(request.State == EjectionRequestState.Pending);
-});
-Check("a stalled next frame still gets to consume an eject request", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100);
-    request.Update(false, 15, 101);
-    True(request.State == EjectionRequestState.Pending);
-    request.Update(true, 15, 101);
-    True(request.State == EjectionRequestState.Accepted);
-});
-Check("a missed eject request becomes unconfirmed without automatically retrying", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100);
-    request.Update(false, 11, 102);
-    True(request.State == EjectionRequestState.Unconfirmed && !request.BlocksInput);
-    request.Update(false, 12.9f, 120);
-    True(request.State == EjectionRequestState.Unconfirmed);
-    request.Update(false, 13, 121);
-    True(request.State == EjectionRequestState.Idle && !request.BlocksInput);
-});
-Check("native acceptance wins over timeout and remains acknowledged until context reset", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100);
-    request.Update(true, 12, 104);
-    True(request.State == EjectionRequestState.Accepted && request.BlocksInput);
-    request.Update(false, 20, 200);
-    True(request.State == EjectionRequestState.Accepted);
-    request.Reset();
-    True(request.State == EjectionRequestState.Idle && !request.BlocksInput);
-});
-Check("an unconfirmed request can be acknowledged late or deliberately retried", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100); request.Update(false, 11, 102);
-    request.Update(true, 11.1f, 103);
-    True(request.State == EjectionRequestState.Accepted);
-    request.Reset(); request.Begin(20, 200);
-    True(request.State == EjectionRequestState.Pending);
-    request.Update(false, 20.5f, 202);
-    True(request.State == EjectionRequestState.Pending);
-});
-Check("context reset discards pending feedback and does not adopt unrelated native ejection", () =>
-{
-    var request = new EjectionRequest();
-    request.Begin(10, 100); request.Reset();
-    request.Update(true, 11, 102);
-    True(request.State == EjectionRequestState.Idle && !request.BlocksInput);
-});
 
-Check("an incomplete console asset fails before creating scene objects", () =>
-{
-    foreach (var json in new[] { "{}", "null", "{\"materials\":null,\"groups\":[],\"parts\":[]}" })
-    {
-        var rejected = false;
-        try { CockpitPanelAsset.Load(json); } catch (InvalidDataException) { rejected = true; }
-        True(rejected);
-    }
-});
+
+
+
+
+
+
+
+
+
+
+
 
 if (args.Length == 2)
 {
-    Check("shipped console contains complete, finite mesh geometry and every control pivot", () =>
-    {
-        using var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(args[0]);
-        var resource = assembly.MainModule.Resources.OfType<Mono.Cecil.EmbeddedResource>()
-            .Single(r => r.Name == "NOVR.CockpitPanel.json");
-        using var stream = resource.GetResourceStream();
-        using var reader = new StreamReader(stream);
-        var json = reader.ReadToEnd();
-        var runtimeAsset = CockpitPanelAsset.Load(json);
-        True(runtimeAsset.parts.Length > 10 && runtimeAsset.groups.Length == 21 && runtimeAsset.materials.Length > 3);
-        using var document = System.Text.Json.JsonDocument.Parse(json);
-        var model = document.RootElement;
-        var groups = model.GetProperty("groups").EnumerateArray().Select(g => g.GetProperty("name").GetString()).ToHashSet();
-        foreach (var name in new[] { "static", "gear", "gear_lamps", "radar", "engine", "assist", "guard", "eject", "weapon", "map", "cm", "hover", "hover_lamp", "zoom_in", "zoom_out", "mfd_left_prev", "mfd_left_next", "mfd_right_prev", "mfd_right_next", "mfd_left_slave", "mfd_right_slave" })
-            True(groups.Contains(name));
-        var materials = model.GetProperty("materials").GetArrayLength();
-        var triangles = 0;
-        foreach (var part in model.GetProperty("parts").EnumerateArray())
-        {
-            True(groups.Contains(part.GetProperty("group").GetString()));
-            True(part.GetProperty("material").GetInt32() >= 0 && part.GetProperty("material").GetInt32() < materials);
-            var vertices = part.GetProperty("vertices").EnumerateArray().Select(v => v.GetSingle()).ToArray();
-            True(vertices.Length > 0 && vertices.Length % 3 == 0 && vertices.All(v => float.IsFinite(v) && Math.Abs(v) < 1));
-            var indices = part.GetProperty("triangles").EnumerateArray().Select(i => i.GetInt32()).ToArray();
-            True(indices.Length % 3 == 0 && indices.All(i => i >= 0 && i < vertices.Length / 3));
-            triangles += indices.Length / 3;
-        }
-        True(triangles > 100 && triangles < 25000);
-    });
+
     Check("Harmony patch targets and injected fields match the installed game", () =>
         PatchCompatibility.Verify(args[0], args[1]));
     Check("Proton input workaround uses supported Rewired initialization and configuration APIs", () =>

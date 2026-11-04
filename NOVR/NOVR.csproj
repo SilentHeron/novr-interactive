@@ -20,7 +20,6 @@
         <EmbeddedResource Include="Assets/GloveNormal.png" LogicalName="NOVR.GloveNormal.png" />
         <EmbeddedResource Include="Assets/Glove-left.json" LogicalName="NOVR.Glove.left.json" />
         <EmbeddedResource Include="Assets/Glove-right.json" LogicalName="NOVR.Glove.right.json" />
-        <EmbeddedResource Include="Assets/CockpitPanel.json" LogicalName="NOVR.CockpitPanel.json" />
         <ProjectReference Include="..\NOVR.XR.OpenXR\NOVR.XR.OpenXR.csproj" Private="false"/>
     </ItemGroup>
     <ItemGroup>

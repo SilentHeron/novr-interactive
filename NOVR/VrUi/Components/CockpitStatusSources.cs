@@ -46,7 +46,6 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         {
             Widget = widget; Slot = slot; Parent = widget.parent;
             _compactWeapon = compactWeapon; _damage = damage;
-            if (damage) widget.GetComponent<NOVRStatusDisplayBehavior>()?.PrepareForWidget();
             Index = widget.GetSiblingIndex(); _position = widget.localPosition;
             _scale = widget.localScale; _rotation = widget.localRotation;
             _anchorMin = widget.anchorMin; _anchorMax = widget.anchorMax;

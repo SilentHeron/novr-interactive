@@ -8,10 +8,11 @@ namespace NOVR.VrUi;
 
 internal sealed partial class WristMenu
 {
-    private GameObject? _layoutPage, _hudAppearancePage, _hudWidgetPage, _hudDefaultPage, _hudAnglePage;
-    private Text? _layoutInfo, _hudWidgetInfo, _hudDefaultInfo, _hudAngleInfo;
+    private GameObject? _layoutPage, _hudAppearancePage, _hudWidgetPage, _aircraftProfilesPage, _hudAnglePage;
+    private Text? _layoutInfo, _hudWidgetInfo, _aircraftProfilesInfo, _hudAngleInfo;
     private Slider? _hudBackplateSlider;
     private Text? _hudBackplateLabel;
+    private readonly List<Button> _profileLoadButtons = new();
     private readonly List<Button> _hudAvailableButtons = new(), _hudEditingButtons = new();
     private static CockpitHudWidgets? HudWidgets => CockpitHudWidgets.Instance;
     private string SelectedHudId => HudWidgets?.SelectedId ?? "weapons";
@@ -19,13 +20,14 @@ internal sealed partial class WristMenu
     private void CreateHudLayoutPages()
     {
         _layoutPage = Page("LAYOUT");
-        AddHudButton("Save layout", 0, 0, () => { HudWidgets?.Finish(true); Close(); }, true);
+        var save = AddHudButton("", 0, 0, () => { if (HudWidgets?.SaveToSlot(HudWidgets.ProfileSlot) == true) Close(); }, true);
+        _liveLabels.Add((save, () => $"Save {HudWidgets?.ProfileAircraftName ?? "aircraft"}\nSlot {HudWidgets?.ProfileSlot ?? 1}"));
         AddHudButton("Cancel", 1, 0, () => { HudWidgets?.Finish(false); Close(); }, true);
         AddHudButton("Continue moving", 0, 1, StartOrResumeLayout, true);
         AddHudButton("Bring within reach", 1, 1, () => { HudWidgets?.BringWithinReach(); Close(); }, true);
         AddHudButton("Widget appearance", 0, 2, OpenWidgetAppearance);
         AddHudButton("Reset preview", 1, 2, () => HudWidgets?.ResetPreview(), true);
-        AddHudButton("Save HUD default…", 0, 3, () => ShowPage(_hudDefaultPage!), true);
+        AddHudButton("Aircraft profiles", 0, 3, OpenAircraftProfiles);
         var snap = AddHudButton("", 1, 3, () => { if (HudWidgets != null) HudWidgets.SnapEnabled = !HudWidgets.SnapEnabled; });
         _liveLabels.Add((snap, () => "Edge snap: " + (HudWidgets?.SnapEnabled == true ? "ON" : "OFF")));
         _layoutInfo = Label(_layoutPage.transform, "", new Vector2(0, -132), new Vector2(510, 180), 18);
@@ -70,10 +72,19 @@ internal sealed partial class WristMenu
         AddHudButton("Continue moving", 1, 2, StartOrResumeLayout, true);
         _hudAngleInfo = Label(_hudAnglePage.transform, "", new Vector2(0, -92), new Vector2(510, 240), 19);
 
-        _hudDefaultPage = Page("SAVE SHARED HUD LAYOUT");
-        _hudDefaultInfo = Label(_hudDefaultPage.transform, "", new Vector2(0, 35), new Vector2(510, 270), 21);
-        AddButton("Keep editing", 0, 5, Back);
-        AddHudButton("Save shared default", 1, 5, () => { HudWidgets?.UseDefaultForAll(); Close(); }, true);
+        _aircraftProfilesPage = Page("AIRCRAFT PROFILES");
+        for (var slot = 1; slot <= 3; slot++)
+        {
+            var selectedSlot = slot;
+            var load = AddHudButton("", 0, slot - 1, () => { HudWidgets?.LoadSlot(selectedSlot); RefreshHudLayoutEditor(); });
+            _liveLabels.Add((load, () => $"Load Slot {selectedSlot}" + (HudWidgets?.ProfileSlot == selectedSlot ? " · active" : "")));
+            _profileLoadButtons.Add(load.transform.parent.GetComponent<Button>());
+            var store = AddHudButton("", 1, slot - 1, () => { if (HudWidgets?.SaveToSlot(selectedSlot) == true) Close(); }, true);
+            _liveLabels.Add((store, () => $"Save {HudWidgets?.ProfileAircraftName ?? "aircraft"}\nSlot {selectedSlot}"));
+        }
+        AddButton("Edit current slot", 0, 3, StartOrResumeLayout);
+        _aircraftProfilesInfo = Label(_aircraftProfilesPage.transform, "", new Vector2(0, -125), new Vector2(510, 200), 19);
+
     }
 
     private Text AddHudButton(string text, int column, int row, Action action, bool editing = false)
@@ -145,6 +156,7 @@ internal sealed partial class WristMenu
         ShowPage(_layoutPage!);
         RefreshHudLayoutEditor();
     }
+    private void OpenAircraftProfiles() { ShowPage(_aircraftProfilesPage!); RefreshHudLayoutEditor(); }
     private void OpenWidgetAppearance() { ShowPage(_hudAppearancePage!); RefreshHudLayoutEditor(); }
     private void RefreshHudLayoutEditor()
     {
@@ -153,10 +165,11 @@ internal sealed partial class WristMenu
         var available = manager?.Available == true;
         foreach (var button in _hudAvailableButtons) if (button != null) button.interactable = available;
         foreach (var button in _hudEditingButtons) if (button != null) button.interactable = available && CockpitHudWidgets.Editing;
+        foreach (var button in _profileLoadButtons) if (button != null) button.interactable = available && !CockpitHudWidgets.Editing;
         if (_hudBackplateSlider != null) _hudBackplateSlider.interactable = available;
         if (_layoutInfo != null && _layoutPage?.activeSelf == true)
             _layoutInfo.text = !available ? "Enter a cockpit to arrange its layout." :
-                "Grip any HUD widget, stick or throttle to move it.\nTilt a held widget for pitch / yaw; roll stays level.\nGrab opposite corners with both hands to resize.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
+                "Grip any HUD widget, stick or throttle to move it.\nTilt a held widget for pitch / yaw; roll stays level.\nUse both corners to move, tilt and resize together.\nLabels and corners appear only while editing.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
         if (_hudWidgetInfo != null && _hudWidgetPage?.activeSelf == true && manager != null)
         {
             var pose = manager.GetPose(SelectedHudId);
@@ -175,7 +188,10 @@ internal sealed partial class WristMenu
                 (CockpitHudWidgets.Editing ? "Use 5° steps for precise adjustment, or\ngrip the widget and tilt your controller.\n\nSave or cancel in Layout controls." :
                     "Start Edit layout from View home first.\nAngles are saved with the layout.");
         }
-        if (_hudDefaultInfo != null && _hudDefaultPage?.activeSelf == true)
-            _hudDefaultInfo.text = "Use these widgets as the shared HUD layout?\n\nThis aircraft and uncustomized aircraft\nwill follow it. Other saved aircraft layouts\nstay unchanged.\n\nHandle positions save for this aircraft only.\nSaving ends the entire layout preview.";
+        if (_aircraftProfilesInfo != null && _aircraftProfilesPage?.activeSelf == true)
+            _aircraftProfilesInfo.text = !available ? "Enter a cockpit to use its profiles." :
+                $"{manager!.ProfileAircraftName} · Slot {manager.ProfileSlot}\nThree separate layouts for this aircraft only.\nSeat, handles and HUD widgets save together.\n\n" +
+                (CockpitHudWidgets.Editing ? "Save to any slot above, or cancel in Layout.\nLoading is disabled while editing." :
+                    "Load a slot, then choose Edit current slot.\nExisting layouts are preserved in Slot 1.");
     }
 }

@@ -7,6 +7,7 @@
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />
+    <Compile Include="../../NOVR/VrUi/Components/HudWidgetTwoHandGesture.cs" Link="HudWidgetTwoHandGesture.cs" />
     <Compile Include="../../NOVR/VrUi/Components/HudWidgetMotionMath.cs" Link="HudWidgetMotionMath.cs" />
     <Compile Include="../../NOVR/VrUi/Components/CockpitWidgetSpace.cs" Link="CockpitWidgetSpace.cs" />
     <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />

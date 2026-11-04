@@ -15,6 +15,7 @@ public sealed class MotionFlightController : MonoBehaviour
     private readonly FlightGrip _stickGrip = new();
     private readonly FlightGrip _throttleGrip = new();
     private readonly StickLimitFeedback _stickLimitFeedback = new();
+    private readonly HandleReachFeedback _stickReachFeedback = new(), _throttleReachFeedback = new();
     private MotionControlVisuals? _visuals;
     private bool _visualsFailed;
     private Aircraft? _aircraft;
@@ -23,15 +24,13 @@ public sealed class MotionFlightController : MonoBehaviour
     private Quaternion _neutralStick;
     private float _throttleStartPosition;
     private float _throttleStartValue;
-    private float _milPower = 1f;
+    private float _milPower = 1f, _afterburnerStart = 1f;
     private float _nextMilCheck;
     private bool _hasVtol;
     private TiltWingController? _tiltWing;
     private int _throttleZone;
     private float _nextThrottlePulse;
     private bool MilDetent => Settings.MilDetent.Value && !LiftCollective && _milPower < 1f;
-    private float _calibrationHold;
-    private bool _calibrationLatched;
     private Vector3 _lastCalibrationPosition;
     private Vector3 _lastTranslationAnchor;
     private Quaternion _lastCalibrationRotation;
@@ -85,7 +84,7 @@ public sealed class MotionFlightController : MonoBehaviour
     {
         get
         {
-            if (!FlightActive || !ThrottleHeld || !_throttleHand.Valid || !_throttleHand.HasAxis || !_hasVtol || (!Settings.LeftHanded.Value && UniversalCockpitPanel.LeftStickSlaved) ||
+            if (!FlightActive || !ThrottleHeld || !_throttleHand.Valid || !_throttleHand.HasAxis || !_hasVtol ||
                 _aircraft?.IsAutoHoverEnabled() == true || Mathf.Abs(_throttleHand.Axis.y) < .35f) return 0;
             // Native relative-axis semantics: +/-1 steps the command and also
             // tells the nozzle controller to leave its automatic operating mode.
@@ -142,24 +141,6 @@ public sealed class MotionFlightController : MonoBehaviour
             PlaceAtHands();
         }
 
-        // Thumbstick clicks may be used for braking/CM selection while flying.
-        // Placement is only a hands-free gesture, never a side effect of those bindings.
-        var placementGesture = !UniversalCockpitPanel.LeftStickSlaved && _stickHand.Valid && _throttleHand.Valid && !StickHeld && !ThrottleHeld &&
-                               _stickHand.StickClick && _throttleHand.StickClick;
-        if (placementGesture)
-        {
-            _calibrationHold += Time.unscaledDeltaTime;
-            if (_calibrationHold >= 0.8f && !_calibrationLatched)
-            {
-                PlaceAtHands();
-                _calibrationLatched = true;
-            }
-        }
-        else
-        {
-            _calibrationHold = 0f;
-            _calibrationLatched = false;
-        }
     }
 
     private void LateUpdate()
@@ -173,7 +154,7 @@ public sealed class MotionFlightController : MonoBehaviour
             Settings.StickTapGrip.Value, Settings.ThrottleTapGrip.Value, _aircraft != null && _aircraft.GetInputs().brake > .05f,
             _aircraft?.IsAutoHoverEnabled() == true ? "HOVER INPUT" :
                 _aircraft?.GetAircraftParameters().takeoffDistance == 0 ? "COLLECTIVE" : "THROTTLE", LiftCollective,
-            Yaw * Settings.YawAngle.Value, MilDetent ? _milPower : -1f);
+            Yaw * Settings.YawAngle.Value, MilDetent ? _milPower : -1f, _afterburnerStart);
     }
 
     // Capture the pilot's command before native hover/flight filters turn it
@@ -224,7 +205,7 @@ public sealed class MotionFlightController : MonoBehaviour
             _visuals?.Dispose();
             _visuals = null;
             _aircraft = aircraft;
-            _milPower = MilitaryPower.Find(aircraft);
+            _milPower = MilitaryPower.Find(aircraft, out _afterburnerStart);
             _nextMilCheck = Time.unscaledTime + 1f;
             _tiltWing = aircraft.GetComponentInChildren<TiltWingController>(true);
             _hasVtol = _tiltWing != null || aircraft.GetComponentInChildren<DuctedThrustSystem>(true) != null ||
@@ -245,7 +226,7 @@ public sealed class MotionFlightController : MonoBehaviour
         // The engine registry can finish initializing after the cockpit appears.
         // Never change the command mapping in the middle of a held throttle.
         if (_milPower >= 1f && !_throttleGrip.Held && Time.unscaledTime >= _nextMilCheck)
-        { _nextMilCheck = Time.unscaledTime + 2f; _milPower = MilitaryPower.Find(aircraft); }
+        { _nextMilCheck = Time.unscaledTime + 2f; _milPower = MilitaryPower.Find(aircraft, out _afterburnerStart); }
 
         // NOVR's headset recentering changes the mapping from tracked hands into the cockpit.
         if (_lastCalibrationPosition != NOVRHeadsetData.TranslationCalibrationOffset ||
@@ -268,18 +249,16 @@ public sealed class MotionFlightController : MonoBehaviour
 
         if (CockpitHudWidgets.Editing)
         {
-            CancelPlacement(); _calibrationHold = 0f; _calibrationLatched = false;
+            CancelPlacement();
             ReportStatus("Handle input paused while editing HUD layout");
             return;
         }
         if (CockpitLayout.Active || VrUi.WristMenu.IsOpen) { ResetGrips(); ReportStatus(CockpitLayout.Active ? CockpitLayout.Hint : "Handle input paused while wrist menu is open"); return; }
 
         var stickWasHeld = _stickGrip.Held;
-        // A physical cockpit interaction owns its hand until release, including
-        // physics-driven SampleFor calls. Reset the flight gate while owned so
-        // a held switch cannot transfer into a nearby flight handle mid-grip.
-        _stickGrip.Update(_stickHand.Valid && !Fs20NativeCockpit.OwnsHand(Settings.LeftHanded.Value) && !IfritNativeCockpit.OwnsHand(Settings.LeftHanded.Value) && !TernionNativeCockpit.OwnsHand(Settings.LeftHanded.Value), _stickHand.Grip,
-            IsNearStick() && (stickWasHeld || !Fs20NativeCockpit.SwitchWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot) && !IfritNativeCockpit.ControlWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot) && !TernionNativeCockpit.ControlWithinReach(Settings.LeftHanded.Value, _stickHand, trackingRoot)), Settings.StickTapGrip.Value,
+        // The hand menu owns only its free hand; the opposite handle keeps flying.
+        _stickGrip.Update(_stickHand.Valid && !NativeHandOptionWheel.OwnsHand(Settings.LeftHanded.Value), _stickHand.Grip,
+            IsNearStick(), Settings.StickTapGrip.Value,
             Time.realtimeSinceStartup, Vector3.Distance(_stickHand.Position, StickPosition) <= Mathf.Max(.4f, Settings.GrabRadius.Value * 2));
         if (_stickGrip.Held && !stickWasHeld)
         {
@@ -288,6 +267,9 @@ public sealed class MotionFlightController : MonoBehaviour
         }
 
         if (stickWasHeld && !_stickGrip.Held && _stickHand.Valid) InteractionHaptics.Pulse(_stickHand.Device, .12f, .02f, InteractionCue.Release);
+        if (_stickReachFeedback.Update(_stickHand.Valid && !NativeHandOptionWheel.OwnsHand(Settings.LeftHanded.Value),
+                _stickGrip.Held, Vector3.Distance(_stickHand.Position, StickPosition), Settings.GrabRadius.Value, Time.unscaledTime))
+            InteractionHaptics.PulseOnly(_stickHand.Device, .22f, .035f);
 
         Pitch = Roll = Yaw = 0f;
         var stickTwist = 0f;
@@ -300,7 +282,7 @@ public sealed class MotionFlightController : MonoBehaviour
                 Settings.Deadzone.Value, Settings.ResponseExponent.Value);
             stickTwist = Settings.TwistYaw.Value ? FlightControlMath.StickTwist(relative.y, relative.w,
                 Settings.YawAngle.Value, Settings.Deadzone.Value, Settings.ResponseExponent.Value) : 0f;
-            var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis && !(Settings.LeftHanded.Value && UniversalCockpitPanel.LeftStickSlaved)
+            var thumb = Settings.ThumbstickYaw.Value && _stickHand.HasAxis
                 ? FlightControlMath.Axis(_stickHand.Axis.x, 0.12f, 1f) : 0f;
             Yaw = Mathf.Clamp(stickTwist + thumb, -1f, 1f);
         }
@@ -310,8 +292,8 @@ public sealed class MotionFlightController : MonoBehaviour
             InteractionHaptics.PulseOnly(_stickHand.Device, limitPulse.strength, limitPulse.seconds);
 
         var throttleWasHeld = _throttleGrip.Held;
-        _throttleGrip.Update(_throttleHand.Valid && !Fs20NativeCockpit.OwnsHand(!Settings.LeftHanded.Value) && !IfritNativeCockpit.OwnsHand(!Settings.LeftHanded.Value) && !TernionNativeCockpit.OwnsHand(!Settings.LeftHanded.Value), _throttleHand.Grip,
-            IsNearThrottle() && (throttleWasHeld || !Fs20NativeCockpit.SwitchWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot) && !IfritNativeCockpit.ControlWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot) && !TernionNativeCockpit.ControlWithinReach(!Settings.LeftHanded.Value, _throttleHand, trackingRoot)), Settings.ThrottleTapGrip.Value,
+        _throttleGrip.Update(_throttleHand.Valid && !NativeHandOptionWheel.OwnsHand(!Settings.LeftHanded.Value), _throttleHand.Grip,
+            IsNearThrottle(), Settings.ThrottleTapGrip.Value,
             Time.realtimeSinceStartup, Vector3.Distance(_throttleHand.Position,
                 ThrottlePosition + ThrottleOffset) <= Mathf.Max(.4f, Settings.GrabRadius.Value * 2));
         if (_throttleGrip.Held && !throttleWasHeld)
@@ -323,6 +305,10 @@ public sealed class MotionFlightController : MonoBehaviour
             Pulse(_throttleHand.Device);
         }
         if (throttleWasHeld && !_throttleGrip.Held && _throttleHand.Valid) InteractionHaptics.Pulse(_throttleHand.Device, .12f, .02f, InteractionCue.Release);
+        if (_throttleReachFeedback.Update(_throttleHand.Valid && !NativeHandOptionWheel.OwnsHand(!Settings.LeftHanded.Value),
+                _throttleGrip.Held, Vector3.Distance(_throttleHand.Position, ThrottlePosition + ThrottleOffset),
+                Settings.GrabRadius.Value, Time.unscaledTime))
+            InteractionHaptics.PulseOnly(_throttleHand.Device, .22f, .035f);
         if (_throttleGrip.Held)
         {
             var input = _throttleStartValue + (ThrottleHandPosition - _throttleStartPosition) / CommandTravel;
@@ -358,7 +344,7 @@ public sealed class MotionFlightController : MonoBehaviour
         if (!GameManager.flightControlsEnabled) return Blocked("Game flight input is disabled");
         if (Time.timeScale <= 0f) return Blocked("Game is paused");
         if (DynamicMap.mapMaximized) return Blocked("Close the tactical map");
-        if (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) return Blocked("Close the radial menu");
+        if (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse() && !NativeHandOptionWheel.IsOpen) return Blocked("Close the radial menu");
         if (GameManager.controlMapper != null && GameManager.controlMapper.isOpen) return Blocked("Close the control settings");
 
         var hasLocalPilot = false;
@@ -426,6 +412,7 @@ public sealed class MotionFlightController : MonoBehaviour
         _stickGrip.Reset();
         _throttleGrip.Reset();
         _stickLimitFeedback.Reset();
+        _stickReachFeedback.Reset(); _throttleReachFeedback.Reset();
         Pitch = Roll = Yaw = 0f;
     }
 
@@ -433,8 +420,6 @@ public sealed class MotionFlightController : MonoBehaviour
     {
         ResetGrips();
         _ready = false;
-        _calibrationHold = 0f;
-        _calibrationLatched = false;
         if (_visuals?.Root != null) _visuals.SetVisible(false);
     }
 

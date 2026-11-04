@@ -88,13 +88,14 @@ menu.Click("WIDGET ANGLE", "Pitch +5°"); menu.Click("LAYOUT", "Cancel"); menu.R
 Check(!CockpitHudWidgets.Editing && manager.GetPose(manager.SelectedId).Euler == UnityEngine.Vector3.zero,
     "Angle controls use the same layout cancellation callback");
 Check(!menu.Enabled("WIDGET ANGLE", "Pitch +5°"), "Cancelled preview disables angle controls");
-manager.Begin(); menu.Refresh(); menu.Click("WIDGET ANGLE", "Yaw +5°"); menu.Click("LAYOUT", "Save layout");
+manager.Begin(); menu.Refresh(); menu.Click("WIDGET ANGLE", "Yaw +5°"); menu.Click("LAYOUT", "Save FS-20 Revoker\nSlot 1");
 Check(!CockpitHudWidgets.Editing && manager.GetPose(manager.SelectedId).Euler.y == 5, "Angle controls use the same layout save callback");
 menu.Appearance(); menu.Click("WIDGET APPEARANCE", "weapons"); menu.Refresh();
 Check(manager.AppearanceFocus == "weapons", "Widget detail requests temporary dimming of surrounding widgets");
 menu.Appearance();
 Check(manager.AppearanceFocus == null, "Leaving widget detail clears temporary focus");
 checks += InlineAppearanceChecks.Run();
+checks += AircraftSlotUiChecks.Run();
 Console.WriteLine($"HUD appearance UI checks passed: {checks} assertions (source-linked callbacks; no Unity rendering).");
 void Check(bool result, string label) { if (!result) throw new Exception(label); checks++; }
 bool Near(float a, float b) => Math.Abs(a - b) < .00001f;

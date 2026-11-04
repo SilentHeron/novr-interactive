@@ -51,12 +51,6 @@ internal sealed class HudReadability : MonoBehaviour
             _group?.Apply(0);
             return;
         }
-        if (MotionControls.UniversalCockpitPanel.IsDocked(transform))
-        {
-            if (_backplate != null) _backplate.enabled = false;
-            _readabilityAlpha = 1f; _group?.Apply(_readabilityAlpha);
-            return;
-        }
         var config = ModConfiguration.Instance;
         var camera = APIBus.CockpitHudCamera;
         var originalPosition = transform.parent != null ? transform.parent.TransformPoint(_basePosition) : _basePosition;
@@ -73,8 +67,7 @@ internal sealed class HudReadability : MonoBehaviour
         var nativeThreats = incomingMissile && !CockpitAlerts.Active;
         if (_backplate != null) _backplate.enabled = config.HudContrast.Value &&
             !(_secondary && CockpitAlerts.Active) &&
-            (!mapMoved || nativeThreats) &&
-            (!MotionControls.UniversalCockpitPanel.HasDisplays || incomingMissile);
+            (!mapMoved || nativeThreats);
         _readabilityAlpha = _secondary && config.HudDeclutter.Value && !incomingMissile ? 0.15f : 1f;
         _group?.Apply(_readabilityAlpha);
     }

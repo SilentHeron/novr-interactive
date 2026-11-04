@@ -225,13 +225,6 @@ public static class GameManager
 }
 namespace NOVR.VrUi.SpecialBehavior
 {
-    // Legacy docking's Unity world transform is outside this bounded hierarchy
-    // check; verify the adapter restores it before capturing the lease.
-    internal sealed class NOVRStatusDisplayBehavior : UnityEngine.MonoBehaviour
-    {
-        internal int Prepares;
-        internal void PrepareForWidget() { Prepares++; transform.localScale = UnityEngine.Vector3.one; }
-    }
     internal sealed class CockpitHudWidgets
     {
         internal static CockpitHudWidgets? Instance = new();

@@ -54,6 +54,7 @@ public class NativeSettingsPanel : MonoBehaviour
     private string _bindingStatus = "Select REMAP, release the mouse, then press the new input.";
     private float _nextRowY;
     private bool _wasVisible;
+    private ControllerBindingPanel? _vrBindings;
 
     public void Initialize(NativeGameActionAdapter actions, RectTransform root)
     {
@@ -84,6 +85,7 @@ public class NativeSettingsPanel : MonoBehaviour
 
     private void Update()
     {
+        if (_wasVisible) _vrBindings?.Refresh();
         if (_queuedBinding != null && Time.unscaledTime >= _queuedBindingStartTime)
         {
             var binding = _queuedBinding;
@@ -202,6 +204,7 @@ public class NativeSettingsPanel : MonoBehaviour
     {
         if (_contentRoot == null) return;
 
+        _vrBindings = null;
         _bindingAxisValueTexts.Clear();
 
         for (var index = _contentRoot.childCount - 1; index >= 0; index--)
@@ -250,10 +253,6 @@ public class NativeSettingsPanel : MonoBehaviour
         AddFloatRow("Cloud Detail", () => PlayerSettings.graphics.CloudDetail, value => PlayerSettings.graphics.CloudDetail = value, 0f, 1f, 0.05f, value => $"{value * 100f:0}%");
         AddToggleRow("Grass", () => PlayerSettings.DetailSettings.GrassEnabled, value => PlayerSettings.DetailSettings.GrassEnabled = value);
         AddFloatRow("Tree Distance", () => PlayerSettings.DetailSettings.TreeRangeMultiplier, value => PlayerSettings.DetailSettings.TreeRangeMultiplier = value, DetailSettings.TreeRangeMultiplierMin, DetailSettings.TreeRangeMultiplierMax, 0.1f, value => $"{value:0.0}");
-        var zoom = ModConfiguration.Instance.InspectionZoom;
-        AddOptionRow("Zoom Resolution", MotionControls.InspectionZoomSettings.ResolutionLabels, () => zoom.Resolution.Value, value => zoom.Resolution.Value = value);
-        AddOptionRow("Zoom Anti-Aliasing", MotionControls.InspectionZoomSettings.AaLabels, () => zoom.AntiAliasing.Value, value => zoom.AntiAliasing.Value = value);
-        AddToggleRow("Zoom Scene Effects", () => zoom.SceneEffects.Value, value => zoom.SceneEffects.Value = value);
         AddActionRow("Graphics Defaults", "RESET", ResetGraphicsSettings);
     }
 
@@ -272,6 +271,13 @@ public class NativeSettingsPanel : MonoBehaviour
 
     private void RenderControlsTab()
     {
+        var motion = ModConfiguration.Instance.MotionControls;
+        AddActionRow("Visual VR Controller Bindings", "OPEN", RenderVrControllerBindings);
+        var gripModes = new[] { "HOLD", "TOGGLE" };
+        AddOptionRow("Stick Grip", gripModes, () => motion.StickTapGrip.Value ? 1 : 0, value =>
+        { motion.StickTapGrip.Value = value == 1; ModConfiguration.Instance.Config.Save(); });
+        AddOptionRow("Throttle Grip", gripModes, () => motion.ThrottleTapGrip.Value ? 1 : 0, value =>
+        { motion.ThrottleTapGrip.Value = value == 1; ModConfiguration.Instance.Config.Save(); });
         if (_contentRoot != null)
         {
             StickSensitivitySlider.Create(_contentRoot, new Vector2(0, ConsumeRowY() - 14), 1000, _font!, 18);
@@ -294,6 +300,16 @@ public class NativeSettingsPanel : MonoBehaviour
         AddFloatRow("View Smoothing", () => PlayerSettings.viewSmoothing, value => SetPlayerFloat("ViewSmoothing", value, static assigned => PlayerSettings.viewSmoothing = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00}");
         AddFloatRow("Button Click Delay", () => PlayerSettings.clickDelay, value => SetPlayerFloat("ClickDelay", value, static assigned => PlayerSettings.clickDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
         AddFloatRow("Button Hold Delay", () => PlayerSettings.pressDelay, value => SetPlayerFloat("PressDelay", value, static assigned => PlayerSettings.pressDelay = assigned, apply: true), 0f, 1f, 0.05f, value => $"{value:0.00} s");
+    }
+
+    private void RenderVrControllerBindings()
+    {
+        if (_contentRoot == null) return;
+        CancelBindingCapture("Binding capture canceled.");
+        ClearContent(); CreateContentTitle("VISUAL VR CONTROLLER BINDINGS");
+        var host = CreateContainer("Controller binding editor", _contentRoot, new Vector2(540, 500));
+        host.anchoredPosition = new Vector2(0, 20); host.localScale = Vector3.one * 1.7f;
+        _vrBindings = new ControllerBindingPanel(host, _font!, RenderCurrentTab);
     }
 
     private void RenderBindingsTab()
@@ -771,7 +787,7 @@ public class NativeSettingsPanel : MonoBehaviour
     private float ConsumeRowY()
     {
         var y = _nextRowY;
-        _nextRowY -= RowSpacing;
+        _nextRowY -= _currentTab == SettingsTab.Controls ? 38f : RowSpacing;
         return y;
     }
 
@@ -791,7 +807,6 @@ public class NativeSettingsPanel : MonoBehaviour
 
         PlayerSettings.graphics.Clear();
         PlayerSettings.DetailSettings.Clear();
-        ModConfiguration.Instance.InspectionZoom.Reset();
         ApplyAndRefresh();
     }
 

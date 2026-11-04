@@ -39,8 +39,7 @@ internal sealed class TargetAcquisitionCue : MonoBehaviour
             CameraStateManager.cameraMode == CameraMode.cockpit && hud.aircraft.cockpit != null && !hud.aircraft.cockpit.IsDetached() &&
             GameManager.flightControlsEnabled && Time.timeScale > 0 && !WristMenu.IsOpen && !CockpitLayout.Active && !DynamicMap.mapMaximized &&
             !CursorManager.GetFlag(CursorFlags.GameMenu) && (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
-            (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
-            !OpticalTargetingHud.AimCueVisible && !CockpitViewZoom.AimCueVisible;
+            (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse());
         var candidate = ready && TargetCueCandidates.Nearby(hud);
         var selecting = ready && (ControllerActions.Instance?.TargetSelecting == true || GameManager.playerInput.GetButton("Select"));
         var show = TargetCueVisibility.Show(ModConfiguration.Instance.TargetCue.Value, ready, candidate, selecting);

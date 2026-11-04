@@ -13,17 +13,14 @@ internal static class TargetCueCandidates
     private static HUDUnitMarker? _candidate;
     private static float _nextCheck, _radius;
 
-    // Share the native TargetSelect radius/exclusions across ordinary, zoomed
-    // and EOTS cues. Selecting a unit is not a promise of seeker/weapon lock.
+    // Share the native TargetSelect radius and exclusions. Selecting a unit
+    // is not a promise of seeker/weapon lock.
     internal static bool Nearby(CombatHUD? hud)
     {
         if (hud == null || hud.aircraft == null || hud.aircraft.disabled || hud.targetDesignator == null ||
             !hud.targetDesignator.gameObject.activeInHierarchy)
         { _hud = null; _aircraft = null; _candidate = null; _nextCheck = 0; return false; }
-        // This is the same resolver used by OpticalHeadSelection's native
-        // selection patch. HEAD availability never depends on cue visibility.
-        var optical = OpticalTargetingHud.Instance;
-        var radius = optical != null ? optical.AcquisitionRadius(100) : 100;
+        const float radius = 100;
         var exclusions = SceneSingleton<TargetListSelector>.i;
         if (exclusions == null) { _candidate = null; _nextCheck = 0; return false; }
         if (_hud == hud && _aircraft == hud.aircraft && _radius == radius && Time.unscaledTime < _nextCheck)

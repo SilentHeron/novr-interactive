@@ -34,16 +34,29 @@ internal static class HudWidgetLayoutPersistenceChecks
             check(actual.Background == expected.Background && actual.Opacity == expected.Opacity,
                 "Independent per-widget backing and content opacity preserved: " + id);
         }
-        profiles.SaveDefault(HudWidgetProfiles.FactoryDefaults);
-        check(profiles.HasSavedLayout("KR-67"), "Explicitly saving even factory-valued shared layout locks its placement");
+        profiles.Save("FS-20", HudWidgetProfiles.FactoryDefaults, 2);
+        check(profiles.HasSavedLayout("FS-20", 2), "Explicitly saving even factory-valued slot2 locks its placement");
+        check(!profiles.HasSavedLayout("KR-67", 2), "Saving a slot cannot mark another aircraft's same numbered slot customized");
         profiles = new HudWidgetProfiles(new ConfigFile(path, false) { SaveOnConfigSet = false });
-        check(profiles.HasSavedLayout("KR-67"), "Shared placement preference survives restart");
+        check(profiles.HasSavedLayout("FS-20", 2), "Slot2 placement preference survives restart");
         profiles.ResetAircraft("FS-20");
-        check(profiles.HasSavedLayout("FS-20"), "Reset to saved shared layout preserves shared placement");
+        check(!profiles.HasSavedLayout("FS-20") && profiles.HasSavedLayout("FS-20", 2), "Resetting slot1 leaves saved slot2 intact");
 
         var legacy = new ConfigFile(Path.Combine(directory, "pre-marker-shared.cfg"), false) { SaveOnConfigSet = false };
         legacy.Bind("VR HUD Widgets - Defaults", "weapons", "").Value = "0.8|-0.9|1.2|0|0|0|1.5|0.7|0.3|1";
         var older = new HudWidgetProfiles(legacy);
-        check(older.HasSavedLayout("new-aircraft"), "Customized shared layout predating the marker retains exact placement");
+        check(!older.HasSavedLayout("new-aircraft"), "Legacy shared layout is never inherited by a new aircraft");
+        var factory = HudWidgetProfiles.FactoryDefaults["weapons"];
+        for (var slot = 1; slot <= 3; slot++)
+        {
+            var actual = older.Load("new-aircraft", slot)["weapons"];
+            check(actual.Position.x == factory.Position.x && actual.Position.z == factory.Position.z,
+                "Every new slot starts at reachable factory positions, regardless of old global layout");
+        }
+        foreach (var invalid in new[] { 0, 4, -1 })
+        {
+            try { profiles.Save("FS-20", saved, invalid); check(false, "Invalid slot was accepted"); }
+            catch (ArgumentOutOfRangeException) { }
+        }
     }
 }

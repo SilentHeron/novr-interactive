@@ -38,7 +38,7 @@ internal sealed class PcVrCapabilities : MonoBehaviour
             Report = $"{OpenXRRuntime.name} · {backend}\n{eyeText}\n\nPC dynamic foveated rendering: NOT ACTIVE\n" +
                 (providerFoveation ? "Runtime advertises foveation; renderer integration\nand visual validation are still required." :
                     "This runtime has no Unity eye-foveation provider.\nThe current renderer needs a separate integration.") +
-                "\n\nFrame's foveated streaming is separate.\nIt does not prove reduced PC rendering work.\nHead-aimed EOTS works without eye tracking.";
+                "\n\nFrame's foveated streaming is separate.\nIt does not prove reduced PC rendering work.";
             if (!_reported)
             {
                 Debug.Log($"[NOVR] PC VR capabilities: runtime={OpenXRRuntime.name} {OpenXRRuntime.version}; graphics={backend}; " +

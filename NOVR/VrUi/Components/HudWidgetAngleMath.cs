@@ -38,5 +38,16 @@ internal static class HudWidgetAngleMath
     internal static (float pitch, float yaw) Drag(float startPitch, float startYaw, float gripPitch, float gripYaw,
         float currentPitch, float currentYaw) =>
         (Pitch(startPitch + Yaw(currentPitch - gripPitch), startPitch), Yaw(startYaw + Yaw(currentYaw - gripYaw), startYaw));
+    internal static (float pitch, float yaw) PairDrag(float startPitch, float startYaw,
+        float leftGripPitch, float leftGripYaw, float rightGripPitch, float rightGripYaw,
+        float leftPitch, float leftYaw, float rightPitch, float rightYaw) =>
+        (Pitch(startPitch + MeanDelta(leftPitch - leftGripPitch, rightPitch - rightGripPitch), startPitch),
+         Yaw(startYaw + MeanDelta(leftYaw - leftGripYaw, rightYaw - rightGripYaw), startYaw));
+    private static float MeanDelta(float left, float right)
+    {
+        left = Yaw(left); right = Yaw(right);
+        // Follow the short arc: +179 and -179 are adjacent directions, not zero.
+        return Yaw(left + Yaw(right - left) * .5f);
+    }
     private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 }

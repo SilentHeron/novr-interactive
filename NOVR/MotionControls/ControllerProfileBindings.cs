@@ -14,9 +14,6 @@ public sealed class ControllerBindings
     public ConfigEntry<bool> PointerEnabled => Values.PointerEnabled;
     public ConfigEntry<bool> CombatEnabled => Values.CombatEnabled;
     public ConfigEntry<float> PointerResponse => Values.PointerResponse;
-    public ConfigEntry<float> ViewZoomFactor => Values.ViewZoomFactor;
-    internal ConfigEntry<bool> ZoomEnabled => Values.RightBumperZoom;
-    public ConfigEntry<bool> RightBumperZoom => ZoomEnabled;
     public ConfigEntry<bool> SelectTargetOnStick => Values.SelectTargetOnStick;
     public ConfigEntry<ControllerButton> Fire => Values.Fire;
     public ConfigEntry<ControllerButton> WeaponRelease => Values.WeaponRelease;
@@ -134,12 +131,7 @@ public sealed class ControllerBindings
         Set(ControllerActionId.NextCountermeasure, new(preset.NextCountermeasure, ControllerHandRole.Throttle));
         ControllerActions.Instance?.ResetButtons();
     }
-    internal float ReadFlight(ControllerSample hand, bool left, ControllerButton button)
-    {
-        var zoom = Get(ControllerActionId.Zoom);
-        return ZoomEnabled.Value && ResolveLeft(zoom.Hand, ModConfiguration.Instance.MotionControls.LeftHanded.Value) == left &&
-            ControllerButtonNames.SamePhysicalButton(button, zoom.Button, hand.NativeFrame) ? 0 : Read(hand, button);
-    }
+    internal float ReadFlight(ControllerSample hand, bool left, ControllerButton button) => Read(hand, button);
     internal static float Read(ControllerSample hand, ControllerButton button) => ControllerBindingBank.Read(hand, button);
 
     private sealed class Slot
@@ -158,7 +150,7 @@ public sealed class ControllerBindings
         internal sealed class Snapshot
         {
             internal readonly Dictionary<ControllerActionId, ControllerActionBinding> Bindings = new();
-            internal bool ZoomEnabled, SelectOnStick;
+            internal bool SelectOnStick;
         }
         internal Bank(ConfigFile config, ControllerBindingProfile profile, System.Action changed)
         {
@@ -166,8 +158,8 @@ public sealed class ControllerBindings
             var section = profile == ControllerBindingProfile.Touch ? "VR Controller Bindings - Touch" : "VR Controller Bindings";
             Values = new ControllerBindingBank(config, section, profile == ControllerBindingProfile.Touch);
             void Watch<T>(ConfigEntry<T> entry) => entry.SettingChanged += (_, _) => changed();
-            Watch(Values.PointerEnabled); Watch(Values.CombatEnabled); Watch(Values.PointerResponse); Watch(Values.ViewZoomFactor);
-            Watch(Values.RightBumperZoom); Watch(Values.SelectTargetOnStick);
+            Watch(Values.PointerEnabled); Watch(Values.CombatEnabled); Watch(Values.PointerResponse);
+            Watch(Values.SelectTargetOnStick);
             foreach (var action in ControllerBindingDefaults.Actions)
             {
                 var preset = ControllerBindingDefaults.Get(profile, action);
@@ -188,6 +180,10 @@ public sealed class ControllerBindings
                     role = ControllerHandRole.Throttle;
                 var hand = config.Bind(section, action + " Hand", role,
                     "Hand for " + ActionLabel(action) + ". Stick/throttle follow cockpit handedness; Left/Right remain physical.");
+                // Free thumbstick click now always belongs to the native hand wheel.
+                // Repair only imported global bindings that would become unreachable.
+                if ((action == ControllerActionId.Map || action == ControllerActionId.WristMenu) && button.Value == ControllerButton.StickClick)
+                { button.Value = preset.Button; hand.Value = preset.Hand; }
                 _slots.Add(action, new Slot(button, hand)); Watch(button); Watch(hand);
             }
         }
@@ -196,13 +192,13 @@ public sealed class ControllerBindings
         { _slots[action].Button.Value = binding.Button; _slots[action].Hand.Value = binding.Hand; }
         internal Snapshot Capture()
         {
-            var snapshot = new Snapshot { ZoomEnabled = Values.RightBumperZoom.Value, SelectOnStick = Values.SelectTargetOnStick.Value };
+            var snapshot = new Snapshot { SelectOnStick = Values.SelectTargetOnStick.Value };
             foreach (var action in ControllerBindingDefaults.Actions) snapshot.Bindings.Add(action, Get(action));
             return snapshot;
         }
         private bool Matches(Snapshot snapshot)
         {
-            if (snapshot.ZoomEnabled != Values.RightBumperZoom.Value || snapshot.SelectOnStick != Values.SelectTargetOnStick.Value) return false;
+            if (snapshot.SelectOnStick != Values.SelectTargetOnStick.Value) return false;
             foreach (var action in ControllerBindingDefaults.Actions)
             {
                 var current = Get(action); var expected = snapshot.Bindings[action];
@@ -224,13 +220,13 @@ public sealed class ControllerBindings
             var restore = _beforeEdit!;
             _beforeEdit = _afterEdit = null; EditLabel = "";
             foreach (var action in ControllerBindingDefaults.Actions) Set(action, restore.Bindings[action]);
-            Values.RightBumperZoom.Value = restore.ZoomEnabled; Values.SelectTargetOnStick.Value = restore.SelectOnStick;
+            Values.SelectTargetOnStick.Value = restore.SelectOnStick;
             return true;
         }
         internal void Reset()
         {
             foreach (var action in ControllerBindingDefaults.Actions) Set(action, ControllerBindingDefaults.Get(_profile, action));
-            Values.RightBumperZoom.Value = true; Values.SelectTargetOnStick.Value = true;
+            Values.SelectTargetOnStick.Value = true;
         }
     }
 }

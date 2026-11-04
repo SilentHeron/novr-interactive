@@ -156,15 +156,6 @@ namespace NOVR
     }
     public static class APIBus { public static UnityEngine.Camera CockpitHudCamera = new UnityEngine.GameObject("Camera").AddComponent<UnityEngine.Camera>(); }
 }
-namespace NOVR.MotionControls
-{
-    public static class UniversalCockpitPanel
-    {
-        public static bool Docked { get; set; }
-        public static bool HasDisplays { get; set; }
-        public static bool IsDocked(UnityEngine.Transform value) => Docked;
-    }
-}
 namespace NOVR.VrUi.SpecialBehavior
 {
     internal static class CockpitAlerts { internal static bool Active; }

@@ -7,6 +7,15 @@ namespace NOVR.MotionControls;
 internal static class ThrottleDetent
 {
     internal const float TravelMeters = .016f;
+    internal static float MilitaryCommand(float afterburnerStart)
+    {
+        if (!FlightControlMath.IsFinite(afterburnerStart) || afterburnerStart <= 0 || afterburnerStart >= 1) return 1f;
+        // Native ThrottleGauge regions are inclusive and the later region wins:
+        // at the exact nozzle start it displays AFTERBURNER 0%. Leave a tiny dry
+        // margin (0.01 percentage point for stock jets), also large enough to
+        // survive the binding-space [-1,1] conversion and float rounding.
+        return afterburnerStart - Math.Min(.0001f, afterburnerStart * .001f);
+    }
     internal static float CommandTravel(float totalTravel) => Math.Max(.01f, totalTravel - TravelMeters);
     internal static float Position(float command, float mil, float totalTravel) =>
         Input(command, mil, TravelMeters / CommandTravel(totalTravel)) * CommandTravel(totalTravel) / totalTravel;

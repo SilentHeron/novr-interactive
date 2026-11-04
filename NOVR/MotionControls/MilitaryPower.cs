@@ -7,7 +7,8 @@ internal static class MilitaryPower
 {
     // Read the actual nozzle threshold, not a guessed universal percentage.
     // Ducted engines disable their afterburners and helicopters use a collective.
-    internal static float Find(Aircraft aircraft)
+    internal static float Find(Aircraft aircraft) => Find(aircraft, out _);
+    internal static float Find(Aircraft aircraft, out float afterburnerStart)
     {
         var result = 1f;
         // Aircraft parts become separate physics roots at runtime. The engine
@@ -26,12 +27,32 @@ internal static class MilitaryPower
                     if (AccessTools.Field(type, "throttleStart")?.GetValue(burner) is float start &&
                         AccessTools.Field(type, "throttleEnd")?.GetValue(burner) is float end &&
                         AccessTools.Field(type, "thrust")?.GetValue(burner) is float thrust &&
-                        FlightControlMath.IsFinite(start) && FlightControlMath.IsFinite(end) &&
+                        FlightControlMath.IsFinite(start) && FlightControlMath.IsFinite(end) && FlightControlMath.IsFinite(thrust) &&
                         start > 0 && start < 1 && end > start && thrust > 0)
                         result = Math.Min(result, start);
                 }
             }
         }
-        return result;
+        if (result < 1f)
+        {
+            // The aircraft's authored native gauge may enter AB before the
+            // nozzle's thrust ramp. Respect the earlier boundary so the shelf
+            // is dry in both engine behavior and the original cockpit display.
+            var extras = aircraft.GetAircraftParameters().HUDExtras;
+            if (extras != null)
+                foreach (var gauge in extras.GetComponentsInChildren<ThrottleGauge>(true))
+                {
+                    if (AccessTools.Field(typeof(ThrottleGauge), "afterburner")?.GetValue(gauge) is not true ||
+                        AccessTools.Field(typeof(ThrottleGauge), "throttleRegions")?.GetValue(gauge) is not Array regions || regions.Length == 0) continue;
+                    // Native ThrottleGauge itself uses the final region's start
+                    // for its afterburner boundary, independent of display names.
+                    var region = regions.GetValue(regions.Length - 1);
+                    if (region != null && AccessTools.Field(region.GetType(), "start")?.GetValue(region) is float start &&
+                        FlightControlMath.IsFinite(start) && start > 0 && start < 1)
+                        result = Math.Min(result, start);
+                }
+        }
+        afterburnerStart = result;
+        return ThrottleDetent.MilitaryCommand(result);
     }
 }

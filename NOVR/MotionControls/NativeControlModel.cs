@@ -8,7 +8,8 @@ using Object = UnityEngine.Object;
 
 namespace NOVR.MotionControls;
 
-// Render-only copies of the installed aircraft's own meshes/materials. No game
+// Render-only copies of installed control meshes/materials. Fixed-wing aircraft
+// share the fitted FS-20 handles; helicopters retain their native controls. No game
 // assets are exported, no native scripts/colliders are cloned or destroyed.
 internal sealed class NativeControlModel : IDisposable
 {
@@ -21,6 +22,8 @@ internal sealed class NativeControlModel : IDisposable
     private bool _visible;
     private NativeHandleFade? _fade;
     private MirroredControlGeometry? _mirror;
+    internal bool UsesFittedPose { get; private set; }
+    private const string StandardAircraftKey = "SmallFighter1";
 
     private NativeControlModel(Transform parent)
     {
@@ -33,19 +36,20 @@ internal sealed class NativeControlModel : IDisposable
         NativeControlModel? model = null;
         try
         {
-            var cockpit = aircraft.cockpit.GetComponentInChildren<Cockpit>(true);
-            if (cockpit == null) return null;
-            var controls = AccessTools.Field(typeof(Cockpit), stick ? "joysticks" : "throttles").GetValue(cockpit) as IEnumerable;
-            if (controls == null) return null;
             var sources = new List<Transform>();
-            foreach (var control in controls)
-            {
-                var source = AccessTools.Field(control.GetType(), "transform").GetValue(control) as Transform;
-                if (source != null && SeparateMesh(source)) sources.Add(source);
-            }
-            if (sources.Count == 0) return null;
-            model = new NativeControlModel(parent);
-            var selected = sources[0];
+            if (aircraft.cockpit != null)
+                foreach (var cockpit in aircraft.cockpit.GetComponentsInChildren<Cockpit>(true))
+                    foreach (var source in Sources(cockpit, stick))
+                        if (!sources.Contains(source)) sources.Add(source);
+            var collective = MotionFlightController.UsesLiftCollective(aircraft);
+            var standard = !collective ? StandardSource(stick) : null;
+            // During loading a live FS-20 can also supply the same installed
+            // geometry. Other aircraft fall back safely if that asset is absent.
+            if (standard == null && !collective && aircraft.definition?.jsonKey == StandardAircraftKey && sources.Count > 0)
+                standard = sources[0];
+            var selected = standard != null ? standard : sources.Count > 0 ? sources[0] : null;
+            if (selected == null) return null;
+            model = new NativeControlModel(parent) { UsesFittedPose = standard != null };
             var geometry = new GameObject("Aircraft handle geometry").transform;
             geometry.SetParent(model._root, false); geometry.localScale = selected.lossyScale;
             foreach (var renderer in selected.GetComponentsInChildren<MeshRenderer>(true))
@@ -72,10 +76,10 @@ internal sealed class NativeControlModel : IDisposable
             // Collective grips keep their cylindrical center.
             var grip = bounds.center;
             if (stick) grip.y = bounds.max.y - Mathf.Min(.080f, bounds.size.y * .36f);
-            else if (!MotionFlightController.UsesLiftCollective(aircraft))
+            else if (!collective)
                 grip.y = bounds.max.y - Mathf.Min(.028f, bounds.size.y * .22f);
             geometry.localPosition = -grip;
-            if (!stick && Fs20NativeCockpit.IsAircraft(aircraft))
+            if (!stick && model.UsesFittedPose)
             {
                 // This native assembly includes a very broad throttle housing.
                 // Fit the VR copy to the glove (about 16 cm across), retaining
@@ -84,7 +88,7 @@ internal sealed class NativeControlModel : IDisposable
                 geometry.localPosition += Vector3.up * .005f;
             }
             if (stick) model._root.localPosition = Vector3.up * .12f;
-            if (Fs20NativeCockpit.IsAircraft(aircraft))
+            if (model.UsesFittedPose)
             {
                 try { model._fade = new NativeHandleFade(model._root,model._copies); }
                 catch(Exception e) { Debug.LogWarning("[NOVR] Shaft fade unavailable; opaque native handle retained: " + e.Message); }
@@ -97,7 +101,7 @@ internal sealed class NativeControlModel : IDisposable
                     if (renderer.GetComponent<MeshFilter>()?.sharedMesh != null)
                         model._originals.Add((renderer, renderer.forceRenderingOff));
             LayerHelper.SetLayerRecursive(model._root, LayerHelper.Layers.Cockpit);
-            Debug.Log($"[NOVR] Reused native {(stick ? "stick" : "throttle")} model from {selected.name}; {model._copies.Count} mesh renderers, {model._originals.Count} stationary renderers managed.");
+            Debug.Log($"[NOVR] Reused {(model.UsesFittedPose ? "standard FS-20" : "aircraft-native")} {(stick ? "stick" : "throttle")} model from {selected.name}; {model._copies.Count} mesh renderers, {model._originals.Count} stationary renderers managed.");
             return model;
         }
         catch (Exception exception)
@@ -106,6 +110,35 @@ internal sealed class NativeControlModel : IDisposable
             Debug.LogWarning($"[NOVR] Native {(stick ? "stick" : "throttle")} model unavailable; retaining the fallback and original cockpit geometry. {exception.Message}");
             return null;
         }
+    }
+
+    private static Transform? StandardSource(bool stick)
+    {
+        // Use the game's loaded definition; never instantiate a live aircraft or
+        // copy scripts, collision shapes, animations or gameplay state.
+        if (Encyclopedia.Lookup == null || !Encyclopedia.Lookup.TryGetValue(StandardAircraftKey, out var definition) ||
+            definition == null || definition.unitPrefab == null) return null;
+        foreach (var cockpit in definition.unitPrefab.GetComponentsInChildren<Cockpit>(true))
+        {
+            var sources = Sources(cockpit, stick);
+            if (sources.Count > 0) return sources[0];
+        }
+        return null;
+    }
+
+    private static List<Transform> Sources(Cockpit? cockpit, bool stick)
+    {
+        var sources = new List<Transform>();
+        if (cockpit == null) return sources;
+        var controls = AccessTools.Field(typeof(Cockpit), stick ? "joysticks" : "throttles")?.GetValue(cockpit) as IEnumerable;
+        if (controls == null) return sources;
+        foreach (var control in controls)
+        {
+            if (control == null) continue;
+            var source = AccessTools.Field(control.GetType(), "transform")?.GetValue(control) as Transform;
+            if (source != null && SeparateMesh(source) && !sources.Contains(source)) sources.Add(source);
+        }
+        return sources;
     }
 
     private static bool SeparateMesh(Transform source)
@@ -118,7 +151,16 @@ internal sealed class NativeControlModel : IDisposable
             // Do not partially hide a skinned/combined cockpit that cannot be
             // reproduced as an isolated control with ordinary mesh renderers.
             if (renderer is not MeshRenderer || renderer.GetComponent<MeshFilter>()?.sharedMesh == null) return false;
-            if (!found) { bounds = renderer.bounds; found = true; } else bounds.Encapsulate(renderer.bounds);
+            // Prefab Renderer.bounds may not have been updated by the scene.
+            // Evaluate the actual mesh corners through its authored transform.
+            var meshBounds = renderer.GetComponent<MeshFilter>().sharedMesh.bounds;
+            for (var x = -1; x <= 1; x += 2)
+                for (var y = -1; y <= 1; y += 2)
+                    for (var z = -1; z <= 1; z += 2)
+                    {
+                        var point = renderer.transform.TransformPoint(meshBounds.center + Vector3.Scale(meshBounds.extents, new Vector3(x, y, z)));
+                        if (!found) { bounds = new Bounds(point, Vector3.zero); found = true; } else bounds.Encapsulate(point);
+                    }
         }
         return found && bounds.size.magnitude > .01f && bounds.size.magnitude < 1.5f &&
             Mathf.Abs(source.lossyScale.x) > .001f && Mathf.Abs(source.lossyScale.y) > .001f && Mathf.Abs(source.lossyScale.z) > .001f;

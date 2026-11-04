@@ -104,7 +104,11 @@ namespace NOVR.MotionControls
     }
     internal readonly struct Pose { public readonly Vector3 position; public readonly Quaternion rotation; public Pose(Vector3 p, Quaternion r) { position = p; rotation = r; } }
     internal static class FlightControlMath { internal static bool IsFinite(float value) => float.IsFinite(value); }
-    internal static class Fs20NativeCockpit { internal static bool Selected = true; }
+    internal static class MotionControlVisuals
+    {
+        internal static bool FittedStick = true, FittedThrottle = true;
+        internal static bool HasFittedHandle(bool stick) => stick ? FittedStick : FittedThrottle;
+    }
     internal static class LayerHelper { internal enum Layers { Cockpit } internal static void SetLayerRecursive(Transform transform, Layers layer) { } }
     internal sealed class ModConfiguration
     {

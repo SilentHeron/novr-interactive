@@ -16,7 +16,7 @@ internal sealed class ControllerActions : MonoBehaviour
     private readonly ControllerButtonGate _fire = new(), _release = new(), _countermeasures = new(), _weapon = new(), _target = new(), _nextCountermeasure = new(), _map = new(), _clear = new(), _brake = new(), _unlock = new();
     internal bool GunsHeld => Held("Guns");
     internal bool WeaponReleaseHeld => Held("Weapon Release");
-    private readonly ControllerButtonGate _gear = new(), _radar = new(), _assist = new(), _hover = new(), _eots = new();
+    private readonly ControllerButtonGate _gear = new(), _radar = new(), _assist = new(), _hover = new();
     private int _bindingVersion = -1;
     private ControllerBindingProfile _bindingProfile;
     private bool _bindingLeftHanded;
@@ -42,7 +42,7 @@ internal sealed class ControllerActions : MonoBehaviour
     internal bool Queued(string action) => TrackedControllers.Available && Time.timeScale > 0 && GameManager.flightControlsEnabled &&
         !CursorManager.GetFlag(CursorFlags.GameMenu) && (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
         !DynamicMap.mapMaximized && !WristMenu.IsOpen && !CockpitLayout.Active && !CockpitHudWidgets.Editing &&
-        (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+        (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse() || NativeHandOptionWheel.IsOpen) &&
         CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.GetLocalAircraft(out var aircraft) &&
         _queuedActions.Contains(action, aircraft, Time.frameCount);
 
@@ -68,7 +68,7 @@ internal sealed class ControllerActions : MonoBehaviour
             var binding = bindings.Get(action);
             var left = ControllerBindings.ResolveLeft(binding.Hand, leftHanded);
             var sample = TrackedControllers.Read(left);
-            gate.Update(flightControls && (!combat || bindings.CombatEnabled.Value) && sample.Valid && HandleHeld(left),
+            gate.Update(flightControls && (!combat || bindings.CombatEnabled.Value) && sample.Valid && !NativeHandOptionWheel.OwnsHand(left) && HandleHeld(left),
                 bindings.ReadFlight(sample, left, binding.Button));
         }
         FlightButton(ControllerActionId.Brake, _brake, false);
@@ -84,14 +84,12 @@ internal sealed class ControllerActions : MonoBehaviour
         FlightButton(ControllerActionId.Radar, _radar);
         FlightButton(ControllerActionId.FlightAssist, _assist);
         FlightButton(ControllerActionId.HoverAssist, _hover);
-        FlightButton(ControllerActionId.Eots, _eots);
         if (_unlock.Released) SceneSingleton<CombatHUD>.i?.DeselectLast();
         if (_clear.Released) SceneSingleton<CombatHUD>.i?.DeselectAll();
         if (_gear.Released) QueuePanelAction("Gear");
         if (_radar.Released) QueuePanelAction("Radar");
         if (_assist.Released) QueuePanelAction("Flight Assist");
         if (_hover.Released) QueuePanelAction("Auto Hover");
-        if (_eots.Released) OpticalTargetingHud.Toggle();
 
         // Map may intentionally share a combat button. The assigned hand's held
         // handle takes priority; the recovery map remains available after a crash.
@@ -101,7 +99,7 @@ internal sealed class ControllerActions : MonoBehaviour
         var mapSharesCombat = false;
         foreach (var action in ActionIds)
         {
-            if (action == ControllerActionId.Map || action == ControllerActionId.WristMenu || action == ControllerActionId.Zoom) continue;
+            if (action == ControllerActionId.Map || action == ControllerActionId.WristMenu) continue;
             var candidate = bindings.Get(action);
             if (ControllerBindings.ResolveLeft(candidate.Hand, leftHanded) == mapLeft &&
                 ControllerButtonNames.SamePhysicalButton(mapBinding.Button, candidate.Button, mapHand.NativeFrame))
@@ -109,7 +107,7 @@ internal sealed class ControllerActions : MonoBehaviour
         }
         var liveHandleHeld = flightControls && HandleHeld(mapLeft) &&
             GameManager.GetLocalAircraft(out var mapAircraft) && !mapAircraft.disabled;
-        _map.Update(bindings.PointerEnabled.Value && mapHand.Valid && MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active &&
+        _map.Update(bindings.PointerEnabled.Value && mapHand.Valid && !NativeHandOptionWheel.OwnsHand(mapLeft) && MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active &&
             !(mapSharesCombat && liveHandleHeld), ControllerButtonNames.Resolve(mapBinding.Button, mapHand.NativeFrame) == ControllerButton.Trigger
                 ? 0 : bindings.ReadFlight(mapHand, mapLeft, mapBinding.Button));
         if (_map.Pressed) ToggleMap();
@@ -137,7 +135,7 @@ internal sealed class ControllerActions : MonoBehaviour
 
     internal bool Held(string action) => TrackedControllers.Available && !WristMenu.IsOpen && !CockpitHudWidgets.Editing && !Cursor.visible && action switch
     {
-        "Brake" => _brake.Held || Fs20NativeCockpit.BrakeHeld,
+        "Brake" => _brake.Held,
         "Fire" => _fire.Held || _release.Held,
         "Guns" => _fire.Held,
         "Weapon Release" => _release.Held,
@@ -156,7 +154,7 @@ internal sealed class ControllerActions : MonoBehaviour
     internal void ResetButtons()
     {
         _queuedActions.Clear();
-        foreach (var gate in new[] { _fire, _release, _countermeasures, _weapon, _target, _nextCountermeasure, _map, _clear, _brake, _unlock, _gear, _radar, _assist, _hover, _eots }) gate.Reset();
+        foreach (var gate in new[] { _fire, _release, _countermeasures, _weapon, _target, _nextCountermeasure, _map, _clear, _brake, _unlock, _gear, _radar, _assist, _hover }) gate.Reset();
     }
     private void OnDisable() => ResetButtons();
     private void OnDestroy() { OnDisable(); if (Instance == this) Instance = null; }

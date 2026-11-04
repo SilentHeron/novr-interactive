@@ -6,6 +6,43 @@ namespace NOVR.MotionControls;
 // Managed RGBA bytes and a single-channel fabric tile only: no Unity API calls.
 internal static class PilotTextureEnhancement
 {
+    // Recolour copies only, retaining seams/folds/padding and material normal
+    // maps. A neutral luminance ramp removes the old uniform's hue instead of
+    // multiplying a red or green tint through an already coloured atlas.
+    internal static byte[] Recolor(byte[] input, int width, int height, PilotUniformTeam team,
+        bool glove, CancellationToken cancellation)
+    {
+        if (width < 1 || height < 1 || input.Length != (long)width * height * 4)
+            throw new ArgumentException("Invalid pilot colour texture dimensions or pixel data.");
+        cancellation.ThrowIfCancellationRequested();
+        var output = (byte[])input.Clone();
+        if (team == PilotUniformTeam.Native) return output;
+        var color = PilotUniformPalette.Color(team, glove);
+        var ramp = new byte[256 * 3];
+        for (var value = 0; value < 256; value++)
+        {
+            // Build once rather than evaluating a power for every atlas texel.
+            var shade = Math.Min(1.25, Math.Pow(value / 96.0, .75));
+            ramp[value * 3] = (byte)Math.Min(255, Math.Round(color.red * shade));
+            ramp[value * 3 + 1] = (byte)Math.Min(255, Math.Round(color.green * shade));
+            ramp[value * 3 + 2] = (byte)Math.Min(255, Math.Round(color.blue * shade));
+        }
+        for (var y = 0; y < height; y++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            for (var x = 0; x < width; x++)
+            {
+                var at = (y * width + x) * 4;
+                if (input[at + 3] == 0) continue;
+                // Keep dark stitching dark and cap highlights below white so
+                // both pale cloth and black cloth retain readable surface detail.
+                var tone = Math.Min(255, (int)Math.Round(Luminance(input, at))) * 3;
+                output[at] = ramp[tone]; output[at + 1] = ramp[tone + 1]; output[at + 2] = ramp[tone + 2];
+            }
+        }
+        return output;
+    }
+
     internal static byte[] Apply(byte[] input, int size, byte[] fabric, int fabricWidth,
         int fabricHeight, CancellationToken cancellation) =>
         Apply(input, size, size, fabric, fabricWidth, fabricHeight, cancellation);
