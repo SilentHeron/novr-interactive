@@ -30,10 +30,10 @@ inside this repository. It rejects missing resource globs and binary dependencie
 | --- | --- |
 | Core and lifecycle | Flight-control math, input ownership, detents, ejection rules, complete configuration publication, XR enable/disable and retry, camera discovery/ownership, API event subscriptions, canvas-camera rebinding, paused/reentrant UI attachment and UI open/close ownership |
 | Controllers and menus | Steam Frame/Touch input mapping, Proton controller compatibility, pointer ownership and slider drag capture, binding validation and persistence, controller artwork/callouts/activity, View settings, binding editor, hand option wheel and native-menu handoff |
-| Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry, texture preparation, UI-depth restoration and feedback dispatch |
-| HUD widgets | Per-aircraft layout slots, migration, saved placement, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources and depth handling |
+| Hands and feedback | Glove poses and finger transitions, tracking resets, elbow/wrist alignment, sleeve reach/bounds/geometry, texture preparation/ownership and initialization failure cleanup, UI-depth restoration and feedback dispatch |
+| HUD widgets | Per-aircraft layout slots, migration, saved placement, corner acquisition, resizing/rotation, appearance controls, borrowing/restoring native status sources, unchanged threat refresh and depth handling |
 | Map and flight cues | Minimap borrowing, terrain changes/tint/restoration, map interaction, redundant coordinate suppression, gaze candidates, nozzle/collective visibility, threat-vector bounds, delayed pitch-ladder setup and native runway endpoints |
-| Startup and installer | Mission-content readiness, splash progress, managed XR payload upgrades under preloader file locks, release selection, package validation, replacement/rollback and settings preservation |
+| Startup and installer | Mission-content readiness, splash progress, managed XR payload upgrades under preloader file locks, release selection, package validation, replacement/rollback, shared install/uninstall locks and settings preservation |
 
 These are executable check programs, so the runner uses `dotnet run` rather than
 `dotnet test`. It trusts exit status, not a fixed assertion count or expected log
