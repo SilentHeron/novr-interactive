@@ -116,8 +116,8 @@ internal sealed class CockpitInstructionSources
         if (cockpit)
         {
             // Fixed readable rows; native layout fitters never resize these.
-            _taxi?.Bind(slot, new Vector2(0, 54), new Vector2(408, 32), 22, 1);
-            _actions?.Bind(slot, new Vector2(0, -18), new Vector2(408, 102), 19, 4);
+            _taxi?.Bind(slot, new Vector2(0, 57), new Vector2(408, 36), 26, 1);
+            _actions?.Bind(slot, new Vector2(0, -19), new Vector2(408, 112), 23, 4);
         }
         var taxi = _taxi?.Taxi == true;
         var hasTaxi = _taxi?.Refresh(recovery || cockpit && taxi, visible && taxi) == true;

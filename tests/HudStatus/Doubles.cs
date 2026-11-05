@@ -40,6 +40,8 @@ namespace UnityEngine
         }
         private Component Add(Type type)
         {
+            if (typeof(UnityEngine.UI.Graphic).IsAssignableFrom(type) && GetComponent<CanvasRenderer>() == null)
+                Add(typeof(CanvasRenderer));
             if (type == typeof(CanvasGroup) && GetComponent<CanvasGroup>() != null)
                 throw new InvalidOperationException("Unity rejects duplicate CanvasGroups");
             var component = (Component)Activator.CreateInstance(type)!;
@@ -131,6 +133,7 @@ namespace UnityEngine
         }
         public static Vector2 zero => default;
         public static Vector2 one => new(1, 1);
+        public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float b) => new(a.x * b, a.y * b);
     }
     public struct Vector3

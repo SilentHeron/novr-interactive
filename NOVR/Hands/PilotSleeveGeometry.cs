@@ -37,6 +37,37 @@ internal sealed class PilotSleeveGeometry
             // and moves the twist pinch up to the shoulder.
             return sum > 0 ? new Skin(upper, fore, hand, 0, u / sum, f / sum, h / sum, 0) : this;
         }
+        internal Skin SupportElbow(int upper, int fore, int hand, int elbow)
+        {
+            var u = Weight(upper);
+            var f = Weight(fore);
+            // Replace the upper/forearm overlap with an intermediate hinge.
+            // No vertex blends two nearly opposed full-angle arm rotations;
+            // wrist influence and single-segment cloth remain unchanged.
+            var middle = 2 * Math.Min(u, f);
+            var upperWeight = Math.Max(0, u - f);
+            var foreWeight = Math.Max(0, f - u);
+            var handWeight = Weight(hand);
+            // Unity requires descending weights, including when the new hinge
+            // is the only influence at the centre of the elbow.
+            Order(ref upper, ref upperWeight, ref fore, ref foreWeight);
+            Order(ref hand, ref handWeight, ref elbow, ref middle);
+            Order(ref upper, ref upperWeight, ref hand, ref handWeight);
+            Order(ref fore, ref foreWeight, ref elbow, ref middle);
+            Order(ref fore, ref foreWeight, ref hand, ref handWeight);
+            return new Skin(upper, fore, hand, elbow, upperWeight, foreWeight, handWeight, middle);
+        }
+        private static void Order(ref int a, ref float x, ref int b, ref float y)
+        {
+            if (x >= y)
+                return;
+            var bone = a;
+            a = b;
+            b = bone;
+            var weight = x;
+            x = y;
+            y = weight;
+        }
         internal Skin Toward(int bone, float amount)
         {
             var weights = new Dictionary<int, float>();

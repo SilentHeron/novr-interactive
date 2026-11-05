@@ -134,6 +134,15 @@ internal sealed class ArmPoseMath
         return SharedRoll(_roll);
     }
 
+    internal static Vector HingeDorsal(bool left, Vector direction, Vector bend)
+    {
+        // Both segments use the same elbow-plane normal. Independently swinging
+        // two animated reference bones can add opposing axial rotations at a
+        // folded elbow, collapsing the vertices shared by those bones.
+        var normal = Vector.Cross(direction.Unit, bend.Unit).Unit;
+        return left ? normal : normal * -1;
+    }
+
     private static float SharedRoll(float angle)
     {
         // Ordinary pronation shares 80% with the sleeve. At a fully inverted

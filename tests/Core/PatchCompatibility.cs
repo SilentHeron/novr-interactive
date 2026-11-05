@@ -93,6 +93,7 @@ internal static class PatchCompatibility
             (owner: "JetNozzle/Afterburner", field: "throttleStart", type: "System.Single"),
             (owner: "JetNozzle/Afterburner", field: "throttleEnd", type: "System.Single"),
             (owner: "JetNozzle/Afterburner", field: "thrust", type: "System.Single"),
+            (owner: "TiltWingController", field: "autoTilt", type: "System.Boolean"),
             (owner: "ThrottleGauge", field: "afterburner", type: "System.Boolean"),
             (owner: "ThrottleGauge", field: "throttleRegions", type: "ThrottleGauge/ThrottleRegion[]"),
             (owner: "ThrottleGauge/ThrottleRegion", field: "start", type: "System.Single"),
@@ -136,6 +137,9 @@ internal static class PatchCompatibility
             (owner: "MessageUI", field: "messageFeed", type: "MessageFeed"),
             (owner: "MessageUI", field: "chat", type: "ChatBox"),
             (owner: "MessageUI", field: "backgroundImage", type: "UnityEngine.UI.Image"),
+            (owner: "MessageFeed", field: "_display", type: "TMPro.TMP_Text"),
+            (owner: "MessageFeed", field: "_sb", type: "System.Text.StringBuilder"),
+            (owner: "MessageFeed", field: "_hasContent", type: "System.Boolean"),
             (owner: "KillDisplay", field: "killText", type: "TMPro.TextMeshProUGUI"),
             (owner: "KillDisplay", field: "rankText", type: "TMPro.TextMeshProUGUI"),
             (owner: "KillDisplay", field: "rankBackground", type: "UnityEngine.UI.Image"),
@@ -163,6 +167,9 @@ internal static class PatchCompatibility
             pilots.DeclaringType.FullName != "Aircraft" || pilots.Name != "pilots" || pilots.FieldType.FullName != "Pilot[]")
             failures.Add("Native cockpit view no longer selects aircraft.pilots[0]; seat-clearance ownership needs review.");
         var gameplayUi = game.MainModule.Types.Single(t => t.FullName == "GameplayUI");
+        var hurt = gameplayUi.Fields.SingleOrDefault(f => f.Name == "hurt");
+        if (hurt?.FieldType.FullName != "UnityEngine.UI.Image" || !hurt.IsPublic || hurt.IsStatic)
+            failures.Add("Native damage-overlay image ownership changed.");
         if (!gameplayUi.Methods.Any(m => m.Name == "PauseGame" && m.IsPublic && !m.IsStatic &&
             m.ReturnType.FullName == "System.Void" && m.Parameters.Count == 0))
             failures.Add("Native game-menu PauseGame entry point changed.");
@@ -210,9 +217,63 @@ internal static class PatchCompatibility
         if (!addTarget.Body.Instructions.Any(i => i.Operand is MethodReference m &&
             m.DeclaringType.Name == "WeaponManager" && m.Name == "TargetListChanged"))
             failures.Add("Native AddTargetList no longer notifies weapon/network target state.");
+        VerifyAuxiliaryAxis(game, failures);
+        VerifyMessageFeed(game, failures);
         if (failures.Count != 0)
             throw new Exception(string.Join(Environment.NewLine, failures));
         Console.WriteLine($"Verified {verified} declared patch targets (metadata only; no game code executed).");
+    }
+
+    private static void VerifyAuxiliaryAxis(AssemblyDefinition game, List<string> failures)
+    {
+        MethodDefinition Method(string owner, string name) => game.MainModule.Types.Single(t => t.FullName == owner)
+            .Methods.Single(m => m.Name == name);
+        bool ReadsAxis(MethodDefinition method, string getter) => method.Body.Instructions.Any(i =>
+            i.OpCode == Mono.Cecil.Cil.OpCodes.Ldstr && Equals(i.Operand, "Custom Axis 1") &&
+            i.Next?.Operand is MethodReference call && call.DeclaringType.FullName == "Rewired.Player" &&
+            call.Name == getter && call.Parameters.Count == 1 && call.Parameters[0].ParameterType.FullName == "System.String");
+        bool UsesInput(MethodDefinition method, Mono.Cecil.Cil.OpCode operation) => method.Body.Instructions.Any(i =>
+            i.OpCode == operation && i.Operand is FieldReference field && field.DeclaringType.FullName == "ControlInputs" &&
+            field.Name == "customAxis1" && field.FieldType.FullName == "System.Single");
+
+        var pilot = Method("PilotPlayerState", "PlayerThrottleAxis1Controls");
+        if (!ReadsAxis(pilot, "GetAxisRaw") || !ReadsAxis(pilot, "GetAxisRawPrev") ||
+            !UsesInput(pilot, Mono.Cecil.Cil.OpCodes.Stfld))
+            failures.Add("Native pilot no longer routes Custom Axis 1 to the shared aircraft command.");
+        if (!ReadsAxis(Method("SwingWingController", "CheckForManualInput"), "GetAxisRaw") ||
+            !UsesInput(Method("SwingWingController", "FixedUpdate"), Mono.Cecil.Cil.OpCodes.Ldfld))
+            failures.Add("Native wing-sweep manual input/command contract changed.");
+        if (!UsesInput(Method("DuctedFan", "FixedUpdate"), Mono.Cecil.Cil.OpCodes.Ldfld))
+            failures.Add("Native pusher-fan auxiliary command contract changed.");
+
+        var compound = Method("CompoundHeloController", "FixedUpdate");
+        var assist = Method("CompoundHeloController", "CompoundHeloController_OnFlightAssist");
+        if (!UsesInput(compound, Mono.Cecil.Cil.OpCodes.Stfld) || !assist.Body.Instructions.Any(i =>
+            i.Operand is MethodReference call && call.DeclaringType.FullName == "UnityEngine.Behaviour" && call.Name == "set_enabled"))
+            failures.Add("Native compound-helicopter flight-assist ownership of the auxiliary command changed.");
+    }
+
+    private static void VerifyMessageFeed(AssemblyDefinition game, List<string> failures)
+    {
+        var feed = game.MainModule.Types.Single(t => t.FullName == "MessageFeed");
+        var refresh = feed.Methods.SingleOrDefault(m => m.Name == "RefreshUI");
+        if (refresh == null || !refresh.IsPrivate || refresh.IsStatic || refresh.Parameters.Count != 0 ||
+            refresh.ReturnType.FullName != "System.Void" || !refresh.HasBody)
+        {
+            failures.Add("Native MessageFeed.RefreshUI hook changed.");
+            return;
+        }
+        if (!refresh.Body.Instructions.Any(i => i.Operand is MethodReference call &&
+            call.DeclaringType.FullName == "TMPro.TMP_Text" && call.Name == "SetText" && call.Parameters.Count == 1 &&
+            call.Parameters[0].ParameterType.FullName == "System.Text.StringBuilder"))
+            failures.Add("Native message feed no longer writes its StringBuilder directly to TMP_Text.");
+        foreach (var name in new[] { "Update", "Clear" })
+        {
+            var method = feed.Methods.SingleOrDefault(m => m.Name == name);
+            if (method?.HasBody != true || !method.Body.Instructions.Any(i =>
+                i.Operand is MethodReference call && call.FullName == refresh.FullName))
+                failures.Add($"Native MessageFeed.{name} no longer refreshes display/content state.");
+        }
     }
 
     private static IEnumerable<TypeDefinition> AllTypes(IEnumerable<TypeDefinition> roots)

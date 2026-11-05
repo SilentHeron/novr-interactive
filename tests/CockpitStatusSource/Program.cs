@@ -266,8 +266,8 @@ using (var f = new Fixture())
     CockpitHudWidgets.Slots.Add("objectives", slot);
     f.Tick();
     var copies = slot.Children.Select(x => x.GetComponent<TextMeshProUGUI>()).ToArray();
-    var taxiCopy = copies.Single(x => x.fontSize == 22);
-    var reportCopy = copies.Single(x => x.fontSize == 19);
+    var taxiCopy = copies.Single(x => x.fontSize == 26);
+    var reportCopy = copies.Single(x => x.fontSize == 23);
     Check(taxiCopy.text == taxi.text && reportCopy.text == reportText.text && CockpitHudWidgets.Content["objectives"],
         "Instructions mirrors both current taxi guidance and separate native action feed");
     Check(taxi.canvasRenderer.cull && reportText.canvasRenderer.cull && background.canvasRenderer.cull,
@@ -276,7 +276,7 @@ using (var f = new Fixture())
         "Airbase marker geometry and original world hierarchy are untouched");
     Check(taxi.enabled && reportText.enabled && background.enabled && reportText.text == "Cleared to taxi to Runway 21",
         "Native text, enabled state and report queue inputs remain intact");
-    Check(taxiCopy.color == taxi.color && reportCopy.rectTransform.sizeDelta == new Vector2(408, 102) && reportCopy.maxVisibleLines == 4,
+    Check(taxiCopy.color == taxi.color && reportCopy.rectTransform.sizeDelta == new Vector2(408, 112) && reportCopy.maxVisibleLines == 4,
         "Copies preserve native color with fixed readable widget layout");
     overlay.NativeLabel("Taxi to Runway 21 95m");
     report.NativeReport("Rearmed\nCleared for departure", true);

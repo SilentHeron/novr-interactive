@@ -57,6 +57,8 @@ internal static class SleeveResourceChecks
         var shift = new Vector3(.12f, -.08f, .04f);
         sleeves.UpdateBaseline(shift);
         var renderer = sleeves.Renderer(0)!;
+        check(renderer.quality == SkinQuality.Bone4 && sleeves.Renderer(1)!.quality == SkinQuality.Bone4,
+            "Private sleeves must retain all influences even under low global skinning quality");
         for (var i = 0; i < baseline.Source.bones.Length; i++)
         {
             check(Vector3.Distance(renderer.bones[i].position, baseline.Source.bones[i].position + shift) < .00001f,
@@ -68,6 +70,37 @@ internal static class SleeveResourceChecks
         }
         check(Vector3.Distance(renderer.transform.position, baseline.Source.transform.position + shift) < .00001f,
             "Sleeve renderer baseline lost the native renderer offset");
+        var restMesh = renderer.sharedMesh;
+        var restWeights = restMesh.boneWeights;
+        for (var i = 0; i < restMesh.vertices.Length; i++)
+        {
+            var w = restWeights[i];
+            check(w.weight0 >= w.weight1 && w.weight1 >= w.weight2 && w.weight2 >= w.weight3,
+                "Unity sleeve mesh must receive descending bone weights");
+            Vector3 Skin(int bone) => (renderer.bones[bone].localToWorldMatrix * restMesh.bindposes[bone]).MultiplyPoint3x4(restMesh.vertices[i]);
+            var skinned = Skin(w.boneIndex0) * w.weight0 + Skin(w.boneIndex1) * w.weight1 +
+                Skin(w.boneIndex2) * w.weight2 + Skin(w.boneIndex3) * w.weight3;
+            check(Vector3.Distance(skinned, baseline.Source.transform.TransformPoint(restMesh.vertices[i]) + shift) < .00001f,
+                "Adding elbow support must preserve the fitted sleeve's rest surface exactly");
+        }
+        var copiedPositions = renderer.bones.Select(b => b.position).ToArray();
+        var copiedRotations = renderer.bones.Select(b => b.rotation).ToArray();
+        var nativeRotations = baseline.Source.bones.Select(b => b.rotation).ToArray();
+        foreach (var index in new[] { 1, 2, 4, 5 })
+        {
+            baseline.Source.bones[index].rotation = Quaternion.Euler(160, -120, 85);
+            baseline.Source.bones[index].position += new Vector3(.12f, -.07f, .19f);
+        }
+        sleeves.UpdateBaseline(shift);
+        for (var i = 0; i < baseline.Source.bones.Length; i++)
+        {
+            check(Vector3.Distance(renderer.bones[i].position, copiedPositions[i]) < .00001f,
+                "Native head-turn/arm animation changed the visual IK reference lengths");
+            check(Quaternion.Angle(renderer.bones[i].rotation, copiedRotations[i]) < .08f,
+                "Native animation changed the sleeve's wrist-roll reference");
+            baseline.Source.bones[i].position = baseline.BonePositions[i];
+            baseline.Source.bones[i].rotation = nativeRotations[i];
+        }
         sleeves.Resize(.73f);
         var vertices = renderer.sharedMesh.vertices;
         sleeves.Resize(.73f);
@@ -80,6 +113,46 @@ internal static class SleeveResourceChecks
         check(!renderer.enabled, "Tracking loss must hide the sleeve");
         check(renderer.localBounds.size.x > 0 && renderer.localBounds.size.y > 0 && renderer.localBounds.size.z > 0,
             "Real sleeve bounds must enclose the copied arm even while tracking is absent");
+        var supportIndex = baseline.Source.bones.Length;
+        check(renderer.bones.Length == baseline.Source.bones.Length + 2 && renderer.sharedMesh.bindposes.Length == renderer.bones.Length,
+            "Private elbow supports must have matching owned bones and bind poses");
+        foreach (var collective in new[] { false, true })
+            foreach (var lift in new[] { -.10f, 0f, .10f })
+            {
+                glove.position = baseline.Source.bones[0].position + shift + new Vector3(-.12f, -.26f + lift, .24f);
+                glove.rotation = collective ? CollectiveHandPoses.Rotation(true) : Quaternion.Euler(0, 0, 90);
+                sleeves.UpdateBaseline(shift);
+                sleeves.Update(0, glove, tracked: true, enabled: true, collective: collective, transitionProgress: 1);
+                var upper = renderer.bones[0];
+                var fore = renderer.bones[1];
+                var wrist = renderer.bones[2];
+                var support = renderer.bones[supportIndex];
+                check(Vector3.Distance(support.position, fore.position) < .00001f &&
+                    Quaternion.Angle(support.rotation, Quaternion.Slerp(upper.rotation, fore.rotation, .5f)) < .08f,
+                    "Elbow support must follow the solved hinge rather than native animation");
+                check(Vector3.Dot(upper.up, (fore.position - upper.position).normalized) > .999f &&
+                    Vector3.Dot(fore.up, (wrist.position - fore.position).normalized) > .999f,
+                    "Both arm frames must follow their solved segment axes through collective travel");
+                check(Vector3.Distance(wrist.position, glove.position) < .0001f,
+                    "The sleeve correction must preserve a reachable authored glove socket");
+                var solved = renderer.bones.Take(3).Select(b => (b.position, b.rotation)).ToArray();
+                foreach (var index in new[] { 1, 2 })
+                {
+                    baseline.Source.bones[index].rotation = Quaternion.Euler(175, 120, -100);
+                    baseline.Source.bones[index].position += new Vector3(.08f, .11f, -.07f);
+                }
+                sleeves.UpdateBaseline(shift);
+                sleeves.Update(0, glove, tracked: true, enabled: true, collective: collective, transitionProgress: 1);
+                for (var i = 0; i < 3; i++)
+                    check(Vector3.Distance(renderer.bones[i].position, solved[i].position) < .00001f &&
+                        Quaternion.Angle(renderer.bones[i].rotation, solved[i].rotation) < .08f,
+                        "Native head-turn animation cannot leave a stationary tracked arm twisted");
+                for (var i = 0; i < baseline.Source.bones.Length; i++)
+                {
+                    baseline.Source.bones[i].position = baseline.BonePositions[i];
+                    baseline.Source.bones[i].rotation = nativeRotations[i];
+                }
+            }
         var copied = renderer.bones[0].position;
         U.Destroy(baseline.Source);
         sleeves.UpdateBaseline(shift * 2);
@@ -99,6 +172,7 @@ internal static class SleeveResourceChecks
                 "Sleeve owner destroyed a borrowed source mesh or material");
             check(Source.sharedMesh.vertices.SequenceEqual(Vertices) && Source.bones.Select(b => b.position).SequenceEqual(BonePositions),
                 "Sleeve construction, resizing, or disposal mutated native mesh/bone data");
+            check(Source.quality == SkinQuality.Bone1, "Private sleeves must not change the borrowed renderer's skinning quality");
         }
     }
 
@@ -107,6 +181,7 @@ internal static class SleeveResourceChecks
         ResourceFault.Operation = null;
         var root = new GameObject("borrowed tracking root").transform;
         var native = new GameObject("borrowed native pilot").AddComponent<SkinnedMeshRenderer>();
+        native.quality = SkinQuality.Bone1;
         native.transform.position = new Vector3(2, 3, 4);
         native.sharedMaterials = new[] { new Material() };
         var bones = new List<Transform>();

@@ -36,6 +36,7 @@ internal sealed class PilotHandUiDepth : MonoBehaviour
             }
             Renderer = _root.gameObject.AddComponent<SkinnedMeshRenderer>();
             Renderer.enabled = false;
+            Renderer.quality = source.quality;
             Renderer.sharedMesh = source.sharedMesh;
             Renderer.bones = _bones;
             var rootIndex = Array.IndexOf(_sources, source.rootBone);
@@ -99,6 +100,7 @@ internal sealed class PilotHandUiDepth : MonoBehaviour
                 _bones[i].localScale = Divide(source.lossyScale, sourceScale);
             }
             Renderer.localBounds = Source.localBounds;
+            Renderer.quality = Source.quality;
             Renderer.enabled = true;
             _root.gameObject.SetActive(true);
         }

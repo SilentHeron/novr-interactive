@@ -24,7 +24,7 @@ Flight buttons require the assigned handle held or toggle-latched. Target select
 | View menu | Left View, or wheel → VR MENU | Physical left Menu, or wheel → VR MENU |
 | Reopen menu during Edit layout | Either thumbstick click | Either thumbstick click |
 
-The map remains available after a crash; View opens the recovery map outside a usable cockpit. F9 is the keyboard fallback. Grip, trigger pointer clicks, thumbstick yaw and throttle VTOL-angle axes retain their existing behavior.
+The map remains available after a crash; View opens the recovery map outside a usable cockpit. F9 is the keyboard fallback. Grip, trigger pointer clicks, thumbstick yaw and throttle auxiliary axes retain their existing behavior.
 
 With left-handed HOTAS, role-based actions follow the stick or throttle. The physical left Menu stays the menu button on Touch; its right system button is reserved by the runtime. The guide shows the actual button names for your handedness.
 
@@ -90,3 +90,5 @@ MIL detection covers the game's turbojet and turbofan engines, including mods ba
 Stick-limit feedback briefly grows stronger near full pitch, roll or twist input, then stops completely within 0.45 seconds. Holding a tight turn stays silent. Release the grip or ease below 70% travel for a moment to rearm the cue. It uses the normal haptic-strength setting.
 
 Physical stick twist now defaults to a separate **15% yaw deadzone** (4.5° at the default 30° yaw range). Pitch/roll retain their 6% default; the horizontal thumbstick keeps its own existing deadzone. Adjust twist deadzone under **View → Flight controls**.
+
+While holding the throttle or collective, move its thumbstick up/down to adjust the aircraft’s auxiliary control: nozzle tilt, wing sweep or pusher fans. On the Ibis, turn Flight Assist off to retain a manual fan setting; enabled assist resumes native automatic control. Aircraft without an auxiliary system ignore this input.

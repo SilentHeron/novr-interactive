@@ -163,9 +163,11 @@ namespace UnityEngine
         public void DisableKeyword(string keyword) => Keywords.Remove(keyword);
         public void SetShaderPassEnabled(string name, bool enabled) => Passes[name] = enabled;
     }
+    public enum SkinQuality { Auto = 0, Bone1 = 1, Bone2 = 2, Bone4 = 4 }
     public sealed class SkinnedMeshRenderer : Component
     {
         public bool enabled = true, receiveShadows, updateWhenOffscreen, allowOcclusionWhenDynamic = true;
+        public SkinQuality quality;
         public Mesh sharedMesh = null!;
         public Transform[] bones = Array.Empty<Transform>(); public Transform rootBone = null!;
         public Material[] sharedMaterials = Array.Empty<Material>();

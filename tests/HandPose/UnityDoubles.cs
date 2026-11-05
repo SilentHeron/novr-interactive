@@ -81,6 +81,7 @@ namespace UnityEngine
         public Vector3 TransformPoint(Vector3 value) => position + rotation * value;
         public Vector3 InverseTransformPoint(Vector3 value) => Quaternion.Inverse(rotation) * (value - position);
         public Vector3 TransformDirection(Vector3 value) => rotation * value;
+        public Vector3 TransformVector(Vector3 value) => rotation * Vector3.Scale(value, lossyScale);
         public Vector3 InverseTransformDirection(Vector3 value) => Quaternion.Inverse(rotation) * value;
         public void SetPositionAndRotation(Vector3 p, Quaternion r)
         {
@@ -269,10 +270,12 @@ namespace UnityEngine
         {
         }
     }
+    public enum SkinQuality { Auto = 0, Bone1 = 1, Bone2 = 2, Bone4 = 4 }
     public sealed class SkinnedMeshRenderer : Object
     {
         public Transform transform = null!;
         public bool enabled = true;
+        public SkinQuality quality;
         public Material[] sharedMaterials = [];
         public Mesh sharedMesh = null!; public Transform[] bones = []; public Transform rootBone = null!; public Material sharedMaterial = null!;
         public Bounds localBounds; public Rendering.ShadowCastingMode shadowCastingMode; public bool receiveShadows, updateWhenOffscreen;

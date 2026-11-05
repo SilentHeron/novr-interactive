@@ -105,6 +105,38 @@ Check(Math.Abs(mixed.Weight(4) / mixed.Weight(5) - .5f) < 1e-6 && Math.Abs(mixed
  "Removing torso influence preserves the authored elbow/wrist blend ratios");
 var cuffOnly = new G.Skin(6, 1, 0, 0, .8f, .2f, 0, 0).ArmOnly(4, 5, 6);
 Check(cuffOnly.Weight(6) == 1 && cuffOnly.Weight(1) == 0, "Rebased wrist still follows the unchanged glove exactly");
+var minimumSupportedRadius = 1f;
+var minimumOriginalRadius = 1f;
+for (var i = 0; i <= 1000; i++)
+{
+    var forearm = i / 1000f;
+    var upper = 1 - forearm;
+    var originalSkin = new G.Skin(4, 5, 6, 0, upper * .8f, forearm * .8f, .2f, 0);
+    var supported = originalSkin.SupportElbow(4, 5, 6, 7);
+    Check(Math.Abs(supported.X + supported.Y + supported.Z + supported.W - 1) < 1e-6,
+        "Elbow support preserves normalized skin weights");
+    Check(supported.Weight(6) == originalSkin.Weight(6), "Elbow support never changes the wrist/cuff influence");
+    Check(supported.Weight(4) == 0 || supported.Weight(5) == 0,
+        "No cloth vertex blends opposing full-angle upper/forearm rotations");
+    // A 150-degree bend is common when lifting the collective close to the
+    // shoulder. The supporting bone divides that into two 75-degree blends.
+    var angle = 75 * MathF.PI / 180;
+    var before = new Vector3(MathF.Cos(angle), (forearm - upper) * MathF.Sin(angle), 0);
+    Check(supported.X >= supported.Y && supported.Y >= supported.Z && supported.Z >= supported.W,
+        "Generated elbow influences must be sorted for Unity skinning");
+    var after = new Vector3((supported.Weight(4) + supported.Weight(5)) / .8f * MathF.Cos(angle) + supported.Weight(7) / .8f,
+        (supported.Weight(5) - supported.Weight(4)) / .8f * MathF.Sin(angle), 0);
+    minimumOriginalRadius = Math.Min(minimumOriginalRadius, before.Length());
+    minimumSupportedRadius = Math.Min(minimumSupportedRadius, after.Length());
+}
+Check(minimumOriginalRadius < .26f && minimumSupportedRadius > .79f,
+    "A deeply folded elbow retains over 79% radial thickness instead of collapsing to 26%");
+var centreElbow = new G.Skin(4, 5, 0, 0, .5f, .5f, 0, 0).SupportElbow(4, 5, 6, 7);
+Check(centreElbow.A == 7 && centreElbow.X == 1 && centreElbow.Y == 0 && centreElbow.Z == 0 && centreElbow.W == 0,
+    "A fully supported elbow must put its only nonzero influence first");
+Check(new G.Skin(4, 0, 0, 0, 1, 0, 0, 0).SupportElbow(4, 5, 6, 7).Weight(4) == 1 &&
+    new G.Skin(5, 0, 0, 0, 1, 0, 0, 0).SupportElbow(4, 5, 6, 7).Weight(5) == 1,
+    "Cloth already assigned wholly to one arm segment is unchanged");
 if (args.Length == 2)
 {
     using var doc = JsonDocument.Parse(File.ReadAllText(args[0]));

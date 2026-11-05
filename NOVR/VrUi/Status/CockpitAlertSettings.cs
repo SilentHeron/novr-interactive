@@ -11,7 +11,7 @@ internal sealed class CockpitAlertSettings
         const string section = "Cockpit Alerts";
         Enabled = config.Bind(section, "Compact Overlay", true,
             "Frameless cockpit-fixed threat scope and compact notifications. Radar/missile detection, map indications and warning audio remain native.");
-        Feed = config.Bind(section, "Show Kill Feed", true, "Show the latest three kill-feed entries beside the threat overlay. Chat and mission messages are unchanged.");
+        Feed = config.Bind(section, "Show Kill Feed", true, "Show the latest three native kill-feed entries in Notifications. Mission messages and rewards remain visible; native kill-feed filters still apply.");
         WorldNotch = config.Bind(section, "World Notch Cues", true,
             "Show the native radar-missile evasion lines in the VR HUD alongside the compact alerts. These cues apply to ARH/SARH threats, not infrared missiles.");
         Scale = config.Bind(section, "Scale", 1f, new ConfigDescription("Size of compact threats and notifications.", new AcceptableValueRange<float>(.7f, 1.3f)));

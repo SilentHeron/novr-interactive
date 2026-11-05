@@ -26,6 +26,7 @@ using (var f = new Fixture())
         var source = PilotHandVisuals.Renderers[i]!;
         var proxy = proxies[i];
         Check(proxy.sharedMesh == source.sharedMesh, "Depth copy shares native displayed mesh, without duplicating geometry");
+        Check(proxy.quality == source.quality, "Depth copy must use the same skinning quality as its visible mesh");
         Check(proxy.gameObject.layer == 30, "Only UI camera layer receives occlusion copy");
         Check(proxy.sharedMaterials.Length == source.sharedMesh.subMeshCount, "Every native submesh receives depth material");
         Check(proxy.localBounds == source.localBounds, "Depth copy retains displayed skinned bounds");
@@ -52,6 +53,7 @@ using (var f = new Fixture())
     Check(PilotHandVisuals.Renderers.All(r => r!.sharedMaterials.All(m => m != depth && m.GetFloat("_ZWrite") == 0)), "Visible glove and sleeve materials remain untouched");
 
     var left = PilotHandVisuals.Renderers[0]!;
+    left.quality = SkinQuality.Bone4;
     left.bones[1].localPosition += new Vector3(.003f, -.002f, .001f);
     left.bones[1].localRotation = Quaternion.Euler(13, 24, -45);
     f.Game.localPosition += new Vector3(-200, 500, 800);
@@ -59,6 +61,8 @@ using (var f = new Fixture())
     f.Ui.localPosition = new(3, -8, 5);
     f.Ui.localRotation = Quaternion.Euler(-8, 47, -13);
     f.Tick();
+    Check(proxies[0].quality == SkinQuality.Bone4 && left.quality == SkinQuality.Bone4,
+        "A changed visible skinning quality must update the depth silhouette without changing the source");
     Near(proxies[0].bones[1].position, f.Ui.TransformPoint(f.Game.InverseTransformPoint(left.bones[1].position)), "Animated finger and changing world/UI rigs update copied bone every frame");
     // The cached renderer basis is per-update, never retained across frames or
     // shared between independently posed glove/sleeve renderers.
@@ -220,6 +224,7 @@ sealed class Fixture : IDisposable
         go.transform.localRotation = Quaternion.Euler(12, 47, 31);
         go.transform.localScale = Vector3.one * modelScale;
         var renderer = go.AddComponent<SkinnedMeshRenderer>();
+        renderer.quality = index switch { 0 => SkinQuality.Bone1, 1 => SkinQuality.Bone2, 2 => SkinQuality.Bone4, _ => SkinQuality.Auto };
         renderer.sharedMesh = new Mesh { subMeshCount = 2 };
         renderer.sharedMaterials = new[] { new Material(new Shader()), new Material(new Shader()) };
         var a = new GameObject("root bone").transform;

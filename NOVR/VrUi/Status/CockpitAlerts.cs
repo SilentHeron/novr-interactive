@@ -30,77 +30,6 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         internal Vector3 Direction;
         internal float Expires;
     }
-    private sealed class TextMirror
-    {
-        internal readonly TMP_Text Source;
-        internal bool Visible
-        {
-            get; private set;
-        }
-        private readonly TextMeshProUGUI[] _copies;
-        private readonly HudGraphicVisibilityLease _hide;
-        private string? _last;
-        internal TextMirror(TMP_Text source, Transform parent, Vector2 position, Vector2 size, int fontSize, bool feed = false)
-        {
-            Source = source;
-            _hide = new HudGraphicVisibilityLease(source, true);
-            _copies = new TextMeshProUGUI[feed ? 3 : 1];
-            for (var i = 0; i < _copies.Length; i++)
-            {
-                var go = new GameObject("Compact notification", typeof(RectTransform), typeof(TextMeshProUGUI));
-                go.transform.SetParent(parent, false);
-                go.layer = parent.gameObject.layer;
-                var copy = go.GetComponent<TextMeshProUGUI>();
-                _copies[i] = copy;
-                copy.font = source.font;
-                copy.fontSharedMaterial = source.fontSharedMaterial;
-                copy.text = "";
-                copy.fontSize = fontSize;
-                copy.richText = false;
-                copy.raycastTarget = false;
-                copy.alignment = TextAlignmentOptions.TopLeft;
-                copy.enableWordWrapping = !feed;
-                copy.overflowMode = TextOverflowModes.Ellipsis;
-                copy.maxVisibleLines = feed ? 1 : 2;
-                var height = size.y / _copies.Length;
-                copy.rectTransform.sizeDelta = new Vector2(size.x, height);
-                copy.rectTransform.anchoredPosition = position + new Vector2(0, size.y * .5f - height * (i + .5f));
-            }
-        }
-        internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressNative = false)
-        {
-            var visible = active && show && Source != null && Source.isActiveAndEnabled && !string.IsNullOrWhiteSpace(Source.text);
-            if (suppressNative)
-                _hide.Apply();
-            else
-                _hide.Restore();
-            Visible = visible;
-            foreach (var copy in _copies)
-                copy.enabled = visible;
-            if (!visible)
-                return;
-            var text = Source!.text;
-            if (_last != text)
-            {
-                _last = text;
-                var compact = CockpitAlertMath.LatestFeed(text, feed ? 3 : 2);
-                var lines = feed ? compact.Split('\n') : new[] { compact };
-                for (var i = 0; i < _copies.Length; i++)
-                    _copies[i].text = i < lines.Length ? lines[i] : "";
-            }
-            var color = feed ? new Color(.72f, .82f, .84f, .85f) : Source.color;
-            color.a *= opacity;
-            foreach (var copy in _copies)
-                copy.color = color;
-        }
-        internal void Release()
-        {
-            _hide.Release();
-            foreach (var copy in _copies)
-                if (copy != null)
-                    Destroy(copy.gameObject);
-        }
-    }
 
     internal static CockpitAlerts? Instance
     {
@@ -118,7 +47,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
     private Image? _rankBackground;
     private MessageUI? _messages;
     private HudGraphicVisibilityLease? _messageBackgroundHide;
-    private TextMirror? _feed, _mission, _reward, _rank;
+    private CockpitNotificationMirror? _feed, _mission, _reward, _rank;
     private readonly List<Signal> _signals = new();
     private readonly List<ThreatItem> _missiles = new();
     private readonly List<Text> _pins = new();
@@ -241,7 +170,8 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         var feedVisible = _feedMode == CockpitFeedMode.Cockpit ? WidgetVisible("feed") : recovery && _feedPose.Visible;
         // Ownership, not whether there is currently text, controls the source.
         // Hiding the widget must never bring back its old vanilla duplicate.
-        var suppressNativeFeed = _feedMode != CockpitFeedMode.Native;
+        var suppressNativeFeed = CockpitFeedPresentation.SuppressNative(
+            (Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, _hadCockpit);
         var feedOpacity = recovery ? _feedPose.Opacity : 1;
         if (_root != null)
             _root.SetActive(WidgetVisible("ew") && hasEw);
@@ -324,26 +254,26 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         if (_feed?.Source != source)
         {
             _feed?.Release();
-            _feed = source == null ? null : new TextMirror(source, _feedRoot!, new Vector2(0, 53), new Vector2(480, 84), 20, true);
+            _feed = source == null ? null : new CockpitNotificationMirror(source, _feedRoot!, new Vector2(0, 53), new Vector2(480, 96), 24, true);
         }
         var mission = messages != null ? MissionOf(messages) : null;
         if (_mission?.Source != mission)
         {
             _mission?.Release();
-            _mission = mission == null ? null : new TextMirror(mission, _feedRoot!, new Vector2(0, -54), new Vector2(480, 72), 18);
+            _mission = mission == null ? null : new CockpitNotificationMirror(mission, _feedRoot!, new Vector2(0, -54), new Vector2(480, 84), 22);
         }
         var kills = SceneSingleton<KillDisplay>.i;
         var reward = kills != null ? RewardOf(kills) : null;
         if (_reward?.Source != reward)
         {
             _reward?.Release();
-            _reward = reward == null ? null : new TextMirror(reward, _feedRoot!, new Vector2(0, 126), new Vector2(480, 28), 20);
+            _reward = reward == null ? null : new CockpitNotificationMirror(reward, _feedRoot!, new Vector2(0, 126), new Vector2(480, 32), 24);
         }
         var rank = kills != null ? RankOf(kills) : null;
         if (_rank?.Source != rank)
         {
             _rank?.Release();
-            _rank = rank == null ? null : new TextMirror(rank, _feedRoot!, new Vector2(0, -126), new Vector2(480, 28), 18);
+            _rank = rank == null ? null : new CockpitNotificationMirror(rank, _feedRoot!, new Vector2(0, -126), new Vector2(480, 32), 22);
         }
         var background = kills != null ? RankBackground(kills) : null;
         if (_rankBackground != background)
@@ -472,7 +402,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         _threatRoot.transform.SetParent(_root.transform, false);
         _missileRoot = CreateWindow("NOVR incoming missile window", out _missileBackplate);
         _feedRoot = CreateWindow("NOVR notifications window", out _feedBackplate, 300).transform;
-        _missileHeading = Label(_missileRoot.transform, "", new Vector2(0, 69), new Vector2(480, 28), 20);
+        _missileHeading = Label(_missileRoot.transform, "", new Vector2(0, 69), new Vector2(480, 32), 24);
         _missileHeading.alignment = TextAnchor.MiddleLeft;
         for (var i = 0; i < 36; i++)
         {

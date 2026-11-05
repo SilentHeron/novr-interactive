@@ -36,6 +36,8 @@ PORTABLE = (
     ("hand-comfort", "tests/HandComfort/HandComfortChecks.csproj"),
     ("seat-clearance", "tests/SeatClearance/SeatClearance.csproj"),
     ("arm-pose", "tests/ArmPose/ArmPoseChecks.csproj"),
+    ("auxiliary-flight-axis", "tests/AuxiliaryFlightAxis/AuxiliaryFlightAxis.csproj"),
+    ("damage-overlay", "tests/DamageOverlay/DamageOverlay.csproj"),
     ("hand-pose", "tests/HandPose/HandPoseChecks.csproj"),
     ("hand-ui-depth", "tests/HandUiDepth/HandUiDepthChecks.csproj"),
     ("sleeve-bounds", "tests/SleeveBounds/SleeveBoundsChecks.csproj"),

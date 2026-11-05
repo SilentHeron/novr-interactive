@@ -22,6 +22,8 @@ internal sealed class PilotSleeves : IDisposable
     private readonly ArmPoseMath[] _armPoses = { new(), new() };
     private const int UpperArmSlot = 0, ForearmSlot = 1, HandSlot = 2;
     private readonly int[,] _arm = new int[2, 3];
+    private readonly Vector3[,] _restPositions = new Vector3[2, 3];
+    private readonly Quaternion[,] _restRotations = new Quaternion[2, 3];
     private readonly List<Mesh> _ownedMeshes = new();
     private readonly List<GameObject> _ownedObjects = new();
     private float _sleeveThickness = -1;
@@ -89,11 +91,15 @@ internal sealed class PilotSleeves : IDisposable
         var scale = _source.transform.lossyScale;
         var metersPerUnit = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
         _sleeveThickness = -1;
-        _copies = new Transform[_sourceBones.Length];
+        _copies = new Transform[_sourceBones.Length + 2];
         for (var i = 0; i < _copies.Length; i++)
         {
-            _copies[i] = CreateChild("Sleeve " + _sourceBones[i].name).transform;
+            _copies[i] = CreateChild(i < _sourceBones.Length ? "Sleeve " + _sourceBones[i].name :
+                i == _sourceBones.Length ? "Sleeve left elbow support" : "Sleeve right elbow support").transform;
         }
+        var bindposes = new Matrix4x4[_copies.Length];
+        Array.Copy(source.bindposes, bindposes, source.bindposes.Length);
+        bindposes[_sourceBones.Length] = bindposes[_sourceBones.Length + 1] = Matrix4x4.identity;
 
         for (var side = 0; side < 2; side++)
         {
@@ -102,6 +108,15 @@ internal sealed class PilotSleeves : IDisposable
             var hand = _arm[side, HandSlot];
             if (upper < 0 || fore < 0 || hand < 0)
                 continue;
+            for (var joint = 0; joint < 3; joint++)
+            {
+                var rest = source.bindposes[_arm[side, joint]].inverse;
+                _restPositions[side, joint] = rest.MultiplyPoint3x4(Vector3.zero);
+                _restRotations[side, joint] = Quaternion.LookRotation(rest.MultiplyVector(Vector3.forward), rest.MultiplyVector(Vector3.up));
+            }
+            var support = _sourceBones.Length + side;
+            bindposes[support] = Matrix4x4.TRS(_restPositions[side, ForearmSlot],
+                Quaternion.Slerp(_restRotations[side, UpperArmSlot], _restRotations[side, ForearmSlot], .5f), Vector3.one).inverse;
             var wrist = source.bindposes[hand].inverse;
             var frame = new PilotSleeveGeometry.Frame(SleeveVector(wrist.MultiplyPoint3x4(Vector3.zero)), SleeveVector(wrist.MultiplyVector(Vector3.right)), SleeveVector(wrist.MultiplyVector(Vector3.up)), SleeveVector(wrist.MultiplyVector(Vector3.forward)));
             var geometry = new PilotSleeveGeometry(points, sourceNormals, coordinates, skin, indices, upper, fore, hand, SleeveVector(source.bindposes[upper].inverse.MultiplyPoint3x4(Vector3.zero)), SleeveVector(source.bindposes[fore].inverse.MultiplyPoint3x4(Vector3.zero)), frame, metersPerUnit);
@@ -113,8 +128,12 @@ internal sealed class PilotSleeves : IDisposable
             mesh.vertices = Array.ConvertAll(geometry.Positions, UnityVector);
             mesh.normals = Array.ConvertAll(geometry.Normals, UnityVector);
             mesh.uv = Array.ConvertAll(geometry.UV, v => new Vector2(v.X, v.Y));
-            mesh.boneWeights = Array.ConvertAll(geometry.Weights, w => new BoneWeight { boneIndex0 = w.A, boneIndex1 = w.B, boneIndex2 = w.C, boneIndex3 = w.D, weight0 = w.X, weight1 = w.Y, weight2 = w.Z, weight3 = w.W });
-            mesh.bindposes = source.bindposes;
+            mesh.boneWeights = Array.ConvertAll(geometry.Weights, original =>
+            {
+                var w = original.SupportElbow(upper, fore, hand, support);
+                return new BoneWeight { boneIndex0 = w.A, boneIndex1 = w.B, boneIndex2 = w.C, boneIndex3 = w.D, weight0 = w.X, weight1 = w.Y, weight2 = w.Z, weight3 = w.W };
+            });
+            mesh.bindposes = bindposes;
             mesh.subMeshCount = geometry.Triangles.Length;
             for (var sub = 0; sub < geometry.Triangles.Length; sub++)
                 mesh.SetTriangles(geometry.Triangles[sub], sub);
@@ -122,6 +141,7 @@ internal sealed class PilotSleeves : IDisposable
             var go = CreateChild(side == 0 ? "Pilot left sleeve" : "Pilot right sleeve");
             go.layer = (int)LayerHelper.Layers.Cockpit;
             var renderer = go.AddComponent<SkinnedMeshRenderer>();
+            renderer.quality = SkinQuality.Bone4;
             renderer.sharedMesh = mesh;
             renderer.bones = _copies;
             renderer.rootBone = _copies[0];
@@ -159,11 +179,30 @@ internal sealed class PilotSleeves : IDisposable
         // The aircraft can outlive the native pilot renderer during teardown.
         if (_source == null)
             return;
-        for (var i = 0; i < _copies.Length; i++)
+        for (var i = 0; i < _sourceBones.Length; i++)
         {
             _copies[i].position = _sourceBones[i].position + shift;
             _copies[i].rotation = _sourceBones[i].rotation;
             _copies[i].localScale = _sourceBones[i].lossyScale;
+        }
+
+        // Keep the native shoulder anchor, but solve from an immutable arm
+        // reference. Native seated/head-turn animations must not become new
+        // wrist-roll origins or change the IK lengths on the next frame.
+        for (var side = 0; side < 2; side++)
+        {
+            var upper = _arm[side, UpperArmSlot];
+            if (upper < 0 || _sleeves[side] == null)
+                continue;
+            var shoulder = _copies[upper].position;
+            for (var joint = 0; joint < 3; joint++)
+            {
+                var copy = _copies[_arm[side, joint]];
+                copy.position = shoulder + _source.transform.TransformVector(_restPositions[side, joint] - _restPositions[side, UpperArmSlot]);
+                copy.rotation = _source.transform.rotation * _restRotations[side, joint];
+                copy.localScale = _source.transform.lossyScale;
+            }
+            UpdateElbowSupport(side);
         }
 
         foreach (var sleeve in _sleeves)
@@ -239,26 +278,37 @@ internal sealed class PilotSleeves : IDisposable
         var elbow = shoulder + direction * along + bend * height;
         if (!TrackedControllers.Finite(elbow))
             return 0;
-        var upperSwing = Quaternion.FromToRotation(forearm.position - shoulder, elbow - shoulder);
-        var foreSwing = Quaternion.FromToRotation(hand.position - forearm.position, target - elbow);
-        upper.rotation = upperSwing * upper.rotation;
+        var dorsalLocal = ArmPoseMath.HingeDorsal(side == 0, PoseVector(localDirection), bendLocal);
+        var dorsal = _root.TransformDirection(new Vector3(dorsalLocal.X, dorsalLocal.Y, dorsalLocal.Z));
+        var upperDirection = (elbow - shoulder).normalized;
+        var foreDirection = (target - elbow).normalized;
+        upper.rotation = Quaternion.LookRotation(dorsal, upperDirection);
         forearm.position = elbow;
-        forearm.rotation = foreSwing * forearm.rotation;
+        forearm.rotation = Quaternion.LookRotation(dorsal, foreDirection);
         // The selected pilot rig uses +Y along each arm bone and +Z dorsally.
         // Share cloth roll across both segments: rolling only the forearm
         // blended opposing rotations through the elbow and collapsed its mesh.
         // Axial rotation leaves the solved elbow/wrist positions unchanged.
         // Equal angles also remain continuous through +/-180 and full turns;
         // fractional upper-arm angles would introduce a new wraparound snap.
-        var foreDirection = (target - elbow).normalized;
         var roll = _armPoses[side].ForearmRoll(
             PoseVector(_root.InverseTransformDirection(foreDirection)),
             PoseVector(_root.InverseTransformDirection(forearm.forward)),
             PoseVector(_root.InverseTransformDirection(glove.up)));
-        upper.rotation = Quaternion.AngleAxis(roll, (elbow - shoulder).normalized) * upper.rotation;
+        upper.rotation = Quaternion.AngleAxis(roll, upperDirection) * upper.rotation;
         forearm.rotation = Quaternion.AngleAxis(roll, foreDirection) * forearm.rotation;
         hand.SetPositionAndRotation(target, Quaternion.LookRotation(glove.up, glove.forward));
+        UpdateElbowSupport(side);
         return reach.Opacity;
+    }
+
+    private void UpdateElbowSupport(int side)
+    {
+        var upper = _copies[_arm[side, UpperArmSlot]];
+        var forearm = _copies[_arm[side, ForearmSlot]];
+        var support = _copies[_sourceBones.Length + side];
+        support.SetPositionAndRotation(forearm.position, Quaternion.Slerp(upper.rotation, forearm.rotation, .5f));
+        support.localScale = forearm.localScale;
     }
 
     private static ArmPoseMath.Vector PoseVector(Vector3 value) => new(value.x, value.y, value.z);

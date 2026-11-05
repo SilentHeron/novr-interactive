@@ -33,6 +33,7 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<MotionControls.CockpitProfiles>();
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitHudWidgets>();
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitStatusSources>();
+        gameObject.AddComponent<VrUi.SpecialBehavior.VrDamageOverlay>();
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitMapWidget>();
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitMapInteraction>();
         gameObject.AddComponent<MotionControls.CockpitLayout>();

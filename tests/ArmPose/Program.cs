@@ -86,6 +86,11 @@ foreach (var command in new[] { 0f, .5f, 1f })
 }
 Check(mirrorGood, "Left/right collective geometry mirrors without handed elbow bias");
 Check(lowMidHigh, "Low/mid/high fallback collective poses preserve upward cuffs and their aligned elbow circle");
+var hinge = ArmPoseMath.HingeDorsal(true, direction, neutral);
+Check(hinge.Finite && Math.Abs(hinge.Length - 1) < .00001f && Math.Abs(V.Dot(hinge, direction)) < .00001f &&
+    Math.Abs(V.Dot(hinge, neutral)) < .00001f, "Shared arm reference is a finite normal to the solved elbow plane");
+Check((Mirror(hinge) - ArmPoseMath.HingeDorsal(false, Mirror(direction), Mirror(neutral))).Length < .00001f,
+    "The shared elbow frame mirrors between hands without reversing wrist-roll convention");
 
 var transitionSolver = new ArmPoseMath();
 var raisedCuff = neutral * -1;

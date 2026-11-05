@@ -9,7 +9,7 @@ using CommonUsages = UnityEngine.XR.CommonUsages;
 namespace NOVR.MotionControls;
 
 [DefaultExecutionOrder(-1200)]
-public sealed class MotionFlightController : MonoBehaviour
+public sealed partial class MotionFlightController : MonoBehaviour
 {
     internal static MotionFlightController? Instance
     {
@@ -29,8 +29,6 @@ public sealed class MotionFlightController : MonoBehaviour
     private float _throttleStartValue;
     private float _milPower = 1f, _afterburnerStart = 1f;
     private float _nextMilCheck;
-    private bool _hasVtol;
-    private TiltWingController? _tiltWing;
     private int _throttleZone;
     private float _nextThrottlePulse;
     private bool MilDetent => Settings.MilDetent.Value && !LiftCollective && _milPower < 1f;
@@ -109,21 +107,6 @@ public sealed class MotionFlightController : MonoBehaviour
     internal float Throttle
     {
         get; private set;
-    }
-    internal float VtolAxis
-    {
-        get
-        {
-            if (!FlightActive || !ThrottleHeld || !_throttleHand.Valid || !_throttleHand.HasAxis || !_hasVtol ||
-                CockpitMapInteraction.ReservesThumbstick(!Settings.LeftHanded.Value) ||
-                _aircraft?.IsAutoHoverEnabled() == true || Mathf.Abs(_throttleHand.Axis.y) < .35f)
-                return 0;
-            // Native relative-axis semantics: +/-1 steps the command and also
-            // tells the nozzle controller to leave its automatic operating mode.
-            if (_tiltWing != null)
-                HarmonyLib.AccessTools.Field(typeof(TiltWingController), "autoTilt")?.SetValue(_tiltWing, false);
-            return Mathf.Sign(_throttleHand.Axis.y);
-        }
     }
     private Vector3 StickPosition => HandedPosition(CockpitProfiles.StickPosition);
     private Vector3 ThrottlePosition => HandedPosition(CockpitProfiles.ThrottlePosition);
@@ -249,9 +232,7 @@ public sealed class MotionFlightController : MonoBehaviour
             _aircraft = aircraft;
             _milPower = MilitaryPower.Find(aircraft, out _afterburnerStart);
             _nextMilCheck = Time.unscaledTime + 1f;
-            _tiltWing = aircraft.GetComponentInChildren<TiltWingController>(true);
-            _hasVtol = _tiltWing != null || aircraft.GetComponentInChildren<DuctedThrustSystem>(true) != null ||
-                aircraft.GetComponentInChildren<SwivelDuctSystem>(true) != null;
+            ConfigureAuxiliaryControls(aircraft);
             try
             {
                 _visuals = new MotionControlVisuals(trackingRoot);

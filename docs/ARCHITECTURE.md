@@ -73,7 +73,10 @@ examples of state that must be discarded when its original context disappears.
 - [`RiggedGlove`](../NOVR/Hands/RiggedGlove.cs) blends visual attachments;
   `PilotHandVisuals` then stabilizes free hands and updates
   [`PilotSleeves`](../NOVR/Hands/PilotSleeves.cs), which owns the copied arm bones,
-  fitted meshes, sleeve solving and bounds. Its native pilot and hand-material
+  fitted meshes, sleeve solving and bounds. Immutable arm bind poses and private
+  elbow support bones keep native head-turn animation and deep bends from
+  twisting the cloth. Sleeve and hand-depth copies retain matching skinning
+  quality. Its native pilot and hand-material
   owner are borrowed; failed creation releases the partial sleeve resources.
   Snapped/smoothed
   meshes and capacitive finger animation must never feed back into contact tests,
@@ -106,6 +109,13 @@ mutation. Restore surviving sources on release, invalidation, context changes
 and disable/destroy; unwind partial attachment failures too. Release the map
 before native full-map transitions. Do not edit shared game materials or disable
 whole native HUD roots to hide one borrowed leaf.
+
+`NativeMessageFeedPatch` observes the native feed’s refresh into weakly keyed text
+snapshots. This avoids the installed TMP StringBuilder getter returning stale
+text on later reads. Native queues, filtering, delayed radio lines and expiry
+remain authoritative. Compact notification visibility is separate from ownership:
+opening a radial/menu/map must not reveal the original floating feed. Opening
+chat restores its native message history.
 
 `NativeVrUiRoot.Lifetime` releases discovery, callbacks and pending recenter input
 when its presentation ends, while suspended panels keep their selections.
