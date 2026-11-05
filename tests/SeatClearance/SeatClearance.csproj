@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../NOVR/Comfort/SeatClearance.cs" Link="SeatClearance.cs" />
     <Compile Include="../../NOVR/Comfort/SeatCandidatePolicy.cs" Link="SeatCandidatePolicy.cs" />
+    <Compile Include="../../NOVR/Comfort/SeatMaterialPolicy.cs" Link="SeatMaterialPolicy.cs" />
     <Compile Include="../../NOVR/Comfort/SeatClipGeometry.cs" Link="SeatClipGeometry.cs" />
   </ItemGroup>
 </Project>

@@ -88,6 +88,15 @@ cancel it before releasing borrowed UI. Seat calibration, recentering and tempor
 input suspension release contacts without discarding the preview. Rendering and
 gesture geometry remain in the main component; neither path owns profile storage.
 
+[`CockpitHudWidgets.Wrist`](../NOVR/VrUi/Widgets/CockpitHudWidgets.Wrist.cs) maps
+optional wrist attachments into that same cockpit space. It freezes a widget's
+wrist frame during a grab and rebases on release. Profile data retains independent
+cockpit and wrist poses; switching anchors never overwrites the cockpit placement.
+[`HudWidgetWristVisibility`](../NOVR/VrUi/Widgets/HudWidgetWristVisibility.cs) owns
+the glance dwell/fade. Tracking loss and the anchor hand's quick wheel override
+visibility immediately. Unsaved catalog defaults form three below-eye planes;
+their initial seated origin is still captured by `HudWidgetDefaultPlacement`.
+
 ## Borrowed native UI
 
 [`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) ranks eligible
@@ -190,7 +199,7 @@ content through the appropriate source owner. Catalog metadata does not acquire
 or restore native objects. Preserve saved IDs and test missing/destroyed sources:
 
 ```sh
-python tools/verify.py portable --suite hud-widgets --suite hud-widget-session --suite cockpit-status-sources
+python tools/verify.py portable --suite hud-widgets --suite wrist-widgets --suite hud-widget-session --suite cockpit-status-sources
 ```
 
 **Hand fit:** adjust [`Fs20HandPoses`](../NOVR/Hands/Fs20HandPoses.cs),

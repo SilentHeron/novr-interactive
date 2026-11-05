@@ -68,6 +68,18 @@ namespace UnityEngine
     public readonly record struct Quaternion(float x, float y, float z, float w)
     {
         public static Quaternion identity => new(0, 0, 0, 1);
+        public static Quaternion Euler(Vector3 angles)
+        {
+            var value = System.Numerics.Quaternion.CreateFromYawPitchRoll(
+                angles.y * MathF.PI / 180, angles.x * MathF.PI / 180, angles.z * MathF.PI / 180);
+            return new(value.X, value.Y, value.Z, value.W);
+        }
+        public static Vector3 operator *(Quaternion rotation, Vector3 point)
+        {
+            var value = System.Numerics.Vector3.Transform(new(point.x, point.y, point.z),
+                new System.Numerics.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+            return new(value.X, value.Y, value.Z);
+        }
     }
     public static class Mathf
     {
@@ -224,6 +236,9 @@ namespace NOVR.VrUi.SpecialBehavior
     }
     internal sealed partial class CockpitHudWidgets : MonoBehaviour
     {
+        private void ReleaseWristFrames()
+        {
+        }
         internal static CockpitHudWidgets? Instance
         {
             get; private set;

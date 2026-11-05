@@ -473,6 +473,104 @@ using (var f = new Fixture())
     Check(!image.enabled && native.NativeFade && gauge.transform.parent == manager.transform,
         "Context teardown during edit restores preview before returning native gauge");
 }
+// The fan gauge is authored far from a blank root: only its actual native
+// graphics should occupy the auxiliary frame, not the old HUD anchor position.
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauge = new GameObject("Ibis fan gauge", typeof(CustomAxis1Gauge));
+    gauge.transform.SetParent(manager.transform, false);
+    gauge.transform.sizeDelta = new Vector2(100, 100);
+    var arc = new GameObject("Fan arc", typeof(Image));
+    arc.transform.SetParent(gauge.transform, false);
+    arc.transform.localPosition = new Vector3(300, 0, 0);
+    arc.transform.sizeDelta = new Vector2(40, 170);
+    var label = new GameObject("FAN value", typeof(TextMeshProUGUI));
+    label.transform.SetParent(gauge.transform, false);
+    label.transform.localPosition = new Vector3(280, -105, 0);
+    label.transform.sizeDelta = new Vector2(100, 30);
+    label.GetComponent<TextMeshProUGUI>().text = "FANS 50%";
+    var unused = new GameObject("Dormant negative fan bar", typeof(Image));
+    unused.transform.SetParent(gauge.transform, false);
+    unused.transform.localPosition = new Vector3(-2000, 0, 0);
+    unused.SetActive(false);
+    var anchor = new GameObject("Empty layout anchor");
+    anchor.transform.SetParent(gauge.transform, false);
+    anchor.transform.sizeDelta = new Vector2(5000, 5000);
+    var hidden = new GameObject("Transparent authoring image", typeof(Image));
+    hidden.transform.SetParent(gauge.transform, false);
+    hidden.transform.sizeDelta = new Vector2(5000, 5000);
+    hidden.GetComponent<Image>().color = new Color(1, 1, 1, 0);
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    slot.sizeDelta = new Vector2(360, 220);
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    f.Tick();
+    var expected = 220f / 205;
+    Near(gauge.transform.localScale.x, expected, "Fan diagram fills frame height despite distant empty root, blank anchors and inactive alternatives");
+    Near(gauge.transform.localPosition.x, -280 * expected, "Fan diagram centers on actual graphics instead of original HUD origin");
+    Near(gauge.transform.localPosition.y, 17.5f * expected, "Entire fan label and diagram fit together");
+    Check(!unused.activeSelf && hidden.GetComponent<Image>().color.a == 0, "Fitting does not activate alternatives or recolor transparent native artwork");
+    var oldScale = gauge.transform.localScale;
+    unused.SetActive(true);
+    f.Tick();
+    Check(gauge.transform.localScale.x < oldScale.x, "Newly active native content is included at rediscovery");
+    unused.SetActive(false);
+    f.Tick();
+    Near(gauge.transform.localScale.x, expected, "Removing inactive alternate restores readable fit");
+    CockpitStatusSources.ReleaseAll();
+    Check(gauge.transform.parent == manager.transform && gauge.transform.localPosition == Vector3.zero && gauge.transform.localScale == Vector3.one,
+        "Readable auxiliary fitting restores the exact original empty-root transform");
+    Check(arc.transform.localPosition == new Vector3(300, 0, 0) && label.GetComponent<TextMeshProUGUI>().text == "FANS 50%",
+        "Native diagram offsets and label contents remain unmodified");
+}
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauge = new GameObject("Animated nozzle", typeof(NozzleGauge), typeof(Image));
+    gauge.transform.SetParent(manager.transform, false);
+    gauge.transform.sizeDelta = new Vector2(100, 100);
+    var diagram = new GameObject("Rotating nozzle diagram", typeof(Image));
+    diagram.transform.SetParent(gauge.transform, false);
+    diagram.transform.sizeDelta = new Vector2(80, 30);
+    var input = new GameObject("Input pivot");
+    input.transform.SetParent(gauge.transform, false);
+    input.transform.sizeDelta = new Vector2(1000, 1000);
+    var marker = new GameObject("Rotating input marker", typeof(Image));
+    marker.transform.SetParent(input.transform, false);
+    marker.transform.sizeDelta = new Vector2(10, 10);
+    marker.transform.localPosition = new Vector3(0, 45, 0);
+    var label = new GameObject("NOZZLE angle", typeof(TextMeshProUGUI));
+    label.transform.SetParent(gauge.transform, false);
+    label.transform.localPosition = new Vector3(0, -70, 0);
+    label.transform.sizeDelta = new Vector2(110, 25);
+    label.GetComponent<TextMeshProUGUI>().text = "NOZZLE 0°";
+    gauge.GetComponent<NozzleGauge>().SetParts(input.transform, diagram.transform, label.GetComponent<TextMeshProUGUI>());
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    slot.sizeDelta = new Vector2(360, 220);
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    f.Tick();
+    var pose = (gauge.transform.localScale, gauge.transform.localPosition);
+    Check(pose.Item1.x > 1, "Blank moving pivot does not shrink actual nozzle diagram");
+    for (var angle = -120; angle <= 120; angle += 15)
+    {
+        input.transform.localRotation = Quaternion.EulerZ(angle);
+        diagram.transform.localRotation = Quaternion.EulerZ(-angle);
+        label.GetComponent<TextMeshProUGUI>().text = $"NOZZLE {angle}°";
+        f.Tick();
+        Near(gauge.transform.localScale.x, pose.Item1.x, "Animated needle sweep never changes gauge scale");
+        Near(gauge.transform.localPosition.y, pose.Item2.y, "Animated needle sweep never recenters the frame");
+        Check(input.transform.localRotation == Quaternion.EulerZ(angle) && diagram.transform.localRotation == Quaternion.EulerZ(-angle),
+            "Native animated pivot rotations remain untouched while fitting");
+    }
+    var image = diagram.GetComponent<Image>();
+    image.enabled = false;
+    image.color = new Color(0, 1, 0, 0);
+    f.Tick();
+    Near(gauge.transform.localScale.x, pose.Item1.x, "Native faded diagram reserves the same fit for when it returns");
+    Check(!image.enabled && image.color.a == 0 && gauge.GetComponent<Image>().enabled, "Fitting respects faded animation state and preserves visible root artwork");
+}
 Console.WriteLine($"{count} source-linked cockpit widget lifecycle checks passed.");
 
 sealed class Fixture : IDisposable

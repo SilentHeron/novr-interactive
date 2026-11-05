@@ -10,6 +10,7 @@ public struct Vector2
         this.x = x;
         this.y = y;
     }
+    public static Vector2 operator *(Vector2 value, float factor) => new(value.x * factor, value.y * factor);
 }
 
 public struct Vector3
@@ -41,4 +42,5 @@ public struct Quaternion
     public static Vector3 operator *(Quaternion rotation, Vector3 point) => Vector3.From(N.Vector3.Transform(point.Numerics, rotation._value));
     internal static Quaternion Euler(float pitch, float yaw, float roll) =>
         new(N.Quaternion.CreateFromYawPitchRoll(yaw * MathF.PI / 180, pitch * MathF.PI / 180, roll * MathF.PI / 180));
+    internal static Quaternion Euler(Vector3 angles) => Euler(angles.x, angles.y, angles.z);
 }

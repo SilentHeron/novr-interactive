@@ -1,4 +1,5 @@
 using NOVR.VrUi.SpecialBehavior;
+using UnityEngine;
 
 internal static class HudWidgetGestureChecks
 {
@@ -59,43 +60,26 @@ internal static class HudWidgetGestureChecks
 
         // Current rendered footprints. Test every grab corner, not only the
         // panel center: both hands must be able to reach the resize affordance.
-        var footprints = new Dictionary<string, (float width, float height)>
-        {
-            ["weapons"] = (420, 170),
-            ["countermeasures"] = (260, 135),
-            ["power"] = (420, 80),
-            ["threats"] = (460, 190),
-            ["ew"] = (260, 260),
-            ["feed"] = (460, 270),
-            ["map"] = (300, 300),
-            ["damage"] = (300, 300),
-            ["objectives"] = (420, 150),
-            ["auxiliary"] = (300, 170)
-        };
         foreach (var pair in HudWidgetProfiles.FactoryDefaults)
         {
             var pose = pair.Value;
-            var size = footprints[pair.Key];
+            var size = HudWidgetCatalog.Get(pair.Key).Size;
+            var rotation = Quaternion.Euler(pose.Euler);
+            Vector3 Corner(int side, int vertical) => pose.Position + rotation *
+                new Vector3(side * size.x * HudWidgetCatalog.MetresPerPixel * pose.Scale * .5f,
+                    vertical * size.y * HudWidgetCatalog.MetresPerPixel * pose.Scale * .5f, 0);
             for (var corner = 0; corner < 4; corner++)
             {
-                var x = pose.Position.x + ((corner & 1) == 0 ? -1 : 1) * size.width * .0007f * pose.Scale * .5f;
-                var y = pose.Position.y + ((corner & 2) == 0 ? -1 : 1) * size.height * .0007f * pose.Scale * .5f;
-                var z = pose.Position.z;
-                var nearShoulderX = x < 0 ? -.16f : .16f;
-                var distance = Math.Sqrt((x - nearShoulderX) * (x - nearShoulderX) + (y + .18f) * (y + .18f) + z * z);
+                var point = Corner((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1);
+                var distance = (point - new Vector3(point.x < 0 ? -.16f : .16f, -.18f, 0)).magnitude;
                 check(distance <= .60, "Default " + pair.Key + " corner is within natural shoulder reach");
             }
             for (var diagonal = 0; diagonal < 2; diagonal++)
             {
-                var halfWidth = size.width * .0007f * pose.Scale * .5f;
-                var halfHeight = size.height * .0007f * pose.Scale * .5f;
-                var leftX = pose.Position.x - halfWidth + .16f;
-                var rightX = pose.Position.x + halfWidth - .16f;
-                var leftY = pose.Position.y + .18f + (diagonal == 0 ? -halfHeight : halfHeight);
-                var rightY = pose.Position.y + .18f + (diagonal == 0 ? halfHeight : -halfHeight);
-                var z = pose.Position.z;
-                check(Math.Sqrt(leftX * leftX + leftY * leftY + z * z) <= .60 &&
-                    Math.Sqrt(rightX * rightX + rightY * rightY + z * z) <= .60,
+                var left = Corner(-1, diagonal == 0 ? -1 : 1);
+                var right = Corner(1, diagonal == 0 ? 1 : -1);
+                check((left - new Vector3(-.16f, -.18f, 0)).magnitude <= .60 &&
+                    (right - new Vector3(.16f, -.18f, 0)).magnitude <= .60,
                     "Default " + pair.Key + " opposite-corner pair is reachable with left and right hands together");
             }
         }

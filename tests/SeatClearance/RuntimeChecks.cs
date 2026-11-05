@@ -34,6 +34,14 @@ internal static class RuntimeChecks
         var otherPilot = PilotWithSeat(); // Native multicrew pilots share one player.
         // A nested crew mesh must not inherit pilot[0]'s eligibility either.
         pilot.Filters = pilot.Filters.Concat(otherPilot.Filters).ToArray();
+        var glassFilter = new MeshFilter { ParentPilot = pilot }; // Deliberately misleading Seat/Seat names.
+        glassFilter.Renderer.Materials[0].name = "UtilityHelo1_glass_int";
+        glassFilter.Renderer.Materials[0].shader!.name = "Shader Graphs/canopy_int";
+        glassFilter.Renderer.Materials[0].renderQueue = 2950;
+        var mixedFilter = new MeshFilter { ParentPilot = pilot };
+        mixedFilter.sharedMesh!.subMeshCount = 2;
+        mixedFilter.Renderer.Materials.Add(glassFilter.Renderer.Materials[0]);
+        pilot.Filters = pilot.Filters.Concat(new[] { glassFilter, mixedFilter }).ToArray();
         var aircraft = new Aircraft { pilots = new[] { pilot, otherPilot } };
         GameManager.LocalAircraft = aircraft;
         var main = new Camera();
@@ -61,6 +69,8 @@ internal static class RuntimeChecks
             var seat = SeatClearanceMesh.Created.Single();
             Check(ReferenceEquals(seat.Filter, pilot.Filters[0]) && otherPilot.DiscoveryReads == 0,
                 "Only the first occupied pilot's own mesh is acquired, even when crew share player identity.");
+            Check(SeatClearanceMesh.Created.All(item => item.Filter != glassFilter && item.Filter != mixedFilter),
+                "Glass and mixed glass/seat renderers are rejected before any mesh lease is acquired.");
             Check(SeatClearance.Status == "Seat detected", "Supported discovery reports a recognized seat.");
             RenderPipelineManager.Begin(main);
             Check(seat.Applied && seat.PreparedCenter == main.transform.position && seat.PreparedRadius == .12f,

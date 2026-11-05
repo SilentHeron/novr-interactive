@@ -9,11 +9,12 @@ internal readonly struct HudWidgetTwoHandGesture
     private readonly Vector3 _offset, _span, _euler;
     private readonly Quaternion _leftRotation, _rightRotation;
     private readonly float _scale, _aspect;
-    private readonly bool _independentAxes;
+    private readonly bool _independentAxes, _preserveRoll;
 
     internal HudWidgetTwoHandGesture(HudWidgetPose pose, Vector3 left, Vector3 right, Quaternion leftRotation, Quaternion rightRotation, bool independentAxes = false)
     {
-        var inverse = Quaternion.Inverse(Quaternion.Euler(pose.Euler.x, pose.Euler.y, 0));
+        _preserveRoll = pose.Anchor != HudWidgetAnchor.Cockpit;
+        var inverse = Quaternion.Inverse(Quaternion.Euler(pose.Euler.x, pose.Euler.y, _preserveRoll ? pose.Euler.z : 0));
         _offset = inverse * (pose.Position - (left + right) * .5f);
         _span = inverse * (right - left);
         _euler = pose.Euler;
@@ -26,8 +27,8 @@ internal readonly struct HudWidgetTwoHandGesture
 
     internal HudWidgetPose Move(HudWidgetPose current, Vector3 left, Vector3 right, Quaternion leftRotation, Quaternion rightRotation)
     {
-        var euler = HudWidgetRotationMath.PairDrag(_euler, _leftRotation, _rightRotation, leftRotation, rightRotation, current.Euler);
-        var rotation = Quaternion.Euler(euler.x, euler.y, 0);
+        var euler = HudWidgetRotationMath.PairDrag(_euler, _leftRotation, _rightRotation, leftRotation, rightRotation, current.Euler, _preserveRoll);
+        var rotation = Quaternion.Euler(euler.x, euler.y, _preserveRoll ? euler.z : 0);
         var span = Quaternion.Inverse(rotation) * (right - left);
         if (_independentAxes)
         {

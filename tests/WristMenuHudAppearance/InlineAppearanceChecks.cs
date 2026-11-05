@@ -69,7 +69,7 @@ internal static class InlineAppearanceChecks
         Touch(other, other.PencilCenter);
         Check(!other.IsOpen, "Touching the pencil again closes the popup after withdrawal");
         Touch(other, other.PencilCenter);
-        var close = other.SliderCenter + new Vector2(126, 56);
+        var close = other.SliderCenter + new Vector2(156, 71);
         Touch(other, close);
         Check(!other.IsOpen, "Direct touch of close icon closes popup");
         Touch(other, other.PencilCenter);
@@ -91,7 +91,7 @@ internal static class InlineAppearanceChecks
         Touch(editor, editor.PencilCenter);
         editor.Dispose();
         Check(!editor.IsOpen && !editor.HitTest(Point(editor.PencilCenter, 0), pixel), "Disposal clears global popup ownership and all contacts");
-        return checks + VisibilityChecks() + ResizeChecks() + HoverOwnershipChecks();
+        return checks + VisibilityChecks() + ResizeChecks() + HoverOwnershipChecks() + AnchorChecks();
 
         Vector3 Point(Vector2 at, float depth) => new(at.x, at.y, -depth / pixel);
         void Hand(Vector2 at, float depth) => editor.UpdateHand(0, Point(at, depth), true, pixel, device);
@@ -161,6 +161,48 @@ internal static class InlineAppearanceChecks
         }
     }
 
+    private static int AnchorChecks()
+    {
+        var checks = 0;
+        const float pixel = .0007f * .6f;
+        var changes = new List<HudWidgetAnchor>();
+        var root = (RectTransform)new GameObject("Wrist card").transform;
+        using var editor = new CockpitWidgetAppearanceEditor(root, new Vector2(420, 170), _ => { }, _ => { }, changes.Add);
+        editor.SetState(true, true, 0);
+        Touch(editor.PencilCenter);
+        Check(editor.IsOpen, "Anchor selector is available directly from the widget pencil");
+        Hand(editor.AnchorCenter(1), .001f);
+        Check(changes.Count == 0, "New attachment controls never activate under an existing finger");
+        Touch(editor.AnchorCenter(1));
+        Check(changes.SequenceEqual(new[] { HudWidgetAnchor.LeftWrist }), "Deliberate left-wrist touch changes attachment once");
+        for (var i = 0; i < 10; i++)
+            Hand(editor.AnchorCenter(1), .001f);
+        Check(changes.Count == 1, "Holding a finger on attachment does not repeat or cycle");
+        Time.unscaledTime += .4f;
+        Touch(editor.AnchorCenter(2));
+        Check(changes.Last() == HudWidgetAnchor.RightWrist && changes.Count == 2, "Separate right-wrist option is directly selectable");
+        Time.unscaledTime += .4f;
+        Touch(editor.AnchorCenter(0));
+        Check(changes.Last() == HudWidgetAnchor.Cockpit && changes.Count == 3, "Cockpit option restores a fixed attachment");
+        editor.SetState(false, true, 0);
+        Touch(editor.AnchorCenter(1));
+        Check(changes.Count == 3, "Attachment cannot change outside edit mode");
+        return checks;
+        void Hand(Vector2 at, float depth) => editor.UpdateHand(0, new Vector3(at.x, at.y, -depth / pixel), true, pixel, new InputDevice(1));
+        void Touch(Vector2 at)
+        {
+            Hand(at, .04f);
+            Hand(at, .04f);
+            Hand(at, .001f);
+        }
+        void Check(bool ok, string label)
+        {
+            if (!ok)
+                throw new Exception(label);
+            checks++;
+        }
+    }
+
     private static int ResizeChecks()
     {
         const float pixel = .0007f * .8f;
@@ -175,7 +217,7 @@ internal static class InlineAppearanceChecks
             editor.SetSize(size);
             Check(editor.PencilCenter.y == size.y * .5f + 62 && editor.EyeCenter.y == editor.PencilCenter.y,
                 "Pencil and eye move above the reshaped map edge");
-            Check(editor.SliderCenter.y == -size.y * .5f - 115, "Opacity popup contact follows the lower map edge");
+            Check(editor.SliderCenter.y == -size.y * .5f - 130, "Opacity popup contact follows the lower map edge");
             var pencil = (RectTransform)root.children.Single(x => x.gameObject.Name == "Edit widget appearance");
             var eye = (RectTransform)root.children.Single(x => x.gameObject.Name == "Show or hide widget");
             Check(pencil.anchoredPosition.y == editor.PencilCenter.y && eye.anchoredPosition.y == editor.EyeCenter.y,
@@ -186,7 +228,7 @@ internal static class InlineAppearanceChecks
             Hand(editor.PencilCenter, .001f);
             Check(editor.IsOpen, "Moved pencil opens the appearance popup");
             var popup = (RectTransform)root.children.Single(x => x.gameObject.Name == "Widget backplate editor");
-            Check(popup.anchoredPosition.y == -size.y * .5f - 110, "Rendered popup follows its new contact region");
+            Check(popup.anchoredPosition.y == -size.y * .5f - 155, "Rendered popup follows its new contact region");
             Hand(editor.SliderCenter, .04f);
             Hand(editor.SliderCenter, .04f);
             Hand(editor.SliderCenter, .001f);

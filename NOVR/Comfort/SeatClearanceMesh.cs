@@ -17,6 +17,7 @@ internal sealed class SeatClearanceMesh : IDisposable
     private readonly MeshFilter _filter;
     private readonly MeshRenderer _renderer;
     private readonly Mesh _original, _cut;
+    private readonly List<Material> _materials = new();
     private readonly Vector3[] _positions, _normals;
     private readonly Vector4[] _tangents;
     private readonly Color[] _colors;
@@ -54,6 +55,8 @@ internal sealed class SeatClearanceMesh : IDisposable
         _filter = filter;
         _renderer = renderer;
         _original = filter.sharedMesh;
+        if (!MaterialsEligible())
+            throw new InvalidOperationException("Seat contains non-opaque or ambiguous materials.");
         var source = NativeCockpitMesh.ReadableCopy(_original);
         try
         {
@@ -99,7 +102,15 @@ internal sealed class SeatClearanceMesh : IDisposable
 
     internal bool Available => !_disposed && _filter != null && _renderer != null &&
         _original != null && _renderer.enabled && _renderer.gameObject.activeInHierarchy &&
-        (_filter.sharedMesh == _original || _filter.sharedMesh == _cut);
+        (_filter.sharedMesh == _original || _filter.sharedMesh == _cut) && MaterialsEligible();
+
+    private bool MaterialsEligible()
+    {
+        // A damage skin or another mod may replace materials after discovery.
+        // Recheck without cloning/editing a material or allocating per frame.
+        _renderer.GetSharedMaterials(_materials);
+        return SeatMaterialPolicy.AreEligible(_materials, _original.subMeshCount);
+    }
 
     internal void Prepare(Vector3 headWorld, float radius)
     {
@@ -123,7 +134,9 @@ internal sealed class SeatClearanceMesh : IDisposable
         var basisChanged = (x - _basisX).sqrMagnitude + (y - _basisY).sqrMagnitude + (z - _basisZ).sqrMagnitude > 1e-10f;
         if (!_prepared || basisChanged)
         {
-            _basisX = x; _basisY = y; _basisZ = z;
+            _basisX = x;
+            _basisY = y;
+            _basisZ = z;
             _metricMin = new NumericsVector(float.PositiveInfinity);
             _metricMax = new NumericsVector(float.NegativeInfinity);
             for (var i = 0; i < _positions.Length; i++)
@@ -146,7 +159,9 @@ internal sealed class SeatClearanceMesh : IDisposable
         if (_prepared && !basisChanged && radius == _lastRadius &&
             NumericsVector.DistanceSquared(head, _lastHead) < .00000025f)
             return;
-        _lastHead = head; _lastRadius = radius; _prepared = true;
+        _lastHead = head;
+        _lastRadius = radius;
+        _prepared = true;
         _hasCut = false;
         if (NumericsVector.DistanceSquared(head, NumericsVector.Min(_metricMax, NumericsVector.Max(_metricMin, head))) >= radius * radius)
             return;
@@ -160,11 +175,15 @@ internal sealed class SeatClearanceMesh : IDisposable
             var output = _indices[group];
             for (var i = 0; i < triangles.Length; i += 3)
             {
-                var a = triangles[i]; var b = triangles[i + 1]; var c = triangles[i + 2];
+                var a = triangles[i];
+                var b = triangles[i + 1];
+                var c = triangles[i + 2];
                 if (_triangleBounds[group][i / 3].Outside(head, clipRadius) ||
                     !_clipper.ClipTriangle(_metricVertices[a], _metricVertices[b], _metricVertices[c], head, clipRadius, _polygon))
                 {
-                    output.Add(a); output.Add(b); output.Add(c);
+                    output.Add(a);
+                    output.Add(b);
+                    output.Add(c);
                     continue;
                 }
                 _hasCut = true;
@@ -193,11 +212,15 @@ internal sealed class SeatClearanceMesh : IDisposable
             return;
         _cut.Clear();
         _cut.SetVertices(_vertices);
-        if (_normals.Length == _positions.Length) _cut.SetNormals(_outputNormals);
-        if (_tangents.Length == _positions.Length) _cut.SetTangents(_outputTangents);
-        if (_colors.Length == _positions.Length) _cut.SetColors(_outputColors);
+        if (_normals.Length == _positions.Length)
+            _cut.SetNormals(_outputNormals);
+        if (_tangents.Length == _positions.Length)
+            _cut.SetTangents(_outputTangents);
+        if (_colors.Length == _positions.Length)
+            _cut.SetColors(_outputColors);
         for (var channel = 0; channel < 8; channel++)
-            if (_sourceUv[channel].Count == _positions.Length) _cut.SetUVs(channel, _uv[channel]);
+            if (_sourceUv[channel].Count == _positions.Length)
+                _cut.SetUVs(channel, _uv[channel]);
         _cut.subMeshCount = _triangles.Length;
         for (var group = 0; group < _triangles.Length; group++)
             _cut.SetTriangles(_indices[group], group, false);
@@ -213,12 +236,21 @@ internal sealed class SeatClearanceMesh : IDisposable
         !(float.IsNaN(v.x) || float.IsInfinity(v.x) || float.IsNaN(v.y) || float.IsInfinity(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.z));
     private void ResetBuffers()
     {
-        _vertices.Clear(); _vertices.AddRange(_positions);
-        _outputNormals.Clear(); _outputNormals.AddRange(_normals);
-        _outputTangents.Clear(); _outputTangents.AddRange(_tangents);
-        _outputColors.Clear(); _outputColors.AddRange(_colors);
-        for (var i = 0; i < 8; i++) { _uv[i].Clear(); _uv[i].AddRange(_sourceUv[i]); }
-        foreach (var indices in _indices) indices.Clear();
+        _vertices.Clear();
+        _vertices.AddRange(_positions);
+        _outputNormals.Clear();
+        _outputNormals.AddRange(_normals);
+        _outputTangents.Clear();
+        _outputTangents.AddRange(_tangents);
+        _outputColors.Clear();
+        _outputColors.AddRange(_colors);
+        for (var i = 0; i < 8; i++)
+        {
+            _uv[i].Clear();
+            _uv[i].AddRange(_sourceUv[i]);
+        }
+        foreach (var indices in _indices)
+            indices.Clear();
     }
     internal void Apply()
     {
@@ -233,7 +265,8 @@ internal sealed class SeatClearanceMesh : IDisposable
     }
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         Restore();
         _disposed = true;
         Object.Destroy(_cut);

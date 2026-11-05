@@ -128,14 +128,14 @@ namespace UnityEngine
             ? (Vector3)(p.rect.min + p.rect.size * rect.anchorMin) : Vector3.zero;
         public Vector3 TransformPoint(Vector3 point)
         {
-            var result = localPosition + Offset + point * localScale;
+            var result = localPosition + Offset + localRotation.Rotate(point * localScale);
             return parent == null ? result : parent.TransformPoint(result);
         }
         public Vector3 InverseTransformPoint(Vector3 point)
         {
             if (parent != null)
                 point = parent.InverseTransformPoint(point);
-            return (point - localPosition - Offset) / localScale;
+            return localRotation.InverseRotate(point - localPosition - Offset) / localScale;
         }
     }
     public sealed class RectTransform : Transform
@@ -186,6 +186,22 @@ namespace UnityEngine
     public readonly record struct Quaternion(float x, float y, float z, float w)
     {
         public static Quaternion identity => new(0, 0, 0, 1);
+        public static Quaternion EulerZ(float degrees)
+        {
+            var half = degrees * MathF.PI / 360;
+            return new(0, 0, MathF.Sin(half), MathF.Cos(half));
+        }
+        internal Vector3 Rotate(Vector3 point)
+        {
+            var p = System.Numerics.Vector3.Transform(new(point.x, point.y, point.z), new System.Numerics.Quaternion(x, y, z, w));
+            return new(p.X, p.Y, p.Z);
+        }
+        internal Vector3 InverseRotate(Vector3 point)
+        {
+            var q = System.Numerics.Quaternion.Inverse(new(x, y, z, w));
+            var p = System.Numerics.Vector3.Transform(new(point.x, point.y, point.z), q);
+            return new(p.X, p.Y, p.Z);
+        }
     }
     public readonly record struct Rect(Vector2 min, Vector2 size)
     {
@@ -207,6 +223,9 @@ namespace UnityEngine
     public static class Mathf
     {
         public static float Min(float a, float b) => Math.Min(a, b);
+        public static float Max(float a, float b) => Math.Max(a, b);
+        public static float Abs(float value) => Math.Abs(value);
+        public static float Sqrt(float value) => MathF.Sqrt(value);
     }
     public record struct Color(float r, float g, float b, float a);
     public sealed class Font : Object
@@ -239,7 +258,7 @@ namespace UnityEngine.UI
     public class Graphic : UnityEngine.Component
     {
         public bool enabled = true, raycastTarget = true;
-        public UnityEngine.Color color;
+        public UnityEngine.Color color = new(1, 1, 1, 1);
         public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;
         public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
         public UnityEngine.CanvasRenderer canvasRenderer => GetComponent<UnityEngine.CanvasRenderer>();
@@ -310,6 +329,16 @@ public sealed class HUDAppManager : UnityEngine.MonoBehaviour
 }
 public sealed class NozzleGauge : HUDApp
 {
+    private UnityEngine.Transform? inputPivot, nozzleIcon;
+    private UnityEngine.UI.Image[] fadeImages = Array.Empty<UnityEngine.UI.Image>();
+    private TMPro.TextMeshProUGUI? label;
+    internal void SetParts(UnityEngine.Transform input, UnityEngine.Transform diagram, TMPro.TextMeshProUGUI text)
+    {
+        inputPivot = input;
+        nozzleIcon = diagram;
+        label = text;
+        fadeImages = new[] { diagram.GetComponent<UnityEngine.UI.Image>() };
+    }
 }
 public sealed class WingAngleGauge : HUDApp
 {

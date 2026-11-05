@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Status/CockpitStatusSources.cs" Link="CockpitStatusSources.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/AuxiliaryGaugeBounds.cs" Link="AuxiliaryGaugeBounds.cs" />
     <Compile Include="../../NOVR/VrUi/Status/CockpitAuxiliarySources.cs" Link="CockpitAuxiliarySources.cs" />
     <Compile Include="../../NOVR/VrUi/Status/WingGaugeEditPreview.cs" Link="WingGaugeEditPreview.cs" />
     <Compile Include="../../NOVR/VrUi/Status/CockpitInstructionSources.cs" Link="CockpitInstructionSources.cs" />

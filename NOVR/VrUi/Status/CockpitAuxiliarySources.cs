@@ -73,7 +73,7 @@ internal sealed class CockpitAuxiliarySources
                 go.layer = content.gameObject.layer;
                 var slot = (RectTransform)go.transform;
                 slot.SetParent(content, false);
-                _pending.Add(new Borrowed(app, slot, new CockpitStatusSources.Lease(source, slot, false, preserveRootImage: true)));
+                _pending.Add(new Borrowed(app, slot, new CockpitStatusSources.Lease(source, slot, false, preserveRootImage: true, auxiliary: app)));
             }
             // Capture every original sibling index before moving any gauge.
             foreach (var item in _pending)

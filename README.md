@@ -54,9 +54,11 @@ For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled
 
 For a physical HOTAS, turn **View → Flight controls → Motion controls** off and bind your hardware in the game's control settings. HUD widgets and layout editing remain available; editing keeps virtual flight controls off.
 
+**Wrist widgets:** in Edit layout, touch a panel's pencil and choose **Left wrist** or **Right wrist**. Turn the wrist toward your view to reveal it; looking away or opening that hand's quick wheel hides it. Hiding a wrist map also ends map control and recenters it. Choose **Cockpit** to restore its cockpit position, then save the aircraft slot. Unsaved layouts start in left, center and right groups below eye level.
+
 **Auxiliary controls:** the aircraft's complete native nozzle, wing-sweep or fan gauge is a movable HUD frame, including its diagram. Adjust it through **View → Edit layout**. Only the fitted gauges are shown.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.19.md)
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.20.md)
 
 ## Build
 

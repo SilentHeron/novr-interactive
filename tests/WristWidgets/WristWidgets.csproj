@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetWristVisibility.cs" Link="HudWidgetWristVisibility.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/CockpitHudWidgets.Wrist.cs" Link="CockpitHudWidgets.Wrist.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetCatalog.cs" Link="HudWidgetCatalog.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetShape.cs" Link="HudWidgetShape.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetAngleMath.cs" Link="HudWidgetAngleMath.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/CockpitWidgetSpace.cs" Link="CockpitWidgetSpace.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetRotationMath.cs" Link="HudWidgetRotationMath.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetTwoHandGesture.cs" Link="HudWidgetTwoHandGesture.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetGestureMath.cs" Link="HudWidgetGestureMath.cs" />
+    <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
+  </ItemGroup>
+</Project>

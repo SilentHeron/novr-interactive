@@ -24,6 +24,7 @@ namespace UnityEngine
     {
         internal string name = "Seat";
         internal int vertexCount = 24;
+        internal int subMeshCount = 1;
         internal Bounds bounds = new(new(.5f, 1f, .4f));
     }
     internal readonly record struct Bounds(Vector3 size);
@@ -39,10 +40,33 @@ namespace UnityEngine
     }
     internal sealed class MeshRenderer
     {
+        internal readonly List<Material> Materials = new() { new() };
+        internal void GetSharedMaterials(List<Material> target)
+        {
+            target.Clear();
+            target.AddRange(Materials);
+        }
         internal bool isPartOfStaticBatch
         {
             get; set;
         }
+    }
+    internal sealed class Shader
+    {
+        internal string name = "Universal Render Pipeline/Lit";
+    }
+    internal sealed class Material
+    {
+        internal string name = "Seats";
+        internal Shader? shader = new();
+        internal int renderQueue = 2000;
+        internal string RenderType = "Opaque";
+        internal readonly Dictionary<string, float> Floats = new() { ["_Surface"] = 0 };
+        internal readonly HashSet<string> Keywords = new();
+        internal string GetTag(string tag, bool searchFallback, string defaultValue) => RenderType;
+        internal bool HasProperty(string property) => Floats.ContainsKey(property);
+        internal float GetFloat(string property) => Floats[property];
+        internal bool IsKeywordEnabled(string keyword) => Keywords.Contains(keyword);
     }
     internal sealed class SkinnedMeshRenderer;
     internal enum CameraType

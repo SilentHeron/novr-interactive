@@ -154,7 +154,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
             }
         }
         if (CockpitHudWidgets.CurrentAircraft == _aircraft && CockpitHudWidgets.Owns("feed") && CockpitHudWidgets.Instance != null)
-            _feedPose = CockpitHudWidgets.Instance.GetPose("feed");
+            _feedPose = CockpitHudWidgets.Instance.GetCockpitPose("feed");
         var chat = _messages != null ? ChatOf(_messages) : null;
         var chatOpen = chat != null && chat.gameObject.activeSelf;
         var unobstructed = NOUIManager.I != null && APIBus.MainCamera != null &&

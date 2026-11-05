@@ -11,11 +11,19 @@ namespace NOVR.VrUi.SpecialBehavior;
 // Persisted coordinates use the original pilot viewpoint. Factory offsets are
 // first centered on the tracked seated user; the result is then aircraft-fixed.
 // Later seat adjustments and recentering never translate a saved layout.
+internal enum HudWidgetAnchor
+{
+    Cockpit, LeftWrist, RightWrist
+}
+
 internal struct HudWidgetPose
 {
     internal Vector3 Position, Euler;
     internal float Scale, Opacity, Background, Aspect;
     internal bool Visible;
+    internal HudWidgetAnchor Anchor;
+    internal Vector3 WristPosition, WristEuler;
+    internal float WristScale;
     internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true, float aspect = 1)
     {
         Position = position;
@@ -25,6 +33,9 @@ internal struct HudWidgetPose
         Background = background;
         Visible = visible;
         Aspect = aspect;
+        Anchor = HudWidgetAnchor.Cockpit;
+        WristPosition = WristEuler = Vector3.zero;
+        WristScale = .6f;
     }
 }
 
@@ -137,7 +148,7 @@ internal sealed class HudWidgetProfiles
         var factory = FactoryDefaults;
         foreach (var id in Ids)
             entries.Add(id, _config.Bind(section, id, id == "auxiliary" ? "" : Encode(factory[id]),
-                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio. Managed by View > Edit layout."));
+                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio, anchor, wrist-local x/y/z, pitch/yaw/roll and scale. Managed by View > Edit layout."));
         MigrateUntouchedDefaults(section, entries);
         return entries;
     }
@@ -193,6 +204,12 @@ internal sealed class HudWidgetProfiles
         HudWidgetShape.Normalize(ref pose.Scale, ref pose.Aspect, fallback.Scale);
         pose.Opacity = Bound(pose.Opacity, MinOpacity, 1, fallback.Opacity);
         pose.Background = Bound(pose.Background, 0, 1, fallback.Background);
+        if (pose.Anchor < HudWidgetAnchor.Cockpit || pose.Anchor > HudWidgetAnchor.RightWrist)
+            pose.Anchor = HudWidgetAnchor.Cockpit;
+        pose.WristPosition = new Vector3(Bound(pose.WristPosition.x, -.6f, .6f, 0),
+            Bound(pose.WristPosition.y, -.6f, .6f, 0), Bound(pose.WristPosition.z, -.6f, .6f, 0));
+        pose.WristEuler = new Vector3(Angle(pose.WristEuler.x, 0), Angle(pose.WristEuler.y, 0), Angle(pose.WristEuler.z, 0));
+        pose.WristScale = Bound(pose.WristScale, MinScale, MaxScale, .6f);
         return pose;
     }
     private static float Bound(float value, float min, float max, float fallback) =>
@@ -203,11 +220,16 @@ internal sealed class HudWidgetProfiles
         p.Position.x.ToString("R", Invariant), p.Position.y.ToString("R", Invariant), p.Position.z.ToString("R", Invariant),
         p.Euler.x.ToString("R", Invariant), p.Euler.y.ToString("R", Invariant), p.Euler.z.ToString("R", Invariant),
         p.Scale.ToString("R", Invariant), p.Opacity.ToString("R", Invariant), p.Background.ToString("R", Invariant), p.Visible ? "1" : "0" }) +
-        (p.Aspect == 1 ? "" : "|" + p.Aspect.ToString("R", Invariant));
+        (p.Anchor == HudWidgetAnchor.Cockpit && p.WristPosition.Equals(Vector3.zero) && p.WristEuler.Equals(Vector3.zero) && p.WristScale == .6f
+            ? p.Aspect == 1 ? "" : "|" + p.Aspect.ToString("R", Invariant)
+            : "|" + string.Join("|", new[] { p.Aspect.ToString("R", Invariant), ((int)p.Anchor).ToString(Invariant),
+                p.WristPosition.x.ToString("R", Invariant), p.WristPosition.y.ToString("R", Invariant), p.WristPosition.z.ToString("R", Invariant),
+                p.WristEuler.x.ToString("R", Invariant), p.WristEuler.y.ToString("R", Invariant), p.WristEuler.z.ToString("R", Invariant),
+                p.WristScale.ToString("R", Invariant) }));
     private static HudWidgetPose Decode(string id, string text, HudWidgetPose fallback)
     {
         var parts = (text ?? "").Split('|');
-        if (parts.Length != 10 && parts.Length != 11)
+        if (parts.Length != 10 && parts.Length != 11 && parts.Length != 19)
             return fallback;
         var values = new float[9];
         for (var i = 0; i < values.Length; i++)
@@ -216,10 +238,26 @@ internal sealed class HudWidgetProfiles
         if (parts[9] != "0" && parts[9] != "1")
             return fallback;
         var aspect = 1f;
-        if (parts.Length == 11 && !float.TryParse(parts[10], NumberStyles.Float, Invariant, out aspect))
+        if (parts.Length >= 11 && !float.TryParse(parts[10], NumberStyles.Float, Invariant, out aspect))
             aspect = 1;
-        return Sanitize(id, new HudWidgetPose(new Vector3(values[0], values[1], values[2]), new Vector3(values[3], values[4], values[5]),
-            values[6], values[7], values[8], parts[9] == "1", aspect));
+        var pose = new HudWidgetPose(new Vector3(values[0], values[1], values[2]), new Vector3(values[3], values[4], values[5]),
+            values[6], values[7], values[8], parts[9] == "1", aspect);
+        if (parts.Length == 19)
+        {
+            // A malformed attachment never discards the older cockpit pose.
+            var wrist = new float[7];
+            var valid = int.TryParse(parts[11], NumberStyles.Integer, Invariant, out var anchor) && anchor >= 0 && anchor <= 2;
+            for (var i = 0; i < wrist.Length; i++)
+                valid &= float.TryParse(parts[12 + i], NumberStyles.Float, Invariant, out wrist[i]);
+            if (valid)
+            {
+                pose.Anchor = (HudWidgetAnchor)anchor;
+                pose.WristPosition = new Vector3(wrist[0], wrist[1], wrist[2]);
+                pose.WristEuler = new Vector3(wrist[3], wrist[4], wrist[5]);
+                pose.WristScale = wrist[6];
+            }
+        }
+        return Sanitize(id, pose);
     }
     private static string Section(string key)
     {

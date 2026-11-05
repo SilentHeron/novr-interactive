@@ -138,6 +138,9 @@ internal sealed partial class CockpitHudWidgets
             !GameManager.GetLocalAircraft(out var aircraft) || aircraft != _aircraft || CockpitProfiles.Instance == null ||
             _slot != CockpitProfiles.ActiveSlot)
             return false;
+        // Rebase any wrist card still held in its frozen edit frame before
+        // committing the profile, including saves issued from the View menu.
+        ReleaseHands();
         var stick = CockpitLayout.StickPreview ?? CockpitProfiles.StickPosition;
         var throttle = CockpitLayout.ThrottlePreview ?? CockpitProfiles.ThrottlePosition;
         if (!CockpitProfiles.Instance.SaveSlot(slot, CockpitProfiles.SeatOffset, stick, throttle))
@@ -210,6 +213,7 @@ internal sealed partial class CockpitHudWidgets
             hand.Corner = -1;
             hand.Gate.Reset();
         }
+        ReleaseWristFrames();
         _hover[0] = _hover[1] = null;
         _resizing = null;
         _handRotations[0] = _handRotations[1] = Quaternion.identity;

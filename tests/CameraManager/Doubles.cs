@@ -1,5 +1,10 @@
 namespace UnityEngine
 {
+    [AttributeUsage(AttributeTargets.Class)]
+    internal sealed class DefaultExecutionOrder(int order) : Attribute
+    {
+        internal int Order => order;
+    }
     public class Object
     {
         internal bool Destroyed;
@@ -23,6 +28,11 @@ namespace UnityEngine
     public class MonoBehaviour : Component
     {
         public bool enabled = true;
+        public bool isActiveAndEnabled => enabled && gameObject.active;
+    }
+    public enum StereoTargetEyeMask
+    {
+        None, Both
     }
     public sealed class Camera : MonoBehaviour
     {
@@ -53,6 +63,8 @@ namespace UnityEngine
             return n;
         }
         public float fieldOfView = 60;
+        public float nearClipPlane = .2f;
+        public StereoTargetEyeMask stereoTargetEye = StereoTargetEyeMask.Both;
         public void CopyFrom(Camera camera) => fieldOfView = camera.fieldOfView;
     }
     public sealed class AudioListener : MonoBehaviour
@@ -129,6 +141,25 @@ namespace UnityEngine
             return n;
         }
     }
+}
+namespace UnityEngine.XR
+{
+    internal static class XRSettings
+    {
+        internal static bool enabled;
+    }
+}
+internal enum CameraMode
+{
+    cockpit, external
+}
+internal static class CameraStateManager
+{
+    internal static CameraMode cameraMode;
+}
+internal static class APIBus
+{
+    internal static UnityEngine.Camera? MainCamera;
 }
 namespace UnityEngine.Rendering.Universal
 {

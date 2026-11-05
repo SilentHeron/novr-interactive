@@ -12,12 +12,17 @@ namespace NOVR.VrUi.SpecialBehavior;
 [DefaultExecutionOrder(-1260)]
 internal sealed partial class CockpitHudWidgets : MonoBehaviour
 {
-    private const float PixelSize = .0007f;
+    private const float PixelSize = HudWidgetCatalog.MetresPerPixel;
     private sealed class Widget
     {
         internal RectTransform Root = null!, Content = null!;
         internal Canvas Canvas = null!;
-        internal CanvasGroup Group = null!;
+        internal CanvasGroup Group = null!, RootGroup = null!;
+        internal readonly HudWidgetWristVisibility WristVisibility = new();
+        internal bool WristFrozen;
+        internal Vector3 WristOrigin;
+        internal Quaternion WristRotation;
+        internal float WristLastTime;
         internal Image Background = null!;
         internal CockpitWidgetAppearanceEditor Appearance = null!;
         internal readonly Image[] Corners = new Image[4];
@@ -66,11 +71,14 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         var drag = self._hands[left ? 0 : 1];
         if (drag.Id == null || drag.Corner < 0 || !drag.Gate.Held || !self._poses.TryGetValue(drag.Id, out var pose))
             return false;
+        pose = self.ActivePose(drag.Id);
+        if (!self.TryWidgetFrame(drag.Id, out var origin, out var frame))
+            return false;
         var half = Size(drag.Id) * (PixelSize * pose.Scale * .5f);
         var corner = new Vector3((drag.Corner & 1) == 0 ? -half.x : half.x, (drag.Corner & 2) == 0 ? -half.y : half.y, 0);
         var rotation = Quaternion.Euler(pose.Euler);
-        worldPosition = CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, pose.Position + rotation * corner);
-        worldRotation = eye.rotation * rotation * drag.CornerRotation;
+        worldPosition = CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, origin + frame * (pose.Position + rotation * corner));
+        worldRotation = eye.rotation * frame * rotation * drag.CornerRotation;
         return true;
     }
     internal string SelectedId { get; private set; } = "weapons";
@@ -88,7 +96,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     }
     private void OnEnable() => Application.onBeforeRender += Place;
     internal static bool Owns(string id) => Instance != null && Instance._aircraft != null && Instance._widgets.ContainsKey(id);
-    internal static bool IsVisible(string id) => Owns(id) && Instance!.PlacementReady(id) && Instance.Ready() && Instance._poses[id].Visible;
+    internal static bool IsVisible(string id) => Owns(id) && Instance!.PlacementReady(id) && Instance.Ready() && Instance._poses[id].Visible &&
+        (Instance._poses[id].Anchor == HudWidgetAnchor.Cockpit || Instance._widgets[id].RootGroup.alpha > .01f && Instance._widgets[id].Root.gameObject.activeSelf);
     internal static bool TryGetContent(string id, out RectTransform content)
     {
         content = null!;
@@ -147,6 +156,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     private void Update()
     {
         RefreshContext();
+        CancelUntrackedWristEdits();
         if (!_initialPlacementDone || _pendingAuxiliaryPlacement)
             InitializeDefaults();
         Place();
@@ -159,6 +169,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             UpdateHand(i, _samples[i]);
         }
         MoveHeldWidgets();
+        ReleaseWristFrames();
     }
 
     internal void ResetPreview()
@@ -170,12 +181,13 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         ReleaseHands();
         Place();
     }
-    internal HudWidgetPose GetPose(string id) => _poses.TryGetValue(id, out var pose) ? pose : HudWidgetProfiles.FactoryDefaults[id];
+    internal HudWidgetPose GetCockpitPose(string id) => _poses.TryGetValue(id, out var pose) ? pose : HudWidgetProfiles.FactoryDefaults[id];
+    internal HudWidgetPose GetPose(string id) => _poses.ContainsKey(id) ? ActivePose(id) : HudWidgetProfiles.FactoryDefaults[id];
     internal void SetPose(string id, HudWidgetPose pose)
     {
         if (!_editing || !_poses.ContainsKey(id))
             return;
-        _poses[id] = HudWidgetProfiles.Sanitize(id, pose);
+        StoreActivePose(id, pose);
         Place();
     }
     internal void Select(string id)
@@ -188,16 +200,17 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     {
         if (!_editing || !_poses.ContainsKey(id))
             return;
-        var pose = _poses[id];
-        pose.Euler = new Vector3(angles.x, angles.y, 0);
         ReleaseHands();
+        var pose = ActivePose(id);
+        pose.Euler = new Vector3(angles.x, angles.y, pose.Anchor == HudWidgetAnchor.Cockpit ? 0 : pose.Euler.z);
         SetPose(id, pose);
     }
 
     internal void SetAppearance(string id, HudWidgetPose value)
     {
-        if (!_poses.TryGetValue(id, out var pose))
+        if (!_poses.ContainsKey(id))
             return;
+        var pose = ActivePose(id);
         pose.Scale = value.Scale;
         pose.Opacity = value.Opacity;
         pose.Background = value.Background;
@@ -206,7 +219,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             SetPose(id, pose);
         else
         {
-            _poses[id] = HudWidgetProfiles.Sanitize(id, pose);
+            StoreActivePose(id, pose);
             if (Available && CanSaveProfile)
                 _profiles.Save(_key, _poses, _slot);
             Place();
@@ -220,6 +233,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         foreach (var id in HudWidgetProfiles.Ids)
         {
             var pose = _poses[id];
+            if (pose.Anchor != HudWidgetAnchor.Cockpit)
+                continue;
             var reachable = defaults[id];
             pose.Position = reachable.Position;
             pose.Euler = reachable.Euler;
@@ -306,6 +321,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
                 return;
             if (id != null)
             {
+                FreezeWrist(id);
                 drag.Id = id;
                 SelectedId = id;
                 drag.Corner = corner;
@@ -325,8 +341,11 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     {
         var drag = _hands[index];
         if (drag.Id != null && drag.Corner >= 0 && Space(out var gameRoot, out _, out var eye))
-            drag.CornerRotation = Quaternion.Inverse(eye.rotation * Quaternion.Euler(_poses[drag.Id].Euler)) *
+        {
+            TryWidgetFrame(drag.Id, out _, out var frame);
+            drag.CornerRotation = Quaternion.Inverse(eye.rotation * frame * Quaternion.Euler(ActivePose(drag.Id).Euler)) *
                 PilotHandVisuals.FreeHandRotation(index == 0, hand, gameRoot);
+        }
     }
     private void UpdateAppearance(int index, ControllerSample hand)
     {
@@ -349,11 +368,11 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
                 selected = pair.Value;
                 break;
             }
-            var pose = _poses[pair.Key];
+            var pose = ActivePose(pair.Key);
             var metres = PixelSize * pose.Scale;
-            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (tip - pose.Position) / metres;
+            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (WidgetPoint(pair.Key, tip) - pose.Position) / metres;
             var distance = Mathf.Abs(local.z) * metres;
-            if (editor.HitTest(local, metres) && distance < nearest)
+            if (TryWidgetFrame(pair.Key, out _, out _) && editor.HitTest(local, metres) && distance < nearest)
             {
                 selected = pair.Value;
                 nearest = distance;
@@ -361,10 +380,10 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         }
         foreach (var pair in _widgets)
         {
-            var pose = _poses[pair.Key];
+            var pose = ActivePose(pair.Key);
             var metres = PixelSize * pose.Scale;
-            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (tip - pose.Position) / metres;
-            _appearanceBusy[index] |= pair.Value.Appearance.UpdateHand(index, local, available && pair.Value == selected, metres, hand.Device);
+            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (WidgetPoint(pair.Key, tip) - pose.Position) / metres;
+            _appearanceBusy[index] |= pair.Value.Appearance.UpdateHand(index, local, available && pair.Value == selected && TryWidgetFrame(pair.Key, out _, out _), metres, hand.Device);
         }
     }
     private void RebaseDrag(int index)
@@ -372,15 +391,15 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         var drag = _hands[index];
         if (drag.Id == null)
             return;
-        var pose = _poses[drag.Id];
-        drag.LocalAnchor = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (_points[index] - pose.Position);
+        var pose = ActivePose(drag.Id);
+        drag.LocalAnchor = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (WidgetPoint(drag.Id, _points[index]) - pose.Position);
         drag.StartEuler = pose.Euler;
-        drag.GripRotation = _handRotations[index];
+        drag.GripRotation = WidgetRotation(drag.Id, _handRotations[index]);
     }
     private float WidgetDistance(Vector3 point, string id)
     {
-        var pose = _poses[id];
-        var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (point - pose.Position);
+        var pose = ActivePose(id);
+        var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (WidgetPoint(id, point) - pose.Position);
         var half = Size(id) * (PixelSize * pose.Scale * .5f);
         return new Vector3(Mathf.Max(0, Mathf.Abs(local.x) - half.x), Mathf.Max(0, Mathf.Abs(local.y) - half.y), local.z).magnitude;
     }
@@ -390,13 +409,15 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         if (both)
         {
             var id = _hands[0].Id!;
-            var pose = _poses[id];
+            var pose = ActivePose(id);
             if (_resizing != id)
             {
                 _resizing = id;
-                _resizeGesture = new HudWidgetTwoHandGesture(pose, _points[0], _points[1], _handRotations[0], _handRotations[1], id == "map");
+                _resizeGesture = new HudWidgetTwoHandGesture(pose, WidgetPoint(id, _points[0]), WidgetPoint(id, _points[1]),
+                    WidgetRotation(id, _handRotations[0]), WidgetRotation(id, _handRotations[1]), id == "map");
             }
-            pose = _resizeGesture.Move(pose, _points[0], _points[1], _handRotations[0], _handRotations[1]);
+            pose = _resizeGesture.Move(pose, WidgetPoint(id, _points[0]), WidgetPoint(id, _points[1]),
+                WidgetRotation(id, _handRotations[0]), WidgetRotation(id, _handRotations[1]));
             MovePose(id, pose);
             return;
         }
@@ -412,19 +433,20 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             var drag = _hands[i];
             if (drag.Id == null || !drag.Gate.Held)
                 continue;
-            var pose = _poses[drag.Id];
-            pose.Euler = HudWidgetRotationMath.Drag(drag.StartEuler, drag.GripRotation, _handRotations[i], pose.Euler);
-            pose.Position = _points[i] - Quaternion.Euler(pose.Euler) * drag.LocalAnchor;
+            var pose = ActivePose(drag.Id);
+            pose.Euler = HudWidgetRotationMath.Drag(drag.StartEuler, drag.GripRotation, WidgetRotation(drag.Id, _handRotations[i]), pose.Euler, pose.Anchor != HudWidgetAnchor.Cockpit);
+            pose.Position = WidgetPoint(drag.Id, _points[i]) - Quaternion.Euler(pose.Euler) * drag.LocalAnchor;
             MovePose(drag.Id, pose);
         }
     }
     private void MovePose(string id, HudWidgetPose target)
     {
-        var current = _poses[id];
+        var current = ActivePose(id);
         var blend = HudWidgetMotionMath.Blend(Time.unscaledDeltaTime);
         target.Position = Vector3.Lerp(current.Position, target.Position, blend);
-        target.Euler = new Vector3(Mathf.Lerp(current.Euler.x, target.Euler.x, blend),
-            HudWidgetMotionMath.Angle(current.Euler.y, target.Euler.y, blend), 0);
+        target.Euler = new Vector3(target.Anchor == HudWidgetAnchor.Cockpit ? Mathf.Lerp(current.Euler.x, target.Euler.x, blend)
+                : HudWidgetMotionMath.Angle(current.Euler.x, target.Euler.x, blend),
+            HudWidgetMotionMath.Angle(current.Euler.y, target.Euler.y, blend), target.Anchor == HudWidgetAnchor.Cockpit ? 0 : current.Euler.z);
         target.Scale = Mathf.Lerp(current.Scale, target.Scale, blend);
         target.Aspect = Mathf.Lerp(current.Aspect, target.Aspect, blend);
         SetPose(id, target);
@@ -444,8 +466,11 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         }
         foreach (var pair in _poses)
         {
-            var local = Quaternion.Inverse(Quaternion.Euler(pair.Value.Euler)) * (point - pair.Value.Position);
-            var half = Size(pair.Key) * (PixelSize * pair.Value.Scale * .5f);
+            if (!TryWidgetFrame(pair.Key, out _, out _))
+                continue;
+            var pose = ActivePose(pair.Key);
+            var local = Quaternion.Inverse(Quaternion.Euler(pose.Euler)) * (WidgetPoint(pair.Key, point) - pose.Position);
+            var half = Size(pair.Key) * (PixelSize * pose.Scale * .5f);
             var atCorner = HudWidgetGestureMath.Corner(local.x, local.y, local.z, half.x, half.y);
             if (other.Id == pair.Key)
                 continue; // Same-widget pairing uses the assisted path above.
@@ -467,9 +492,10 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         var other = _hands[heldHand];
         if (other.Id == null || !other.Gate.Held || !_poses.TryGetValue(other.Id, out var held))
             return false;
+        held = ActivePose(other.Id);
         var inverse = Quaternion.Inverse(Quaternion.Euler(held.Euler));
-        var local = inverse * (point - held.Position);
-        var first = inverse * (_points[heldHand] - held.Position);
+        var local = inverse * (WidgetPoint(other.Id, point) - held.Position);
+        var first = inverse * (WidgetPoint(other.Id, _points[heldHand]) - held.Position);
         var half = Size(other.Id) * (PixelSize * held.Scale * .5f);
         corner = HudWidgetGestureMath.PairCorner(other.Corner, first.x, first.y, first.z,
             local.x, local.y, local.z, half.x, half.y, out firstCorner);
@@ -478,9 +504,11 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     private void Snap(string id)
     {
         var pose = _poses[id];
+        if (pose.Anchor != HudWidgetAnchor.Cockpit)
+            return;
         foreach (var other in _poses)
         {
-            if (other.Key == id || _hands[0].Id == other.Key || _hands[1].Id == other.Key)
+            if (other.Value.Anchor != HudWidgetAnchor.Cockpit || other.Key == id || _hands[0].Id == other.Key || _hands[1].Id == other.Key)
                 continue;
             var basis = Quaternion.Euler(other.Value.Euler);
             if (Quaternion.Angle(Quaternion.Euler(pose.Euler), basis) > .1f)
@@ -512,6 +540,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = APIBus.CockpitHudCamera;
         var widget = new Widget { Root = (RectTransform)root.transform, Canvas = canvas };
+        widget.RootGroup = root.AddComponent<CanvasGroup>();
+        widget.RootGroup.blocksRaycasts = widget.RootGroup.interactable = false;
         widget.Root.sizeDelta = Size(id);
         widget.Background = Plate("Optional contrast", widget.Root, new Color(.015f, .025f, .03f, 0));
         widget.Content = Rect("Native content", widget.Root, Size(id));
@@ -547,7 +577,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             pose.Visible = visible;
             Select(id);
             SetAppearance(id, pose);
-        });
+        }, anchor => SetAnchor(id, anchor));
         LayerHelper.SetLayerRecursive(root.transform, LayerHelper.GetVrUiLayer());
         _widgets.Add(id, widget);
     }
@@ -620,18 +650,23 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             var widget = pair.Value;
             if (widget.Root == null)
                 continue;
-            var pose = _poses[pair.Key];
+            var pose = ActivePose(pair.Key);
             ResizeWidget(widget, Size(pair.Key));
-            var show = ready && PlacementReady(pair.Key) && (pose.Visible || _editing);
+            var frameReady = TryWidgetFrame(pair.Key, out var frameOrigin, out var frameRotation);
+            var position = frameOrigin + frameRotation * pose.Position;
+            var rotation = frameRotation * Quaternion.Euler(pose.Euler);
+            var wristAlpha = WristAlpha(pair.Key, widget, position, rotation);
+            var show = ready && frameReady && wristAlpha > .001f && PlacementReady(pair.Key) && (pose.Visible || _editing);
+            widget.RootGroup.alpha = wristAlpha;
             var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
-            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);
+            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis, pose.Anchor);
             widget.Root.gameObject.SetActive(show);
             if (!show || gameRoot == null || uiRoot == null || eye == null)
                 continue;
             widget.Canvas.worldCamera = APIBus.CockpitHudCamera;
             widget.Root.SetPositionAndRotation(uiRoot.TransformPoint(gameRoot.InverseTransformPoint(
-                    CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, pose.Position))),
-                uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation * Quaternion.Euler(pose.Euler));
+                    CockpitWidgetSpace.ToWorld(eye.position, eye.rotation, position))),
+                uiRoot.rotation * Quaternion.Inverse(gameRoot.rotation) * eye.rotation * rotation);
             widget.Root.localScale = Vector3.one * (PixelSize * pose.Scale);
             widget.Group.alpha = pose.Visible ? pose.Opacity * emphasis : 0;
             widget.Background.color = new Color(.015f, .025f, .03f, pose.Visible ? pose.Background * emphasis : 0);
@@ -653,7 +688,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             widget.Caption.color = new Color(1, 1, 1, emphasis);
             if (_editing)
             {
-                var caption = HudWidgetProfiles.Label(pair.Key) + (pose.Visible ? "" : " · HIDDEN");
+                var caption = HudWidgetProfiles.Label(pair.Key) + (pose.Anchor == HudWidgetAnchor.Cockpit ? "" :
+                    pose.Anchor == HudWidgetAnchor.LeftWrist ? " · LEFT WRIST" : " · RIGHT WRIST") + (pose.Visible ? "" : " · HIDDEN");
                 if (widget.Caption.text != caption)
                     widget.Caption.text = caption;
             }

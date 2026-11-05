@@ -22,12 +22,12 @@ internal static class HudWidgetDefaultPlacementChecks
                         check(pose.Position.z > center.z + .2f, "New widget stays forward of the seated head: " + id);
                         check(pose.Euler.x == defaults[id].Euler.x && pose.Euler.y == defaults[id].Euler.y && pose.Scale == defaults[id].Scale,
                             "First placement preserves default tilt and physical scale: " + id);
-                        var size = Size(id);
+                        var size = HudWidgetCatalog.Get(id).Size;
                         var half = size * (.0007f * pose.Scale * .5f);
                         foreach (var x in new[] { -half.x, half.x })
                             foreach (var y in new[] { -half.y, half.y })
                             {
-                                var corner = offset + new Vector3(x, y, 0);
+                                var corner = offset + Quaternion.Euler(pose.Euler) * new Vector3(x, y, 0);
                                 var reach = Math.Min((corner - new Vector3(-.16f, -.18f, 0)).magnitude,
                                     (corner - new Vector3(.16f, -.18f, 0)).magnitude);
                                 check(reach < .60f, "Every new widget corner remains within a 60cm shoulder reach: " + id);
@@ -86,16 +86,4 @@ internal static class HudWidgetDefaultPlacementChecks
         }
         void Near(Vector3 a, Vector3 b, string message) => check((a - b).magnitude < .00004f, message);
     }
-    private static Vector3 Size(string id) => id switch
-    {
-        "weapons" => new Vector3(420, 170, 0),
-        "countermeasures" => new Vector3(260, 135, 0),
-        "power" => new Vector3(420, 80, 0),
-        "threats" => new Vector3(460, 190, 0),
-        "ew" => new Vector3(260, 260, 0),
-        "map" or "damage" => new Vector3(300, 300, 0),
-        "objectives" => new Vector3(420, 150, 0),
-        "auxiliary" => new Vector3(300, 170, 0),
-        _ => new Vector3(460, 270, 0)
-    };
 }

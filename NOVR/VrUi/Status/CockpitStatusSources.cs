@@ -39,6 +39,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private NativeWeaponSafetyIndicator? _safety;
         private readonly bool _compactWeapon;
         private readonly bool _damage;
+        private readonly AuxiliaryGaugeBounds? _auxiliaryBounds;
         private readonly Dictionary<GameObject, int> _layers = new();
         private readonly List<Transform> _nodes = new();
         private readonly List<Graphic> _graphics = new();
@@ -46,13 +47,14 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private readonly Vector3[] _corners = new Vector3[4];
         private Bounds _bounds;
 
-        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false, bool preserveRootImage = false)
+        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false, bool preserveRootImage = false, HUDApp? auxiliary = null)
         {
             Widget = widget;
             Slot = slot;
             Parent = widget.parent;
             _compactWeapon = compactWeapon;
             _damage = damage;
+            _auxiliaryBounds = auxiliary != null ? new AuxiliaryGaugeBounds(auxiliary, widget) : null;
             Index = widget.GetSiblingIndex();
             _position = widget.localPosition;
             _scale = widget.localScale;
@@ -123,7 +125,9 @@ internal sealed class CockpitStatusSources : MonoBehaviour
             // query omits inactive descendants, which would briefly misplace a
             // capacitor the first time its charge event makes it visible.
             _bounds = new Bounds(Widget.rect.center, Widget.rect.size);
-            if (_compactWeapon)
+            if (_auxiliaryBounds != null)
+                _bounds = _auxiliaryBounds.Measure(_graphics);
+            else if (_compactWeapon)
             {
                 // A disabled backing rectangle must not define the readout's
                 // fit. Use its actual text/icon rectangles, including dormant

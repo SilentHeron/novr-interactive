@@ -46,6 +46,7 @@ PORTABLE = (
     ("feedback-preview", "tests/FeedbackPreview/FeedbackPreviewChecks.csproj"),
     ("hand-option-wheel", "tests/HandOptionWheel/HandOptionWheel.csproj"),
     ("hud-widgets", "tests/HudWidgets/NOVR.HudWidgets.Tests.csproj"),
+    ("wrist-widgets", "tests/WristWidgets/WristWidgets.csproj"),
     ("hud-widget-session", "tests/HudWidgetSession/HudWidgetSession.csproj"),
     ("hud-appearance-ui", "tests/WristMenuHudAppearance/WristMenuHudAppearance.csproj"),
     ("hud-status", "tests/HudStatus/NOVR.HudStatus.Tests.csproj"),

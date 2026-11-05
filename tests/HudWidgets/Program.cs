@@ -14,8 +14,8 @@ try
     var profiles = new HudWidgetProfiles(config);
     True(HudWidgetProfiles.Ids.SequenceEqual(new[]
     {
-        "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives", "auxiliary"
-    }), "Catalog preserves persisted widget IDs and menu order");
+        "threats", "ew", "countermeasures", "objectives", "weapons", "auxiliary", "power", "feed", "map", "damage"
+    }), "Catalog preserves persisted widget IDs, organized by left, center and right group");
     foreach (var definition in HudWidgetCatalog.All)
     {
         True(definition.Size.x > 0 && definition.Size.y > 0 &&
@@ -54,15 +54,15 @@ try
     {
         Same(defaults[id], factory[id], "Factory " + id);
         Same(profiles.Load("FS-20")[id], factory[id], "Uncustomized aircraft inherits factory " + id);
-        Equal(defaults[id].Scale, id == "feed" ? .60f : .65f, "Compact factory scale " + id);
+        True(defaults[id].Scale >= .60f && defaults[id].Scale <= .85f, "Readable compact factory scale " + id);
         Equal(defaults[id].Opacity, 1f, "Factory opacity " + id);
         Equal(defaults[id].Background, 0f, "Factory has no backplate " + id);
         True(defaults[id].Visible, "Factory widget visible " + id);
         var p = defaults[id].Position;
         True(Math.Sqrt(p.x * p.x + (p.y + .18f) * (p.y + .18f) + p.z * p.z) <= .55,
             "Default center within 55 cm of nominal shoulder " + id);
-        True(defaults[id].Euler.x == 0 && defaults[id].Euler.y == 0 && defaults[id].Euler.z == 0,
-            "Default faces straight forward " + id);
+        True(defaults[id].Euler.x == 30 && Math.Abs(defaults[id].Euler.y) <= 35 && defaults[id].Euler.z == 0,
+            "Default tilts toward seated user without roll " + id);
     }
     var detached = profiles.Load("FS-20");
     detached["weapons"] = Pose(.15f, .7f, .4f, false);
@@ -200,6 +200,7 @@ try
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
     HudWidgetDefaultPlacementChecks.Run(directory, True);
+    HudWidgetThreePlaneChecks.Run(True);
     HudWidgetAuxiliaryMigrationChecks.Run(directory, True);
     HudWidgetAngleChecks.Run(True);
     HudWidgetMotionChecks.Run(True);
