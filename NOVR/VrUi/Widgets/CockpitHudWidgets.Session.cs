@@ -19,14 +19,15 @@ internal sealed partial class CockpitHudWidgets
     internal int ProfileSlot => _slot;
     internal string ProfileAircraftName => CanSaveProfile ? CockpitProfiles.Instance?.AircraftName ?? AircraftName : "Aircraft loading";
     internal bool CanSaveProfile => _key.Length > 0 && CockpitProfiles.Instance?.AircraftIdentity == _key;
-    private bool _editing, _initialPlacementDone;
+    private bool _editing, _initialPlacementDone, _pendingAuxiliaryPlacement;
     private readonly HudWidgetDefaultPlacement _defaultPlacement = new();
     private Vector3 _seat, _anchor, _calibration;
     private Quaternion _recenter;
     internal static bool Editing => Instance?._editing == true;
     internal static Aircraft? CurrentAircraft => Instance?._aircraft;
     internal string AircraftName => _aircraft?.definition?.unitName ?? "No aircraft";
-    internal bool Available => _aircraft != null && _initialPlacementDone && Ready();
+    internal bool Available => _aircraft != null && _initialPlacementDone && !_pendingAuxiliaryPlacement && Ready();
+    private bool PlacementReady(string id) => _initialPlacementDone && (id != "auxiliary" || !_pendingAuxiliaryPlacement);
 
     private void RefreshContext()
     {
@@ -44,6 +45,7 @@ internal sealed partial class CockpitHudWidgets
             _slot = CockpitProfiles.ActiveSlot;
             _key = key;
             _initialPlacementDone = false;
+            _pendingAuxiliaryPlacement = false;
             _defaultPlacement.Reset();
             if (aircraft != null)
             {
@@ -51,6 +53,7 @@ internal sealed partial class CockpitHudWidgets
                 // sources or mod metadata timing. Missing sources stay editable.
                 _poses = _profiles.Load(_key, _slot);
                 _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot);
+                _pendingAuxiliaryPlacement = _profiles.NeedsAuxiliaryPlacement(_key, _slot);
                 CaptureCalibration();
                 foreach (var id in HudWidgetProfiles.Ids)
                     CreateWidget(id);
@@ -159,12 +162,38 @@ internal sealed partial class CockpitHudWidgets
         _slot = CockpitProfiles.ActiveSlot;
         _poses = _profiles.Load(_key, _slot);
         _initialPlacementDone = _profiles.HasSavedLayout(_key, _slot);
+        _pendingAuxiliaryPlacement = _profiles.NeedsAuxiliaryPlacement(_key, _slot);
         _defaultPlacement.Reset();
         ReleaseHands();
         CaptureCalibration();
         MotionFlightController.Instance?.ResetGrips();
         ControllerActions.Instance?.ResetButtons();
         Place();
+    }
+    private void InitializePlacement(bool valid, Vector3 head, float now, int frame)
+    {
+        if (_initialPlacementDone && !_pendingAuxiliaryPlacement)
+            return;
+        // Calibration can settle after the aircraft camera is attached. A new
+        // widget follows the same tracking gate as an entirely new layout.
+        if (_seat != CockpitProfiles.SeatOffset || _anchor != NOVRHeadsetData.TranslationAnchor ||
+            _calibration != NOVRHeadsetData.TranslationCalibrationOffset || _recenter != NOVRHeadsetData.RotationCalibrationOffset)
+        {
+            _defaultPlacement.Reset();
+            CaptureCalibration();
+        }
+        if (!_defaultPlacement.Observe(valid, head, now, frame))
+            return;
+        var defaults = HudWidgetDefaultPlacement.AtHead(head);
+        if (_pendingAuxiliaryPlacement)
+        {
+            _profiles.InitializeAuxiliary(_key, defaults["auxiliary"], _slot);
+            _poses["auxiliary"] = _profiles.Load(_key, _slot)["auxiliary"];
+            _pendingAuxiliaryPlacement = false;
+        }
+        else
+            _poses = defaults;
+        _initialPlacementDone = true;
     }
     private void CaptureCalibration()
     {

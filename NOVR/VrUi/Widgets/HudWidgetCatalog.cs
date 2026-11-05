@@ -48,7 +48,9 @@ internal static class HudWidgetCatalog
         new HudWidgetDefinition("damage", "Aircraft damage", new Vector2(300, 300), new Vector3(.12f, -.28f, .32f),
             "Aircraft damage\nParts and system status"),
         new HudWidgetDefinition("objectives", "Instructions", new Vector2(420, 150), new Vector3(-.12f, -.28f, .32f),
-            "Instructions\nTaxi guidance and clearances")
+            "Instructions\nTaxi guidance and clearances"),
+        new HudWidgetDefinition("auxiliary", "Auxiliary controls", new Vector2(300, 170), new Vector3(0, -.17f, .42f),
+            "Wing sweep / tilt · nozzle angle\nNative fan control gauge")
     });
 
     private static readonly Dictionary<string, HudWidgetDefinition> ById = Index();

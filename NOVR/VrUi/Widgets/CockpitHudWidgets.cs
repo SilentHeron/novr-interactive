@@ -88,7 +88,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     }
     private void OnEnable() => Application.onBeforeRender += Place;
     internal static bool Owns(string id) => Instance != null && Instance._aircraft != null && Instance._widgets.ContainsKey(id);
-    internal static bool IsVisible(string id) => Owns(id) && Instance!._initialPlacementDone && Instance.Ready() && Instance._poses[id].Visible;
+    internal static bool IsVisible(string id) => Owns(id) && Instance!.PlacementReady(id) && Instance.Ready() && Instance._poses[id].Visible;
     internal static bool TryGetContent(string id, out RectTransform content)
     {
         content = null!;
@@ -147,7 +147,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     private void Update()
     {
         RefreshContext();
-        if (!_initialPlacementDone)
+        if (!_initialPlacementDone || _pendingAuxiliaryPlacement)
             InitializeDefaults();
         Place();
         if (!CanUpdateEdit())
@@ -232,20 +232,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     }
     private void InitializeDefaults()
     {
-        // Spawning/recentering updates tracking calibration after the camera is
-        // attached. Wait for a real, settled pose instead of committing a zero
-        // position or the previous aircraft's last camera frame as a fallback.
-        if (_seat != CockpitProfiles.SeatOffset || _anchor != NOVRHeadsetData.TranslationAnchor ||
-            _calibration != NOVRHeadsetData.TranslationCalibrationOffset || _recenter != NOVRHeadsetData.RotationCalibrationOffset)
-        {
-            _defaultPlacement.Reset();
-            CaptureCalibration();
-        }
         var valid = TryGetSeatedHead(out var head);
-        if (!_defaultPlacement.Observe(valid, head, Time.unscaledTime, Time.frameCount))
-            return;
-        _poses = HudWidgetDefaultPlacement.AtHead(head);
-        _initialPlacementDone = true;
+        InitializePlacement(valid, head, Time.unscaledTime, Time.frameCount);
     }
     private bool TryGetSeatedHead(out Vector3 head)
     {
@@ -634,7 +622,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
                 continue;
             var pose = _poses[pair.Key];
             ResizeWidget(widget, Size(pair.Key));
-            var show = ready && (pose.Visible || _editing);
+            var show = ready && PlacementReady(pair.Key) && (pose.Visible || _editing);
             var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
             widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);
             widget.Root.gameObject.SetActive(show);

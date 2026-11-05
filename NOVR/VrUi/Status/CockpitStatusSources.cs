@@ -24,7 +24,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         }
     }
 
-    private sealed class Lease
+    internal sealed class Lease
     {
         internal readonly RectTransform Widget, Slot;
         internal readonly Transform Parent;
@@ -46,7 +46,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private readonly Vector3[] _corners = new Vector3[4];
         private Bounds _bounds;
 
-        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false)
+        internal Lease(RectTransform widget, RectTransform slot, bool compactWeapon, bool damage = false, bool preserveRootImage = false)
         {
             Widget = widget;
             Slot = slot;
@@ -63,7 +63,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
             _size = widget.sizeDelta;
             // StatusDisplay's root image is its aircraft silhouette, including
             // native damage fading. It is content, never a removable backplate.
-            _background = damage ? null : widget.GetComponent<Image>();
+            _background = damage || preserveRootImage ? null : widget.GetComponent<Image>();
             _backgroundEnabled = _background != null && _background.enabled;
         }
 
@@ -257,6 +257,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
     private float _nextFind;
     private readonly List<Lease> _restore = new();
     private readonly CockpitInstructionSources _instructions = new();
+    private readonly CockpitAuxiliarySources _auxiliary = new();
 
     private void Awake() => _instance = this;
 
@@ -264,6 +265,8 @@ internal sealed class CockpitStatusSources : MonoBehaviour
     {
         if (_instance == null || source == null)
             return false;
+        if (_instance._auxiliary.Owns(source))
+            return true;
         foreach (var item in _instance._sources)
             if (item.Lease?.Valid == true && (source == item.Lease.Widget || source.IsChildOf(item.Lease.Widget)))
                 return true;
@@ -353,6 +356,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
             source.Lease?.Fit();
             CockpitHudWidgets.SetHasContent(source.Id, source.Lease?.HasContent == true);
         }
+        _auxiliary.Update(hud, discover);
     }
 
     private static RectTransform? Find(Transform parent, string name)
@@ -392,6 +396,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
     internal static void RefreshInstructions() => _instance?._instructions.Update();
     private void Release()
     {
+        _auxiliary.Release();
         _restore.Clear();
         foreach (var source in _sources)
             if (source.Lease != null)

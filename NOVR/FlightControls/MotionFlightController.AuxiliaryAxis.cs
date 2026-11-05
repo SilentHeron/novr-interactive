@@ -10,12 +10,14 @@ public sealed partial class MotionFlightController
     private static readonly FieldInfo? TiltWingAutoTilt = AccessTools.Field(typeof(TiltWingController), "autoTilt");
     private TiltWingController? _tiltWing;
     private bool _auxiliaryUsesNozzles;
+    private bool _auxiliaryUsesWingSweep;
 
     private void ConfigureAuxiliaryControls(Aircraft aircraft)
     {
         _tiltWing = aircraft.GetComponentInChildren<TiltWingController>(true);
         _auxiliaryUsesNozzles = _tiltWing != null || aircraft.GetComponentInChildren<DuctedThrustSystem>(true) != null ||
             aircraft.GetComponentInChildren<SwivelDuctSystem>(true) != null;
+        _auxiliaryUsesWingSweep = aircraft.GetComponentInChildren<SwingWingController>(true) != null;
     }
 
     internal float AuxiliaryAxis
@@ -34,7 +36,9 @@ public sealed partial class MotionFlightController
             // Keep nozzle hover protection and the existing tiltwing takeover.
             if (_tiltWing != null)
                 TiltWingAutoTilt?.SetValue(_tiltWing, false);
-            return Mathf.Sign(_throttleHand.Axis.y);
+            // Forward extends swept wings; backward sweeps them aft. Tiltwing,
+            // nozzle and pusher-fan controls keep their existing direction.
+            return Mathf.Sign(_throttleHand.Axis.y) * (_auxiliaryUsesWingSweep ? -1f : 1f);
         }
     }
 }

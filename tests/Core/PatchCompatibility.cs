@@ -126,6 +126,10 @@ internal static class PatchCompatibility
             (owner: "NozzleGauge", field: "inputPivot", type: "UnityEngine.Transform"),
             (owner: "NozzleGauge", field: "inputRange", type: "System.Single"),
             (owner: "NozzleGauge", field: "inputs", type: "ControlInputs"),
+            (owner: "WingAngleGauge", field: "fade", type: "System.Boolean"),
+            (owner: "WingAngleGauge", field: "fadeImages", type: "UnityEngine.UI.Image[]"),
+            (owner: "WingAngleGauge", field: "imageAlphas", type: "System.Single[]"),
+            (owner: "WingAngleGauge", field: "label", type: "TMPro.TextMeshProUGUI"),
             (owner: "ThreatList", field: "itemLookup", type: "System.Collections.Generic.Dictionary`2<PersistentID,ThreatItem>"),
             (owner: "ThreatItem", field: "missile", type: "Missile"),
             (owner: "ThreatItem", field: "notchLine", type: "UnityEngine.GameObject"),
@@ -218,10 +222,30 @@ internal static class PatchCompatibility
             m.DeclaringType.Name == "WeaponManager" && m.Name == "TargetListChanged"))
             failures.Add("Native AddTargetList no longer notifies weapon/network target state.");
         VerifyAuxiliaryAxis(game, failures);
+        VerifyAuxiliaryPresentation(game, failures);
         VerifyMessageFeed(game, failures);
         if (failures.Count != 0)
             throw new Exception(string.Join(Environment.NewLine, failures));
         Console.WriteLine($"Verified {verified} declared patch targets (metadata only; no game code executed).");
+    }
+
+    private static void VerifyAuxiliaryPresentation(AssemblyDefinition game, List<string> failures)
+    {
+        var manager = game.MainModule.Types.Single(t => t.FullName == "HUDAppManager");
+        var update = manager.Methods.Single(m => m.Name == "Update");
+        if (!update.Body.Instructions.Any(i => i.Operand is FieldReference field &&
+            field.DeclaringType.FullName == "HUDAppManager" && field.Name == "apps" && field.FieldType.FullName == "HUDApp[]") ||
+            !update.Body.Instructions.Any(i => i.Operand is MethodReference call &&
+                call.DeclaringType.FullName == "HUDApp" && call.Name == "Refresh") ||
+            update.Body.Instructions.Any(i => i.Operand is MethodReference call && call.Name.StartsWith("GetComponent")))
+            failures.Add("Native HUD app refresh no longer uses its retained app references after widget reparenting.");
+        foreach (var name in new[] { "NozzleGauge", "WingAngleGauge", "CustomAxis1Gauge" })
+        {
+            var gauge = game.MainModule.Types.Single(t => t.FullName == name);
+            if (gauge.BaseType.FullName != "HUDApp" || !gauge.Methods.Any(m => m.Name == "Refresh" && m.IsPublic &&
+                !m.IsStatic && m.Parameters.Count == 0 && m.ReturnType.FullName == "System.Void"))
+                failures.Add("Native auxiliary gauge presentation contract changed: " + name);
+        }
     }
 
     private static void VerifyAuxiliaryAxis(AssemblyDefinition game, List<string> failures)

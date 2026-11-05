@@ -270,6 +270,8 @@ namespace NOVR.VrUi.SpecialBehavior
             Effects.Events.Add("create:" + id);
         }
         internal void RefreshForCheck() => RefreshContext();
+        internal void InitializeForCheck(bool valid, Vector3 head, float now, int frame) => InitializePlacement(valid, head, now, frame);
+        internal bool PlacementReadyForCheck(string id) => PlacementReady(id);
         internal bool InputReadyForCheck() => CanUpdateEdit();
         internal void DisableForCheck() => OnDisable();
         internal HudWidgetPose PoseForCheck(string id) => _poses[id];

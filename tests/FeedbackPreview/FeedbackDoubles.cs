@@ -12,6 +12,10 @@ namespace UnityEngine
     {
         public static float Clamp01(float value) => Math.Clamp(value, 0, 1);
     }
+    public static class Time
+    {
+        public static float unscaledTime;
+    }
 }
 namespace UnityEngine.XR
 {
@@ -21,12 +25,17 @@ namespace UnityEngine.XR
     }
     public sealed class DeviceOutput
     {
-        public bool Valid = true, Capabilities = true, SupportsImpulse = true;
+        public bool Valid = true, Capabilities = true, SupportsImpulse = true, SendSucceeds = true;
         public readonly List<(uint channel, float amplitude, float duration)> Pulses = new();
     }
-    public readonly struct InputDevice(ulong id, DeviceOutput? output)
+    public readonly struct InputDevice(ulong id, DeviceOutput? output) : IEquatable<InputDevice>
     {
-        public ulong deviceId => id;
+        internal ulong TestId => id;
+        public bool Equals(InputDevice other) => id == other.TestId;
+        public override bool Equals(object? obj) => obj is InputDevice other && Equals(other);
+        public override int GetHashCode() => id.GetHashCode();
+        public static bool operator ==(InputDevice left, InputDevice right) => left.Equals(right);
+        public static bool operator !=(InputDevice left, InputDevice right) => !left.Equals(right);
         public bool isValid => output?.Valid == true;
         public bool TryGetHapticCapabilities(out HapticCapabilities capabilities)
         {
@@ -36,7 +45,7 @@ namespace UnityEngine.XR
         public bool SendHapticImpulse(uint channel, float amplitude, float duration)
         {
             output!.Pulses.Add((channel, amplitude, duration));
-            return true;
+            return output.SendSucceeds;
         }
     }
 }
@@ -70,7 +79,7 @@ namespace NOVR.MotionControls
     internal static class InteractionAudio
     {
         internal static readonly List<(ulong device, InteractionCue cue)> Requests = new();
-        internal static void Play(UnityEngine.XR.InputDevice device, InteractionCue cue) => Requests.Add((device.deviceId, cue));
+        internal static void Play(UnityEngine.XR.InputDevice device, InteractionCue cue) => Requests.Add((device.TestId, cue));
     }
 }
 namespace NOVR.VrUi

@@ -229,6 +229,73 @@ foreach (var destination in new[] { 1, 2 })
     Near(CockpitProfiles.SeatOffset, Fixture.SecondSeat, "Stale save leaves new slot seat unchanged");
     f.Manager.DisableForCheck();
 }
+foreach (var slot in new[] { 1, 2, 3 })
+{
+    var f = new Fixture();
+    if (slot == 3)
+        f.Stored.Save(Fixture.Key, HudWidgetProfiles.FactoryDefaults, 3);
+    var section = "VR HUD Widgets " + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(Fixture.Key))).Substring(0, 32) + (slot == 1 ? "" : " Slot " + slot);
+    // Old installations have no auxiliary key. Empty is its binding default,
+    // representing only the newly introduced frame, never the saved layout.
+    ModConfiguration.Instance.Config.Bind(section, "auxiliary", "", "").Value = "";
+    f.Profiles.SelectSlot(slot);
+    f.Manager.DisableForCheck();
+    var manager = new CockpitHudWidgets();
+    manager.RefreshForCheck();
+    var oldPoses = f.Stored.Load(Fixture.Key, slot);
+    Check(!manager.Available && manager.PlacementReadyForCheck("map") && !manager.PlacementReadyForCheck("auxiliary"),
+        "Existing panels remain placed while only the new frame waits for a tracked head");
+    manager.Begin();
+    Check(!CockpitHudWidgets.Editing, "Edit cannot save an uninitialized auxiliary frame at the cockpit origin");
+    var saves = ModConfiguration.Instance.Config.Saves;
+    manager.InitializeForCheck(false, Vector3.zero, 1, 1);
+    manager.InitializeForCheck(false, Vector3.zero, 9, 2);
+    Check(ModConfiguration.Instance.Config.Saves == saves && !manager.PlacementReadyForCheck("auxiliary"),
+        "Missing headset tracking never initializes or persists the new frame");
+    var head = new Vector3(.2f, .4f, -.3f);
+    manager.InitializeForCheck(true, head, 10, 3);
+    manager.InitializeForCheck(true, head, 10.1f, 4);
+    Check(!manager.Available, "New frame honors the same settled-head startup gate as a fresh layout");
+    manager.InitializeForCheck(true, head, 10.2f, 5);
+    Check(manager.Available && manager.PlacementReadyForCheck("auxiliary"), "Tracked placement enables the new frame and editing");
+    Check(ModConfiguration.Instance.Config.Saves == saves + 1, "Migration persists only once after actual headset tracking settles");
+    var auxiliary = HudWidgetDefaultPlacement.AtHead(head)["auxiliary"];
+    Same(manager.PoseForCheck("auxiliary"), auxiliary, "Auxiliary is centered around the seated user");
+    foreach (var id in HudWidgetProfiles.Ids.Where(id => id != "auxiliary"))
+    {
+        Same(manager.PoseForCheck(id), oldPoses[id], "New frame cannot move displayed saved panel " + id);
+        Same(f.Stored.Load(Fixture.Key, slot)[id], oldPoses[id], "New frame cannot rewrite persisted panel " + id);
+    }
+    manager.InitializeForCheck(true, new Vector3(-1, 1, 1), 20, 10);
+    manager.Begin();
+    Check(CockpitHudWidgets.Editing, "Editor is available after new frame initialization");
+    Same(manager.PoseForCheck("auxiliary"), auxiliary, "Opening edit keeps initialized frame at its saved position");
+    manager.Finish(false);
+    GameManager.Current = new Aircraft();
+    f.Profiles.Refresh();
+    manager.RefreshForCheck();
+    Check(manager.Available && manager.PlacementReadyForCheck("auxiliary"), "Respawn reuses migrated slot without another head-dependent placement");
+    Same(manager.PoseForCheck("auxiliary"), auxiliary, "Respawn keeps the new frame aircraft-fixed");
+    Check(ModConfiguration.Instance.Config.Saves == saves + 1, "Edit/respawn cannot repeat migration saves");
+    manager.DisableForCheck();
+}
+{
+    var f = new Fixture();
+    f.Stored.ResetAircraft(Fixture.Key, 3);
+    f.Profiles.SelectSlot(3);
+    f.Manager.RefreshForCheck();
+    var saves = ModConfiguration.Instance.Config.Saves;
+    var head = new Vector3(-.2f, .3f, .1f);
+    f.Manager.InitializeForCheck(true, head, 30, 10);
+    f.Manager.InitializeForCheck(true, head, 30.1f, 11);
+    f.Manager.InitializeForCheck(true, head, 30.2f, 12);
+    var expected = HudWidgetDefaultPlacement.AtHead(head);
+    foreach (var id in HudWidgetProfiles.Ids)
+        Same(f.Manager.PoseForCheck(id), expected[id], "Fresh unsaved slot centers every widget including auxiliary: " + id);
+    Check(f.Manager.Available && !f.Stored.HasSavedLayout(Fixture.Key, 3) && ModConfiguration.Instance.Config.Saves == saves,
+        "Fresh default placement remains an unsaved layout until the user saves it");
+}
 Console.WriteLine($"{checks} HUD edit-session checks passed (production coordinator/profile source; no Unity scene or file I/O).");
 
 sealed class Fixture

@@ -95,6 +95,7 @@ internal static class HudWidgetDefaultPlacementChecks
         "ew" => new Vector3(260, 260, 0),
         "map" or "damage" => new Vector3(300, 300, 0),
         "objectives" => new Vector3(420, 150, 0),
+        "auxiliary" => new Vector3(300, 170, 0),
         _ => new Vector3(460, 270, 0)
     };
 }

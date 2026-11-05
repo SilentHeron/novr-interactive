@@ -33,6 +33,13 @@ namespace UnityEngine
         public Transform transform => gameObject.transform;
         public string name => gameObject.name;
         public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
+        public T GetComponentInParent<T>() where T : Component
+        {
+            for (var node = transform; node != null; node = node.parent)
+                if (node.GetComponent<T>() is { } found)
+                    return found;
+            return null!;
+        }
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
         {
             void Visit(Transform root)
@@ -201,7 +208,7 @@ namespace UnityEngine
     {
         public static float Min(float a, float b) => Math.Min(a, b);
     }
-    public readonly record struct Color(float r, float g, float b, float a);
+    public record struct Color(float r, float g, float b, float a);
     public sealed class Font : Object
     {
     }
@@ -295,6 +302,32 @@ public sealed class StatusDisplay : UnityEngine.MonoBehaviour
 {
     public bool enabled = true;
 }
+public class HUDApp : UnityEngine.MonoBehaviour
+{
+}
+public sealed class HUDAppManager : UnityEngine.MonoBehaviour
+{
+}
+public sealed class NozzleGauge : HUDApp
+{
+}
+public sealed class WingAngleGauge : HUDApp
+{
+    private bool fade = true;
+    private UnityEngine.UI.Image[] fadeImages = Array.Empty<UnityEngine.UI.Image>();
+    private float[] imageAlphas = Array.Empty<float>();
+    private TMPro.TextMeshProUGUI? label;
+    internal bool NativeFade => fade;
+    internal void SetFadeGraphics(UnityEngine.UI.Image image, TMPro.TextMeshProUGUI text)
+    {
+        fadeImages = new[] { image };
+        imageAlphas = new[] { .8f };
+        label = text;
+    }
+}
+public sealed class CustomAxis1Gauge : HUDApp
+{
+}
 public sealed class AircraftActionsReport : UnityEngine.MonoBehaviour
 {
     private TMPro.TextMeshProUGUI actionsText = null!; private UnityEngine.UI.Image background = null!;
@@ -335,6 +368,7 @@ namespace NOVR.VrUi.SpecialBehavior
         internal static CockpitHudWidgets? Instance = new();
         internal bool Available = true;
         internal static bool Visible = true;
+        internal static bool Editing;
         internal static bool IsVisible(string id) => Instance?.Available == true && Visible;
         internal static Aircraft? CurrentAircraft;
         internal static readonly Dictionary<string, UnityEngine.RectTransform> Slots = new();

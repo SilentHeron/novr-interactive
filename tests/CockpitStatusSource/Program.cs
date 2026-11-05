@@ -297,6 +297,7 @@ using (var f = new Fixture())
     Check(!taxiCopy.enabled && !reportCopy.enabled && taxi.canvasRenderer.cull && reportText.canvasRenderer.cull,
         "Eye-hidden Instructions does not resurrect overhead originals");
     CockpitHudWidgets.Visible = true;
+    CockpitHudWidgets.Editing = false;
     CockpitHudWidgets.Instance!.Available = false;
     f.Tick(.01f);
     Check(!taxi.canvasRenderer.cull && !reportText.canvasRenderer.cull && !background.canvasRenderer.cull && !taxiCopy.enabled,
@@ -328,6 +329,150 @@ using (var f = new Fixture())
     Canvas.Render();
     Check(!reportCopy.enabled, "Natively destroyed report removes copied instructions and releases dead draw leases");
 }
+// Each complete native auxiliary app is borrowed, never replaced by text or a
+// screenshot. The same native objects continue accepting diagram/text updates.
+foreach (var type in new[] { typeof(NozzleGauge), typeof(WingAngleGauge), typeof(CustomAxis1Gauge) })
+{
+    using var f = new Fixture();
+    var manager = new GameObject("Native HUD apps");
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    manager.AddComponent<HUDAppManager>();
+    var gauge = new GameObject("Native gauge", type, typeof(Image));
+    gauge.transform.SetParent(manager.transform, false);
+    gauge.transform.localPosition = new Vector3(37, -19, 2);
+    gauge.transform.localScale = new Vector3(.7f, .8f, 1);
+    gauge.layer = 8;
+    var original = (gauge.transform.localPosition, gauge.transform.localScale, gauge.transform.GetSiblingIndex());
+    var diagram = new GameObject("Animated diagram", typeof(Image));
+    diagram.transform.SetParent(gauge.transform, false);
+    var label = new GameObject("Native value", typeof(TMP_Text));
+    label.transform.SetParent(gauge.transform, false);
+    label.GetComponent<TMP_Text>().text = "Native angle";
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    slot.sizeDelta = new Vector2(300, 170);
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    f.Tick();
+    Check(gauge.transform.IsChildOf(slot) && gauge.GetComponent<Image>().enabled,
+        type.Name + " borrows whole native gauge without hiding its root diagram image");
+    Check(CockpitStatusSources.Owns(diagram.transform) && CockpitHudWidgets.Content["auxiliary"],
+        type.Name + " owns the actual native diagram and reports content");
+    Check(CockpitStatusSources.EmptiedStatusPanel(f.Panel), "Auxiliary gauge does not resurrect empty vanilla weapon panel");
+    diagram.transform.localRotation = new Quaternion(0, 0, .5f, .87f);
+    label.GetComponent<TMP_Text>().text = "Native updated angle";
+    f.Tick(.01f);
+    Check(diagram.transform.localRotation.z == .5f && label.GetComponent<TMP_Text>().text == "Native updated angle",
+        type.Name + " retains native animation and label references without replacing or overriding updates");
+    CockpitHudWidgets.Visible = false;
+    slot.gameObject.SetActive(false);
+    f.Tick(.01f);
+    Check(gauge.transform.IsChildOf(slot) && manager.transform.childCount == 0,
+        type.Name + " remains borrowed when hidden; no duplicate returns to native HUD");
+    UnityEngine.XR.XRSettings.enabled = false;
+    f.Tick(.01f);
+    Check(gauge.transform.parent == manager.transform && gauge.layer == 8 && gauge.GetComponent<Image>().enabled,
+        type.Name + " restores native hierarchy, layer and diagram when VR stops");
+    Check((gauge.transform.localPosition, gauge.transform.localScale, gauge.transform.GetSiblingIndex()) == original,
+        type.Name + " restores exact native transform and order");
+    Check(!CockpitStatusSources.Owns(diagram.transform), type.Name + " releases ownership");
+}
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauges = new List<GameObject>();
+    foreach (var type in new[] { typeof(NozzleGauge), typeof(WingAngleGauge), typeof(CustomAxis1Gauge) })
+    {
+        new GameObject("Native sibling").transform.SetParent(manager.transform, false);
+        var gauge = new GameObject(type.Name, type, typeof(Image));
+        gauge.transform.SetParent(manager.transform, false);
+        gauge.SetActive(type == typeof(WingAngleGauge));
+        gauges.Add(gauge);
+    }
+    var order = manager.transform.Children.ToArray();
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    slot.sizeDelta = new Vector2(300, 170);
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    f.Tick();
+    Near(((RectTransform)gauges[1].transform.parent).rect.height, 170, "One active among three native gauge variants receives full frame height");
+    gauges[0].SetActive(true);
+    f.Tick(.01f);
+    Near(((RectTransform)gauges[1].transform.parent).rect.height, 85, "Two active native diagrams share the frame without overlap");
+    Check(gauges[0].transform.parent != gauges[1].transform.parent, "Multiple gauges keep distinct layout slots");
+    CockpitStatusSources.ReleaseAll();
+    Check(manager.transform.Children.SequenceEqual(order), "Interleaved native siblings restore in exact authored order");
+    Check(!gauges[2].activeSelf, "Dormant native alternatives stay dormant after release");
+}
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauge = new GameObject("Native nozzle", typeof(NozzleGauge), typeof(Image));
+    gauge.transform.SetParent(manager.transform, false);
+    f.Tick();
+    Check(gauge.transform.parent == manager.transform, "Missing auxiliary frame retains native gauge fallback");
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    gauge.FailNextCanvasGroup = true;
+    f.Tick();
+    Check(gauge.transform.parent == manager.transform && !CockpitHudWidgets.Content["auxiliary"],
+        "Failed auxiliary attachment restores native gauge and does not claim replacement content");
+    Check(Debug.Warnings == 1, "Auxiliary attachment failure is reported once");
+    f.Tick();
+    Check(Debug.Warnings == 1 && gauge.transform.parent == manager.transform, "Failed source remains safely native until context refresh");
+}
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauge = new GameObject("Native fan gauge", typeof(CustomAxis1Gauge), typeof(Image));
+    gauge.transform.SetParent(manager.transform, false);
+    var slot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    CockpitHudWidgets.Slots["auxiliary"] = slot;
+    f.Tick();
+    Object.Destroy(manager);
+    f.Tick(.01f);
+    Check(gauge == null && slot.childCount == 0 && !CockpitHudWidgets.Content["auxiliary"],
+        "Destroyed native app owner removes orphaned borrowed gauge instead of retaining a stale aircraft reference");
+}
+using (var f = new Fixture())
+{
+    var manager = new GameObject("Native HUD apps", typeof(HUDAppManager));
+    manager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    var gauge = new GameObject("Wing gauge", typeof(WingAngleGauge));
+    gauge.transform.SetParent(manager.transform, false);
+    var diagram = new GameObject("Wing diagram", typeof(Image));
+    diagram.transform.SetParent(gauge.transform, false);
+    var image = diagram.GetComponent<Image>();
+    image.enabled = false;
+    image.color = new Color(.1f, 1, .2f, 0);
+    var label = new GameObject("Angle", typeof(TextMeshProUGUI));
+    label.transform.SetParent(gauge.transform, false);
+    var text = label.GetComponent<TextMeshProUGUI>();
+    text.enabled = false;
+    text.color = new Color(.1f, 1, .2f, 0);
+    text.text = "WING 25°";
+    var native = gauge.GetComponent<WingAngleGauge>();
+    native.SetFadeGraphics(image, text);
+    CockpitHudWidgets.Slots["auxiliary"] = new GameObject("auxiliary content").transform;
+    f.Tick();
+    Check(!image.enabled && native.NativeFade, "Native wing fade is retained outside layout edit");
+    CockpitHudWidgets.Editing = true;
+    f.Tick(.01f);
+    Check(image.enabled && image.color.a == .8f && text.enabled && text.color.a == 1 && !native.NativeFade,
+        "Layout edit shows actual wing diagram and text with authored alpha while pausing native fade");
+    text.text = "WING 40°";
+    f.Tick(.01f);
+    Check(text.text == "WING 40°", "Live native wing readout updates continue during edit preview");
+    CockpitHudWidgets.Editing = false;
+    f.Tick(.01f);
+    Check(!image.enabled && image.color.a == 0 && !text.enabled && text.color.a == 0 && native.NativeFade,
+        "Leaving edit restores exact faded graphic and native fade states");
+    CockpitHudWidgets.Editing = true;
+    f.Tick(.01f);
+    CockpitStatusSources.ReleaseAll();
+    Check(!image.enabled && native.NativeFade && gauge.transform.parent == manager.transform,
+        "Context teardown during edit restores preview before returning native gauge");
+}
 Console.WriteLine($"{count} source-linked cockpit widget lifecycle checks passed.");
 
 sealed class Fixture : IDisposable
@@ -344,6 +489,7 @@ sealed class Fixture : IDisposable
         UnityEngine.XR.XRSettings.enabled = true;
         CockpitHudWidgets.Instance = new CockpitHudWidgets();
         CockpitHudWidgets.Visible = true;
+        CockpitHudWidgets.Editing = false;
         CockpitAlerts.InRecovery = false;
         SceneSingleton<AircraftActionsReport>.i = null;
         GameManager.Aircraft = CockpitHudWidgets.CurrentAircraft = new Aircraft();

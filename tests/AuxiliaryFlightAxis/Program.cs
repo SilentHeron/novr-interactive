@@ -5,7 +5,8 @@ using NOVR.VrUi.SpecialBehavior;
 var passed = 0;
 void Check(bool condition, string reason)
 {
-    if (!condition) throw new Exception(reason);
+    if (!condition)
+        throw new Exception(reason);
     passed++;
 }
 var postfix = typeof(PilotMotionInputPatch).GetNestedType("AuxiliaryThumbstick", BindingFlags.NonPublic)!
@@ -26,8 +27,8 @@ MotionFlightController Create(params object[] systems)
 }
 
 // No aircraft-name/capability whitelist: all native/custom consumers receive
-// the same relative input. The native game retains position/automation ownership.
-foreach (var systems in new[] { Array.Empty<object>(), new object[] { new DuctedFan() }, new object[] { new SwingWingController() }, new object[] { new CustomAircraftSystem() } })
+// relative input. The native game retains position/automation ownership.
+foreach (var systems in new[] { Array.Empty<object>(), new object[] { new DuctedFan() }, new object[] { new CustomAircraftSystem() } })
 {
     var motion = Create(systems);
     Check(motion.AuxiliaryAxis == 1, "Any aircraft may receive Custom Axis 1 while its throttle is held.");
@@ -38,16 +39,45 @@ foreach (var systems in new[] { Array.Empty<object>(), new object[] { new Ducted
     Check(Dispatch(GameManager.playerInput, "Custom Axis 1", .43f) == .43f, "Returning to center preserves native/hardware input rather than forcing an absolute center.");
 }
 
+foreach (var wing in new SwingWingController[] { new SwingWingController(), new ModdedSwingWing() })
+{
+    var motion = Create(wing);
+    Check(motion.AuxiliaryAxis == -1, "Forward thumbstick extends wings, including aircraft using a derived sweep component.");
+    Check(Dispatch(GameManager.playerInput, "Custom Axis 1", .1f) == -1, "Wing sweep inversion reaches the native command postfix.");
+    motion.SetHand(-.8f);
+    Check(Dispatch(GameManager.playerInput, "Custom Axis 1", .1f) == 1, "Backward thumbstick sweeps wings aft.");
+    motion.SetHand(0);
+    Check(Dispatch(GameManager.playerInput, "Custom Axis 1", .43f) == .43f, "Centered wing-sweep thumbstick preserves hardware input.");
+    foreach (var leftHanded in new[] { false, true })
+    {
+        motion.SetLeftHanded(leftHanded);
+        motion.SetHand(.8f);
+        CockpitMapInteraction.ReserveLeft = !leftHanded;
+        CockpitMapInteraction.ReserveRight = leftHanded;
+        Check(motion.AuxiliaryAxis == 0, "Map ownership blocks wing sweep on either role-relative throttle hand.");
+        CockpitMapInteraction.ReserveLeft = leftHanded;
+        CockpitMapInteraction.ReserveRight = !leftHanded;
+        Check(motion.AuxiliaryAxis == -1, "Wing sweep remains inverted when only the other hand is reserved.");
+    }
+    CockpitMapInteraction.ReserveLeft = CockpitMapInteraction.ReserveRight = false;
+    motion.Configure(new Aircraft { Components = new object[] { new DuctedFan() } });
+    Check(motion.AuxiliaryAxis == 1, "Switching from swept wings to pusher fans clears inversion.");
+}
+
 foreach (var nozzle in new object[] { new TiltWingController(), new DuctedThrustSystem(), new SwivelDuctSystem(), new ModdedTiltWing() })
 {
     var motion = Create(nozzle);
     var aircraft = new Aircraft { Components = new[] { nozzle }, Hover = true };
     motion.Configure(aircraft);
     Check(motion.AuxiliaryAxis == 0, "Existing nozzle/tiltwing auto-hover protection remains.");
-    if (nozzle is TiltWingController tilt) Check(tilt.Automatic, "Blocked input cannot turn off automatic tilt.");
+    if (nozzle is TiltWingController tilt)
+        Check(tilt.Automatic, "Blocked input cannot turn off automatic tilt.");
     aircraft.Hover = false;
     Check(motion.AuxiliaryAxis == 1, "Nozzle command resumes outside auto-hover.");
-    if (nozzle is TiltWingController manual) Check(!manual.Automatic, "Deliberate tiltwing movement retains the existing manual takeover.");
+    if (nozzle is TiltWingController manual)
+        Check(!manual.Automatic, "Deliberate tiltwing movement retains the existing manual takeover.");
+    motion.SetHand(-.8f);
+    Check(motion.AuxiliaryAxis == -1, "Nozzle and tiltwing negative commands retain their direction.");
     Check(aircraft.FlightAssist, "Auxiliary input never changes whole-aircraft flight assist.");
 }
 
@@ -56,7 +86,8 @@ foreach (var system in new object[] { new DuctedFan(), new SwingWingController()
     var motion = Create(system);
     var aircraft = new Aircraft { Components = new[] { system }, Hover = true };
     motion.Configure(aircraft);
-    Check(motion.AuxiliaryAxis == 1 && aircraft.FlightAssist, "Non-nozzle auxiliary controls use native semantics rather than an unrelated nozzle hover restriction.");
+    var expected = system is SwingWingController ? -1f : 1f;
+    Check(motion.AuxiliaryAxis == expected && aircraft.FlightAssist, "Non-nozzle auxiliary controls use native semantics rather than an unrelated nozzle hover restriction.");
 }
 
 var current = Create(new TiltWingController());

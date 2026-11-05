@@ -71,6 +71,24 @@ internal sealed class HudWidgetProfiles
         return !string.IsNullOrEmpty(aircraftKey) && Aircraft(aircraftKey!, slot).Override.Value;
     }
     internal bool HasSavedLayout(string? aircraftKey, int slot = 1) => HasOverride(aircraftKey, slot);
+    internal bool NeedsAuxiliaryPlacement(string? aircraftKey, int slot = 1)
+    {
+        ValidateSlot(slot);
+        if (string.IsNullOrEmpty(aircraftKey))
+            return false;
+        var profile = Aircraft(aircraftKey!, slot);
+        return profile.Override.Value && profile.Poses["auxiliary"].Value.Length == 0;
+    }
+
+    // A pre-existing saved slot has no seated origin to reuse for newly added
+    // widgets. Capture only this new pose once; never rewrite its other entries.
+    internal void InitializeAuxiliary(string aircraftKey, HudWidgetPose pose, int slot = 1)
+    {
+        if (!NeedsAuxiliaryPlacement(aircraftKey, slot))
+            return;
+        Aircraft(aircraftKey, slot).Poses["auxiliary"].Value = Encode(Sanitize("auxiliary", pose));
+        _config.Save();
+    }
     internal void Save(string aircraftKey, Dictionary<string, HudWidgetPose> poses, int slot = 1)
     {
         ValidateSlot(slot);
@@ -118,7 +136,7 @@ internal sealed class HudWidgetProfiles
         var entries = new Dictionary<string, ConfigEntry<string>>(StringComparer.Ordinal);
         var factory = FactoryDefaults;
         foreach (var id in Ids)
-            entries.Add(id, _config.Bind(section, id, Encode(factory[id]),
+            entries.Add(id, _config.Bind(section, id, id == "auxiliary" ? "" : Encode(factory[id]),
                 Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio. Managed by View > Edit layout."));
         MigrateUntouchedDefaults(section, entries);
         return entries;

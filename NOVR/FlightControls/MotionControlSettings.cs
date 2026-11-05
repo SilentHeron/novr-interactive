@@ -48,7 +48,7 @@ public sealed class MotionControlSettings
         HelmetNightVision = config.Bind(section, "Helmet Night Vision Gesture", true, "Raise either free hand to the forehead/brow and make a fresh trigger press to toggle native night vision. A short pulse marks the gesture area. Disabled in menus, map and layout editing.");
         MilDetent = config.Bind(section, "MIL Throttle Detent", true, "Afterburning jets only: a 1.6 cm shelf at the installed engine's military-power boundary. Push through for afterburner; no timer or extra button.");
         InteractionVolume = Float(config, "Interaction Sound Volume", .4f, 0f, 1f, "Volume of spatial button, grip, detent, guard and helmet cues. Zero mutes them without disabling haptics. Uses the aircraft audio mixer when available.");
-        HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief handle-reach, grab, release, widget, detent and stick-limit feedback. Zero disables these cues.");
+        HapticStrength = Float(config, "Interaction Haptic Strength", 1.5f, 0f, 2f, "Strength of brief handle-reach, grab, release, widget, detent, stick-movement and stick-limit feedback. Zero disables these cues.");
         GrabRadius = Float(config, "Grab Radius", DefaultGrabRadius, 0.03f, 0.3f, "Maximum hand distance from a handle when pressing grip. A white outline and brief haptic cue indicate when it is within reach.");
         MotionControlMigrations.Apply(config, this);
         StickTapGrip = config.Bind(section, "Stick Tap Grip", false, "Toggle grip: squeeze once to hold the stick, squeeze again to release. Off requires continuous grip pressure. Moving more than 40 cm away, tracking loss or menus releases the handle.");

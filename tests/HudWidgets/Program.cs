@@ -14,7 +14,7 @@ try
     var profiles = new HudWidgetProfiles(config);
     True(HudWidgetProfiles.Ids.SequenceEqual(new[]
     {
-        "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives"
+        "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives", "auxiliary"
     }), "Catalog preserves persisted widget IDs and menu order");
     foreach (var definition in HudWidgetCatalog.All)
     {
@@ -34,21 +34,21 @@ try
     foreach (var id in new[] { "SmallFighter1", "Multirole1", "modauthor/FS-3_Ternion", "other-author/custom-plane" })
     {
         var all = profiles.Load(id, 2);
-        True(all.Count == 9 && HudWidgetProfiles.Ids.All(all.ContainsKey), "Every stock/custom aircraft receives all nine editable widgets");
+        True(all.Count == 10 && HudWidgetProfiles.Ids.All(all.ContainsKey), "Every stock/custom aircraft receives all ten editable widgets");
         var hidden = all["damage"];
         hidden.Visible = false;
         all["damage"] = hidden;
         profiles.Save(id, all, 2);
         var restored = profiles.Load(id, 2);
-        True(restored.Count == 9 && !restored["damage"].Visible, "Universal availability preserves saved hide settings");
+        True(restored.Count == 10 && !restored["damage"].Visible, "Universal availability preserves saved hide settings");
         True(profiles.Load(id, 1)["damage"].Visible, "Visibility stays independent across aircraft slots");
     }
-    True(profiles.Load("").Count == 9 && !profiles.HasSavedLayout(""), "Missing metadata retains editable defaults without a fallback save");
+    True(profiles.Load("").Count == 10 && !profiles.HasSavedLayout(""), "Missing metadata retains editable defaults without a fallback save");
     profiles.Save("", profiles.Load(""));
     True(!profiles.HasSavedLayout(""), "An unresolved aircraft identity never writes a shared profile");
     var factory = HudWidgetProfiles.FactoryDefaults;
     var defaults = profiles.Load(null);
-    Equal(defaults.Count, 9, "Nine independent widget types including damage and instructions");
+    Equal(defaults.Count, 10, "Ten independent widget types including auxiliary controls");
     True(!profiles.HasOverride(null) && !profiles.HasOverride("FS-20"), "New aircraft inherits defaults");
     foreach (var id in HudWidgetProfiles.Ids)
     {
@@ -91,7 +91,7 @@ try
     var precise = new HudWidgetPose(new Vector3(.12345679f, -.8765432f, 1.2345679f), new Vector3(-32.1f, 67.23f, 0), 1.37f, .59f, .31f, false);
     profiles.Save("FS-20", new Dictionary<string, HudWidgetPose> { ["weapons"] = precise, ["unknown widget"] = precise });
     Same(profiles.Load("FS-20")["threats"], customized["threats"], "Partial save preserves other widgets");
-    Equal(profiles.Load("FS-20").Count, 9, "Unknown widgets do not create new slots");
+    Equal(profiles.Load("FS-20").Count, 10, "Unknown widgets do not create new slots");
     CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
     var reloadedConfig = new ConfigFile(path, false) { SaveOnConfigSet = false };
     var reloaded = new HudWidgetProfiles(reloadedConfig);
@@ -200,6 +200,7 @@ try
     CockpitWidgetSpaceChecks.Run(True);
     HudWidgetLayoutPersistenceChecks.Run(directory, True);
     HudWidgetDefaultPlacementChecks.Run(directory, True);
+    HudWidgetAuxiliaryMigrationChecks.Run(directory, True);
     HudWidgetAngleChecks.Run(True);
     HudWidgetMotionChecks.Run(True);
     HudWidgetTwoHandChecks.Run(True);

@@ -7,8 +7,8 @@ using UnityEngine.XR;
 
 namespace NOVR.VrUi.SpecialBehavior;
 
-// Keep the fitted native HUD gauge in its authored position. Only its visibility
-// changes; cockpit instruments, scale, brightness and nozzle logic stay native.
+// Contextual visibility for the fitted native HUD gauge, including when the
+// status adapter lends its complete diagram to the movable auxiliary frame.
 [DefaultExecutionOrder(150)]
 internal sealed class Fs20NozzleHud : MonoBehaviour
 {
@@ -94,6 +94,10 @@ internal sealed class Fs20NozzleHud : MonoBehaviour
             ready && fitted ? system!.GetNozzleAngle() : 0,
             inputs != null ? inputs.customAxis1 : 1,
             ready && _aircraft!.IsAutoHoverEnabled(), Time.unscaledTime);
+        // The full gauge must remain visible while its movable frame is being
+        // edited, even if the mechanism is currently in forward flight.
+        visible |= fitted && CockpitHudWidgets.Editing && CockpitHudWidgets.CurrentAircraft == _aircraft &&
+            CockpitStatusSources.Owns(_source.transform);
         foreach (var graphic in _graphics)
             graphic.Apply(visible);
     }
@@ -150,8 +154,9 @@ internal static class NozzleHudContextPatch
     private static void Postfix(NozzleGauge __instance, Aircraft aircraft)
     {
         // MFD/cockpit apps can use the same gauge class. Never hide those.
-        if (__instance.GetComponentInParent<HUDAppManager>() == null ||
-            __instance.GetComponentInParent<FlightHud>() == null)
+        if (!CockpitStatusSources.Owns(__instance.transform) &&
+            (__instance.GetComponentInParent<HUDAppManager>() == null ||
+            __instance.GetComponentInParent<FlightHud>() == null))
             return;
         var behavior = __instance.GetComponent<Fs20NozzleHud>();
         if (behavior == null)

@@ -44,7 +44,7 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 
 Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** VR settings.
 
-For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled assist resumes native automatic control.
+For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled assist resumes native automatic control. For wing sweep, push the thumbstick forward to extend the wings or backward to sweep them aft.
 
 **Quick wheel:** deflect to highlight; return to center to select. Click again to cancel. Trigger changes Options / Weapons pages. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings, including when Steam Link consumes the Quest Menu button. Eject requires a centered stick-click hold for 1.2 seconds; release to reset, or tilt / press trigger to cancel.
 
@@ -54,7 +54,9 @@ For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled
 
 For a physical HOTAS, turn **View → Flight controls → Motion controls** off and bind your hardware in the game's control settings. HUD widgets and layout editing remain available; editing keeps virtual flight controls off.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.18.md)
+**Auxiliary controls:** the aircraft's complete native nozzle, wing-sweep or fan gauge is a movable HUD frame, including its diagram. Adjust it through **View → Edit layout**. Only the fitted gauges are shown.
+
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.19.md)
 
 ## Build
 

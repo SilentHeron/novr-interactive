@@ -5,6 +5,7 @@ TexturePreparationChecks.Run(Check, True);
 HudPresentationChecks.Run(Check, True);
 CockpitAlertChecks.Run(Check, True);
 StickLimitFeedbackChecks.Run(Check, True);
+StickMotionFeedbackChecks.Run(Check, True);
 HandleReachFeedbackChecks.Run(Check, True);
 ControlMirrorChecks.Run(Check, True);
 ControlOutlineChecks.Run(Check, True);

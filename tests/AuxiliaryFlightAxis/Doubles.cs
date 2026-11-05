@@ -19,18 +19,42 @@ namespace HarmonyLib
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class HarmonyPatch : Attribute
     {
-        public HarmonyPatch(Type type, string method) { }
-        public HarmonyPatch(Type type, string method, Type[] arguments) { }
+        public HarmonyPatch(Type type, string method)
+        {
+        }
+        public HarmonyPatch(Type type, string method, Type[] arguments)
+        {
+        }
     }
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class HarmonyPostfix : Attribute { }
+    public sealed class HarmonyPostfix : Attribute
+    {
+    }
 }
-namespace Rewired { public sealed class Player { } }
-public static class GameManager { public static Rewired.Player playerInput = new(); }
-public static class PlayerSettings { public static bool throttleUseNegative, invertCollective; }
-public sealed class Pilot { }
-public sealed class PilotPlayerState { }
-public sealed class ControlInputs { public float pitch, roll, yaw, throttle; }
+namespace Rewired
+{
+    public sealed class Player
+    {
+    }
+}
+public static class GameManager
+{
+    public static Rewired.Player playerInput = new();
+}
+public static class PlayerSettings
+{
+    public static bool throttleUseNegative, invertCollective;
+}
+public sealed class Pilot
+{
+}
+public sealed class PilotPlayerState
+{
+}
+public sealed class ControlInputs
+{
+    public float pitch, roll, yaw, throttle;
+}
 public sealed class Aircraft
 {
     public object[] Components = Array.Empty<object>();
@@ -44,12 +68,27 @@ public class TiltWingController
     private bool autoTilt = true;
     public bool Automatic => autoTilt;
 }
-public sealed class ModdedTiltWing : TiltWingController { }
-public sealed class DuctedThrustSystem { }
-public sealed class SwivelDuctSystem { }
-public sealed class DuctedFan { }
-public sealed class SwingWingController { }
-public sealed class CustomAircraftSystem { }
+public sealed class ModdedTiltWing : TiltWingController
+{
+}
+public sealed class DuctedThrustSystem
+{
+}
+public sealed class SwivelDuctSystem
+{
+}
+public sealed class DuctedFan
+{
+}
+public class SwingWingController
+{
+}
+public sealed class ModdedSwingWing : SwingWingController
+{
+}
+public sealed class CustomAircraftSystem
+{
+}
 
 namespace NOVR.VrUi.SpecialBehavior
 {
@@ -62,8 +101,14 @@ namespace NOVR.VrUi.SpecialBehavior
 
 namespace NOVR.MotionControls
 {
-    internal sealed class BoolSetting { internal bool Value; }
-    internal sealed class MotionControlSettings { internal BoolSetting LeftHanded = new(); }
+    internal sealed class BoolSetting
+    {
+        internal bool Value;
+    }
+    internal sealed class MotionControlSettings
+    {
+        internal BoolSetting LeftHanded = new();
+    }
     internal struct ControllerSample
     {
         internal bool Valid, HasAxis;
@@ -79,12 +124,27 @@ namespace NOVR.MotionControls
         private readonly MotionControlSettings Settings = new();
         private ControllerSample _throttleHand = new() { Valid = true, HasAxis = true, Axis = new(0, .8f) };
         private Aircraft? _aircraft;
-        internal void Configure(Aircraft aircraft) { _aircraft = aircraft; ConfigureAuxiliaryControls(aircraft); }
+        internal void Configure(Aircraft aircraft)
+        {
+            _aircraft = aircraft;
+            ConfigureAuxiliaryControls(aircraft);
+        }
         internal void SetHand(float y, bool valid = true, bool hasAxis = true) =>
-            _throttleHand = new() { Valid = valid, HasAxis = hasAxis, Axis = new(0, y) };
+            _throttleHand = new()
+            {
+                Valid = valid,
+                HasAxis = hasAxis,
+                Axis = new(0, y)
+            };
         internal void SetLeftHanded(bool left) => Settings.LeftHanded.Value = left;
         internal bool SampleFor(Pilot pilot) => FlightActive;
-        internal void ResetGrips() { StickHeld = false; ThrottleHeld = false; }
-        internal void ObserveThrottle(Pilot pilot, float command) { }
+        internal void ResetGrips()
+        {
+            StickHeld = false;
+            ThrottleHeld = false;
+        }
+        internal void ObserveThrottle(Pilot pilot, float command)
+        {
+        }
     }
 }

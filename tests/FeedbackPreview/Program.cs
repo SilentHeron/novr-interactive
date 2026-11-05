@@ -15,11 +15,13 @@ var left = new InputDevice(11, leftOutput);
 var right = new InputDevice(22, rightOutput);
 void Reset()
 {
+    UnityEngine.Time.unscaledTime += 10f;
     leftOutput.Pulses.Clear();
     rightOutput.Pulses.Clear();
     InteractionAudio.Requests.Clear();
     leftOutput.Valid = leftOutput.Capabilities = leftOutput.SupportsImpulse = true;
     rightOutput.Valid = rightOutput.Capabilities = rightOutput.SupportsImpulse = true;
+    leftOutput.SendSucceeds = rightOutput.SendSucceeds = true;
     TrackedControllers.Left = new ControllerSample { Valid = true, Device = left };
     TrackedControllers.Right = new ControllerSample { Valid = true, Device = right };
     ModConfiguration.Instance.MotionControls.HapticStrength.Value = 1.5f;
@@ -200,5 +202,120 @@ Check("Stick movement pulses use the strength setting without producing interact
     ModConfiguration.Instance.MotionControls.HapticStrength.Value = 0;
     InteractionHaptics.PulseOnly(right, .42f, .06f);
     Assert(rightOutput.Pulses.Count == 0 && InteractionAudio.Requests.Count == 0);
+});
+Check("Soft stick motion preserves unfinished grab feedback on that hand only", () =>
+{
+    Reset();
+    InteractionHaptics.Pulse(left, InteractionCue.Grab);
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    InteractionHaptics.PulseMotion(right, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 1 && rightOutput.Pulses.Count == 1);
+    Near(rightOutput.Pulses[0].amplitude, .03f);
+    Assert(InteractionAudio.Requests.Count == 1);
+    UnityEngine.Time.unscaledTime += .03f;
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 1);
+    UnityEngine.Time.unscaledTime += .02f;
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 2);
+});
+Check("Soft movement overlap never locks out another movement pulse or a stronger cue", () =>
+{
+    Reset();
+    InteractionHaptics.PulseMotion(left, .015f, .025f);
+    UnityEngine.Time.unscaledTime += .01f;
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 2 && InteractionAudio.Requests.Count == 0);
+    InteractionHaptics.Pulse(left, InteractionCue.Detent);
+    Assert(leftOutput.Pulses.Count == 3 && InteractionAudio.Requests.Count == 1);
+    Near(leftOutput.Pulses[2].amplitude, .975f);
+    UnityEngine.Time.unscaledTime += .03f;
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 3);
+});
+Check("Silent priority feedback also protects its duration without changing existing output", () =>
+{
+    Reset();
+    InteractionHaptics.PulseOnly(right, .4f, .08f);
+    InteractionHaptics.PulseOnly(right, .3f, .03f);
+    Assert(rightOutput.Pulses.Count == 2 && InteractionAudio.Requests.Count == 0);
+    Near(rightOutput.Pulses[0].amplitude, .6f);
+    Near(rightOutput.Pulses[1].amplitude, .45f);
+    UnityEngine.Time.unscaledTime += .04f;
+    InteractionHaptics.PulseMotion(right, .02f, .025f);
+    Assert(rightOutput.Pulses.Count == 2);
+    UnityEngine.Time.unscaledTime += .05f;
+    InteractionHaptics.PulseMotion(right, .02f, .025f);
+    Assert(rightOutput.Pulses.Count == 3);
+});
+Check("Zero strength and invalid motion impulses remain silent and do not reserve a controller", () =>
+{
+    Reset();
+    ModConfiguration.Instance.MotionControls.HapticStrength.Value = 0;
+    InteractionHaptics.PulseOnly(left, .4f, .08f);
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 0);
+    ModConfiguration.Instance.MotionControls.HapticStrength.Value = 1.5f;
+    foreach (var invalid in new[] { 0f, -1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+    {
+        InteractionHaptics.PulseMotion(left, invalid, .025f);
+        InteractionHaptics.PulseMotion(left, .02f, invalid);
+    }
+    Assert(leftOutput.Pulses.Count == 0);
+    InteractionHaptics.PulseOnly(left, 0, .08f);
+    Assert(leftOutput.Pulses.Count == 1); // Preserve the existing explicit pulse API.
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 2);
+});
+Check("Unavailable or rejected impulses do not create stale motion suppression", () =>
+{
+    foreach (var failure in new[] { 0, 1, 2, 3 })
+    {
+        Reset();
+        leftOutput.Valid = failure != 0;
+        leftOutput.Capabilities = failure != 1;
+        leftOutput.SupportsImpulse = failure != 2;
+        leftOutput.SendSucceeds = failure != 3;
+        InteractionHaptics.PulseOnly(left, .4f, .08f);
+        var attempts = leftOutput.Pulses.Count;
+        leftOutput.Valid = leftOutput.Capabilities = leftOutput.SupportsImpulse = leftOutput.SendSucceeds = true;
+        InteractionHaptics.PulseMotion(left, .02f, .025f);
+        Assert(leftOutput.Pulses.Count == attempts + 1);
+    }
+});
+Check("Clock rewind clears stale reservations and controller replacement keeps independent feedback", () =>
+{
+    Reset();
+    InteractionHaptics.PulseOnly(left, .4f, .08f);
+    var replacement = new InputDevice(33, rightOutput);
+    InteractionHaptics.PulseMotion(replacement, .02f, .025f);
+    Assert(rightOutput.Pulses.Count == 1);
+    UnityEngine.Time.unscaledTime -= 1f;
+    InteractionHaptics.PulseMotion(left, .02f, .025f);
+    Assert(leftOutput.Pulses.Count == 2);
+});
+Check("Priority reservations use public device equality across copies and four distinct handles", () =>
+{
+    Reset();
+    var outputs = Enumerable.Range(0, 4).Select(_ => new DeviceOutput()).ToArray();
+    var devices = outputs.Select((output, index) => new InputDevice((ulong)(100 + index), output)).ToArray();
+    for (var i = 0; i < devices.Length; i++)
+        InteractionHaptics.PulseOnly(devices[i], .4f, .08f);
+    for (var i = 0; i < devices.Length; i++)
+    {
+        var copied = devices[i];
+        var sameHandle = new InputDevice((ulong)(100 + i), outputs[i]);
+        Assert(copied.Equals(sameHandle) && copied == sameHandle);
+        Assert(!copied.Equals(devices[(i + 1) % devices.Length]));
+        InteractionHaptics.PulseMotion(copied, .02f, .025f);
+        InteractionHaptics.PulseMotion(sameHandle, .02f, .025f);
+        Assert(outputs[i].Pulses.Count == 1);
+    }
+    UnityEngine.Time.unscaledTime += .1f;
+    for (var i = 0; i < devices.Length; i++)
+    {
+        InteractionHaptics.PulseMotion(devices[i], .02f, .025f);
+        Assert(outputs[i].Pulses.Count == 2);
+    }
 });
 Console.WriteLine($"{passed} feedback preview checks passed (device/audio doubles; no real controller or game actions).");

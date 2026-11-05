@@ -69,7 +69,8 @@ internal static class HudWidgetGestureChecks
             ["feed"] = (460, 270),
             ["map"] = (300, 300),
             ["damage"] = (300, 300),
-            ["objectives"] = (420, 150)
+            ["objectives"] = (420, 150),
+            ["auxiliary"] = (300, 170)
         };
         foreach (var pair in HudWidgetProfiles.FactoryDefaults)
         {
