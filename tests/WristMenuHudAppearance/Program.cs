@@ -141,6 +141,7 @@ checks += AircraftSlotUiChecks.Run();
 NavigationChecks.Run(Check);
 ControlChecks.Run(Check);
 SeatPageChecks.Run(Check);
+TextSizeMenuChecks.Run(Check);
 Console.WriteLine($"HUD appearance UI checks passed: {checks} assertions (source-linked callbacks; no Unity rendering).");
 void Check(bool result, string label) { if (!result) throw new Exception(label); checks++; }
 bool Near(float a, float b) => Math.Abs(a - b) < .00001f;

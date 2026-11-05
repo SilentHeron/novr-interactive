@@ -436,8 +436,8 @@ public sealed partial class MotionFlightController : MonoBehaviour
         var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
         if (!head.isValid || !head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) || !tracked)
             return Blocked("Headset tracking is unavailable");
-        if (head.TryGetFeatureValue(CommonUsages.userPresence, out var present) && !present)
-            return Blocked("Headset reports it is not being worn");
+        // Match TrackedControllers: runtime focus and tracking own input, not
+        // the optional wear-sensor value, which can remain false on streaming.
         trackingRoot = camera.transform.parent;
         return true;
     }

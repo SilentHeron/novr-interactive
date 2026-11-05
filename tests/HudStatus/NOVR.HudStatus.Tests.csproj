@@ -14,6 +14,7 @@
     <Compile Include="../../NOVR/VrUi/Status/CockpitAlertMath.cs" Link="CockpitAlertMath.cs" />
     <Compile Include="../../NOVR/VrUi/Status/CockpitFeedPresentation.cs" Link="CockpitFeedPresentation.cs" />
     <Compile Include="../../NOVR/VrUi/Status/CockpitNotificationMirror.cs" Link="CockpitNotificationMirror.cs" />
+    <Compile Include="../../NOVR/VrUi/Status/CockpitTextPresentation.cs" Link="CockpitTextPresentation.cs" />
     <Compile Include="../../NOVR/VrUi/Status/NativeNotificationText.cs" Link="NativeNotificationText.cs" />
     <Compile Include="../../NOVR/VrUi/HarmonyPatches/NativeMessageFeedPatch.cs" Link="NativeMessageFeedPatch.cs" />
   </ItemGroup>

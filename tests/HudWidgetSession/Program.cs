@@ -14,7 +14,7 @@ void Same(HudWidgetPose actual, HudWidgetPose expected, string message)
     Near(actual.Position, expected.Position, message + " position");
     Near(actual.Euler, expected.Euler, message + " angles");
     Check(actual.Scale == expected.Scale && actual.Aspect == expected.Aspect && actual.Opacity == expected.Opacity &&
-        actual.Background == expected.Background && actual.Visible == expected.Visible, message + " appearance");
+        actual.Background == expected.Background && actual.Visible == expected.Visible && actual.TextScale == expected.TextScale, message + " appearance");
 }
 void TeardownOrder()
 {
@@ -48,6 +48,38 @@ foreach (var hands in new[] { 1, 2 })
         Near(CockpitProfiles.SeatOffset, Fixture.Seat, "Cancel restores seat");
         Near(CockpitProfiles.StickPosition, Fixture.Stick, "Cancel restores stick");
         Check(ModConfiguration.Instance.Config.Saves == saves, "Cancel does not persist either slot");
+    }
+
+foreach (var save in new[] { false, true })
+    foreach (var id in new[] { "feed", "objectives" })
+    {
+        var f = new Fixture();
+        var original = f.Manager.PoseForCheck(id);
+        f.Manager.Begin();
+        var preview = original;
+        preview.TextScale = id == "feed" ? .78f : 1.35f;
+        preview.Anchor = HudWidgetAnchor.LeftWrist;
+        preview.WristPosition = new(.03f, .02f, .05f);
+        f.Manager.PoseFromGesture(id, preview);
+        f.Manager.HoldForCheck(1, opacity: true);
+        if (save)
+        {
+            Check(f.Manager.SaveToSlot(2), "Text-size edit saves to selected aircraft slot");
+            Same(f.Manager.PoseForCheck(id), preview, "Saved text size is immediately displayed");
+            var stored = f.Stored.Load(Fixture.Key, 2)[id];
+            Same(stored, preview, "Saving commits text size together with appearance");
+            Check(stored.Anchor == preview.Anchor && stored.WristPosition.Equals(preview.WristPosition),
+                "Text-size save retains attached wrist placement");
+            Same(f.Stored.Load(Fixture.Key, 1)[id], original, "Text-size save leaves source slot untouched");
+        }
+        else
+        {
+            f.Manager.Finish(false);
+            Same(f.Manager.PoseForCheck(id), original, "Cancel restores text size with original pose");
+            Same(f.Stored.Load(Fixture.Key, 1)[id], original, "Canceled text size never persists");
+        }
+        Check(!CockpitHudWidgets.Editing && f.Manager.ContactsClear, "Text-size save/cancel releases editing contacts");
+        f.Manager.DisableForCheck();
     }
 
 foreach (var change in new[] { "aircraft instance", "aircraft identity", "slot" })

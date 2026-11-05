@@ -14,6 +14,8 @@ internal sealed partial class WristMenu
     private ViewMenuControls.Check? _hudVisibility, _hudSnap;
     private readonly List<(ViewMenuControls.Scalar control, bool editing)> _hudSliders = new();
     private Text? _hudBackplateLabel;
+    private ViewMenuControls.Scalar? _hudTextSize;
+    private RectTransform? _hudLayoutAction, _hudAngleAction;
     private readonly List<Button> _profileLoadButtons = new();
     private readonly List<Button> _profileSaveButtons = new();
     private readonly List<Button> _hudAvailableButtons = new(), _hudEditingButtons = new();
@@ -62,6 +64,7 @@ internal sealed partial class WristMenu
                     return;
                 HudWidgets!.Select(id);
                 ShowPage(_hudWidgetPage!);
+                RefreshHudLayoutEditor();
             });
         }
         Label(_hudAppearancePage.transform, "Choose a widget to change its look.\nUse Edit layout to move the HUD and handles.",
@@ -82,8 +85,14 @@ internal sealed partial class WristMenu
         HudScalar(parent, "Readout opacity", 29, HudWidgetProfiles.MinOpacity, 1,
             () => HudWidgets?.GetPose(SelectedHudId).Opacity ?? 1, value => ChangeHudPose(p => { p.Opacity = value; return p; }), Percent, .01f);
         CreateHudBackplateSlider(_hudWidgetPage.transform);
-        AddHudButton(parent, "Layout controls", 0, 5, ShowLayoutControls, true);
-        AddHudButton(parent, "Angle", 1, 5, () => { ShowPage(_hudAnglePage!); RefreshHudLayoutEditor(); }, true);
+        _hudTextSize = HudScalar(parent, "Text size", -111, HudWidgetProfiles.MinTextScale, HudWidgetProfiles.MaxTextScale,
+            () => HudWidgets?.GetPose(SelectedHudId).TextScale ?? 1, value =>
+            {
+                if (HudWidgetProfiles.SupportsTextSize(SelectedHudId))
+                    ChangeHudPose(p => { p.TextScale = value; return p; });
+            }, Percent, .01f);
+        _hudLayoutAction = (RectTransform)AddHudButton(parent, "Layout controls", 0, 5, ShowLayoutControls, true).transform.parent;
+        _hudAngleAction = (RectTransform)AddHudButton(parent, "Angle", 1, 5, () => { ShowPage(_hudAnglePage!); RefreshHudLayoutEditor(); }, true).transform.parent;
         _hudWidgetInfo = Label(_hudWidgetPage.transform, "", new Vector2(0, -194), new Vector2(620, 92), 18);
     }
 
@@ -225,6 +234,16 @@ internal sealed partial class WristMenu
             item.control.Slider.interactable = available && (!item.editing || CockpitHudWidgets.Editing);
             item.control.Refresh();
         }
+        var textOnly = HudWidgetProfiles.SupportsTextSize(SelectedHudId);
+        if (_hudTextSize != null)
+        {
+            _hudTextSize.Slider.gameObject.SetActive(textOnly);
+            _hudTextSize.Slider.interactable = available && textOnly;
+        }
+        if (_hudLayoutAction != null)
+            _hudLayoutAction.anchoredPosition = new Vector2(-160, textOnly ? -174 : -117);
+        if (_hudAngleAction != null)
+            _hudAngleAction.anchoredPosition = new Vector2(160, textOnly ? -174 : -117);
         if (_hudVisibility != null)
         {
             _hudVisibility.Toggle.interactable = available;
@@ -241,8 +260,12 @@ internal sealed partial class WristMenu
                 "Grip HUD widgets or enabled handles to move.\nTilt a held widget for pitch / yaw; roll stays level.\nUse both corners to move, tilt and resize together.\nClick either thumbstick to reopen this menu.\n\nSave and cancel apply to everything together.\nBring within reach moves distant items closer.";
         if (_hudWidgetInfo != null && _hudWidgetPage?.activeSelf == true && manager != null)
         {
-            var pose = manager.GetPose(SelectedHudId);
-            _hudWidgetInfo.text = HudWidgetProfiles.Label(SelectedHudId) +
+            var infoRect = (RectTransform)_hudWidgetInfo.transform;
+            infoRect.anchoredPosition = new Vector2(0, textOnly ? -225 : -194);
+            infoRect.sizeDelta = new Vector2(620, textOnly ? 48 : 92);
+            _hudWidgetInfo.text = textOnly ? HudWidgetProfiles.Label(SelectedHudId) + " · Text size changes readouts only.\n" +
+                (manager.CanSaveProfile != true ? "Aircraft loading; appearance is preview only." : CockpitHudWidgets.Editing ?
+                    "Preview: save or cancel in Layout controls." : "Appearance changes save automatically.") : HudWidgetProfiles.Label(SelectedHudId) +
                 "\nBackplate opacity leaves readouts unchanged.\n" +
                 (manager.CanSaveProfile != true ? "Aircraft loading; appearance is preview only." : CockpitHudWidgets.Editing ? "Preview only; save or cancel in Layout controls.\nEmpty / hidden widgets show while editing." :
                     "Appearance changes save automatically.\nUse Edit layout to move or angle this widget.");

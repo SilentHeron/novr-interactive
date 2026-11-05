@@ -24,6 +24,38 @@ session. If the PC is only ready for 2D streaming, resolve that connection befor
 adjusting NOVR's HUD. The [historical setup notes](history/STEAM_FRAME.md) describe
 older builds and retired controls, not the current installation procedure.
 
+## Installation troubleshooting
+
+**The BepInEx script says the game is a Windows executable:** use the Windows
+x64 BepInEx **5** ZIP, even on Arch, KDE or another Linux desktop. Its files go
+beside `NuclearOption.exe`; there is no installer executable to open with Proton.
+Launch the game through Steam. Remove any `run_bepinex.sh` command from Steam's
+launch options and keep the `winhttp` override from the README. Leave unrelated
+launch options in place.
+
+**The game starts but NOVR does not:** check these locations inside the game's
+installation folder:
+
+```text
+NuclearOption.exe
+winhttp.dll
+doorstop_config.ini
+BepInEx/core/BepInEx.dll
+BepInEx/plugins/NOVR/NOVR.dll
+BepInEx/patchers/NOVR/NOVR.Patcher.dll
+```
+
+Copy each archive's contents, without an extra enclosing folder named after the
+ZIP. BepInEx goes in the game folder; NOVR goes inside `BepInEx`. Preserve your
+existing `BepInEx/config` folder and other mods when correcting an installation.
+
+After launching, `BepInEx/LogOutput.log` should contain `Loading [NOVR Interactive`.
+If no fresh log appears, check the BepInEx files and Proton launch option first.
+If BepInEx loads but NOVR does not, check both NOVR folders above and the log for
+errors. BepInEx's official [installation guide](https://docs.bepinex.dev/articles/user_guide/installation/index.html)
+and [Proton/Wine guide](https://docs.bepinex.dev/articles/advanced/proton_wine.html)
+explain the loader setup.
+
 ## Tuning performance
 
 The desktop mirror and headset render resolution are separate. The mirror copies

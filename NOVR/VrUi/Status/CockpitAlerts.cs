@@ -173,6 +173,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         var suppressNativeFeed = CockpitFeedPresentation.SuppressNative(
             (Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, _hadCockpit);
         var feedOpacity = recovery ? _feedPose.Opacity : 1;
+        var feedTextScale = recovery ? _feedPose.TextScale : CockpitHudWidgets.GetTextScale("feed");
         if (_root != null)
             _root.SetActive(WidgetVisible("ew") && hasEw);
         if (_missileRoot != null)
@@ -183,12 +184,12 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
             _listHide?.Apply(0);
         else
             _listHide?.Restore();
-        _feed?.Refresh(feedVisible, Settings.Feed.Value, true, feedOpacity, suppressNativeFeed);
+        _feed?.Refresh(feedVisible, Settings.Feed.Value, true, feedOpacity, suppressNativeFeed, feedTextScale);
         // Typing/expanded chat keeps its native history and input presentation.
         // Outside chat, mirror only the latest two live mission-message lines.
-        _mission?.Refresh(feedVisible && !chatOpen, true, false, feedOpacity, suppressNativeFeed && !chatOpen);
-        _reward?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed);
-        _rank?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed);
+        _mission?.Refresh(feedVisible && !chatOpen, true, false, feedOpacity, suppressNativeFeed && !chatOpen, feedTextScale);
+        _reward?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed, feedTextScale);
+        _rank?.Refresh(feedVisible, true, false, feedOpacity, suppressNativeFeed, feedTextScale);
         var hasFeed = _feed?.Visible == true || _mission?.Visible == true || _reward?.Visible == true || _rank?.Visible == true;
         if (suppressNativeFeed)
             _rankHide?.Apply();
@@ -254,7 +255,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         if (_feed?.Source != source)
         {
             _feed?.Release();
-            _feed = source == null ? null : new CockpitNotificationMirror(source, _feedRoot!, new Vector2(0, 53), new Vector2(480, 96), 24, true);
+            _feed = source == null ? null : new CockpitNotificationMirror(source, _feedRoot!, new Vector2(0, 53), new Vector2(480, 96), CockpitTextPresentation.FeedFontSize, true);
         }
         var mission = messages != null ? MissionOf(messages) : null;
         if (_mission?.Source != mission)
@@ -267,13 +268,13 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         if (_reward?.Source != reward)
         {
             _reward?.Release();
-            _reward = reward == null ? null : new CockpitNotificationMirror(reward, _feedRoot!, new Vector2(0, 126), new Vector2(480, 32), 24);
+            _reward = reward == null ? null : new CockpitNotificationMirror(reward, _feedRoot!, new Vector2(0, 126), new Vector2(480, 48), 24);
         }
         var rank = kills != null ? RankOf(kills) : null;
         if (_rank?.Source != rank)
         {
             _rank?.Release();
-            _rank = rank == null ? null : new CockpitNotificationMirror(rank, _feedRoot!, new Vector2(0, -126), new Vector2(480, 32), 22);
+            _rank = rank == null ? null : new CockpitNotificationMirror(rank, _feedRoot!, new Vector2(0, -126), new Vector2(480, 48), 22);
         }
         var background = kills != null ? RankBackground(kills) : null;
         if (_rankBackground != background)

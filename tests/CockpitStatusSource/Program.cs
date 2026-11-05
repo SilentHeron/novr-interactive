@@ -278,6 +278,38 @@ using (var f = new Fixture())
         "Native text, enabled state and report queue inputs remain intact");
     Check(taxiCopy.color == taxi.color && reportCopy.rectTransform.sizeDelta == new Vector2(408, 112) && reportCopy.maxVisibleLines == 4,
         "Copies preserve native color with fixed readable widget layout");
+    CockpitHudWidgets.TextScale = 1.5f;
+    f.Tick(.01f);
+    Check(taxiCopy.fontSize == 39 && reportCopy.fontSize == 34.5f && reportCopy.maxVisibleLines == 2 &&
+        slot.Children.Count == 2 && taxiCopy.text == taxi.text,
+        "Instructions text grows live in the existing copies, without source replacement or a scene change");
+    for (var step = 65; step <= 150; step++)
+    {
+        CockpitHudWidgets.TextScale = step / 100f;
+        f.Tick(.001f);
+        foreach (var copy in copies)
+        {
+            var rect = copy.rectTransform;
+            Check(rect.anchoredPosition.y + rect.sizeDelta.y * .5f <= 75.001f &&
+                rect.anchoredPosition.y - rect.sizeDelta.y * .5f >= -75.001f &&
+                CockpitTextPresentation.LineHeight(copy.fontSize) * copy.maxVisibleLines <= rect.sizeDelta.y,
+                "Every Instructions region and visible line fits the original frame at " + step + "%");
+        }
+        Check(taxiCopy.rectTransform.anchoredPosition.y - taxiCopy.rectTransform.sizeDelta.y * .5f >
+            reportCopy.rectTransform.anchoredPosition.y + reportCopy.rectTransform.sizeDelta.y * .5f,
+            "Taxi and actions never overlap at " + step + "%");
+    }
+    report.NativeReport("<size=150><color=#00ff00><b>Cleared</b></color></size><voffset=99> to taxi</voffset><br>Runway 21", true);
+    f.Tick(.01f);
+    Check(reportCopy.text == "<color=#00ff00><b>Cleared</b></color> to taxi\nRunway 21" &&
+        reportCopy.richText && reportText.text.StartsWith("<size=150>"),
+        "Native color and emphasis survive, but size/offset tags cannot override the text slider or mutate the source");
+    CockpitHudWidgets.TextScale = float.NaN;
+    f.Tick(.01f);
+    Check(taxiCopy.fontSize == 26 && reportCopy.fontSize == 23 && reportCopy.maxVisibleLines == 4 &&
+        reportCopy.rectTransform.sizeDelta == new Vector2(408, 112),
+        "Invalid text scale safely returns fonts, row counts and region bounds to their original defaults");
+    CockpitHudWidgets.TextScale = 1;
     overlay.NativeLabel("Taxi to Runway 21 95m");
     report.NativeReport("Rearmed\nCleared for departure", true);
     f.Tick(.01f);
@@ -588,6 +620,7 @@ sealed class Fixture : IDisposable
         CockpitHudWidgets.Instance = new CockpitHudWidgets();
         CockpitHudWidgets.Visible = true;
         CockpitHudWidgets.Editing = false;
+        CockpitHudWidgets.TextScale = 1;
         CockpitAlerts.InRecovery = false;
         SceneSingleton<AircraftActionsReport>.i = null;
         GameManager.Aircraft = CockpitHudWidgets.CurrentAircraft = new Aircraft();

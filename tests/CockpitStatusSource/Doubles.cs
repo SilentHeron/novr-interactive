@@ -281,7 +281,7 @@ namespace TMPro
 {
     public class TMP_Text : UnityEngine.UI.Graphic
     {
-        public string text = ""; public object? font, fontSharedMaterial; public int fontSize, maxVisibleLines;
+        public string text = ""; public object? font, fontSharedMaterial; public float fontSize; public int maxVisibleLines;
         public bool richText, enableWordWrapping; public TextOverflowModes overflowMode; public TextAlignmentOptions alignment;
     }
     public sealed class TextMeshProUGUI : TMP_Text
@@ -398,6 +398,8 @@ namespace NOVR.VrUi.SpecialBehavior
         internal bool Available = true;
         internal static bool Visible = true;
         internal static bool Editing;
+        internal static float TextScale = 1;
+        internal static float GetTextScale(string id) => TextScale;
         internal static bool IsVisible(string id) => Instance?.Available == true && Visible;
         internal static Aircraft? CurrentAircraft;
         internal static readonly Dictionary<string, UnityEngine.RectTransform> Slots = new();
@@ -408,5 +410,9 @@ namespace NOVR.VrUi.SpecialBehavior
     internal static class CockpitAlerts
     {
         internal static bool InRecovery;
+    }
+    internal static class HudWidgetProfiles
+    {
+        internal static float SanitizeTextScale(float value) => float.IsFinite(value) ? Math.Clamp(value, .65f, 1.5f) : 1;
     }
 }

@@ -19,12 +19,12 @@ internal enum HudWidgetAnchor
 internal struct HudWidgetPose
 {
     internal Vector3 Position, Euler;
-    internal float Scale, Opacity, Background, Aspect;
+    internal float Scale, Opacity, Background, Aspect, TextScale;
     internal bool Visible;
     internal HudWidgetAnchor Anchor;
     internal Vector3 WristPosition, WristEuler;
     internal float WristScale;
-    internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true, float aspect = 1)
+    internal HudWidgetPose(Vector3 position, Vector3 euler, float scale = 1, float opacity = 1, float background = 0, bool visible = true, float aspect = 1, float textScale = 1)
     {
         Position = position;
         Euler = euler;
@@ -33,6 +33,7 @@ internal struct HudWidgetPose
         Background = background;
         Visible = visible;
         Aspect = aspect;
+        TextScale = textScale;
         Anchor = HudWidgetAnchor.Cockpit;
         WristPosition = WristEuler = Vector3.zero;
         WristScale = .6f;
@@ -42,6 +43,9 @@ internal struct HudWidgetPose
 internal sealed class HudWidgetProfiles
 {
     internal const float MinScale = .35f, MaxScale = 3f, MinOpacity = .25f;
+    internal const float MinTextScale = .65f, MaxTextScale = 1.5f;
+    internal static bool SupportsTextSize(string id) => id == "feed" || id == "objectives";
+    internal static float SanitizeTextScale(float value) => Bound(value, MinTextScale, MaxTextScale, 1);
     internal static readonly string[] Ids = HudWidgetCatalog.CreateIds();
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly ConfigFile _config;
@@ -148,7 +152,7 @@ internal sealed class HudWidgetProfiles
         var factory = FactoryDefaults;
         foreach (var id in Ids)
             entries.Add(id, _config.Bind(section, id, id == "auxiliary" ? "" : Encode(factory[id]),
-                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio, anchor, wrist-local x/y/z, pitch/yaw/roll and scale. Managed by View > Edit layout."));
+                Label(id) + ": original cockpit x/y/z, pitch/yaw/roll, scale, opacity, background, visible; optional map aspect ratio, anchor, wrist-local x/y/z, pitch/yaw/roll, wrist scale and text size. Managed by View > Edit layout."));
         MigrateUntouchedDefaults(section, entries);
         return entries;
     }
@@ -204,6 +208,7 @@ internal sealed class HudWidgetProfiles
         HudWidgetShape.Normalize(ref pose.Scale, ref pose.Aspect, fallback.Scale);
         pose.Opacity = Bound(pose.Opacity, MinOpacity, 1, fallback.Opacity);
         pose.Background = Bound(pose.Background, 0, 1, fallback.Background);
+        pose.TextScale = SupportsTextSize(id) ? SanitizeTextScale(pose.TextScale) : 1;
         if (pose.Anchor < HudWidgetAnchor.Cockpit || pose.Anchor > HudWidgetAnchor.RightWrist)
             pose.Anchor = HudWidgetAnchor.Cockpit;
         pose.WristPosition = new Vector3(Bound(pose.WristPosition.x, -.6f, .6f, 0),
@@ -220,16 +225,17 @@ internal sealed class HudWidgetProfiles
         p.Position.x.ToString("R", Invariant), p.Position.y.ToString("R", Invariant), p.Position.z.ToString("R", Invariant),
         p.Euler.x.ToString("R", Invariant), p.Euler.y.ToString("R", Invariant), p.Euler.z.ToString("R", Invariant),
         p.Scale.ToString("R", Invariant), p.Opacity.ToString("R", Invariant), p.Background.ToString("R", Invariant), p.Visible ? "1" : "0" }) +
-        (p.Anchor == HudWidgetAnchor.Cockpit && p.WristPosition.Equals(Vector3.zero) && p.WristEuler.Equals(Vector3.zero) && p.WristScale == .6f
+        (p.TextScale == 1 && p.Anchor == HudWidgetAnchor.Cockpit && p.WristPosition.Equals(Vector3.zero) && p.WristEuler.Equals(Vector3.zero) && p.WristScale == .6f
             ? p.Aspect == 1 ? "" : "|" + p.Aspect.ToString("R", Invariant)
             : "|" + string.Join("|", new[] { p.Aspect.ToString("R", Invariant), ((int)p.Anchor).ToString(Invariant),
                 p.WristPosition.x.ToString("R", Invariant), p.WristPosition.y.ToString("R", Invariant), p.WristPosition.z.ToString("R", Invariant),
                 p.WristEuler.x.ToString("R", Invariant), p.WristEuler.y.ToString("R", Invariant), p.WristEuler.z.ToString("R", Invariant),
-                p.WristScale.ToString("R", Invariant) }));
+                p.WristScale.ToString("R", Invariant) })) +
+        (p.TextScale == 1 ? "" : "|" + p.TextScale.ToString("R", Invariant));
     private static HudWidgetPose Decode(string id, string text, HudWidgetPose fallback)
     {
         var parts = (text ?? "").Split('|');
-        if (parts.Length != 10 && parts.Length != 11 && parts.Length != 19)
+        if (parts.Length != 10 && parts.Length != 11 && parts.Length != 19 && parts.Length != 20)
             return fallback;
         var values = new float[9];
         for (var i = 0; i < values.Length; i++)
@@ -242,7 +248,7 @@ internal sealed class HudWidgetProfiles
             aspect = 1;
         var pose = new HudWidgetPose(new Vector3(values[0], values[1], values[2]), new Vector3(values[3], values[4], values[5]),
             values[6], values[7], values[8], parts[9] == "1", aspect);
-        if (parts.Length == 19)
+        if (parts.Length >= 19)
         {
             // A malformed attachment never discards the older cockpit pose.
             var wrist = new float[7];
@@ -257,6 +263,10 @@ internal sealed class HudWidgetProfiles
                 pose.WristScale = wrist[6];
             }
         }
+        // Appending text size keeps every older cockpit/wrist field in place.
+        // A bad text value must never discard a valid saved placement.
+        if (parts.Length == 20 && float.TryParse(parts[19], NumberStyles.Float, Invariant, out var textScale))
+            pose.TextScale = textScale;
         return Sanitize(id, pose);
     }
     private static string Section(string key)

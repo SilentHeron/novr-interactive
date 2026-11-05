@@ -186,6 +186,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
     }
     internal HudWidgetPose GetCockpitPose(string id) => _poses.TryGetValue(id, out var pose) ? pose : HudWidgetProfiles.FactoryDefaults[id];
     internal HudWidgetPose GetPose(string id) => _poses.ContainsKey(id) ? ActivePose(id) : HudWidgetProfiles.FactoryDefaults[id];
+    internal static float GetTextScale(string id) => HudWidgetProfiles.SupportsTextSize(id) &&
+        Instance is { } self && self._poses.TryGetValue(id, out var pose) ? HudWidgetProfiles.SanitizeTextScale(pose.TextScale) : 1;
     internal void SetPose(string id, HudWidgetPose pose)
     {
         if (!_editing || !_poses.ContainsKey(id))
@@ -217,6 +219,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         pose.Scale = value.Scale;
         pose.Opacity = value.Opacity;
         pose.Background = value.Background;
+        pose.TextScale = value.TextScale;
         pose.Visible = value.Visible;
         if (_editing)
             SetPose(id, pose);
@@ -583,7 +586,16 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             pose.Visible = visible;
             Select(id);
             SetAppearance(id, pose);
-        });
+        }, HudWidgetProfiles.SupportsTextSize(id) ? value =>
+        {
+            if (!_editing)
+                return;
+            var pose = GetPose(id);
+            pose.TextScale = value;
+            Select(id);
+            SetAppearance(id, pose);
+        }
+        : null);
         LayerHelper.SetLayerRecursive(root.transform, LayerHelper.GetVrUiLayer());
         _widgets.Add(id, widget);
     }
@@ -665,7 +677,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             var show = ready && frameReady && wristAlpha > .001f && PlacementReady(pair.Key) && (pose.Visible || _editing);
             widget.RootGroup.alpha = wristAlpha;
             var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
-            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);
+            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis, pose.TextScale);
             widget.Root.gameObject.SetActive(show);
             if (!show || gameRoot == null || uiRoot == null || eye == null)
                 continue;
@@ -705,6 +717,9 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             widget.Placeholder.enabled = (!widget.HasContent || !pose.Visible) && (_editing || pose.Visible && idle.Length > 0);
             if (widget.Placeholder.enabled)
             {
+                var previewSize = HudWidgetProfiles.SupportsTextSize(pair.Key) ? Mathf.RoundToInt(20 * pose.TextScale) : 20;
+                if (widget.Placeholder.fontSize != previewSize)
+                    widget.Placeholder.fontSize = previewSize;
                 var text = _editing ? Preview(pair.Key) : idle;
                 if (widget.Placeholder.text != text)
                     widget.Placeholder.text = text;

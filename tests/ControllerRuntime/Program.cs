@@ -10,6 +10,7 @@ using Valve.OpenXR.Utils;
 var assertions = 0;
 void yes(bool value) { assertions++; if (!value) throw new Exception("Controller runtime assertion " + assertions); }
 void near(float a, float b) => yes(Math.Abs(a - b) < .0001f);
+TrackingAvailabilityChecks.Run(yes);
 DeviceState tracking() => new DeviceState().Set(CommonUsages.isTracked, true)
     .Set(CommonUsages.trackingState, InputTrackingState.Position | InputTrackingState.Rotation)
     .Set(CommonUsages.devicePosition, new Vector3(.2f, 1.1f, -.3f)).Set(CommonUsages.deviceRotation, Quaternion.identity);

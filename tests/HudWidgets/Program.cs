@@ -195,6 +195,8 @@ try
     var intentionalRestore = new HudWidgetProfiles(new ConfigFile(legacyPath, false) { SaveOnConfigSet = false });
     Same(intentionalRestore.Load("legacy-aircraft", 3)["weapons"], old["weapons"], "Later intentional old default placement is preserved in its own slot");
     Same(intentionalRestore.Load("legacy-aircraft")["power"], old["power"], "Aircraft migration also runs once");
+    HudWidgetTextSizeChecks.Run(directory, True);
+    Console.WriteLine("HUD text-size persistence checks passed (legacy records, wrist attachments, aircraft slots, and validation).");
     HudWidgetGestureChecks.Run(True);
     HudWidgetCornerAcquireChecks.Run(True);
     CockpitWidgetSpaceChecks.Run(True);
@@ -213,7 +215,7 @@ finally { CultureInfo.CurrentCulture = previousCulture; Directory.Delete(directo
 
 HudWidgetPose Pose(float x, float opacity, float background, bool visible) => new(new Vector3(x, -.25f, .9f), new Vector3(0, 8, 0), 1.2f, opacity, background, visible);
 void Same(HudWidgetPose a, HudWidgetPose b, string label) => True(a.Position.x == b.Position.x && a.Position.y == b.Position.y && a.Position.z == b.Position.z &&
-    a.Euler.x == b.Euler.x && a.Euler.y == b.Euler.y && a.Euler.z == b.Euler.z && a.Scale == b.Scale && a.Aspect == b.Aspect && a.Opacity == b.Opacity && a.Background == b.Background && a.Visible == b.Visible, label);
+    a.Euler.x == b.Euler.x && a.Euler.y == b.Euler.y && a.Euler.z == b.Euler.z && a.Scale == b.Scale && a.Aspect == b.Aspect && a.TextScale == b.TextScale && a.Opacity == b.Opacity && a.Background == b.Background && a.Visible == b.Visible, label);
 void Equal<T>(T a, T b, string label) => True(EqualityComparer<T>.Default.Equals(a, b), label);
 void True(bool value, string label) { if (!value) throw new Exception(label); count++; }
 string Encode(HudWidgetPose p) => string.Join("|", new[] { p.Position.x, p.Position.y, p.Position.z,

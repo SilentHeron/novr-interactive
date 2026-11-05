@@ -15,9 +15,13 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private readonly CanvasGroup _pencilGroup, _eyeGroup, _popupGroup;
     private readonly Image _pencilBack, _eyeBack, _sliderHandle;
     private readonly Text _value;
+    private readonly Image? _textSliderHandle;
+    private readonly Text? _textValue;
     private readonly Action<float> _setBackground;
     private readonly Action<bool> _setVisible;
+    private readonly Action<float>? _setTextScale;
     private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _eyeTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
+    private readonly CockpitTouchGate[] _textSliderTouch = { new(), new() };
     private readonly bool[] _hover = new bool[2], _pencilHover = new bool[2], _eyeHover = new bool[2];
     private Vector2 _popupCenter, _closeCenter;
     private readonly Vector2 _popupSize;
@@ -25,6 +29,8 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private int _sliderOwner = -1, _lastTick;
     private float _background, _lastPulse;
     private float _displayedBackground = -1;
+    private float _textScale = 1, _displayedTextScale = -1;
+    private bool _sliderIsText;
     private float _nextVisibilityChange = float.NegativeInfinity;
     private bool _editing, _visible, _disposed;
     internal Vector2 PencilCenter
@@ -39,21 +45,28 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     {
         get; private set;
     }
+    internal Vector2 TextSliderCenter
+    {
+        get; private set;
+    }
     internal bool IsOpen => _open == this && _editing && !_disposed;
     internal bool IsHandBusy(int side) => side >= 0 && side < 2 && _sliderOwner == side;
     internal bool IsPointing(int side) => side >= 0 && side < 2 && (_hover[side] || _sliderOwner == side);
 
-    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground, Action<bool> setVisible)
+    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground, Action<bool> setVisible, Action<float>? setTextScale = null)
     {
         _setBackground = setBackground;
         _setVisible = setVisible;
+        _setTextScale = setTextScale;
         PencilCenter = new Vector2(-40, size.y * .5f + 62);
         EyeCenter = new Vector2(40, PencilCenter.y);
-        _popupSize = new Vector2(Mathf.Clamp(size.x, 300, 420), 150);
+        _popupSize = new Vector2(Mathf.Clamp(size.x, 300, 420), setTextScale == null ? 150 : 270);
         // Leave the content visible while tuning its background, and keep the
         // contact area below even the shortest widget's resize corners.
-        _popupCenter = new Vector2(0, -size.y * .5f - 110);
-        SliderCenter = _popupCenter + new Vector2(0, -5);
+        _popupCenter = new Vector2(0, -size.y * .5f - 35 - _popupSize.y * .5f);
+        var opacityY = setTextScale == null ? -5 : 55;
+        SliderCenter = _popupCenter + new Vector2(0, opacityY);
+        TextSliderCenter = _popupCenter + new Vector2(0, -64);
         _closeCenter = _popupCenter + new Vector2(_popupSize.x * .5f - 24, _popupSize.y * .5f - 24);
         _trackWidth = _popupSize.x - 76;
 
@@ -89,7 +102,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _popup = popup.gameObject;
         _popupGroup = _popup.AddComponent<CanvasGroup>();
         _popupGroup.interactable = _popupGroup.blocksRaycasts = false;
-        _value = Label(_popup.transform, "Backplate 0%", new Vector2(-18, 46), new Vector2(_popupSize.x - 75, 32), 21);
+        _value = Label(_popup.transform, "Backplate 0%", new Vector2(-18, opacityY + 51), new Vector2(_popupSize.x - 75, 32), 21);
         var close = Plate("Close appearance editor", _popup.transform, _closeCenter - _popupCenter,
             new Vector2(36, 36), new Color(.13f, .25f, .29f, 1));
         for (var i = 0; i < 2; i++)
@@ -97,10 +110,18 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             var stroke = Plate("Close mark", close.transform, Vector2.zero, new Vector2(3, 20), Color.white);
             stroke.rectTransform.localRotation = Quaternion.Euler(0, 0, i == 0 ? 45 : -45);
         }
-        Plate("Opacity track", _popup.transform, new Vector2(0, -5), new Vector2(_trackWidth, 12), new Color(.18f, .36f, .40f, 1));
-        _sliderHandle = Plate("Opacity handle", _popup.transform, new Vector2(-_trackWidth * .5f, -5), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
-        Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, -43), new Vector2(60, 28), 17);
-        Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, -43), new Vector2(60, 28), 17);
+        Plate("Opacity track", _popup.transform, new Vector2(0, opacityY), new Vector2(_trackWidth, 12), new Color(.18f, .36f, .40f, 1));
+        _sliderHandle = Plate("Opacity handle", _popup.transform, new Vector2(-_trackWidth * .5f, opacityY), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
+        Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, opacityY - 38), new Vector2(60, 28), 17);
+        Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, opacityY - 38), new Vector2(60, 28), 17);
+        if (setTextScale != null)
+        {
+            _textValue = Label(_popup.transform, "Text size 100%", new Vector2(0, -22), new Vector2(_popupSize.x - 40, 32), 21);
+            Plate("Text size track", _popup.transform, new Vector2(0, -64), new Vector2(_trackWidth, 12), new Color(.18f, .36f, .40f, 1));
+            _textSliderHandle = Plate("Text size handle", _popup.transform, new Vector2(0, -64), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
+            Label(_popup.transform, "65%", new Vector2(-_trackWidth * .5f + 22, -108), new Vector2(60, 28), 17);
+            Label(_popup.transform, "150%", new Vector2(_trackWidth * .5f - 22, -108), new Vector2(60, 28), 17);
+        }
         _pencil.SetActive(false);
         _eye.SetActive(false);
         _popup.SetActive(false);
@@ -112,8 +133,9 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             return;
         PencilCenter = new Vector2(-40, size.y * .5f + 62);
         EyeCenter = new Vector2(40, PencilCenter.y);
-        _popupCenter = new Vector2(0, -size.y * .5f - 110);
-        SliderCenter = _popupCenter + new Vector2(0, -5);
+        _popupCenter = new Vector2(0, -size.y * .5f - 35 - _popupSize.y * .5f);
+        SliderCenter = _popupCenter + new Vector2(0, _setTextScale == null ? -5 : 55);
+        TextSliderCenter = _popupCenter + new Vector2(0, -64);
         _closeCenter = _popupCenter + new Vector2(_popupSize.x * .5f - 24, _popupSize.y * .5f - 24);
         ((RectTransform)_pencil.transform).anchoredPosition = PencilCenter;
         ((RectTransform)_eye.transform).anchoredPosition = EyeCenter;
@@ -123,7 +145,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         ReleaseHands();
     }
 
-    internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1)
+    internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1, float textScale = 1)
     {
         if (_disposed)
             return;
@@ -140,6 +162,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         }
         _popup.SetActive(IsOpen);
         _background = FlightControlMath.IsFinite(background) ? Mathf.Clamp01(background) : 0;
+        _textScale = HudWidgetProfiles.SanitizeTextScale(textScale);
         _pencilGroup.alpha = _eyeGroup.alpha = _popupGroup.alpha = FlightControlMath.IsFinite(presentationAlpha) ? Mathf.Clamp01(presentationAlpha) : 1;
         RefreshValue();
     }
@@ -194,6 +217,8 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
                     gate.Reset();
                 foreach (var gate in _sliderTouch)
                     gate.Reset();
+                foreach (var gate in _textSliderTouch)
+                    gate.Reset();
             }
             InteractionHaptics.Pulse(device, InteractionCue.Click);
             return true;
@@ -224,22 +249,28 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         }
         var onTrack = Inside(point, SliderCenter, new Vector2(_trackWidth, 40), padding);
         var touched = _sliderTouch[side].Update(IsOpen, onTrack, depth);
+        var onTextTrack = _setTextScale != null && Inside(point, TextSliderCenter, new Vector2(_trackWidth, 40), padding);
+        var textTouched = _textSliderTouch[side].Update(IsOpen && _setTextScale != null, onTextTrack, depth);
         if (_sliderOwner == side)
         {
-            var away = Mathf.Abs(point.y - SliderCenter.y) * metresPerPixel > .035f || depth > .055f || depth < -.025f ||
-                Mathf.Abs(point.x - SliderCenter.x) > _trackWidth * .5f + .04f / metresPerPixel;
+            var center = _sliderIsText ? TextSliderCenter : SliderCenter;
+            var away = Mathf.Abs(point.y - center.y) * metresPerPixel > .035f || depth > .055f || depth < -.025f ||
+                _setTextScale != null && Mathf.Abs(point.y - center.y) > 48 ||
+                Mathf.Abs(point.x - center.x) > _trackWidth * .5f + .04f / metresPerPixel;
             if (!IsOpen || away)
             {
                 _sliderOwner = -1;
                 _sliderTouch[side].Reset();
+                _textSliderTouch[side].Reset();
             }
             else
                 SetFromFinger(point.x, device);
         }
-        else if (_sliderOwner < 0 && touched)
+        else if (_sliderOwner < 0 && (touched || textTouched))
         {
             _sliderOwner = side;
-            _lastTick = Mathf.RoundToInt(_background * 10);
+            _sliderIsText = textTouched;
+            _lastTick = Mathf.RoundToInt((_sliderIsText ? _textScale : _background) * 10);
             _lastPulse = Time.unscaledTime;
             InteractionHaptics.Pulse(device, InteractionCue.Grab);
             SetFromFinger(point.x, device);
@@ -250,10 +281,22 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private void SetFromFinger(float x, InputDevice device)
     {
         var value = Mathf.RoundToInt(Mathf.Clamp01((x - SliderCenter.x) / _trackWidth + .5f) * 100) * .01f;
-        if (Mathf.Approximately(value, _background))
-            return;
-        _background = value;
-        _setBackground(value);
+        if (_sliderIsText)
+        {
+            value = Mathf.RoundToInt((HudWidgetProfiles.MinTextScale + value *
+                (HudWidgetProfiles.MaxTextScale - HudWidgetProfiles.MinTextScale)) * 100) * .01f;
+            if (Mathf.Approximately(value, _textScale))
+                return;
+            _textScale = value;
+            _setTextScale?.Invoke(value);
+        }
+        else
+        {
+            if (Mathf.Approximately(value, _background))
+                return;
+            _background = value;
+            _setBackground(value);
+        }
         RefreshValue();
         var tick = Mathf.RoundToInt(value * 10);
         if (tick != _lastTick && Time.unscaledTime - _lastPulse >= .08f)
@@ -265,11 +308,19 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     }
     private void RefreshValue()
     {
-        if (_displayedBackground == _background)
-            return;
-        _displayedBackground = _background;
-        _value.text = $"Backplate {_background * 100:0}%";
-        _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, -5);
+        if (_displayedBackground != _background)
+        {
+            _displayedBackground = _background;
+            _value.text = $"Backplate {_background * 100:0}%";
+            _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, _setTextScale == null ? -5 : 55);
+        }
+        if (_textValue != null && _textSliderHandle != null && _displayedTextScale != _textScale)
+        {
+            _displayedTextScale = _textScale;
+            _textValue.text = $"Text size {_textScale * 100:0}%";
+            var normalized = (_textScale - HudWidgetProfiles.MinTextScale) / (HudWidgetProfiles.MaxTextScale - HudWidgetProfiles.MinTextScale);
+            _textSliderHandle.rectTransform.anchoredPosition = new Vector2((normalized - .5f) * _trackWidth, -64);
+        }
     }
     private void RefreshHover()
     {
@@ -302,6 +353,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _eyeTouch[side].Reset();
         _closeTouch[side].Reset();
         _sliderTouch[side].Reset();
+        _textSliderTouch[side].Reset();
         _hover[side] = _pencilHover[side] = _eyeHover[side] = false;
         RefreshHover();
         if (_sliderOwner == side)

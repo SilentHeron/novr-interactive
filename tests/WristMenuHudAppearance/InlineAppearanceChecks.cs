@@ -91,7 +91,7 @@ internal static class InlineAppearanceChecks
         Touch(editor, editor.PencilCenter);
         editor.Dispose();
         Check(!editor.IsOpen && !editor.HitTest(Point(editor.PencilCenter, 0), pixel), "Disposal clears global popup ownership and all contacts");
-        return checks + VisibilityChecks() + ResizeChecks() + HoverOwnershipChecks();
+        return checks + VisibilityChecks() + ResizeChecks() + HoverOwnershipChecks() + TextSizePencilChecks.Run();
 
         Vector3 Point(Vector2 at, float depth) => new(at.x, at.y, -depth / pixel);
         void Hand(Vector2 at, float depth) => editor.UpdateHand(0, Point(at, depth), true, pixel, device);

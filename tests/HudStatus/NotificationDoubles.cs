@@ -23,7 +23,8 @@ namespace TMPro
         }
         public void SetText(StringBuilder value) { _backing = value.ToString(); _dirty = true; }
         public object? font, fontSharedMaterial;
-        public int fontSize, maxVisibleLines;
+        public float fontSize;
+        public int maxVisibleLines;
         public bool richText, enableWordWrapping;
         public TextAlignmentOptions alignment;
         public TextOverflowModes overflowMode;
@@ -41,3 +42,10 @@ namespace HarmonyLib
     public sealed class HarmonyPostfix : Attribute { }
 }
 public sealed class MessageFeed { }
+namespace NOVR.VrUi.SpecialBehavior
+{
+    internal static class HudWidgetProfiles
+    {
+        internal static float SanitizeTextScale(float value) => float.IsFinite(value) ? Math.Clamp(value, .65f, 1.5f) : 1;
+    }
+}

@@ -40,10 +40,12 @@ internal static class HudWidgetCatalog
         // uses the rendered height, so changing a default size keeps row gaps.
         void Add(int column, string id, string label, Vector2 size, float scale, string preview, string idle = "")
         {
-            var rotation = new Vector3(30, column * 35, 0);
+            var rotation = new Vector3(30, column * 30, 0);
             var height = size.y * MetresPerPixel * scale;
             var top = rowTops[column + 1];
-            var origin = new Vector3(column * .31f, -.08f, column == 0 ? .45f : .37f);
+            // Side panels still need both opposite corners within reach for
+            // two-handed resizing; the center group has more forward room.
+            var origin = new Vector3(column * .325f, -.08f, column == 0 ? .51f : .385f);
             var position = origin + Quaternion.Euler(rotation) * new Vector3(0, -top - height * .5f, 0);
             widgets.Add(new HudWidgetDefinition(id, label, size, position, preview, idle, scale, rotation));
             rowTops[column + 1] = top + height + .018f;

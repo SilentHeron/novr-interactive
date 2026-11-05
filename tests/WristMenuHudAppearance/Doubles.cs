@@ -228,11 +228,14 @@ namespace NOVR.VrUi.SpecialBehavior
 {
     internal struct HudWidgetPose
     {
-        internal float Scale, Opacity, Background; internal bool Visible; internal UnityEngine.Vector3 Position, Euler;
+        internal float Scale, Opacity, Background, TextScale; internal bool Visible; internal UnityEngine.Vector3 Position, Euler;
     }
     internal static class HudWidgetProfiles
     {
         internal const float MinScale = .35f, MaxScale = 3f, MinOpacity = .25f;
+        internal const float MinTextScale = .65f, MaxTextScale = 1.5f;
+        internal static bool SupportsTextSize(string id) => id is "feed" or "objectives";
+        internal static float SanitizeTextScale(float value) => float.IsFinite(value) ? Math.Clamp(value, MinTextScale, MaxTextScale) : 1;
         internal static readonly string[] Ids = { "weapons", "countermeasures", "power", "threats", "ew", "feed", "map", "damage", "objectives" };
         internal static string Label(string id) => id;
         internal static HudWidgetPose Sanitize(string id, HudWidgetPose pose) => pose;
@@ -250,7 +253,7 @@ namespace NOVR.VrUi.SpecialBehavior
         internal string SelectedId = "weapons";
         internal string? AppearanceFocus;
         internal void FocusAppearance(string? id) => AppearanceFocus = id;
-        private Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new HudWidgetPose { Position = new(.2f, -.3f, .4f), Scale = 1, Opacity = 1, Visible = true });
+        private Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new HudWidgetPose { Position = new(.2f, -.3f, .4f), Scale = 1, Opacity = 1, Visible = true, TextScale = 1 });
         private Dictionary<string, HudWidgetPose>? _before;
         internal void Begin()
         {

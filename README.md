@@ -10,17 +10,21 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.8.18**. Targets Nuclear Option **0.34.6** and PC VR through SteamVR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
+Experimental version **0.4.8.23**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
 
 ## Install
 
 Download the experimental package from [Releases](https://github.com/SilentHeron/novr-interactive/releases). The Windows and Linux installers also accept a downloaded `NOVR.zip` through **Install a downloaded NOVR package…**.
 
-1. Close the game and install BepInEx 5.x for **Windows x64**, including when using Proton.
-2. Extract `NOVR.zip` into the game's `BepInEx` folder.
-3. Connect SteamVR, then launch Nuclear Option. NOVR uses DirectX 11; a launch on another renderer restarts once automatically.
+1. Close the game. In Steam, right-click Nuclear Option → **Manage → Browse local files** to open the folder containing `NuclearOption.exe`.
+2. Download **BepInEx 5 for Windows x64** (`BepInEx_win_x64_5…zip`) from [BepInEx releases](https://github.com/BepInEx/BepInEx/releases). Copy the archive's contents directly into that game folder, so `winhttp.dll`, `doorstop_config.ini` and `BepInEx` sit beside `NuclearOption.exe`.
+3. Extract the contents of `NOVR.zip` into that **BepInEx** folder. You should now have `BepInEx/plugins/NOVR/NOVR.dll` and `BepInEx/patchers/NOVR/NOVR.Patcher.dll`.
+4. **Linux/Proton only:** add `WINEDLLOVERRIDES="winhttp=n,b" %command%` to the game's Steam launch options. Keep other options; merge an existing `WINEDLLOVERRIDES` value and use `%command%` only once.
+5. Connect your headset to its PC VR runtime, then press **Play in Steam**. NOVR uses DirectX 11; a launch on another renderer restarts once automatically.
 
-This replaces upstream NOVR; do not install both. On Linux/Proton, add `WINEDLLOVERRIDES="winhttp=n,b" %command%` to Nuclear Option's Steam launch options. Preserve existing options and merge any existing `WINEDLLOVERRIDES` setting; do not duplicate `%command%`. The installer provides guidance but does not change Proton settings. DirectX 11 also applies on Linux: Proton translates it to Vulkan through DXVK. If automatic startup fails, use `-force-d3d11` in Steam launch options instead of another renderer flag. Use `-novr-flat` for an intentional non-VR launch.
+**On Linux, you still need Windows BepInEx:** Nuclear Option runs as a Windows game through Proton. BepInEx has no separate installer `.exe` to run; it loads when the game starts. The Linux BepInEx package and its `run_bepinex.sh` are for native Linux games. The optional **NOVR Linux installer** is a different tool and chooses Windows BepInEx for you.
+
+This replaces upstream NOVR; do not install both. The installer does not change Proton launch options. DirectX 11 also applies on Linux: Proton translates it to Vulkan through DXVK. If automatic startup fails, replace any other renderer flag with `-force-d3d11`. Use `-novr-flat` for an intentional non-VR launch. [Installation troubleshooting](docs/STEAM_FRAME.md#installation-troubleshooting).
 
 ## Default controls
 
@@ -50,7 +54,7 @@ For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled
 
 **Minimap:** touch its face with a free fingertip to select it. While holding the flight stick, use the **physical right thumbstick** to pan and click to select an eligible target at the crosshair. Touch the face again to disengage and recenter on your aircraft, keeping zoom. After disengaging, center the thumbstick and release its click before normal flight bindings resume. Touch **+ / −** to zoom. In layout editing, two opposite corners adjust width and height independently without stretching the map.
 
-**View → Edit layout:** reach a widget with your fingertip and grip to move it; throttle and stick placement uses the same edit mode. Tilt a held widget to adjust pitch/yaw; roll stays locked. Grab opposite corners with both hands to move, tilt and resize together. Labels, outlines and corner handles appear only while editing. Touch the eye to hide/show a widget, or its pencil for the backplate opacity slider; surrounding widgets dim temporarily. **Click either thumbstick to reopen the layout menu**, then save or cancel everything together. Each aircraft has three independent slots for its seat, handles and HUD layout. Existing layouts stay in Slot 1.
+**View → Edit layout:** reach a widget with your fingertip and grip to move it; throttle and stick placement uses the same edit mode. Tilt a held widget to adjust pitch/yaw; roll stays locked. Grab opposite corners with both hands to move, tilt and resize together. Labels, outlines and corner handles appear only while editing. Touch the eye to hide/show a widget, or its pencil for appearance sliders; surrounding widgets dim temporarily. Notifications and Instructions also offer **Text size** (65–150%) here and in **View → Widget appearance**. **Click either thumbstick to reopen the layout menu**, then save or cancel everything together. Each aircraft has three independent slots for its seat, handles and HUD layout. Existing layouts stay in Slot 1.
 
 For a physical HOTAS, turn **View → Flight controls → Motion controls** off and bind your hardware in the game's control settings. HUD widgets and layout editing remain available; editing keeps virtual flight controls off.
 
@@ -60,7 +64,7 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **Head clearance:** enabled by default with a 25 cm radius; adjust it from 5–40 cm in View settings. It cuts only eligible seat geometry near your head. Saved settings are retained when upgrading.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.21.md)
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.23.md)
 
 ## Build
 

@@ -21,6 +21,8 @@ internal sealed class CockpitInstructionSources
         private readonly HudGraphicVisibilityLease _hide;
         private TextMeshProUGUI? _copy;
         private RectTransform? _slot;
+        private int _fontSize, _lines;
+        private float _height;
         private string? _last;
         internal TextLeaf(TMP_Text source)
         {
@@ -32,7 +34,10 @@ internal sealed class CockpitInstructionSources
         internal void Bind(RectTransform slot, Vector2 position, Vector2 size, int fontSize, int lines)
         {
             if (_slot == slot && _copy != null)
+            {
+                SetBounds(position, size);
                 return;
+            }
             if (_copy != null)
                 UnityEngine.Object.Destroy(_copy.gameObject);
             _slot = slot;
@@ -50,10 +55,21 @@ internal sealed class CockpitInstructionSources
             _copy.overflowMode = TextOverflowModes.Ellipsis;
             _copy.alignment = TextAlignmentOptions.TopLeft;
             _copy.maxVisibleLines = lines;
-            _copy.rectTransform.anchoredPosition = position;
-            _copy.rectTransform.sizeDelta = size;
+            _fontSize = fontSize;
+            _lines = lines;
+            SetBounds(position, size);
         }
-        internal bool Refresh(bool hideNative, bool showCopy)
+        private void SetBounds(Vector2 position, Vector2 size)
+        {
+            if (_copy == null)
+                return;
+            _height = size.y;
+            if (_copy.rectTransform.anchoredPosition != position)
+                _copy.rectTransform.anchoredPosition = position;
+            if (_copy.rectTransform.sizeDelta != size)
+                _copy.rectTransform.sizeDelta = size;
+        }
+        internal bool Refresh(bool hideNative, bool showCopy, float textScale)
         {
             if (hideNative)
                 _hide.Apply();
@@ -62,13 +78,19 @@ internal sealed class CockpitInstructionSources
             var visible = showCopy && HasText;
             if (_copy != null)
             {
+                var fontSize = CockpitTextPresentation.FontSize(_fontSize, textScale);
+                if (_copy.fontSize != fontSize)
+                    _copy.fontSize = fontSize;
+                var lines = CockpitTextPresentation.Lines(_height, fontSize, _lines);
+                if (_copy.maxVisibleLines != lines)
+                    _copy.maxVisibleLines = lines;
                 _copy.enabled = visible;
                 if (visible)
                 {
                     if (_last != Source.text)
                     {
                         _last = Source.text;
-                        _copy.text = _last;
+                        _copy.text = CockpitTextPresentation.InstructionText(_last);
                     }
                     _copy.color = Source.color;
                 }
@@ -113,15 +135,18 @@ internal sealed class CockpitInstructionSources
         var cockpit = owned && CockpitHudWidgets.Instance?.Available == true;
         var recovery = CockpitAlerts.InRecovery;
         var visible = cockpit && CockpitHudWidgets.IsVisible("objectives");
+        var textScale = CockpitHudWidgets.GetTextScale("objectives");
         if (cockpit)
         {
-            // Fixed readable rows; native layout fitters never resize these.
-            _taxi?.Bind(slot, new Vector2(0, 57), new Vector2(408, 36), 26, 1);
-            _actions?.Bind(slot, new Vector2(0, -19), new Vector2(408, 112), 23, 4);
+            // Keep both regions within the original frame. At larger sizes the
+            // taxi row grows inward and the action region shows fewer lines.
+            var taxiHeight = Mathf.Max(36, CockpitTextPresentation.LineHeight(CockpitTextPresentation.FontSize(26, textScale)));
+            _taxi?.Bind(slot, new Vector2(0, 75 - taxiHeight * .5f), new Vector2(408, taxiHeight), 26, 1);
+            _actions?.Bind(slot, new Vector2(0, -1 - taxiHeight * .5f), new Vector2(408, 148 - taxiHeight), 23, 4);
         }
         var taxi = _taxi?.Taxi == true;
-        var hasTaxi = _taxi?.Refresh(recovery || cockpit && taxi, visible && taxi) == true;
-        var hasActions = _actions?.Refresh(recovery || cockpit, visible) == true;
+        var hasTaxi = _taxi?.Refresh(recovery || cockpit && taxi, visible && taxi, textScale) == true;
+        var hasActions = _actions?.Refresh(recovery || cockpit, visible, textScale) == true;
         // This is the report's own black rectangle, not any HUD/map container.
         if (recovery || cockpit)
             _backgroundHide?.Apply();

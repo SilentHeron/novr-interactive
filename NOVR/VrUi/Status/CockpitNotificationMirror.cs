@@ -12,11 +12,20 @@ internal sealed class CockpitNotificationMirror
     }
     private readonly TextMeshProUGUI[] _copies;
     private readonly HudGraphicVisibilityLease _hide;
+    private readonly Vector2 _position, _size;
+    private readonly int _fontSize;
+    private readonly bool _feed;
+    private float _textScale = float.NaN;
+    private int _rows, _lines;
     private string? _last;
     internal CockpitNotificationMirror(TMP_Text source, Transform parent, Vector2 position, Vector2 size, int fontSize, bool feed = false)
     {
         Source = source;
         _hide = new HudGraphicVisibilityLease(source, true);
+        _position = position;
+        _size = size;
+        _fontSize = fontSize;
+        _feed = feed;
         _copies = new TextMeshProUGUI[feed ? 3 : 1];
         for (var i = 0; i < _copies.Length; i++)
         {
@@ -39,9 +48,11 @@ internal sealed class CockpitNotificationMirror
             copy.rectTransform.sizeDelta = new Vector2(size.x, height);
             copy.rectTransform.anchoredPosition = position + new Vector2(0, size.y * .5f - height * (i + .5f));
         }
+        ApplyTextScale(1);
     }
-    internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressNative = false)
+    internal void Refresh(bool active, bool show, bool feed, float opacity = 1, bool suppressNative = false, float textScale = 1)
     {
+        ApplyTextScale(textScale);
         // MessageFeed uses TMP.SetText(StringBuilder), whose text getter can return
         // stale backing strings after its first read. Use the native refresh
         // snapshot and sample other text sources only once per update.
@@ -52,14 +63,14 @@ internal sealed class CockpitNotificationMirror
         else
             _hide.Restore();
         Visible = visible;
-        foreach (var copy in _copies)
-            copy.enabled = visible;
+        for (var i = 0; i < _copies.Length; i++)
+            _copies[i].enabled = visible && i < _rows;
         if (!visible)
             return;
         if (_last != text)
         {
             _last = text;
-            var compact = CockpitAlertMath.LatestFeed(text, feed ? 3 : 2);
+            var compact = CockpitAlertMath.LatestFeed(text, feed ? _rows : _lines);
             var lines = feed ? compact.Split('\n') : new[] { compact };
             for (var i = 0; i < _copies.Length; i++)
                 _copies[i].text = i < lines.Length ? lines[i] : "";
@@ -68,6 +79,28 @@ internal sealed class CockpitNotificationMirror
         color.a *= opacity;
         foreach (var copy in _copies)
             copy.color = color;
+    }
+    private void ApplyTextScale(float value)
+    {
+        value = HudWidgetProfiles.SanitizeTextScale(value);
+        if (_textScale == value)
+            return;
+        _textScale = value;
+        var fontSize = CockpitTextPresentation.FontSize(_fontSize, value);
+        _rows = _feed ? CockpitTextPresentation.Lines(_size.y, fontSize, _copies.Length) : 1;
+        _lines = _feed ? 1 : CockpitTextPresentation.Lines(_size.y, fontSize, 2);
+        var height = _size.y / _rows;
+        for (var i = 0; i < _copies.Length; i++)
+        {
+            var copy = _copies[i];
+            copy.fontSize = fontSize;
+            copy.maxVisibleLines = _lines;
+            copy.rectTransform.sizeDelta = new Vector2(_size.x, height);
+            copy.rectTransform.anchoredPosition = _position + new Vector2(0, _size.y * .5f - height * (i + .5f));
+        }
+        // A row-count change must retain the newest entries, including when the
+        // native feed did not change while the user dragged the size slider.
+        _last = null;
     }
     internal void Release()
     {

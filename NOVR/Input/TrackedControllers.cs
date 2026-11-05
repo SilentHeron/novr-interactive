@@ -52,8 +52,9 @@ internal static class TrackedControllers
         if (!XRSettings.enabled || !OpenXRUtility.IsSessionFocused)
             return false;
         var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
-        return head.isValid && head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) && tracked &&
-               (!head.TryGetFeatureValue(CommonUsages.userPresence, out var present) || present);
+        // Some streaming runtimes expose stale userPresence=false at startup.
+        // Presence is diagnostic only; focused, tracked input must still work.
+        return head.isValid && head.TryGetFeatureValue(CommonUsages.isTracked, out var tracked) && tracked;
     }
 
     internal static ControllerHardwareProfile Profile(bool left) => Profile(left ? XRController.leftHand : XRController.rightHand);
