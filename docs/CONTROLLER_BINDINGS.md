@@ -41,6 +41,11 @@ over; press a button on that hand to switch. Trigger clicks still select the
 pointed control. A press or slider drag stays with its starting hand through
 release, and the last chosen hand is retained when reopening menus.
 
+**View → Seat & handles → Head clearance** is an experimental, optional aid when
+the seat obstructs your view. It starts off. The radius starts at **12 cm** and
+can be adjusted from **6–20 cm** on the same page. It clears only a small local
+area of a recognized seat; unsupported cockpit models remain unchanged.
+
 1. Open **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings → OPEN**. Choose Left or Right, then select a callout beside the controller image to inspect its assignments, or use the action groups below.
 2. Leave **Preset: Auto** for detection, or select Frame / Touch explicitly. Each keeps its own saved bindings.
 3. Choose **Weapons & targets**, **Flight & defense**, or **Menu & map**.

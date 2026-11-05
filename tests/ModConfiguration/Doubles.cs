@@ -9,9 +9,14 @@ namespace BepInEx.Configuration
         }
         private readonly Dictionary<(string Section, string Key), object> _entries = new();
         public List<string> BoundKeys { get; } = new();
+        public Dictionary<(string Section, string Key), ConfigDescription> Descriptions { get; } = new();
         public void Seed<T>(string section, string key, T value) => _entries[(section, key)] = new ConfigEntry<T>(value);
-        public ConfigEntry<T> Bind<T>(string section, string key, T value, string description) => Bind(section, key, value);
-        public ConfigEntry<T> Bind<T>(string section, string key, T value, ConfigDescription description) => Bind(section, key, value);
+        public ConfigEntry<T> Bind<T>(string section, string key, T value, string description) => Bind(section, key, value, new ConfigDescription(description));
+        public ConfigEntry<T> Bind<T>(string section, string key, T value, ConfigDescription description)
+        {
+            Descriptions[(section, key)] = description;
+            return Bind(section, key, value);
+        }
         private ConfigEntry<T> Bind<T>(string section, string key, T value)
         {
             BindCount++;

@@ -16,6 +16,7 @@
         <RootNamespace>NOVR</RootNamespace>
     </PropertyGroup>
     <ItemGroup>
+        <Reference Include="System.Numerics" />
         <EmbeddedResource Include="Assets/Controllers/*.png"><LogicalName>NOVR.Controllers.%(Filename)%(Extension)</LogicalName></EmbeddedResource>
         <EmbeddedResource Include="Assets/PilotFabricDetail.png" LogicalName="NOVR.PilotFabricDetail.png" />
         <EmbeddedResource Include="Assets/GloveColor.jpg" LogicalName="NOVR.GloveColor.jpg" />

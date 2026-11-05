@@ -147,6 +147,21 @@ internal static class PatchCompatibility
             else if (contract.owner == "MissionPicker" && (field.IsStatic || field.IsPublic))
                 failures.Add($"Native mission-preview field is no longer a non-public instance field: {contract.field}");
         }
+        // Head clearance scopes discovery to the pilot used by the native
+        // cockpit view. All crew inherit the same aircraft player identity.
+        var cockpitState = game.MainModule.Types.Single(t => t.FullName == "CameraCockpitState");
+        var enterCockpit = cockpitState.Methods.Single(m => m.Name == "EnterState");
+        var pilotAssignments = enterCockpit.Body.Instructions.Where(i =>
+            i.OpCode == Mono.Cecil.Cil.OpCodes.Stfld && i.Operand is FieldReference field &&
+            field.DeclaringType.FullName == cockpitState.FullName && field.Name == "pilot" &&
+            field.FieldType.FullName == "Pilot").ToArray();
+        if (pilotAssignments.Length != 1 ||
+            pilotAssignments[0].Previous?.OpCode != Mono.Cecil.Cil.OpCodes.Ldelem_Ref ||
+            pilotAssignments[0].Previous?.Previous?.OpCode != Mono.Cecil.Cil.OpCodes.Ldc_I4_0 ||
+            pilotAssignments[0].Previous?.Previous?.Previous?.OpCode != Mono.Cecil.Cil.OpCodes.Ldfld ||
+            pilotAssignments[0].Previous?.Previous?.Previous?.Operand is not FieldReference pilots ||
+            pilots.DeclaringType.FullName != "Aircraft" || pilots.Name != "pilots" || pilots.FieldType.FullName != "Pilot[]")
+            failures.Add("Native cockpit view no longer selects aircraft.pilots[0]; seat-clearance ownership needs review.");
         var gameplayUi = game.MainModule.Types.Single(t => t.FullName == "GameplayUI");
         if (!gameplayUi.Methods.Any(m => m.Name == "PauseGame" && m.IsPublic && !m.IsStatic &&
             m.ReturnType.FullName == "System.Void" && m.Parameters.Count == 0))

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Comfort/SeatClearance.cs" Link="SeatClearance.cs" />
+    <Compile Include="../../NOVR/Comfort/SeatCandidatePolicy.cs" Link="SeatCandidatePolicy.cs" />
+    <Compile Include="../../NOVR/Comfort/SeatClipGeometry.cs" Link="SeatClipGeometry.cs" />
+  </ItemGroup>
+</Project>

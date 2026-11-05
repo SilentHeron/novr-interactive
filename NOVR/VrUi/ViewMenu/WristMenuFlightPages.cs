@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using NOVR.MotionControls;
 using NOVR.VrUi.Native;
-using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,26 +9,6 @@ namespace NOVR.VrUi;
 
 internal sealed partial class WristMenu
 {
-    private void BuildSeatPage()
-    {
-        _seatPage = Page("SEAT & HANDLES");
-        var parent = _seatPage.transform;
-        var motion = ModConfiguration.Instance.MotionControls;
-        Section(parent, "Seat · 2 cm steps", 214);
-        ActionButton(parent, "Seat up", 0, 168, () => CockpitProfiles.Instance?.MoveSeat(Vector3.up * .02f));
-        ActionButton(parent, "Seat down", 1, 168, () => CockpitProfiles.Instance?.MoveSeat(Vector3.down * .02f));
-        ActionButton(parent, "Seat left", 0, 120, () => CockpitProfiles.Instance?.MoveSeat(Vector3.left * .02f));
-        ActionButton(parent, "Seat right", 1, 120, () => CockpitProfiles.Instance?.MoveSeat(Vector3.right * .02f));
-        ActionButton(parent, "Seat forward", 0, 72, () => CockpitProfiles.Instance?.MoveSeat(Vector3.forward * .02f));
-        ActionButton(parent, "Seat back", 1, 72, () => CockpitProfiles.Instance?.MoveSeat(Vector3.back * .02f));
-        Section(parent, "Handles & layout", 23);
-        Setting(parent, "Stick in left hand", () => motion.LeftHanded.Value, value => { CockpitHudWidgets.Instance?.Finish(false); motion.LeftHanded.Value = value; Close(); }, 0, -24);
-        ActionButton(parent, "Edit layout", 0, -74, StartOrResumeLayout);
-        ActionButton(parent, "Aircraft profiles  ›", 1, -74, OpenAircraftProfiles);
-        ActionButton(parent, "Reset seat & handles…", 0, -126, AskReset, true);
-        Note(parent, "Seat adjustments leave handles and HUD fixed.\nPlacements belong to this aircraft's profile.", -198, 70);
-    }
-
     private void BuildResetPage()
     {
         _resetPage = Page("RESET SETUP");

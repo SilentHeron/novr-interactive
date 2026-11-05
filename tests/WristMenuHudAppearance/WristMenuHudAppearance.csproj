@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuSeatPage.cs" Link="WristMenuSeatPage.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuHudLayout.cs" Link="WristMenuHudLayout.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuSettingsActions.cs" Link="WristMenuSettingsActions.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/ViewMenuControls.cs" Link="ViewMenuControls.cs" />

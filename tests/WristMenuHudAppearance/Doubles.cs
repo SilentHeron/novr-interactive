@@ -75,6 +75,13 @@ namespace UnityEngine
     public readonly record struct Vector3(float x, float y, float z)
     {
         public static Vector3 zero => default;
+        public static Vector3 up => new(0, 1, 0);
+        public static Vector3 down => new(0, -1, 0);
+        public static Vector3 left => new(-1, 0, 0);
+        public static Vector3 right => new(1, 0, 0);
+        public static Vector3 forward => new(0, 0, 1);
+        public static Vector3 back => new(0, 0, -1);
+        public static Vector3 operator *(Vector3 value, float scale) => new(value.x * scale, value.y * scale, value.z * scale);
     }
     public readonly record struct Color(float r, float g, float b, float a = 1)
     {
@@ -187,7 +194,7 @@ namespace UnityEngine.UI
 }
 namespace NOVR
 {
-    internal sealed class ModConfiguration
+    internal sealed partial class ModConfiguration
     {
         internal readonly BepInEx.Configuration.ConfigEntry<bool> FocusedFlightHud = new(false, new(null));
         internal readonly BepInEx.Configuration.ConfigEntry<float> FlightHudScale = new(.38f, new(new BepInEx.Configuration.AcceptableValueRange<float>(.22f, .75f))),

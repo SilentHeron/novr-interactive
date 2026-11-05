@@ -27,6 +27,8 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> HudContrast, HudDeclutter, FocusedFlightHud;
     public readonly ConfigEntry<float> FlightHudScale, InstrumentBrightness;
     public readonly ConfigEntry<float> MarkerScale, MarkerLabelScale, ReticleScale, WeaponHudScale;
+    public readonly ConfigEntry<bool> SeatClearanceEnabled;
+    public readonly ConfigEntry<float> SeatClearanceRadius;
 
     public ModConfiguration(ConfigFile config)
     {
@@ -36,6 +38,10 @@ public class ModConfiguration
         MotionControls = new MotionControls.MotionControlSettings(config);
         ControllerBindings = new MotionControls.ControllerBindings(config);
         CockpitAlerts = new VrUi.SpecialBehavior.CockpitAlertSettings(config);
+        SeatClearanceEnabled = config.Bind("Comfort", "Head Clearance", false,
+            "Experimental: clear a small area of an identifiable seat around your head. Unsupported cockpits stay unchanged. Disabled by default.");
+        SeatClearanceRadius = config.Bind("Comfort", "Head Clearance Radius", .12f,
+            new ConfigDescription("Local head-clearance radius in meters. Applies only when Head Clearance is enabled.", new AcceptableValueRange<float>(.06f, .20f)));
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
             "Context shows the look-direction cue only near a selectable target that is not already in your target list. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
         LookCue = new MotionControls.GazeCueSettings(config);

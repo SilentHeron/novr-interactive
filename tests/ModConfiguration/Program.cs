@@ -38,6 +38,11 @@ foreach (var field in typeof(ModConfiguration).GetFields(BindingFlags.Instance |
 Check(first.NativeMenuScale.Value == 1.25f && first.FlightHudScale.Value == .38f,
     "Lifecycle changes preserve existing menu and HUD defaults.");
 
+Check(!first.SeatClearanceEnabled.Value, "Head clearance is experimental opt-in, disabled by default.");
+Check(first.SeatClearanceRadius.Value == .12f, "Head clearance starts at a 12 cm radius.");
+var clearanceRange = firstFile.Descriptions[("Comfort", "Head Clearance Radius")].AcceptableValues as AcceptableValueRange<float>;
+Check(clearanceRange is { Minimum: .06f, Maximum: .20f }, "The config declares the same 6–20 cm bounds used by the menu.");
+
 // Failure late in startup is especially dangerous: earlier binds have already succeeded.
 foreach (var failAt in new[] { 2, firstFile.BindCount / 2, firstFile.BindCount })
 {
@@ -53,9 +58,13 @@ foreach (var failAt in new[] { 2, firstFile.BindCount / 2, firstFile.BindCount }
 }
 
 var nextFile = new ConfigFile();
+nextFile.Seed("Comfort", "Head Clearance", true);
+nextFile.Seed("Comfort", "Head Clearance Radius", .16f);
 nextFile.BeforeBind = _ => Check(ReferenceEquals(first, ModConfiguration.Current), "Successful replacement publishes only after its last bind.");
 var next = new ModConfiguration(nextFile);
 Check(ReferenceEquals(next, ModConfiguration.Instance), "A successful replacement becomes current.");
+Check(next.SeatClearanceEnabled.Value && next.SeatClearanceRadius.Value == .16f,
+    "Saved head-clearance opt-in and radius survive configuration initialization.");
 Check(ReferenceEquals(firstFile, first.Config), "Replacing current settings does not mutate the previous object.");
 Check(firstFile.BindCount == nextFile.BindCount, "Every settings binding is still performed.");
 MotionControlMigrationChecks.Run(Check);
