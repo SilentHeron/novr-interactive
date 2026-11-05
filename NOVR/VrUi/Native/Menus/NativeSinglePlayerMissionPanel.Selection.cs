@@ -74,6 +74,7 @@ public partial class NativeSinglePlayerMissionPanel
         if (_launch.IsBusy)
             return;
         SetIdleLaunchStatus();
+        ClearMissionPreview();
         if (index < 0 || index >= _filteredMissions.Count)
         {
             _selectedIndex = -1;
@@ -99,8 +100,11 @@ public partial class NativeSinglePlayerMissionPanel
             _tagsText.text = string.Join("   ", mission.Mission.missionSettings.Tags.Select(tag => tag.Tag));
         if (_descriptionText != null)
             _descriptionText.text = mission.Mission.missionSettings.description ?? "";
+        ResetMissionDescriptionScroll();
         RefreshLaunchButtons();
-        _actions?.TrySelectOriginalMission(mission.Key);
+        _previewPicker = _actions?.GetOriginalMissionPreviewPicker();
+        _previewSelectionReady = _actions?.TrySelectOriginalMission(mission.Key) == true;
+        RefreshMissionPreview();
         RefreshList();
     }
 

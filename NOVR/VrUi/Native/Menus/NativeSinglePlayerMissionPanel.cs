@@ -34,6 +34,7 @@ public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
     private Font? _font;
     private Text? _titleText;
     private Text? _descriptionText;
+    private ScrollRect? _descriptionScroll;
     private Text? _tagsText;
     private Text? _pageText;
     private Button? _startButton;
@@ -72,6 +73,8 @@ public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
             RefreshLaunchButtons();
         }
 
+        if (!visible && _visible)
+            ClearMissionPreview();
         _visible = visible;
         NativePanelTransition.SetVisible(_container, visible);
     }
@@ -112,8 +115,16 @@ public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
         var detailsPanel = CreatePanel("Mission Details Panel", _container, PanelColor, new Vector2(455f, -15f), new Vector2(900f, 950f));
         _titleText = CreateText("Mission Title", detailsPanel, "", new Vector2(0f, 395f), new Vector2(820f, 44f), 21, TextAnchor.MiddleCenter, Color.white);
         _tagsText = CreateText("Mission Tags", detailsPanel, "", new Vector2(0f, 345f), new Vector2(820f, 28f), 13, TextAnchor.MiddleCenter, new Color(0.82f, 0.86f, 0.72f, 1f));
-        _descriptionText = CreateText("Mission Description", detailsPanel, "", new Vector2(0f, 60f), new Vector2(820f, 520f), 15, TextAnchor.UpperLeft, new Color(0.84f, 0.88f, 0.90f, 1f));
-        _launchStatusText = CreateText("Launch Status", detailsPanel, "", new Vector2(0f, -345f), new Vector2(820f, 100f), 15, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
+        var previewFrame = CreateImage("Mission Preview Frame", detailsPanel, new Color(.025f, .035f, .045f, 1), new Vector2(0, 140), new Vector2(820, 350));
+        previewFrame.GetComponent<Image>().raycastTarget = false;
+        _previewImage = CreateImage("Mission Preview", previewFrame, Color.white, Vector2.zero, previewFrame.sizeDelta).GetComponent<Image>();
+        _previewImage.preserveAspect = true;
+        _previewImage.raycastTarget = false;
+        _previewStatusText = CreateText("Preview Status", previewFrame, "Select a mission.", Vector2.zero, new Vector2(780, 40), 16, TextAnchor.MiddleCenter, Color.white);
+        _previewStatusText.raycastTarget = false;
+        ClearMissionPreview();
+        BuildMissionDescription(detailsPanel);
+        _launchStatusText = CreateText("Launch Status", detailsPanel, "", new Vector2(0f, -375f), new Vector2(820f, 70f), 15, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
         _launchStatusText.supportRichText = false;
 
         CreateMenuButton("BACK", _container, new Vector2(NativeUiLayout.FooterLeftX, NativeUiLayout.FooterY), NativeUiLayout.FooterButtonSize, BackButtonColor, BackToMainMenu, 15);
@@ -122,6 +133,43 @@ public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
         _startButtonText = _startButton.GetComponentInChildren<Text>();
 
         NativePanelTransition.SetVisible(_container, false, instant: true);
+    }
+
+    private void BuildMissionDescription(RectTransform detailsPanel)
+    {
+        var viewport = CreateImage("Briefing Viewport", detailsPanel, Color.clear, new Vector2(-10, -187), new Vector2(796, 260));
+        viewport.gameObject.AddComponent<RectMask2D>();
+        _descriptionText = CreateText("Mission Description", viewport, "", Vector2.zero, viewport.sizeDelta, 16, TextAnchor.UpperLeft, new Color(.84f, .88f, .90f, 1));
+        var content = _descriptionText.rectTransform;
+        content.anchorMin = new Vector2(0, 1);
+        content.anchorMax = new Vector2(1, 1);
+        content.pivot = new Vector2(.5f, 1);
+        content.sizeDelta = new Vector2(0, 260);
+        content.anchoredPosition = Vector2.zero;
+        _descriptionText.verticalOverflow = VerticalWrapMode.Overflow;
+        var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        _descriptionScroll = viewport.gameObject.AddComponent<ScrollRect>();
+        _descriptionScroll.viewport = viewport;
+        _descriptionScroll.content = content;
+        _descriptionScroll.horizontal = false;
+        _descriptionScroll.movementType = ScrollRect.MovementType.Clamped;
+        _descriptionScroll.scrollSensitivity = 28;
+
+        var track = CreateImage("Briefing Scrollbar", detailsPanel, new Color(.18f, .22f, .24f, 1), new Vector2(405, -187), new Vector2(12, 260));
+        var handle = CreateImage("Handle", track, new Color(.58f, .65f, .68f, 1), Vector2.zero, Vector2.zero);
+        var scrollbar = track.gameObject.AddComponent<Scrollbar>();
+        scrollbar.handleRect = handle;
+        scrollbar.targetGraphic = handle.GetComponent<Image>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        _descriptionScroll.verticalScrollbar = scrollbar;
+        _descriptionScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+    }
+
+    private void ResetMissionDescriptionScroll()
+    {
+        if (_descriptionScroll != null)
+            _descriptionScroll.verticalNormalizedPosition = 1;
     }
 
     private void BuildGroupFilters(RectTransform listPanel)
@@ -305,6 +353,7 @@ public partial class NativeSinglePlayerMissionPanel : MonoBehaviour
                 SetIdleLaunchStatus();
             }
             RefreshLaunchButtons();
+            RefreshMissionPreview();
         }
         if (!_launch.IsBusy || Time.unscaledTime < _nextLaunchStatusTime)
             return;

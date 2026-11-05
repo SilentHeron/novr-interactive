@@ -61,4 +61,5 @@ passed += NativeMultiplayerPanel.RunBrowserQueryChecks();
 passed += await MultiplayerHostingChecks.Run();
 passed += await SinglePlayerLaunchChecks.Run();
 passed += SinglePlayerSelectionChecks.Run();
+passed += SinglePlayerPreviewChecks.Run();
 Console.WriteLine($"{passed} source-linked menu handoff/selection/discovery/capture assertions passed (native UI doubles; no renderer/game launch).");

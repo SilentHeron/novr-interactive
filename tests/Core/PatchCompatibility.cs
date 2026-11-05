@@ -74,12 +74,14 @@ internal static class PatchCompatibility
                 }
                 verified++;
             }
-        // Read-only native guidance, engine limits and lobby ownership use
+        // Read-only native guidance, mission previews, engine limits and lobby ownership use
         // private fields in addition to the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
         foreach (var contract in new[] {
             (owner: "RadialMenuMain", field: "actionObjectsMain", type: "System.Collections.Generic.List`1<UnityEngine.GameObject>"),
             (owner: "RadialMenuMain", field: "sectorObject", type: "UnityEngine.GameObject"),
+            (owner: "MissionPicker", field: "previewImage", type: "UnityEngine.UI.Image"),
+            (owner: "MissionPicker", field: "defaultMissionImage", type: "UnityEngine.Sprite"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_hostedLobby", type: "NuclearOption.Networking.Lobbies.HostedLobbyInstance"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "_joinedLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
             (owner: "NuclearOption.Networking.Lobbies.SteamLobby", field: "joinPendingLobby", type: "NuclearOption.Networking.Lobbies.LobbyInstance"),
@@ -142,6 +144,8 @@ internal static class PatchCompatibility
             var field = AllTypes(game.MainModule.Types).Single(t => t.FullName == contract.owner).Fields.SingleOrDefault(f => f.Name == contract.field);
             if (field?.FieldType.FullName != contract.type)
                 failures.Add($"Native readout field mismatch {contract.owner}.{contract.field}");
+            else if (contract.owner == "MissionPicker" && (field.IsStatic || field.IsPublic))
+                failures.Add($"Native mission-preview field is no longer a non-public instance field: {contract.field}");
         }
         var gameplayUi = game.MainModule.Types.Single(t => t.FullName == "GameplayUI");
         if (!gameplayUi.Methods.Any(m => m.Name == "PauseGame" && m.IsPublic && !m.IsStatic &&
