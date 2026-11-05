@@ -97,6 +97,12 @@ the glance dwell/fade. Tracking loss and the anchor hand's quick wheel override
 visibility immediately. Unsaved catalog defaults form three below-eye planes;
 their initial seated origin is still captured by `HudWidgetDefaultPlacement`.
 
+`CockpitHudWidgets.WristDock` commits wrist attachment only from a deliberate
+single-hand grip release. Its proximity gate requires a brief dwell and checks
+both rendered and raw drag positions; context loss cancels it. The separate
+preview partial draws the destination and release hint without acquiring input
+or native UI. Two-hand resizing suppresses docking until a fresh grab.
+
 ## Borrowed native UI
 
 [`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) ranks eligible

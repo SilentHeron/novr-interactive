@@ -123,10 +123,8 @@ internal sealed class SeatClearance : MonoBehaviour
         if (main == null || (camera != main && camera != cockpit) ||
             camera.cameraType != CameraType.Game || camera.stereoTargetEye == StereoTargetEyeMask.None)
             return;
-        var radius = ModConfiguration.Instance.SeatClearanceRadius.Value;
-        if (float.IsNaN(radius) || float.IsInfinity(radius))
+        if (!SeatClearanceRange.TryClamp(ModConfiguration.Instance.SeatClearanceRadius.Value, out var radius))
             return;
-        radius = Mathf.Clamp(radius, .06f, .20f);
         for (var i = _seats.Count - 1; i >= 0; i--)
         {
             var seat = _seats[i];

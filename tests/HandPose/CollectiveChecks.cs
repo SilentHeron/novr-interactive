@@ -102,14 +102,32 @@ internal static class CollectiveChecks
                 Check(cuff.y > .70f, "Collective cuff turns downward within configured travel");
                 if (travel == .12f)
                     Check(cuff.y > .94f, "Normal collective travel lost the upright wrist");
-                // Representative seated shoulder: independent of authored pose
-                // constants, mirrored before the solver and checked afterward.
-                var shoulder = new Vector3(.14f, .37f, -.18f);
+                // Representative native pilot proportions and shoulder,
+                // expressed relative to a neutral side-mounted collective.
+                // Use the actual authored wrist/cuff above, not a stale
+                // approximation of the old grip's rotation.
+                var shoulder = new Vector3(.1642f, .37f, -.30f);
                 var direction = (wrist - shoulder).normalized;
                 var bend = solverLeft.Bend(true, V(direction), V(cuff), true);
                 var reflected = solverRight.Bend(false, V(Mirror(direction)), V(Mirror(cuff)), true);
                 Check(bend.Finite && MathF.Abs(bend.Length - 1) < .0001f, "Collective elbow has an invalid bend");
                 Near(U(reflected), Mirror(U(bend)), "Collective mirrored arm pole diverges", .0001f);
+                var anatomical = new ArmPoseMath.Vector(-.35f, -.5f, -.2f).Unit.OnPlane(V(direction)).Unit;
+                Check(ArmPoseMath.Vector.Dot(bend, anatomical) >= .819f,
+                    "Upright collective cuff must not reverse the anatomical elbow plane");
+                var reach = ArmReachMath.Evaluate(.245f, .210f, (wrist - shoulder).magnitude);
+                Check(ArmReachMath.Triangle(.245f * reach.Scale, .210f * reach.Scale, reach.Distance, out var along, out var elbowHeight),
+                    "Collective travel retains a valid arm triangle");
+                var elbow = shoulder + direction * along + U(bend) * elbowHeight;
+                var solvedWrist = shoulder + direction * reach.Distance;
+                if (travel <= .25f)
+                {
+                    Check(elbow.y < shoulder.y - .04f && elbow.z < solvedWrist.z,
+                        "A side-mounted collective keeps the elbow below the shoulder and behind the wrist");
+                    var cuffAngle = MathF.Acos(Math.Clamp(Vector3.Dot(cuff.normalized, (elbow - solvedWrist).normalized), -1, 1)) * 180 / MathF.PI;
+                    Check(cuffAngle < (travel <= .12f ? 65 : 70),
+                        "Bounded collective elbow still meets the upright glove without excessive wrist flexion");
+                }
                 if (step > 0)
                     Check(Vector3.Dot(previousBend, U(bend)) > .99f, "Collective elbow flips across adjacent lift samples");
                 previousBend = U(bend);

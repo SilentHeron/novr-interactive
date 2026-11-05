@@ -21,21 +21,22 @@ internal static class SeatPageChecks
         menu.BuildSeat();
         var clearance = menu.SeatToggles["Head clearance"].Toggle;
         var radius = menu.SeatSliders["Clearance radius"];
-        check(!clearance.isOn && !config.SeatClearanceEnabled.Value,
-            "Opening Seat & handles does not opt into clearance.");
-        check(radius.Slider.minValue == .06f && radius.Slider.maxValue == .20f && radius.Value.text == "12 cm",
+        check(clearance.isOn && config.SeatClearanceEnabled.Value,
+            "Opening Seat & handles reflects the enabled default.");
+        check(radius.Slider.minValue == .05f && radius.Slider.maxValue == .40f && radius.Value.text == "25 cm",
             "Clearance radius is readable in cm and retains the configured bounds.");
         check(clearance.transform.parent.gameObject.Name == page && radius.Slider.transform.parent.gameObject.Name == page,
             "Clearance controls live directly on Seat & handles.");
+        clearance.isOn = false;
         radius.Slider.value = .155f;
         check(Math.Abs(config.SeatClearanceRadius.Value - .155f) < .00001f && !config.SeatClearanceEnabled.Value,
-            "Choosing a radius does not enable the experimental feature.");
+            "Choosing a radius does not change its disabled state.");
         radius.Slider.onValueChanged.Invoke(.01f);
-        check(config.SeatClearanceRadius.Value == .06f, "A radius callback below the slider range clamps to 6 cm.");
+        check(config.SeatClearanceRadius.Value == .05f, "A radius callback below the slider range clamps to 5 cm.");
         radius.Slider.onValueChanged.Invoke(1f);
-        check(config.SeatClearanceRadius.Value == .20f, "A radius callback above the slider range clamps to 20 cm.");
+        check(config.SeatClearanceRadius.Value == .40f, "A radius callback above the slider range clamps to 40 cm.");
         radius.Slider.onValueChanged.Invoke(float.NaN);
-        check(config.SeatClearanceRadius.Value == .20f, "Invalid slider callbacks leave the saved radius unchanged.");
+        check(config.SeatClearanceRadius.Value == .40f, "Invalid slider callbacks leave the saved radius unchanged.");
         clearance.isOn = true;
         check(config.SeatClearanceEnabled.Value, "Head clearance enables only on a deliberate toggle.");
         NOVR.Comfort.SeatClearance.Status = "Seat not supported";
@@ -45,10 +46,10 @@ internal static class SeatPageChecks
         menu.RefreshSeat();
         check(menu.ClearanceHint.text == "Seat detected", "Status text refreshes when the active cockpit changes.");
         clearance.isOn = false;
-        check(!config.SeatClearanceEnabled.Value && config.SeatClearanceRadius.Value == .20f,
+        check(!config.SeatClearanceEnabled.Value && config.SeatClearanceRadius.Value == .40f,
             "Disabling clearance preserves the chosen radius.");
         menu.RefreshSeat();
-        check(menu.ClearanceHint.text == "Opt-in · off by default", "Disabled clearance restores the experimental opt-in hint.");
+        check(menu.ClearanceHint.text == "Off", "Disabled clearance displays its off status.");
         config.SeatClearanceEnabled.Value = true;
         config.SeatClearanceRadius.Value = .14f;
         menu.RefreshSeat();

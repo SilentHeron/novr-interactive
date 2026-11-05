@@ -54,10 +54,15 @@ internal sealed partial class CockpitHudWidgets
     {
         origin = Vector3.zero;
         rotation = Quaternion.identity;
-        if (!_poses.TryGetValue(id, out var pose) || pose.Anchor == HudWidgetAnchor.Cockpit ||
-            !Space(out var gameRoot, out _, out var eye))
+        return _poses.TryGetValue(id, out var pose) && pose.Anchor != HudWidgetAnchor.Cockpit &&
+            TryWristFrame(pose.Anchor == HudWidgetAnchor.LeftWrist, out origin, out rotation);
+    }
+    private bool TryWristFrame(bool left, out Vector3 origin, out Quaternion rotation)
+    {
+        origin = Vector3.zero;
+        rotation = Quaternion.identity;
+        if (!Space(out var gameRoot, out _, out var eye))
             return false;
-        var left = pose.Anchor == HudWidgetAnchor.LeftWrist;
         var hand = TrackedControllers.Read(left);
         if (!hand.Valid)
             return false;

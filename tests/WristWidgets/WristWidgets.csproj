@@ -6,6 +6,8 @@
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetWristVisibility.cs" Link="HudWidgetWristVisibility.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/CockpitHudWidgets.Wrist.cs" Link="CockpitHudWidgets.Wrist.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/CockpitHudWidgets.WristDock.cs" Link="CockpitHudWidgets.WristDock.cs" />
+    <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetWristDock.cs" Link="HudWidgetWristDock.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetProfiles.cs" Link="HudWidgetProfiles.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetCatalog.cs" Link="HudWidgetCatalog.cs" />
     <Compile Include="../../NOVR/VrUi/Widgets/HudWidgetShape.cs" Link="HudWidgetShape.cs" />

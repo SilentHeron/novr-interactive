@@ -15,13 +15,6 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     private readonly CanvasGroup _pencilGroup, _eyeGroup, _popupGroup;
     private readonly Image _pencilBack, _eyeBack, _sliderHandle;
     private readonly Text _value;
-    private readonly Image[] _anchorButtons = new Image[3];
-    private readonly CockpitTouchGate[] _anchorTouch = { new(), new(), new(), new(), new(), new() };
-    private readonly Action<HudWidgetAnchor>? _setAnchor;
-    private HudWidgetAnchor _anchor;
-    private float _nextAnchorChange = float.NegativeInfinity;
-    internal Vector2 AnchorCenter(int index) => _popupCenter + new Vector2((index - 1) * (_popupSize.x - 20) / 3, -88);
-    private Vector2 AnchorButtonSize => new((_popupSize.x - 32) / 3, 42);
     private readonly Action<float> _setBackground;
     private readonly Action<bool> _setVisible;
     private readonly CockpitTouchGate[] _pencilTouch = { new(), new() }, _eyeTouch = { new(), new() }, _closeTouch = { new(), new() }, _sliderTouch = { new(), new() };
@@ -50,18 +43,17 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
     internal bool IsHandBusy(int side) => side >= 0 && side < 2 && _sliderOwner == side;
     internal bool IsPointing(int side) => side >= 0 && side < 2 && (_hover[side] || _sliderOwner == side);
 
-    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground, Action<bool> setVisible, Action<HudWidgetAnchor>? setAnchor = null)
+    internal CockpitWidgetAppearanceEditor(RectTransform root, Vector2 size, Action<float> setBackground, Action<bool> setVisible)
     {
         _setBackground = setBackground;
         _setVisible = setVisible;
-        _setAnchor = setAnchor;
         PencilCenter = new Vector2(-40, size.y * .5f + 62);
         EyeCenter = new Vector2(40, PencilCenter.y);
-        _popupSize = new Vector2(Mathf.Clamp(size.x, 360, 420), 240);
+        _popupSize = new Vector2(Mathf.Clamp(size.x, 300, 420), 150);
         // Leave the content visible while tuning its background, and keep the
         // contact area below even the shortest widget's resize corners.
-        _popupCenter = new Vector2(0, -size.y * .5f - 155);
-        SliderCenter = _popupCenter + new Vector2(0, 25);
+        _popupCenter = new Vector2(0, -size.y * .5f - 110);
+        SliderCenter = _popupCenter + new Vector2(0, -5);
         _closeCenter = _popupCenter + new Vector2(_popupSize.x * .5f - 24, _popupSize.y * .5f - 24);
         _trackWidth = _popupSize.x - 76;
 
@@ -97,7 +89,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _popup = popup.gameObject;
         _popupGroup = _popup.AddComponent<CanvasGroup>();
         _popupGroup.interactable = _popupGroup.blocksRaycasts = false;
-        _value = Label(_popup.transform, "Backplate 0%", new Vector2(-18, 76), new Vector2(_popupSize.x - 75, 32), 21);
+        _value = Label(_popup.transform, "Backplate 0%", new Vector2(-18, 46), new Vector2(_popupSize.x - 75, 32), 21);
         var close = Plate("Close appearance editor", _popup.transform, _closeCenter - _popupCenter,
             new Vector2(36, 36), new Color(.13f, .25f, .29f, 1));
         for (var i = 0; i < 2; i++)
@@ -105,18 +97,10 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             var stroke = Plate("Close mark", close.transform, Vector2.zero, new Vector2(3, 20), Color.white);
             stroke.rectTransform.localRotation = Quaternion.Euler(0, 0, i == 0 ? 45 : -45);
         }
-        Plate("Opacity track", _popup.transform, new Vector2(0, 25), new Vector2(_trackWidth, 12), new Color(.18f, .36f, .40f, 1));
-        _sliderHandle = Plate("Opacity handle", _popup.transform, new Vector2(-_trackWidth * .5f, 25), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
-        Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, -13), new Vector2(60, 28), 17);
-        Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, -13), new Vector2(60, 28), 17);
-        Label(_popup.transform, "Attach to", new Vector2(0, -48), new Vector2(_popupSize.x - 32, 28), 18);
-        for (var i = 0; i < 3; i++)
-        {
-            var button = Plate("Widget anchor", _popup.transform, AnchorCenter(i) - _popupCenter, AnchorButtonSize, Color.white);
-            Label(button.transform, i == 0 ? "Cockpit" : i == 1 ? "Left wrist" : "Right wrist", Vector2.zero, AnchorButtonSize, 17);
-            _anchorButtons[i] = button;
-        }
-        RefreshAnchor();
+        Plate("Opacity track", _popup.transform, new Vector2(0, -5), new Vector2(_trackWidth, 12), new Color(.18f, .36f, .40f, 1));
+        _sliderHandle = Plate("Opacity handle", _popup.transform, new Vector2(-_trackWidth * .5f, -5), new Vector2(12, 32), new Color(.65f, .94f, 1, 1));
+        Label(_popup.transform, "Clear", new Vector2(-_trackWidth * .5f + 22, -43), new Vector2(60, 28), 17);
+        Label(_popup.transform, "Solid", new Vector2(_trackWidth * .5f - 22, -43), new Vector2(60, 28), 17);
         _pencil.SetActive(false);
         _eye.SetActive(false);
         _popup.SetActive(false);
@@ -128,8 +112,8 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             return;
         PencilCenter = new Vector2(-40, size.y * .5f + 62);
         EyeCenter = new Vector2(40, PencilCenter.y);
-        _popupCenter = new Vector2(0, -size.y * .5f - 155);
-        SliderCenter = _popupCenter + new Vector2(0, 25);
+        _popupCenter = new Vector2(0, -size.y * .5f - 110);
+        SliderCenter = _popupCenter + new Vector2(0, -5);
         _closeCenter = _popupCenter + new Vector2(_popupSize.x * .5f - 24, _popupSize.y * .5f - 24);
         ((RectTransform)_pencil.transform).anchoredPosition = PencilCenter;
         ((RectTransform)_eye.transform).anchoredPosition = EyeCenter;
@@ -139,13 +123,11 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         ReleaseHands();
     }
 
-    internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1, HudWidgetAnchor anchor = HudWidgetAnchor.Cockpit)
+    internal void SetState(bool editing, bool visible, float background, float presentationAlpha = 1)
     {
         if (_disposed)
             return;
         _editing = editing;
-        _anchor = anchor;
-        RefreshAnchor();
         // Hidden widgets still expose their editor while layout mode is active.
         _pencil.SetActive(editing);
         _eye.SetActive(editing);
@@ -212,8 +194,6 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
                     gate.Reset();
                 foreach (var gate in _sliderTouch)
                     gate.Reset();
-                foreach (var gate in _anchorTouch)
-                    gate.Reset();
             }
             InteractionHaptics.Pulse(device, InteractionCue.Click);
             return true;
@@ -241,27 +221,6 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             ClosePopup();
             InteractionHaptics.Pulse(device, InteractionCue.Click);
             return true;
-        }
-        for (var i = 0; i < 3; i++)
-        {
-            // Nearest column owns padded contacts; a small panel never changes
-            // two anchors when neighboring buttons' touch margins overlap.
-            var column = point.x < -(_popupSize.x - 20) / 6 ? 0 : point.x > (_popupSize.x - 20) / 6 ? 2 : 1;
-            var contact = IsOpen && _setAnchor != null && column == i && Inside(point, AnchorCenter(i), AnchorButtonSize, padding);
-            if (_anchorTouch[side * 3 + i].Update(IsOpen, contact, depth))
-            {
-                foreach (var gate in _anchorTouch)
-                    gate.Reset();
-                if (Time.unscaledTime >= _nextAnchorChange && _anchor != (HudWidgetAnchor)i)
-                {
-                    _nextAnchorChange = Time.unscaledTime + .3f;
-                    _anchor = (HudWidgetAnchor)i;
-                    _setAnchor?.Invoke(_anchor);
-                    RefreshAnchor();
-                    InteractionHaptics.Pulse(device, InteractionCue.Click);
-                }
-                return true;
-            }
         }
         var onTrack = Inside(point, SliderCenter, new Vector2(_trackWidth, 40), padding);
         var touched = _sliderTouch[side].Update(IsOpen, onTrack, depth);
@@ -310,13 +269,7 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
             return;
         _displayedBackground = _background;
         _value.text = $"Backplate {_background * 100:0}%";
-        _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, 25);
-    }
-    private void RefreshAnchor()
-    {
-        for (var i = 0; i < _anchorButtons.Length; i++)
-            if (_anchorButtons[i] != null)
-                _anchorButtons[i].color = _anchor == (HudWidgetAnchor)i ? new Color(.16f, .40f, .43f, 1) : new Color(.07f, .16f, .19f, 1);
+        _sliderHandle.rectTransform.anchoredPosition = new Vector2((_background - .5f) * _trackWidth, -5);
     }
     private void RefreshHover()
     {
@@ -349,8 +302,6 @@ internal sealed class CockpitWidgetAppearanceEditor : IDisposable
         _eyeTouch[side].Reset();
         _closeTouch[side].Reset();
         _sliderTouch[side].Reset();
-        for (var i = 0; i < 3; i++)
-            _anchorTouch[side * 3 + i].Reset();
         _hover[side] = _pencilHover[side] = _eyeHover[side] = false;
         RefreshHover();
         if (_sliderOwner == side)

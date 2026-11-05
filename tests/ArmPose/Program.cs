@@ -60,32 +60,32 @@ foreach (var collective in new[] { false, true })
     Check(maxStep < 8, $"{(collective ? "Collective" : "Free")} cuff-axis crossing is continuous (largest step {maxStep:F3} degrees)");
 }
 
+// A collective grip must never override the anatomical side, even if a
+// relocated handle or wrist roll makes its authored cuff oppose that side.
 var mirrorGood = true;
-var lowMidHigh = true;
-foreach (var command in new[] { 0f, .5f, 1f })
+var collectiveSweep = true;
+var maxCollectiveSwivel = 0f;
+foreach (var reach in new[] { new V(-.15f, -.28f, .35f), new V(-.2f, -.16f, .2f), new V(-.2f, -.4f, .1f), new V(-.05f, -.05f, .3f) })
 {
-    var offset = FlightControlMath.ThrottleOffset(true, command, .12f);
-    var lift = offset.height;
-    var forward = offset.forward;
-    var neutralForward = FlightControlMath.CollectiveNeutralForward(.12f);
-    var pitch = -(float)((Math.Atan2(FlightControlMath.CollectiveGripHeight + lift, neutralForward + forward) -
-        Math.Atan2(FlightControlMath.CollectiveGripHeight, neutralForward)) * 180 / Math.PI);
-    V Glove(V v) => Rotate(Rotate(Rotate(v, new V(0, 1, 0), -90), new V(0, 0, 1), 60), new V(1, 0, 0), pitch);
-    var wrist = new V(-.32f, -.55f + lift, .18f + forward) - Glove(new V(0, -.019f, .043f));
-    var shoulder = new V(-.18f, -.18f, 0);
-    var delta = wrist - shoulder;
-    var cuff = Glove(new V(0, 0, -1));
+    var d = reach.Unit;
+    var collectivePole = new V(-.35f, -.5f, -.2f).Unit.OnPlane(d).Unit;
     var leftSolver = new ArmPoseMath();
     var rightSolver = new ArmPoseMath();
-    var bend = leftSolver.Bend(true, delta, cuff, true);
-    var opposite = rightSolver.Bend(false, Mirror(delta), Mirror(cuff), true);
-    mirrorGood &= (Mirror(bend) - opposite).Length < .0001f;
-    var reachable = ArmReachMath.Triangle(.28f, .26f, delta.Length, out var along, out var height);
-    var elbow = shoulder + delta.Unit * along + bend * height;
-    lowMidHigh &= reachable && Angle(bend, cuff.OnPlane(delta.Unit)) < .05f && elbow.Y > wrist.Y + .15f;
+    V previous = default;
+    for (var i = 0; i <= 3600; i++)
+    {
+        var cuff = Rotate(collectivePole, d, i * .1f);
+        var bend = leftSolver.Bend(true, d, cuff, true);
+        var opposite = rightSolver.Bend(false, Mirror(d), Mirror(cuff), true);
+        mirrorGood &= (Mirror(bend) - opposite).Length < .0001f;
+        collectiveSweep &= bend.Finite && Math.Abs(bend.Length - 1) < .0001f && Math.Abs(V.Dot(bend, d)) < .0001f &&
+            V.Dot(bend, collectivePole) > .819f && (i == 0 || Angle(previous, bend) < 1);
+        maxCollectiveSwivel = Math.Max(maxCollectiveSwivel, Angle(bend, collectivePole));
+        previous = bend;
+    }
 }
 Check(mirrorGood, "Left/right collective geometry mirrors without handed elbow bias");
-Check(lowMidHigh, "Low/mid/high fallback collective poses preserve upward cuffs and their aligned elbow circle");
+Check(collectiveSweep && maxCollectiveSwivel < 35.01f, $"14,404 collective cuff samples retain the anatomical elbow without reversal (maximum guidance {maxCollectiveSwivel:F2} degrees)");
 var hinge = ArmPoseMath.HingeDorsal(true, direction, neutral);
 Check(hinge.Finite && Math.Abs(hinge.Length - 1) < .00001f && Math.Abs(V.Dot(hinge, direction)) < .00001f &&
     Math.Abs(V.Dot(hinge, neutral)) < .00001f, "Shared arm reference is a finite normal to the solved elbow plane");
@@ -93,7 +93,9 @@ Check((Mirror(hinge) - ArmPoseMath.HingeDorsal(false, Mirror(direction), Mirror(
     "The shared elbow frame mirrors between hands without reversing wrist-roll convention");
 
 var transitionSolver = new ArmPoseMath();
-var raisedCuff = neutral * -1;
+var raisedCuff = Rotate(neutral, direction, 70);
+var freeTarget = new ArmPoseMath().Bend(true, direction, raisedCuff, false);
+var collectiveTarget = new ArmPoseMath().Bend(true, direction, raisedCuff, true);
 last = transitionSolver.Bend(true, direction, raisedCuff, true);
 var transitionGood = true;
 var maxTransitionStep = 0f;
@@ -107,7 +109,7 @@ for (var i = 0; i <= 100; i++)
     transitionGood &= bend.Finite && Math.Abs(V.Dot(bend, direction)) < .0001f;
 }
 Check(transitionGood && maxTransitionStep < 3, "Collective release shares the finite glove blend without a one-frame elbow reversal");
-Check(Angle(last, neutral) < .05f, "Completed release reaches the exact free elbow plane without residual smoothing lag");
+Check(Angle(last, freeTarget) < .05f, "Completed release reaches the exact free elbow plane without residual smoothing lag");
 maxTransitionStep = 0;
 for (var i = 0; i <= 100; i++)
 {
@@ -117,7 +119,7 @@ for (var i = 0; i <= 100; i++)
     maxTransitionStep = Math.Max(maxTransitionStep, Angle(last, bend));
     last = bend;
 }
-Check(maxTransitionStep < 3 && Angle(last, raisedCuff) < .05f, "Reacquiring the collective smoothly restores its cuff-aligned elbow plane");
+Check(maxTransitionStep < 3 && Angle(last, collectiveTarget) < .05f, "Reacquiring the collective smoothly restores its anatomically bounded elbow plane");
 
 var poleSolver = new ArmPoseMath();
 var pole = new V(-.35f, -.5f, -.2f).Unit;

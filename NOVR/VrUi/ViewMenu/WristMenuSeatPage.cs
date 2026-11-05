@@ -24,12 +24,12 @@ internal sealed partial class WristMenu
         ActionButton(parent, "Reset seat & handles…", 1, -6, AskReset, true);
         ActionButton(parent, "Edit layout", 0, -54, StartOrResumeLayout);
         ActionButton(parent, "Aircraft profiles  ›", 1, -54, OpenAircraftProfiles);
-        Section(parent, "Comfort · experimental", -100);
+        Section(parent, "Comfort", -100);
         Setting(parent, "Head clearance", config.SeatClearanceEnabled, 0, -143);
-        var hint = ViewMenuControls.Text(parent, _font!, "Opt-in · off by default", new Vector2(160, -143), new Vector2(300, 42), 17);
+        var hint = ViewMenuControls.Text(parent, _font!, "Checking seat…", new Vector2(160, -143), new Vector2(300, 42), 17);
         hint.color = ViewMenuControls.Muted;
         _settingRefresh.Add((parent.gameObject, () => hint.text = config.SeatClearanceEnabled.Value
-            ? Comfort.SeatClearance.Status : "Opt-in · off by default"));
+            ? Comfort.SeatClearance.Status : "Off"));
         Setting(parent, "Clearance radius", config.SeatClearanceRadius, -204, Centimeters, .005f);
     }
 }

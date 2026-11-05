@@ -209,6 +209,7 @@ internal sealed partial class CockpitHudWidgets
     {
         foreach (var hand in _hands)
         {
+            hand.Dock.Reset(); // Context/menu/save releases must never attach a widget.
             hand.Id = null;
             hand.Corner = -1;
             hand.Gate.Reset();
@@ -223,6 +224,7 @@ internal sealed partial class CockpitHudWidgets
     }
     private void ReleaseWidgets()
     {
+        ReleaseWristDockPreviews();
         CockpitStatusSources.ReleaseAll();
         CockpitMapWidget.ReleaseAll();
         CockpitAlerts.ReleaseWidgetParents();

@@ -39,6 +39,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         internal Quaternion GripRotation;
         internal Quaternion CornerRotation;
         internal int Corner = -1;
+        internal readonly WristDockGesture Dock = new();
     }
     private readonly Dictionary<string, Widget> _widgets = new();
     private readonly Drag[] _hands = { new(), new() };
@@ -163,12 +164,14 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         if (!CanUpdateEdit())
             return;
         for (var i = 0; i < 2; i++)
-        {
             _samples[i] = TrackedControllers.Read(i == 0);
+        for (var i = 0; i < 2; i++)
+        {
             UpdateAppearance(i, _samples[i]);
             UpdateHand(i, _samples[i]);
         }
         MoveHeldWidgets();
+        UpdateWristDocking();
         ReleaseWristFrames();
     }
 
@@ -304,10 +307,12 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
         {
             if (drag.Gate.Released)
             {
-                if (SnapEnabled && _hands[1 - index].Id != drag.Id)
+                var changedAnchor = CompleteWristDrop(index);
+                if (!changedAnchor && SnapEnabled && _hands[1 - index].Id != drag.Id)
                     Snap(drag.Id);
-                InteractionHaptics.Pulse(hand.Device, InteractionCue.Release);
+                InteractionHaptics.Pulse(hand.Device, changedAnchor ? InteractionCue.Grab : InteractionCue.Release);
             }
+            drag.Dock.Reset();
             drag.Id = null;
             drag.Corner = -1;
         }
@@ -323,6 +328,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             {
                 FreezeWrist(id);
                 drag.Id = id;
+                BeginWristDrag(index);
                 SelectedId = id;
                 drag.Corner = corner;
                 RebaseDrag(index);
@@ -577,7 +583,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             pose.Visible = visible;
             Select(id);
             SetAppearance(id, pose);
-        }, anchor => SetAnchor(id, anchor));
+        });
         LayerHelper.SetLayerRecursive(root.transform, LayerHelper.GetVrUiLayer());
         _widgets.Add(id, widget);
     }
@@ -659,7 +665,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             var show = ready && frameReady && wristAlpha > .001f && PlacementReady(pair.Key) && (pose.Visible || _editing);
             widget.RootGroup.alpha = wristAlpha;
             var emphasis = focused == null || focused == pair.Key ? 1f : .22f;
-            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis, pose.Anchor);
+            widget.Appearance.SetState(_editing && show, pose.Visible, pose.Background, emphasis);
             widget.Root.gameObject.SetActive(show);
             if (!show || gameRoot == null || uiRoot == null || eye == null)
                 continue;
@@ -673,6 +679,8 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
             var held = _hands[0].Id == pair.Key || _hands[1].Id == pair.Key;
             var hovered = _hover[0] == pair.Key || _hover[1] == pair.Key;
             var color = held ? new Color(.3f, 1f, .8f, 1) : hovered ? new Color(.6f, 1f, 1f, .9f) : new Color(.65f, .85f, .9f, .55f);
+            if (WristDropReady(pair.Key))
+                color = Color.white;
             color.a *= emphasis;
             foreach (var edge in widget.Outline)
             {
@@ -703,6 +711,7 @@ internal sealed partial class CockpitHudWidgets : MonoBehaviour
                 widget.Placeholder.color = _editing ? new Color(1, 1, 1, emphasis) : new Color(.56f, .9f, .68f, pose.Opacity * .65f * emphasis);
             }
         }
+        PlaceWristDockPreviews(ready && hasSpace, gameRoot, uiRoot, eye);
     }
     private void OnDestroy()
     {

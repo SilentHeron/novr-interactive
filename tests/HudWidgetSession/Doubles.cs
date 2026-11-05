@@ -239,15 +239,24 @@ namespace NOVR.VrUi.SpecialBehavior
         private void ReleaseWristFrames()
         {
         }
+        private void ReleaseWristDockPreviews()
+        {
+        }
         internal static CockpitHudWidgets? Instance
         {
             get; private set;
         }
         private sealed class Contact
         {
+            internal readonly DockState Dock = new();
             internal readonly ControllerButtonGate Gate = new();
             internal string? Id;
             internal int Corner = -1;
+        }
+        private sealed class DockState
+        {
+            internal bool Ready;
+            internal void Reset() => Ready = false;
         }
         internal sealed class Appearance(string id)
         {
@@ -293,7 +302,7 @@ namespace NOVR.VrUi.SpecialBehavior
         internal void PoseFromGesture(string id, HudWidgetPose pose) => _poses[id] = pose;
         internal int WidgetCount => _widgets.Count;
         internal Appearance AppearanceForCheck(string id) => _widgets[id].Appearance;
-        internal bool ContactsClear => _hands.All(h => h.Id == null && h.Corner == -1 && !h.Gate.Held) &&
+        internal bool ContactsClear => _hands.All(h => h.Id == null && h.Corner == -1 && !h.Gate.Held && !h.Dock.Ready) &&
             _hover.All(h => h == null) && _resizing == null && _handRotations.All(q => q == Quaternion.identity) && !_appearanceBusy.Any(v => v) &&
             _widgets.Values.All(w => !w.Appearance.SliderHeld);
         internal void HoldForCheck(int handCount, bool opacity = false)
@@ -304,6 +313,7 @@ namespace NOVR.VrUi.SpecialBehavior
                 _hands[side].Corner = side == 0 ? 0 : 3;
                 _hands[side].Gate.Update(true, 0);
                 _hands[side].Gate.Update(true, 1);
+                _hands[side].Dock.Ready = true;
                 _handRotations[side] = new Quaternion(0, 1, 0, 0);
                 _appearanceBusy[side] = opacity;
             }

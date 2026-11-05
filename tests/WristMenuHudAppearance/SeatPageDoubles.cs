@@ -7,8 +7,8 @@ namespace NOVR
     internal sealed partial class ModConfiguration
     {
         internal static ModConfiguration Instance = new();
-        internal readonly ConfigEntry<bool> SeatClearanceEnabled = new(false, new(null));
-        internal readonly ConfigEntry<float> SeatClearanceRadius = new(.12f, new(new AcceptableValueRange<float>(.06f, .20f)));
+        internal readonly ConfigEntry<bool> SeatClearanceEnabled = new(true, new(null));
+        internal readonly ConfigEntry<float> SeatClearanceRadius = new(Comfort.SeatClearanceRange.Default, new(new AcceptableValueRange<float>(Comfort.SeatClearanceRange.Minimum, Comfort.SeatClearanceRange.Maximum)));
         internal readonly MotionControls.MotionControlSettings MotionControls = new();
     }
 }
@@ -46,7 +46,7 @@ namespace NOVR.VrUi
         internal int ResetRequests;
         internal void BuildSeat() => BuildSeatPage();
         internal Text ClearanceHint => _seatPage!.transform.children
-            .Single(item => item.gameObject.Name == "Opt-in · off by default").GetComponent<Text>();
+            .Single(item => item.gameObject.Name == "Checking seat…").GetComponent<Text>();
         internal void RefreshSeat()
         {
             foreach (var (_, refresh) in _settingRefresh)

@@ -226,10 +226,6 @@ namespace NOVR.MotionControls
 }
 namespace NOVR.VrUi.SpecialBehavior
 {
-    internal enum HudWidgetAnchor
-    {
-        Cockpit, LeftWrist, RightWrist
-    }
     internal struct HudWidgetPose
     {
         internal float Scale, Opacity, Background; internal bool Visible; internal UnityEngine.Vector3 Position, Euler;

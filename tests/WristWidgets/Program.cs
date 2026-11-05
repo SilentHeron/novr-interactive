@@ -6,6 +6,8 @@ using UnityEngine;
 var checks = 0;
 void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
 void Near(Vector3 a, Vector3 b, string message) => Check((a - b).magnitude < .0001f, message);
+WristDockChecks.Run(Check);
+WristDropRuntimeChecks.Run(Check);
 var visibility = new HudWidgetWristVisibility();
 Check(visibility.Update(true, false, false, 1, 1, .5f, .05f) == 0, "Accidental brief glance does not flash the card");
 Check(visibility.Update(true, false, false, 1, 1, .5f, .05f) > 0, "Deliberate wrist check fades into view");

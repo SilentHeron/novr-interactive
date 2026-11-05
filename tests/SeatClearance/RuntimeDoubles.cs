@@ -197,8 +197,8 @@ namespace NOVR
     internal sealed class ModConfiguration
     {
         internal static ModConfiguration Instance = new();
-        internal readonly Setting<bool> SeatClearanceEnabled = new(false);
-        internal readonly Setting<float> SeatClearanceRadius = new(.12f);
+        internal readonly Setting<bool> SeatClearanceEnabled = new(true);
+        internal readonly Setting<float> SeatClearanceRadius = new(Comfort.SeatClearanceRange.Default);
     }
 }
 namespace NOVR.MotionControls

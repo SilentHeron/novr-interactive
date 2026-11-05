@@ -4,6 +4,7 @@ namespace UnityEngine
     internal struct Vector2(float x, float y)
     {
         internal float x = x, y = y;
+        public static Vector2 operator *(Vector2 value, float scale) => new(value.x * scale, value.y * scale);
     }
     internal struct Vector3(float x, float y, float z)
     {
@@ -72,12 +73,32 @@ namespace UnityEngine
     {
         internal static float unscaledTime;
     }
+    internal static class Mathf
+    {
+        internal static float Clamp(float v, float min, float max) => Math.Clamp(v, min, max);
+    }
 }
 namespace NOVR.MotionControls
 {
     internal struct ControllerSample
     {
         internal bool Valid; internal UnityEngine.Vector3 Position; internal UnityEngine.Quaternion Rotation;
+        internal float Grip;
+        internal int Device;
+    }
+    internal static class InteractionHaptics
+    {
+        internal static int Pulses;
+        internal static void PulseOnly(int device, float strength, float seconds) => Pulses++;
+    }
+    internal static class CockpitLayout
+    {
+        internal enum Element
+        {
+            None, Stick
+        }
+        internal static Element Left, Right;
+        internal static Element HeldByHand(bool left) => left ? Left : Right;
     }
     internal static class TrackedControllers
     {
@@ -124,10 +145,24 @@ namespace NOVR.VrUi.SpecialBehavior
         private sealed class Hand
         {
             internal string? Id;
+            internal readonly WristDockGesture Dock = new();
+            internal UnityEngine.Vector3 StartEuler, LocalAnchor;
+            internal UnityEngine.Quaternion GripRotation = UnityEngine.Quaternion.identity;
+            internal readonly HandGate Gate = new();
         }
+        private sealed class HandGate
+        {
+            internal bool Held;
+        }
+        private const float PixelSize = HudWidgetCatalog.MetresPerPixel;
         private Dictionary<string, HudWidgetPose> _poses = HudWidgetProfiles.FactoryDefaults;
         private readonly Dictionary<string, Widget> _widgets = HudWidgetProfiles.Ids.ToDictionary(x => x, _ => new Widget());
         private readonly Hand[] _hands = { new(), new() };
+        private readonly NOVR.MotionControls.ControllerSample[] _samples = new NOVR.MotionControls.ControllerSample[2];
+        private readonly UnityEngine.Vector3[] _points = new UnityEngine.Vector3[2];
+        private readonly UnityEngine.Quaternion[] _handRotations = { UnityEngine.Quaternion.identity, UnityEngine.Quaternion.identity };
+        private readonly bool[] _appearanceBusy = new bool[2];
+        private UnityEngine.Vector2 Size(string id) => HudWidgetShape.Size(HudWidgetCatalog.Get(id).Size, _poses[id].Aspect);
         internal bool _editing = true;
         internal readonly UnityEngine.Transform Tracking = new(), Eye = new();
         private bool Space(out UnityEngine.Transform gameRoot, out UnityEngine.Transform uiRoot, out UnityEngine.Transform eye)
@@ -139,7 +174,11 @@ namespace NOVR.VrUi.SpecialBehavior
         private void ReleaseHands()
         {
             foreach (var hand in _hands)
+            {
+                hand.Dock.Reset();
+                hand.Gate.Held = false;
                 hand.Id = null;
+            }
             ReleaseWristFrames();
         }
         private void Select(string id)

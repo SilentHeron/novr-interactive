@@ -56,6 +56,7 @@ internal static class RuntimeChecks
             cockpitCamRender = cockpit
         };
         var runtime = new SeatClearance();
+        ModConfiguration.Instance.SeatClearanceEnabled.Value = false;
         Invoke(runtime, "OnEnable");
         try
         {
@@ -63,7 +64,7 @@ internal static class RuntimeChecks
             Invoke(runtime, "LateUpdate");
             RenderPipelineManager.Begin(main);
             Check(pilot.DiscoveryReads == 0 && SeatClearanceMesh.Created.Count == 0 && SeatClearance.Status == "Off",
-                "Default off never scans the pilot or acquires mesh resources.");
+                "Explicitly disabled clearance never scans the pilot or acquires mesh resources.");
             ModConfiguration.Instance.SeatClearanceEnabled.Value = true;
             Invoke(runtime, "LateUpdate");
             var seat = SeatClearanceMesh.Created.Single();
@@ -73,7 +74,7 @@ internal static class RuntimeChecks
                 "Glass and mixed glass/seat renderers are rejected before any mesh lease is acquired.");
             Check(SeatClearance.Status == "Seat detected", "Supported discovery reports a recognized seat.");
             RenderPipelineManager.Begin(main);
-            Check(seat.Applied && seat.PreparedCenter == main.transform.position && seat.PreparedRadius == .12f,
+            Check(seat.Applied && seat.PreparedCenter == main.transform.position && seat.PreparedRadius == .25f,
                 "Main stereo camera uses the head position and configured local radius.");
             RenderPipelineManager.End(main);
             Check(!seat.Applied, "End camera restores the original immediately.");
@@ -100,15 +101,25 @@ internal static class RuntimeChecks
             Check(!seat.Applied && seat.Applies == applies, "Mono and non-game cameras never substitute a mesh.");
             ModConfiguration.Instance.SeatClearanceRadius.Value = 1;
             RenderPipelineManager.Begin(main);
-            Check(seat.PreparedRadius == .20f, "Runtime independently caps a malformed large radius.");
+            Check(seat.PreparedRadius == .40f, "Runtime independently caps a malformed large radius.");
             ModConfiguration.Instance.SeatClearanceRadius.Value = .01f;
             RenderPipelineManager.Begin(main);
-            Check(seat.PreparedRadius == .06f, "Runtime independently bounds a malformed small radius.");
+            Check(seat.PreparedRadius == .05f, "Runtime independently bounds a malformed small radius.");
+            foreach (var validRadius in new[] { .05f, .12f, .25f, .40f })
+            {
+                ModConfiguration.Instance.SeatClearanceRadius.Value = validRadius;
+                RenderPipelineManager.Begin(main);
+                Check(seat.Applied && seat.PreparedRadius == validRadius,
+                    "Runtime honors minimum, custom, default and maximum radii without the old 20 cm cap.");
+            }
             applies = seat.Applies;
-            ModConfiguration.Instance.SeatClearanceRadius.Value = float.NaN;
-            RenderPipelineManager.Begin(main);
-            Check(!seat.Applied && seat.Applies == applies, "An invalid radius restores rather than retaining a previous cut.");
-            ModConfiguration.Instance.SeatClearanceRadius.Value = .12f;
+            foreach (var invalidRadius in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                ModConfiguration.Instance.SeatClearanceRadius.Value = invalidRadius;
+                RenderPipelineManager.Begin(main);
+                Check(!seat.Applied && seat.Applies == applies, "An invalid radius restores rather than retaining a previous cut.");
+            }
+            ModConfiguration.Instance.SeatClearanceRadius.Value = .25f;
 
             RenderPipelineManager.Begin(main);
             applies = seat.Applies;

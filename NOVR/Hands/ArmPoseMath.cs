@@ -39,7 +39,7 @@ internal sealed class ArmPoseMath
         _transitionProgress = 1;
     }
 
-    internal Vector Bend(bool left, Vector direction, Vector cuff, bool followCuff, float transitionProgress = 1)
+    internal Vector Bend(bool left, Vector direction, Vector cuff, bool collective, float transitionProgress = 1)
     {
         if (!direction.Finite || direction.Length < .001f)
         {
@@ -61,24 +61,27 @@ internal sealed class ArmPoseMath
         hint = hint.Unit;
         var projected = cuff.Finite ? cuff.Unit.OnPlane(direction) : default;
         var confidence = Smooth((projected.Length - .08f) / .17f);
+        // The shoulder determines the elbow side for every control. The
+        // collective's authored upright glove used to bypass this constraint:
+        // following its cuff could reverse the elbow plane and lift the elbow
+        // above the shoulder while the hand was still beside the seat.
+        // Cuff alignment is a bounded guide, never an elbow target.
         Vector bend;
-        if (followCuff)
+        if (collective)
         {
-            // Collective cuffs point upward toward the shoulder. Keep their
-            // aligned elbow, including while the authored glove pose moves.
-            // Only an ambiguous cuff/arm axis uses the previous bend plane.
-            var fallback = previous.Length > .5f ? previous : hint;
-            bend = Arc(fallback, projected.Unit, confidence, direction, left);
+            var cosine = Vector.Dot(hint, projected.Unit);
+            var sine = Vector.Dot(direction, Vector.Cross(hint, projected.Unit));
+            var degrees = (float)(Math.Atan2(sine, cosine) * 180 / Math.PI);
+            // A modest swivel helps the sleeve meet the upright glove. Fade
+            // toward the anatomical pole at exact opposition, where choosing
+            // either arc would otherwise flip between -35 and +35 degrees.
+            var guidance = confidence * Smooth((cosine + 1) / .12f);
+            var radians = FlightControlMath.Clamp(degrees, -35, 35) * guidance * (float)(Math.PI / 180);
+            bend = (hint * (float)Math.Cos(radians) + Vector.Cross(direction, hint) * (float)Math.Sin(radians)).Unit;
         }
         else
         {
-            // Wrist flexion must not drag the elbow through the chest. The cuff
-            // can guide a compatible bend but cannot reverse the anatomical
-            // hemisphere. Weight vanishes smoothly for an opposing cuff.
             var compatible = Smooth((Vector.Dot(hint, projected.Unit) + .2f) / .65f);
-            // The shoulder/upper arm primarily determines the elbow plane.
-            // An 80% cuff weight let a wrist-only gesture swing the elbow
-            // through more than fifty degrees; keep that guidance modest.
             var cuffWeight = .35f * confidence * compatible;
             bend = (hint * (1 - cuffWeight) + projected.Unit * cuffWeight).Unit;
         }
