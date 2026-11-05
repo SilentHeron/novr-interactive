@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NOVR.MotionControls;
+using NOVR.Rendering;
 using NOVR.VrUi.Native;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
@@ -25,6 +26,9 @@ internal sealed partial class WristMenu
         WristMenuNavigation.BuildHome((item, action) =>
         {
             var label = AddButton(parent, item.Label, item.Column, item.Row, action);
+            if (item.Destination == ViewMenuDestination.FlightActions || item.Destination == ViewMenuDestination.Seat ||
+                item.Destination == ViewMenuDestination.Profiles || item.Destination == ViewMenuDestination.EditLayout)
+                _cockpitButtons.Add(label.transform.parent.GetComponent<Button>());
             var bounds = WristMenuNavigation.HomeBounds(item);
             var rect = (RectTransform)label.transform.parent;
             rect.anchoredPosition = new Vector2(bounds.X, bounds.Y);
@@ -85,8 +89,12 @@ internal sealed partial class WristMenu
     {
         _performancePage = Page("VR PERFORMANCE");
         var parent = _performancePage.transform;
-        var performanceInfo = Label(_performancePage.transform, "", new Vector2(0, -12), new Vector2(510, 390), 18);
+        var performanceInfo = Label(parent, "", new Vector2(0, 28), new Vector2(600, 350), 18);
         _liveLabels.Add((performanceInfo, () => PcVrCapabilities.Report));
+        var foveationPage = BuildFixedFoveationPage();
+        var graphicsPage = BuildGameGraphicsPage();
+        ActionButton(parent, "Foveated rendering  ›", 0, -211, () => ShowPage(foveationPage));
+        ActionButton(parent, "Game graphics  ›", 1, -211, () => ShowPage(graphicsPage));
     }
 
     private void BuildFeedbackPage()

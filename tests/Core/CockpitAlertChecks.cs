@@ -50,12 +50,42 @@ internal static class CockpitAlertChecks
             yes(CockpitFeedPresentation.Choose(true, true, true, false, true, true) == CockpitFeedMode.Recovery);
             yes(CockpitFeedPresentation.Choose(true, true, false, true, true, false) == CockpitFeedMode.Native);
         });
-        check("Recovery feed cannot activate outside VR gameplay or before entering a cockpit", () =>
+        check("Recovery feed cannot activate outside VR gameplay or without an eligible view", () =>
         {
             yes(CockpitFeedPresentation.Choose(false, true, true, false, true, true) == CockpitFeedMode.Native);
             yes(CockpitFeedPresentation.Choose(true, false, true, false, true, true) == CockpitFeedMode.Native);
             yes(CockpitFeedPresentation.Choose(true, true, true, false, false, true) == CockpitFeedMode.Native);
             yes(CockpitFeedPresentation.Choose(false, true, true, true, true, false) == CockpitFeedMode.Native);
+        });
+        check("Direct spectator join owns notifications before any cockpit and hides presentation under the map", () =>
+        {
+            yes(CockpitFeedPresentation.Choose(true, true, true, false, false, true, true) == CockpitFeedMode.Spectator);
+            yes(CockpitFeedPresentation.Choose(true, true, false, false, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.SuppressNative(true, true, false, true));
+            yes(!CockpitFeedPresentation.SuppressNative(false, true, false, true));
+            yes(!CockpitFeedPresentation.SuppressNative(true, false, false, true));
+            yes(CockpitFeedPresentation.Choose(false, true, true, false, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, false, true, false, false, true, true) == CockpitFeedMode.Native);
+            yes(CockpitFeedPresentation.Choose(true, true, true, true, true, false, true) == CockpitFeedMode.Cockpit);
+        });
+        check("Spectator notification panel stays below-left and readable throughout its independent overlay scale", () =>
+        {
+            var normal = CockpitFeedPresentation.ViewPlacement(1);
+            var previousDefaultAngularScale = .0007f * .65f * (460f / 520f) / .85f;
+            yes(normal.scale / normal.z > previousDefaultAngularScale * 1.35f);
+            yes(normal.scale / normal.z < previousDefaultAngularScale * 1.5f);
+            foreach (var scale in new[] { -10f, .7f, 1f, 1.3f, 100f, float.NaN, float.NegativeInfinity, float.PositiveInfinity })
+            {
+                var p = CockpitFeedPresentation.ViewPlacement(scale);
+                // Test full panel bounds, not only the text's origin: even the
+                // largest panel must leave the forward aiming region clear.
+                yes(float.IsFinite(p.scale) && p.scale > 0 && p.z > 0);
+                yes(p.x + 520 * p.scale * .5f < -.1f);
+                yes(p.y + 300 * p.scale * .5f < -.1f);
+                yes(p.x == normal.x && p.y == normal.y && p.z == normal.z);
+            }
+            yes(CockpitFeedPresentation.ViewPlacement(float.NaN) == normal);
+            yes(CockpitFeedPresentation.ViewPlacement(100) == CockpitFeedPresentation.ViewPlacement(1.3f));
         });
     }
 }

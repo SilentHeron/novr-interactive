@@ -827,6 +827,7 @@ Check("MIL detent preserves every regrab command and reaches idle/full afterburn
 
 if (args.Length == 2)
 {
+    FixedFoveationUrpContracts.Run(Check, args[1]);
 
     Check("Harmony patch targets and injected fields match the installed game", () =>
         PatchCompatibility.Verify(args[0], args[1]));

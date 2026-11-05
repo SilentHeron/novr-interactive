@@ -108,7 +108,7 @@ internal static class ControllerBindingDefaults
     };
     internal static string ContextLabel(ControllerActionId action) => action switch
     {
-        ControllerActionId.Map => "Free hand or recovery view",
+        ControllerActionId.Map => "Free hand, map or spectator view",
         ControllerActionId.WristMenu => "Either grip state",
         ControllerActionId.Guns or ControllerActionId.WeaponRelease or ControllerActionId.Countermeasures or ControllerActionId.Brake => "Hold while gripping the assigned handle",
         _ => "Release while gripping the assigned handle"

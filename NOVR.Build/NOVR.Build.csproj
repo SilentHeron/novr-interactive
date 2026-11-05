@@ -40,6 +40,10 @@
            Text="Cannot package NOVR: staged plugins/NOVR/NOVR.dll is missing. Build the Release projects first." />
     <Error Condition="!Exists('$(ReleasePackageSourceDir)/patchers/NOVR/NOVR.Patcher.dll')"
            Text="Cannot package NOVR: staged patchers/NOVR/NOVR.Patcher.dll is missing. Build the Release projects first." />
+    <Error Condition="'$(IncludeFixedFoveationNative)' != 'true' And Exists('$(ReleasePackageSourceDir)/plugins/NOVR/Native/NovrFoveation.dll')"
+           Text="Cannot package NOVR: a staged fixed-foveation native backend requires -p:IncludeFixedFoveationNative=true. Rebuild without the flag to remove stale native output, or explicitly opt into an experimental package." />
+    <Error Condition="'$(IncludeFixedFoveationNative)' == 'true' And (!Exists('$(ReleasePackageSourceDir)/plugins/NOVR/Native/NovrFoveation.dll') Or !Exists('$(ReleasePackageSourceDir)/plugins/NOVR/Native/NVIDIA-NVAPI-LICENSE.txt') Or !Exists('$(ReleasePackageSourceDir)/plugins/NOVR/Native/Unity-NativePlugin-LICENSE.txt') Or !Exists('$(ReleasePackageSourceDir)/plugins/NOVR/Native/THIRD-PARTY-NOTICES.txt'))"
+           Text="Cannot package NOVR: IncludeFixedFoveationNative=true requires the staged native backend and its NVIDIA and Unity licenses. Build the Release projects with that flag first." />
     <ValidatePackageVersion PluginFile="$(ReleasePackageSourceDir)/plugins/NOVR/NOVR.dll"
                             PatcherFile="$(ReleasePackageSourceDir)/patchers/NOVR/NOVR.Patcher.dll"
                             SourceFile="$(MSBuildThisFileDirectory)../NOVR/NOVRPlugin.cs"

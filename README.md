@@ -10,7 +10,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.8.23**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
+Experimental version **0.4.8.31**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
 
 ## Install
 
@@ -41,16 +41,20 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | Next countermeasure type | Left D-pad right | Left thumbstick click | Throttle held |
 | Wheel / air brake | Left trigger | Left trigger | Throttle held |
 | Nozzle tilt / wing sweep / pusher fans | Left thumbstick up/down | Left thumbstick up/down | Throttle or collective held |
-| Map / respawn | B | B | Stick hand free, or recovery view |
+| Map / respawn | B | B | Stick hand free, or spectating; press again to close |
 | VR View menu | Left View | Left Menu, or wheel → VR MENU | Either grip state for button; free hand for wheel |
 | Quick wheel | Either thumbstick click | Either thumbstick click | That hand free |
 | Reopen layout menu | Either thumbstick click | Either thumbstick click | Edit layout active |
 
-Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** VR settings.
+Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** View in the cockpit; map outside it.
 
 For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled assist resumes native automatic control. For wing sweep, push the thumbstick forward to extend the wings or backward to sweep them aft.
 
-**Quick wheel:** deflect to highlight; return to center to select. Click again to cancel. Trigger changes Options / Weapons pages. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings, including when Steam Link consumes the Quest Menu button. Eject requires a centered stick-click hold for 1.2 seconds; release to reset, or tilt / press trigger to cancel.
+**Quick wheel:** deflect to highlight; return to center to select. Click again to cancel. In flight, trigger changes Options / Weapons pages. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings, including when Steam Link consumes the Quest Menu button. Eject requires a centered stick-click hold for 1.2 seconds; release to reset, or tilt / press trigger to cancel.
+
+**Outside an aircraft:** thumbstick click opens a wheel with **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**, including while dead, waiting to spawn or spectating. **B** also toggles the map on Frame and Quest with the default right-handed layout (left-hand Y on Quest when mirrored). Closing the map returns to the same spectator target.
+
+**Spectating:** a full VR view follows the selected unit from the game’s normal external camera distance. Right stick orbits; left stick up/down moves closer/farther. Center the sticks after menus to resume camera control. The spawn map and aircraft-selection pages keep their normal presentation and controls.
 
 **Minimap:** touch its face with a free fingertip to select it. While holding the flight stick, use the **physical right thumbstick** to pan and click to select an eligible target at the crosshair. Touch the face again to disengage and recenter on your aircraft, keeping zoom. After disengaging, center the thumbstick and release its click before normal flight bindings resume. Touch **+ / −** to zoom. In layout editing, two opposite corners adjust width and height independently without stretching the map.
 
@@ -64,7 +68,11 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **Head clearance:** enabled by default with a 25 cm radius; adjust it from 5–40 cm in View settings. It cuts only eligible seat geometry near your head. Saved settings are retained when upgrading.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.23.md)
+**Foveated rendering (experimental):** available on native Windows with compatible NVIDIA hardware and Direct3D 11. View → VR performance → Foveated rendering has a strength slider for fixed or eye-tracked use. Extreme and Maximum test smaller protected regions and coarser peripheral shading; MSAA limits the outer rate to 2×2. **Follow eye tracking** uses supported OpenXR gaze, including Steam Frame; missing tracking uses a fixed fallback. Foveation, eye tracking and GPU measurements default to Off. The same package works on Linux/Proton with foveation unavailable. [Details and comparison steps](docs/PC_FOVEATION.md).
+
+**Game graphics:** View → VR performance → Game graphics adjusts the game's tree distance, shadow quality and cloud detail. Lower settings can help in scenes heavy with trees, shadows or clouds. Existing settings stay unchanged until you adjust them.
+
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.31.md)
 
 ## Build
 

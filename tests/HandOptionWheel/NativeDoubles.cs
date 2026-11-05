@@ -3,6 +3,8 @@
 using System.Reflection;
 namespace HarmonyLib
 {
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class HarmonyPatch : Attribute { public HarmonyPatch(Type type, string method) { } }
     public static class AccessTools
     {
         public static FieldInfo? Field(Type type, string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -10,6 +12,8 @@ namespace HarmonyLib
 }
 namespace UnityEngine
 {
+    [AttributeUsage(AttributeTargets.Class)]
+    public sealed class DefaultExecutionOrder : Attribute { public DefaultExecutionOrder(int order) { } }
     public class Object
     {
         internal static bool FailInstantiate;
@@ -77,7 +81,8 @@ namespace UnityEngine
     }
     public class MonoBehaviour : Component
     {
-        public bool isActiveAndEnabled => !Dead && gameObject.activeInHierarchy;
+        public bool enabled = true;
+        public bool isActiveAndEnabled => !Dead && enabled && gameObject.activeInHierarchy;
     }
     public class GameObject : Object
     {
@@ -121,6 +126,10 @@ namespace UnityEngine
         public readonly List<Transform> Children = new();
         public Vector3 localPosition, localScale = Vector3.one;
         public Quaternion localRotation = Quaternion.identity;
+        public Vector3 position;
+        public Quaternion rotation = Quaternion.identity;
+        public void SetPositionAndRotation(Vector3 nextPosition, Quaternion nextRotation) { position = nextPosition; rotation = nextRotation; }
+        public void SetAsLastSibling() => SetSiblingIndex(parent?.Children.Count ?? 0);
         public void SetParent(Transform? next, bool worldPositionStays)
         {
             parent?.Children.Remove(this);
@@ -146,12 +155,20 @@ namespace UnityEngine
     public class RectTransform : Transform
     {
         public Vector2 anchorMin = new(.1f, .2f), anchorMax = new(.8f, .9f), pivot = new(.5f, .7f), sizeDelta = new(100, 100);
+        public Vector2 anchoredPosition;
+        public Rect rect => new(sizeDelta.x, sizeDelta.y);
     }
+    public readonly record struct Rect(float width, float height) { public Vector2 center => Vector2.zero; }
     public class CanvasGroup : Component
     {
         public float alpha;
     }
-    public readonly record struct Vector2(float x, float y);
+    public readonly record struct Vector2(float x, float y)
+    {
+        public static Vector2 zero => new(0, 0);
+        public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.x + b.x, a.y + b.y);
+        public static Vector2 operator *(Vector2 a, float b) => new(a.x * b, a.y * b);
+    }
     public readonly record struct Vector3(float x, float y, float z)
     {
         public static Vector3 zero => new(0, 0, 0);
@@ -166,12 +183,16 @@ namespace UnityEngine
         }
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static Vector3 operator -(Vector3 a) => new(-a.x, -a.y, -a.z);
         public static Vector3 operator *(Vector3 a, float b) => new(a.x * b, a.y * b, a.z * b);
     }
     public readonly record struct Quaternion(float x, float y, float z, float w)
     {
         public static Quaternion identity => new(0, 0, 0, 1);
         public static Quaternion Euler(float x, float y, float z) => new(x, y, z, 0);
+        public static Quaternion LookRotation(Vector3 forward, Vector3 up) => identity;
+        public static Quaternion operator *(Quaternion a, Quaternion b) => b;
+        public static Vector3 operator *(Quaternion a, Vector3 b) => b;
     }
     public readonly record struct Color(float r, float g, float b, float a = 1)
     {
@@ -180,6 +201,22 @@ namespace UnityEngine
     public sealed class Font : Object
     {
     }
+    public sealed class Sprite : Object { }
+    public sealed class Camera : MonoBehaviour { }
+    public sealed class Canvas : MonoBehaviour
+    {
+        public RenderMode renderMode;
+        public bool overrideSorting;
+        public int sortingOrder;
+        public Camera? worldCamera;
+    }
+    public enum RenderMode { WorldSpace }
+    public static class Time
+    {
+        public static int frameCount;
+        public static float timeScale = 1, unscaledTime, unscaledDeltaTime = .02f;
+    }
+    public static class Debug { public static void LogWarning(string text) => WheelRuntimeChecks.Warnings.Add(text); }
     public enum TextAnchor
     {
         MiddleCenter
@@ -194,10 +231,28 @@ namespace UnityEngine
         public static float Sin(float x) => MathF.Sin(x);
         public static float Cos(float x) => MathF.Cos(x);
         public static float Max(float a, float b) => Math.Max(a, b);
+        public static float Min(float a, float b) => Math.Min(a, b);
+        public static float Lerp(float a, float b, float t) => a + (b - a) * t;
     }
 }
 namespace UnityEngine.UI
 {
+    public abstract class MaskableGraphic : Graphic
+    {
+        public int DirtyCalls;
+        public void SetVerticesDirty() => DirtyCalls++;
+        protected abstract void OnPopulateMesh(VertexHelper mesh);
+        internal void Populate(VertexHelper mesh) => OnPopulateMesh(mesh);
+    }
+    public sealed class VertexHelper
+    {
+        internal readonly List<(UnityEngine.Vector2 position, UnityEngine.Color color)> Vertices = new();
+        internal readonly List<(int a, int b, int c)> Triangles = new();
+        public int currentVertCount => Vertices.Count;
+        public void Clear() { Vertices.Clear(); Triangles.Clear(); }
+        public void AddVert(UnityEngine.Vector2 position, UnityEngine.Color color, UnityEngine.Vector2 uv) => Vertices.Add((position, color));
+        public void AddTriangle(int a, int b, int c) => Triangles.Add((a, b, c));
+    }
     public class Graphic : UnityEngine.Component
     {
         public bool raycastTarget = true;
@@ -226,14 +281,22 @@ namespace TMPro
 
 public class RadialMenuAction : UnityEngine.Object
 {
+    public enum ActionType { Other, Eject }
+    public ActionType Kind;
+    public bool Allowed = true;
+    public ActionType GetActionType() => Kind;
+    public bool AllowedOnAircraft(Aircraft aircraft) => Allowed;
     public string DisplayName = "native action";
     public int Hovers, Unhovers, Activations;
     public void Hover() => Hovers++;
     public void UnHover() => Unhovers++;
     public void TriggerAction() => Activations++;
+    public void TriggerAction(Aircraft aircraft) => Activations++;
 }
 public class RadialMenuMain : UnityEngine.MonoBehaviour
 {
+    public static bool InUse;
+    public static bool IsInUse() => InUse;
     public enum RadialMenuType
     {
         Closed, Main, Weapons

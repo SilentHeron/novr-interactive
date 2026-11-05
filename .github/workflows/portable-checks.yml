@@ -33,12 +33,14 @@ jobs:
             /NOVR/
             /tests/
             /tools/
+            /native/foveation/
             /NOVR.Installer/InstallerConstants.cs
             /NOVR.Installer/InstallType.cs
             /NOVR.Installer/Models/
             /NOVR.Installer/Services/
             /NOVR.Installer/ViewModels/
             /NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs
+            /NOVR.XR.OpenXR/input/NovrEyeGaze.cs
             /NOVR.Patcher/PayloadFile.cs
             /NOVR.Patcher/ManagedPayloadUpgrade.cs
             /NOVR.Patcher/StartupHandoff.cs
@@ -52,6 +54,9 @@ jobs:
         run: python -m unittest discover -s tools/verification -p "test_*.py"
       - name: Verify source-only suites
         run: python tools/verify.py portable
+      - name: Verify native foveation pattern and query lifecycle
+        if: runner.os == 'Linux'
+        run: bash native/foveation/check.sh
       - name: Retain verification logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

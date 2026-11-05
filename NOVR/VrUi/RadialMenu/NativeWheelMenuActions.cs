@@ -5,7 +5,7 @@ namespace NOVR.MotionControls;
 
 internal enum NativeWheelMenuAction
 {
-    None, GameMenu, VrMenu
+    None, GameMenu, VrMenu, Map
 }
 
 internal static class NativeWheelMenuActions
@@ -19,10 +19,28 @@ internal static class NativeWheelMenuActions
         ControllerActions.Instance?.ResetButtons();
         if (GameManager.gameState != GameState.SinglePlayer && GameManager.gameState != GameState.Multiplayer || GameplayUI.GameIsPaused)
             return false;
+        var flags = CursorManager.GetFlags();
+        if ((flags & ~(CursorFlags.Map | CursorFlags.SelectionMenu | CursorFlags.CameraControlUI)) != CursorFlags.None)
+            return false;
         if (action == NativeWheelMenuAction.VrMenu)
             return WristMenu.OpenFromHandWheel();
+        if (action == NativeWheelMenuAction.Map)
+        {
+            // The open wheel itself blocks ordinary map input. Recheck after
+            // releasing it, retaining the native selection/menu restrictions.
+            if (!ControllerActions.MapAccessAvailable)
+                return false;
+            var wasOpen = DynamicMap.mapMaximized;
+            ControllerActions.ToggleMap();
+            return DynamicMap.mapMaximized != wasOpen;
+        }
         var ui = SceneSingleton<GameplayUI>.i;
-        if (action != NativeWheelMenuAction.GameMenu || ui == null || !ui.isActiveAndEnabled || !GameplayUI.AllowPauseKeybind)
+        // Aircraft selection reserves Escape for returning to the map. This
+        // explicit Game Menu selection can use PauseGame's native canvas handoff
+        // without changing that keyboard guard or destroying the selection UI.
+        var selectionMenu = (flags & CursorFlags.SelectionMenu) != 0;
+        if (action != NativeWheelMenuAction.GameMenu || ui == null || !ui.isActiveAndEnabled ||
+            !GameplayUI.AllowPauseKeybind && !selectionMenu)
             return false;
         ui.PauseGame();
         return true;

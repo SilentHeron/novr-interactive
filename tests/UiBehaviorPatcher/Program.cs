@@ -14,7 +14,19 @@ Harmony.FailOnce = typeof(MessageUI);
 UIBehaviorPatcher.DoPatching();
 UIBehaviorPatcher.DoPatching();
 UIBehaviorPatcher.DoPatching();
-Check(Harmony.Calls.Count == 4 && Harmony.Calls.Values.All(x => x == 1), "Constructor patches are idempotent and independently retryable");
+Check(Harmony.Calls.Count == 5 && Harmony.Calls.Values.All(x => x == 1), "Constructor patches are idempotent and independently retryable");
+
+using (var world = new World())
+{
+    var pause = world.Native<NuclearOption.UI.LeaderboardMenu>("GameMenu");
+    var unrelated = new GameObject("GameMenu");
+    world.Tick();
+    World.Queue(pause);
+    world.Tick();
+    Check(pause.gameObject.Count<VrGameMenuBackdrop>() == 1 && unrelated.Get<VrGameMenuBackdrop>() == null &&
+        pause.gameObject.activeSelf && pause.gameObject.Deactivations == 0,
+        "Only the typed native pause menu receives one backdrop adapter without disabling its content");
+}
 
 using (var world = new World())
 {

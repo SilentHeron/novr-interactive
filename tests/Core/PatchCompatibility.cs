@@ -78,6 +78,13 @@ internal static class PatchCompatibility
         // private fields in addition to the Harmony-injected fields above.
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(gameManagedDirectory, "Assembly-CSharp.dll"));
         foreach (var contract in new[] {
+            (owner: "CameraOrbitState", field: "panView", type: "System.Single"),
+            (owner: "CameraOrbitState", field: "tiltView", type: "System.Single"),
+            (owner: "CameraOrbitState", field: "viewDistAdjust", type: "System.Single"),
+            (owner: "CameraFreeState", field: "panView", type: "System.Single"),
+            (owner: "CameraFreeState", field: "tiltView", type: "System.Single"),
+            (owner: "CameraFreeState", field: "trackTarget", type: "System.Boolean"),
+            (owner: "CameraSelectionState", field: "target", type: "UnityEngine.Transform"),
             (owner: "RadialMenuMain", field: "actionObjectsMain", type: "System.Collections.Generic.List`1<UnityEngine.GameObject>"),
             (owner: "RadialMenuMain", field: "sectorObject", type: "UnityEngine.GameObject"),
             (owner: "MissionPicker", field: "previewImage", type: "UnityEngine.UI.Image"),

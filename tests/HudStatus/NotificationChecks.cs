@@ -116,6 +116,21 @@ internal static class NotificationChecks
         foreach (var state in new[] { (false, true, true), (true, false, true), (true, true, false) })
             Check(!CockpitFeedPresentation.SuppressNative(state.Item1, state.Item2, state.Item3), "Outside owned VR gameplay native notifications are restored");
 
+        // A spectator can join with the full map already open and no cockpit
+        // history. Hiding its replacement must not reveal the central source.
+        var spectatorSuppression = CockpitFeedPresentation.SuppressNative(true, true, false, true);
+        feed.Refresh(false, true, true, 1, spectatorSuppression);
+        Canvas.Render();
+        Check(!feed.Visible && native.canvasRenderer.cull,
+            "Initial spectator map suppresses the native duplicate without a prior cockpit");
+        feed.Refresh(true, true, true, .8f, spectatorSuppression, 1.2f);
+        Check(feed.Visible && native.canvasRenderer.cull && copies.All(c => MathF.Abs(c.fontSize - 26.4f) < .001f),
+            "Closing spectator map shows a single feed and retains the chosen notification text size");
+        feed.Refresh(false, true, true, 1, spectatorSuppression);
+        Canvas.Render();
+        Check(!feed.Visible && native.canvasRenderer.cull,
+            "Reopening spectator map cannot restore the old floating duplicate");
+
         var rankNative = Text("Native reward");
         rankNative.text = "Rank increased";
         rankNative.color = new Color(1, .2f, .1f);

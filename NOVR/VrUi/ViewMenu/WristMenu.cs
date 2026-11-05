@@ -33,7 +33,10 @@ internal sealed partial class WristMenu : MonoBehaviour
     private float _nextHelpRefresh;
     private ControllerBindingProfile _menuProfile;
     private bool _menuLeft;
-    private Aircraft? _ejectAircraft, _openAircraft, _resetAircraft;
+    private Aircraft? _ejectAircraft, _resetAircraft;
+    private WristMenuGameplayContext? _openContext;
+    private bool OpenInCockpit => _openContext?.Cockpit == true;
+    private readonly List<Button> _cockpitButtons = new();
     private bool _resetLeftHanded, _followHand;
     private Vector3 _menuPosition;
     private Quaternion _menuRotation;
@@ -43,6 +46,8 @@ internal sealed partial class WristMenu : MonoBehaviour
     internal static bool IsOpen => _instance?._panel?.activeSelf == true;
     internal static bool IsPerformancePage => IsOpen && _instance?._performancePage?.activeSelf == true;
     private static bool CollectiveControls => GameManager.GetLocalAircraft(out var aircraft) && MotionFlightController.UsesLiftCollective(aircraft);
+    private static bool UsableCockpit => WristMenuGameplayContext.UsableCockpit;
+    private static bool GameplayMenuAvailable => WristMenuGameplayContext.Available(WristCursorFlag);
     private void Awake() => _instance = this;
 
     private void Update()
@@ -59,12 +64,12 @@ internal sealed partial class WristMenu : MonoBehaviour
             _menuProfile = config.ControllerBindings.EffectiveProfile;
             _menuLeft = menuLeft;
         }
-        var cockpit = CameraStateManager.cameraMode == CameraMode.cockpit && GameManager.GetLocalAircraft(out var viewedAircraft) && !viewedAircraft.disabled &&
-                      Time.timeScale > 0f && (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+        var cockpit = UsableCockpit &&
+                      Time.timeScale > 0f && !NativeRadialMenuState.IsBlockingInput &&
                       (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
         var recoveryMap = !cockpit && ControllerActions.MapAccessAvailable;
         _toggle.Update(config.ControllerBindings.PointerEnabled.Value && hand.Valid && !NativeHandOptionWheel.OwnsHand(menuLeft) &&
-            !CockpitMapInteraction.ReservesButton(menuLeft, menuBinding.Button, hand.NativeFrame) && (cockpit || recoveryMap),
+            !CockpitMapInteraction.ReservesButton(menuLeft, menuBinding.Button, hand.NativeFrame) && (cockpit || recoveryMap || IsOpen && GameplayMenuAvailable),
             ControllerButtonNames.Resolve(menuBinding.Button, hand.NativeFrame) == ControllerButton.Trigger ? 0 : ControllerBindings.Read(hand, menuBinding.Button));
         var leftHand = menuLeft ? hand : TrackedControllers.Read(true);
         var rightHand = menuLeft ? TrackedControllers.Read(false) : hand;
@@ -72,8 +77,13 @@ internal sealed partial class WristMenu : MonoBehaviour
             cockpit && TrackedControllers.Available && config.ControllerBindings.PointerEnabled.Value &&
             !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu), IsOpen,
             leftHand.Valid, leftHand.StickClick, rightHand.Valid, rightHand.StickClick);
-        if (_toggle.Pressed || reopenLayout || ((cockpit || recoveryMap) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
+        if (_toggle.Pressed || reopenLayout || ((cockpit || recoveryMap || IsOpen && GameplayMenuAvailable) && TrackedControllers.Available && Keyboard.current?.f9Key.wasPressedThisFrame == true))
         {
+            if (IsOpen)
+            {
+                Close();
+                return;
+            }
             // Outside a usable cockpit, View offers the recovery map instead
             // of a cockpit-only setup menu which cannot stay open there.
             if (recoveryMap)
@@ -81,13 +91,18 @@ internal sealed partial class WristMenu : MonoBehaviour
                 ControllerActions.ToggleMap();
                 return;
             }
-            if (IsOpen)
-                Close();
-            else
-                Open();
+            Open();
         }
         if (!IsOpen)
             return;
+        if (!GameplayMenuAvailable || _openContext == null || !_openContext.IsCurrent() || DynamicMap.mapMaximized)
+        {
+            Close();
+            return;
+        }
+        var camera = _openContext.Camera;
+        foreach (var button in _cockpitButtons)
+            if (button != null) button.interactable = OpenInCockpit;
         if (_backButton != null)
             _backButton.interactable = _history?.CanBack == true;
         foreach (var setting in _settingRefresh)
@@ -123,17 +138,6 @@ internal sealed partial class WristMenu : MonoBehaviour
         }
         if (_ejectPage?.activeSelf == true &&
             (!GameManager.GetLocalAircraft(out var confirmAircraft) || confirmAircraft != _ejectAircraft))
-        {
-            Close();
-            return;
-        }
-        if (!cockpit || !GameManager.GetLocalAircraft(out var currentAircraft) || currentAircraft != _openAircraft || DynamicMap.mapMaximized || CursorManager.GetFlag(CursorFlags.GameMenu))
-        {
-            Close();
-            return;
-        }
-        var camera = APIBus.CockpitHudCamera;
-        if (camera == null)
         {
             Close();
             return;
@@ -178,7 +182,7 @@ internal sealed partial class WristMenu : MonoBehaviour
             trackingRoot != null ? trackingRoot.rotation * _menuRotation : _menuRotation);
         if (_status != null)
         {
-            var status = _pageTitle + "\n" + (CockpitProfiles.Instance?.AircraftName ?? "Cockpit") +
+            var status = _pageTitle + "\n" + (OpenInCockpit ? CockpitProfiles.Instance?.AircraftName ?? "Cockpit" : "Outside aircraft") +
                 " · Motion " + (config.MotionControls.Enabled.Value ? "ON" : "OFF") + "\n" +
                 (CockpitHudWidgets.Editing ? "Layout preview · Save or cancel when finished" : "Either hand: point + trigger · View closes this menu");
             if (_status.text != status)
@@ -189,10 +193,7 @@ internal sealed partial class WristMenu : MonoBehaviour
     internal static bool OpenFromHandWheel()
     {
         if (_instance == null || !_instance.isActiveAndEnabled || IsOpen ||
-            CameraStateManager.cameraMode != CameraMode.cockpit || Time.timeScale <= 0 ||
-            !GameManager.GetLocalAircraft(out var aircraft) || aircraft.disabled ||
-            (SceneSingleton<RadialMenuMain>.i != null && RadialMenuMain.IsInUse()) ||
-            (GameManager.controlMapper != null && GameManager.controlMapper.isOpen))
+            !TrackedControllers.Available || !GameplayMenuAvailable || CockpitLayout.Active || CockpitHudWidgets.Editing)
             return false;
         _instance.Open();
         return IsOpen;
@@ -200,16 +201,21 @@ internal sealed partial class WristMenu : MonoBehaviour
 
     private void Open()
     {
+        if (!GameplayMenuAvailable) return;
         _layoutShortcut.Reset();
         if (DynamicMap.mapMaximized)
             SceneSingleton<DynamicMap>.i?.Minimize();
-        if (!GameManager.GetLocalAircraft(out _openAircraft))
-            return;
+        var camera = APIBus.CockpitHudCamera;
+        if (camera == null) return;
+        _openContext = new WristMenuGameplayContext(camera);
         EnsurePanel();
+        _panel!.GetComponent<Canvas>().worldCamera = camera;
         Home();
         if (CockpitHudWidgets.Editing)
             ShowLayoutControls();
-        _panel!.SetActive(true);
+        foreach (var button in _cockpitButtons)
+            if (button != null) button.interactable = OpenInCockpit;
+        _panel.SetActive(true);
         _anchored = false;
         CursorManager.SetFlag(WristCursorFlag, true);
         MotionFlightController.Instance?.ResetGrips();
@@ -223,7 +229,10 @@ internal sealed partial class WristMenu : MonoBehaviour
         if (_instance?._ejectPage?.activeSelf == true)
             _instance.ShowFlightPage();
         if (_instance != null)
+        {
             _instance._ejectAircraft = null;
+            _instance._openContext = null;
+        }
         if (_instance?._panel != null)
             _instance._panel.SetActive(false);
         CursorManager.SetFlag(WristCursorFlag, false);
@@ -232,6 +241,8 @@ internal sealed partial class WristMenu : MonoBehaviour
 
     private void ShowPage(GameObject page)
     {
+        if (!OpenInCockpit && (page == _flightPage || page == _ejectPage || page == _seatPage ||
+            page == _resetPage || page == _aircraftProfilesPage || page == _layoutPage)) return;
         _history!.Push(page);
         RefreshPage();
     }
@@ -269,28 +280,28 @@ internal sealed partial class WristMenu : MonoBehaviour
     private void AskReset()
     {
         CockpitHudWidgets.Instance?.Finish(false);
-        if (!GameManager.GetLocalAircraft(out _resetAircraft))
+        if (!UsableCockpit || !GameManager.GetLocalAircraft(out _resetAircraft))
             return;
         _resetLeftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         ShowPage(_resetPage!);
     }
     private void ConfirmReset()
     {
-        if (GameManager.GetLocalAircraft(out var aircraft) && aircraft == _resetAircraft &&
+        if (UsableCockpit && GameManager.GetLocalAircraft(out var aircraft) && aircraft == _resetAircraft &&
             _resetLeftHanded == ModConfiguration.Instance.MotionControls.LeftHanded.Value)
             CockpitProfiles.Instance?.ResetProfile();
         Back();
     }
     private void AskToEject()
     {
-        if (!GameManager.GetLocalAircraft(out _ejectAircraft))
+        if (!UsableCockpit || !GameManager.GetLocalAircraft(out _ejectAircraft))
             return;
         ShowPage(_ejectPage!);
     }
 
     private void ConfirmEject()
     {
-        if (GameManager.GetLocalAircraft(out var aircraft) && aircraft == _ejectAircraft)
+        if (UsableCockpit && GameManager.GetLocalAircraft(out var aircraft) && aircraft == _ejectAircraft)
             ControllerActions.Instance?.QueueWristAction(NativeControllerAction.Eject);
         Close();
     }

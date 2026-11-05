@@ -83,7 +83,8 @@ internal sealed class ControllerActions : MonoBehaviour
         }
 
         var controls = MotionFlightController.Instance;
-        var flightControls = controls != null && controls.FlightActive && !Cursor.visible && !WristMenu.IsOpen;
+        var flightControls = controls != null && controls.FlightActive && CameraStateManager.cameraMode == CameraMode.cockpit &&
+            !Cursor.visible && !WristMenu.IsOpen;
         bool HandleHeld(bool left) => controls != null && (left == leftHanded ? controls.StickHeld : controls.ThrottleHeld);
         void UpdateFlightButton(ControllerActionId action, ControllerButtonGate gate, bool combat = true)
         {
@@ -142,7 +143,9 @@ internal sealed class ControllerActions : MonoBehaviour
 
         var liveHandleHeld = flightControls && HandleHeld(mapLeft) &&
             GameManager.GetLocalAircraft(out var mapAircraft) && !mapAircraft.disabled;
-        var mapButtonAvailable = bindings.PointerEnabled.Value && mapHand.Valid &&
+        // The map button is navigation, not laser-pointer input. It remains
+        // usable with the pointer disabled and while following a spectator target.
+        var mapButtonAvailable = TrackedControllers.Available && mapHand.Valid &&
             !NativeHandOptionWheel.OwnsHand(mapLeft) &&
             !CockpitMapInteraction.ReservesButton(mapLeft, mapBinding.Button, mapHand.NativeFrame) &&
             MapAccessAvailable && !WristMenu.IsOpen && !CockpitLayout.Active && !(mapSharesCombat && liveHandleHeld);
@@ -153,17 +156,17 @@ internal sealed class ControllerActions : MonoBehaviour
             ToggleMap();
     }
 
-    // Recovery access does not require a held handle or a surviving aircraft.
+    // Match native map access: a spectator may have no cached local Player at
+    // all. The map itself decides which spawn/spectator options to show.
     // Unlike queued actions, it must not open over any native radial menu.
     internal static bool MapAccessAvailable =>
-        !CockpitHudWidgets.Editing &&
+        !CockpitHudWidgets.Editing && !NativeHandOptionWheel.IsOpen &&
         (GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer) &&
-        GameManager.GetLocalPlayer<NuclearOption.Networking.Player>(out _) &&
         SceneSingleton<DynamicMap>.i != null && SceneSingleton<CameraStateManager>.i != null &&
         SceneSingleton<GameplayUI>.i != null && SceneSingleton<MapOptions>.i != null && SceneSingleton<CombatHUD>.i != null &&
         (DynamicMap.mapMaximized || DynamicMap.AllowedToOpen) && !CursorManager.GetFlag(CursorFlags.GameMenu) &&
         !LeaderboardMenu.IsOpen() && !InputFieldChecker.InsideInputField &&
-        (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+        !NativeRadialMenuState.IsBlockingInput &&
         (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
 
     internal static void ToggleMap()

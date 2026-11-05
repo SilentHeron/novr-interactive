@@ -174,6 +174,77 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
     assert not (staged_layout / "Removed.Plugin.dll").exists()
     print("PASS current outputs, linked content and generated XR payload stage; removed files stay excluded")
 
+    # Extract the production opt-in, content list and validation target. These
+    # are byte fixtures, not a native build: CI needs no C++ compiler or driver.
+    native_project = ET.parse(repo / "NOVR/NOVR.csproj")
+    native_properties = native_project.find("PropertyGroup[@Label='FixedFoveationNative']")
+    native_content = native_project.find("ItemGroup[@Label='FixedFoveationNative']")
+    native_validation = native_project.find("Target[@Name='ValidateFixedFoveationNative']")
+    assert native_properties is not None and native_content is not None and native_validation is not None
+    assert native_properties.findtext("IncludeFixedFoveationNative") == "false"
+    native_inputs = {
+        "bin/NovrFoveation.dll": ("Native/NovrFoveation.dll", b"optional native fixture"),
+        "vendor/nvapi/License.txt": ("Native/NVIDIA-NVAPI-LICENSE.txt", b"NVIDIA license fixture"),
+        "vendor/Unity/LICENSE": ("Native/Unity-NativePlugin-LICENSE.txt", b"Unity license fixture"),
+        "THIRD-PARTY-NOTICES.txt": ("Native/THIRD-PARTY-NOTICES.txt", b"native notices fixture"),
+    }
+    native_source = root / "native-source"
+    for relative, (_, body) in native_inputs.items():
+        path = native_source / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not relative.endswith(".dll"):
+            path.write_bytes(body)
+    native_staging = fake / "NativeStaging"
+    native_staging.mkdir()
+    (native_staging / "Class.cs").write_text("public sealed class NativeStagingFixture {}")
+    native_output = root / "native-output"
+    native_layout_root = root / "native-layout"
+    native_layout = native_layout_root / "BepInEx/plugins/NOVR"
+    native_fixture = native_staging / "NativeStaging.csproj"
+    native_fixture.write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
+      <PropertyGroup><SkipNuclearOptionReferences>true</SkipNuclearOptionReferences></PropertyGroup>
+      <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.props" />
+      <PropertyGroup><TargetFramework>net10.0</TargetFramework><DebugType>none</DebugType>
+        <OutputPath>{escape(str(native_output))}/</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <GameLayoutOutputDir>{escape(str(native_layout_root))}</GameLayoutOutputDir>
+        <GameDeployPath>BepInEx/plugins/NOVR</GameDeployPath>
+        <FixedFoveationNativeSourceDir>{escape(str(native_source))}</FixedFoveationNativeSourceDir></PropertyGroup>
+      {ET.tostring(native_properties, encoding="unicode")}{ET.tostring(native_content, encoding="unicode")}
+      <Import Project="{escape(str(repo))}/NOVR.Build/NOVR.Build.targets" />
+      {ET.tostring(native_validation, encoding="unicode")}</Project>''')
+
+    def stage_native(options=(), target=None):
+        command = ([dotnet, "msbuild", str(native_fixture), "-t:" + target] if target else
+                   [dotnet, "build", str(native_fixture), "-c", "Release"])
+        return subprocess.run([*command, "-v:q", *options], capture_output=True, text=True)
+
+    native_flag = "-p:IncludeFixedFoveationNative=true"
+    for options in ([], ["-p:IncludeFixedFoveationNative=false"], ["-p:IncludeFixedFoveationNative=typo"]):
+        result = stage_native(options)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not (native_layout / "Native").exists(), options
+    result = stage_native([native_flag])
+    assert result.returncode != 0 and "NovrFoveation.dll is missing" in result.stdout, result.stdout + result.stderr
+    (native_source / "bin/NovrFoveation.dll").write_bytes(native_inputs["bin/NovrFoveation.dll"][1])
+    result = stage_native([native_flag])
+    assert result.returncode == 0, result.stdout + result.stderr
+    for destination, body in native_inputs.values():
+        assert (native_layout / destination).read_bytes() == body
+    assert not (native_layout_root / "BepInEx/patchers").exists(), "optional native backend never enters the patcher"
+    for relative in ("vendor/nvapi/License.txt", "vendor/Unity/LICENSE", "THIRD-PARTY-NOTICES.txt"):
+        path = native_source / relative
+        body = path.read_bytes()
+        path.unlink()
+        result = stage_native([native_flag], target="StageGameLayout")
+        assert result.returncode != 0 and "license files and third-party notice are required" in result.stdout
+        path.write_bytes(body)
+    (native_output / "Native/RemovedFoveation.dll").write_bytes(b"stale native output")
+    result = stage_native()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (native_layout / "Native").exists(), "turning the opt-in off removes previously staged native files"
+    assert (native_output / "Native/RemovedFoveation.dll").exists(), "fixture retains stray output to exercise stale-file exclusion"
+    print("PASS optional native staging requires exact opt-in, binary and notices; stale outputs are excluded")
+
     # Invalid/missing game paths fail before dependency builds. BepInEx is a
     # runtime install requirement, not a required compile-time directory.
     requires_game = ET.parse(repo / "NOVR/NOVR.csproj").findtext("PropertyGroup/RequiresNuclearOptionGameReferences")
@@ -225,19 +296,25 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
             f"-p:ReleasePackageStagingDir={root / 'staging'}",
             f"-p:PackageValidationBuildDir={root / 'validation-build'}", "-v:q"]
 
-    def package_ok(version=None):
-        subprocess.run(args + ([] if version is None else [f"-p:NovrReleaseVersion={version}"]), check=True)
+    def package_ok(version=None, native=False):
+        options = ([] if version is None else [f"-p:NovrReleaseVersion={version}"]) + ([native_flag] if native else [])
+        subprocess.run(args + options, check=True)
         checksum = package.with_name(package.name + ".sha256").read_text().strip().split()[0]
         assert checksum.lower() == hashlib.sha256(package.read_bytes()).hexdigest()
         with zipfile.ZipFile(package) as archive:
             assert archive.read("plugins/NOVR/version.txt").decode("utf-8-sig").strip() == declared
             assert archive.read("plugins/NOVR/NOVR.dll") == plugin.read_bytes()
             assert archive.read("patchers/NOVR/NOVR.Patcher.dll") == patcher.read_bytes()
+            if native:
+                for destination, body in native_inputs.values():
+                    assert archive.read("plugins/NOVR/" + destination) == body
+            else:
+                assert not any("/Native/" in name for name in archive.namelist())
 
-    def package_rejected(name, version=None):
+    def package_rejected(name, version=None, options=()):
         before_zip = package.read_bytes()
         before_metadata = metadata.read_bytes()
-        result = subprocess.run(args + ([] if version is None else [f"-p:NovrReleaseVersion={version}"]),
+        result = subprocess.run(args + ([] if version is None else [f"-p:NovrReleaseVersion={version}"]) + list(options),
                                 capture_output=True, text=True)
         assert result.returncode != 0, name
         assert "Cannot package NOVR:" in result.stdout, result.stdout + result.stderr
@@ -253,6 +330,22 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
     print("PASS clean staging gets version metadata and matching ZIP checksum")
     package_ok(declared)
     print("PASS matching explicit version")
+    package_rejected("native opt-in without staged backend", options=[native_flag])
+    package_native = plugin.parent / "Native"
+    package_native.mkdir()
+    for destination, body in native_inputs.values():
+        (plugin.parent / destination).write_bytes(body)
+    for options in ([], ["-p:IncludeFixedFoveationNative=false"], ["-p:IncludeFixedFoveationNative=typo"]):
+        package_rejected("staged native backend without explicit opt-in", options=options)
+    package_ok(native=True)
+    for destination, body in native_inputs.values():
+        path = plugin.parent / destination
+        path.unlink()
+        package_rejected("incomplete native package: " + path.name, options=[native_flag])
+        path.write_bytes(body)
+    shutil.rmtree(package_native)
+    package_ok()
+    print("PASS optional native packages require explicit opt-in and complete notices; default packages stay managed-only")
     package_rejected("different explicit release", "0.0.1")
     package_rejected("malformed explicit release", "0.4")
     package_rejected("overflowing explicit release", "999999999999999999999999.0.0")

@@ -148,6 +148,97 @@ internal static class ActionChecks
             check(!f.Actions.Released(NativeControllerAction.NextCountermeasure), "gripping while a free-hand click is held cannot synthesize a CM cycle");
             f.Invoke("OnDestroy");
         }
+        // The standalone wheel has no native radial-menu state, so
+        // recovery-map access must also honor NOVR's own wheel ownership.
+        _ = Start(ControllerActionId.Map);
+        GameManager.LocalPlayer = new();
+        SceneSingleton<DynamicMap>.i = new();
+        SceneSingleton<CameraStateManager>.i = new();
+        SceneSingleton<GameplayUI>.i = new();
+        SceneSingleton<MapOptions>.i = new();
+        DynamicMap.mapMaximized = false;
+        check(ControllerActions.MapAccessAvailable, "Recovery map remains available in an otherwise valid gameplay context.");
+        NativeHandOptionWheel.IsOpen = true;
+        ControllerActions.ToggleMap();
+        check(!ControllerActions.MapAccessAvailable && !DynamicMap.mapMaximized,
+            "A standalone wheel blocks other-hand recovery-map input without relying on a native radial menu.");
+        NativeHandOptionWheel.IsOpen = false;
+        ControllerActions.ToggleMap();
+        check(DynamicMap.mapMaximized, "Recovery-map access returns when the standalone wheel releases ownership.");
+        GameManager.LocalPlayer = null;
+
+        foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+            foreach (var leftHanded in new[] { false, true })
+                foreach (var hasPlayer in new[] { false, true })
+                {
+                    var f = Start(ControllerActionId.Map, true, profile, leftHanded);
+                    f.Bindings.ResetProfile();
+                    f.Bindings.PointerEnabled.Value = false;
+                    GameManager.LocalPlayer = hasPlayer ? new() : null;
+                    GameManager.Aircraft = null;
+                    GameManager.flightControlsEnabled = false;
+                    CameraStateManager.cameraMode = CameraMode.external;
+                    // Native level1 starts with an active menu child under an
+                    // inactive HUD parent. Its IsInUse result stays true until
+                    // the player first spawns, so reproduce that first join.
+                    SceneSingleton<RadialMenuMain>.i = new() { isActiveAndEnabled = false };
+                    RadialMenuMain.InUse = true;
+                    var camera = SceneSingleton<CameraStateManager>.i = new();
+                    var target = camera.followingUnit = new object();
+                    var map = SceneSingleton<DynamicMap>.i = new();
+                    DynamicMap.AllowedToOpen = true;
+                    f.TickMap(false);
+                    f.TickMap(true);
+                    check(DynamicMap.mapMaximized && map.Opens == 1,
+                        $"{profile} left={leftHanded} player={hasPlayer}: default map button opens while spectating without a pointer or aircraft");
+                    f.TickMap(true);
+                    check(DynamicMap.mapMaximized && map.Opens == 1 && map.Closes == 0,
+                        "Holding the map button never toggles it repeatedly");
+                    f.TickMap(false);
+                    f.TickMap(true);
+                    check(!DynamicMap.mapMaximized && map.Closes == 1 && camera.followingUnit == target,
+                        "Next map press returns to the same spectator target");
+                    check(f.Hud.LastCleared == 0 && f.Hud.AllCleared == 0,
+                        "Spectator map button cannot dispatch its shared target-unselect binding");
+                    f.TickMap(false);
+                    DynamicMap.AllowedToOpen = false;
+                    f.TickMap(true);
+                    check(!DynamicMap.mapMaximized && map.Opens == 1, "Native aircraft-selection lock is respected");
+                    DynamicMap.AllowedToOpen = true;
+                    f.TickMap(true);
+                    check(!DynamicMap.mapMaximized, "A held button is not replayed after a map lock clears");
+                    f.TickMap(false);
+                    f.TickMap(true);
+                    check(DynamicMap.mapMaximized && map.Opens == 2, "Fresh press reopens the spectator map after selection");
+                    // Closing must still be possible if an owner locks opening
+                    // after the map is already visible.
+                    f.TickMap(false);
+                    DynamicMap.AllowedToOpen = false;
+                    f.TickMap(true);
+                    check(!DynamicMap.mapMaximized && map.Closes == 2, "Open map can close while new opens are disallowed");
+                    DynamicMap.AllowedToOpen = true;
+                    f.Invoke("OnDestroy");
+                }
+
+        DynamicMap.mapMaximized = false;
+        SceneSingleton<RadialMenuMain>.i!.isActiveAndEnabled = true;
+        ControllerActions.ToggleMap();
+        check(!DynamicMap.mapMaximized, "A live desktop wheel still owns input and blocks map toggling");
+        SceneSingleton<RadialMenuMain>.i.isActiveAndEnabled = false;
+        ControllerActions.ToggleMap();
+        check(DynamicMap.mapMaximized, "An inactive cockpit wheel cannot block a spectator map toggle");
+        SceneSingleton<RadialMenuMain>.i = null;
+        RadialMenuMain.InUse = false;
+
+        var staleGrip = Start(ControllerActionId.Map, true);
+        staleGrip.Bindings.ResetProfile();
+        CameraStateManager.cameraMode = CameraMode.external;
+        staleGrip.TickMap(false);
+        staleGrip.TickMap(true);
+        check(DynamicMap.mapMaximized, "Stale cockpit grip state cannot suppress map access after switching to an external camera");
+        staleGrip.TickMap(false);
+        check(staleGrip.Hud.LastCleared == 0, "External camera never unselects a combat target on map-button release");
+        GameManager.LocalPlayer = null;
     }
 
     private sealed class Fixture
@@ -194,6 +285,17 @@ internal static class ActionChecks
             TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = true, NativeFrame = false };
             TrackedControllers.Samples[_left ? 1 : 0].StickClick = pressed;
             MotionFlightController.Instance!.ThrottleHeld = held;
+            Invoke("Update");
+        }
+        internal void TickMap(bool pressed)
+        {
+            Time.frameCount++;
+            TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
+            var hand = _left ? 0 : 1;
+            if (_frame)
+                TrackedControllers.Samples[hand].Outside = pressed;
+            else
+                TrackedControllers.Samples[hand].Secondary = pressed;
             Invoke("Update");
         }
         internal void Invoke(string name) => typeof(ControllerActions).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Actions, null);

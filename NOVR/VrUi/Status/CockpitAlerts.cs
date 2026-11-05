@@ -118,7 +118,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         NOUIManager.I != null && APIBus.MainCamera != null &&
         SceneSingleton<CameraStateManager>.i?.followingUnit == _aircraft &&
         Time.timeScale > 0 && !PlayerSettings.cinematicMode && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) &&
-        (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+        !NativeRadialMenuState.IsBlockingInput &&
         (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
 
     private void LateUpdate()
@@ -138,8 +138,13 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         if (playing && XRSettings.enabled && !lostCockpit && CameraStateManager.cameraMode == CameraMode.cockpit)
             _hadCockpit = true;
         _recovering = XRSettings.enabled && playing && _hadCockpit && lostCockpit;
+        // Joining as a spectator need not visit a cockpit first. Own the native
+        // feed in external views even while a map/menu hides our presentation.
+        var spectatorReady = NOUIManager.I != null && APIBus.CockpitHudCamera != null &&
+            SceneSingleton<CameraStateManager>.i != null &&
+            CameraStateManager.cameraMode is CameraMode.orbit or CameraMode.free or CameraMode.chase or CameraMode.tv;
         CockpitStatusSources.RefreshInstructions();
-        if (_active || _hadCockpit && playing && XRSettings.enabled && (Settings.Enabled.Value || _recovering) && NOUIManager.I != null)
+        if (_active || (_hadCockpit || spectatorReady) && playing && XRSettings.enabled && (Settings.Enabled.Value || _recovering) && NOUIManager.I != null)
         {
             EnsureUi();
             if (Time.unscaledTime >= _nextFind)
@@ -159,19 +164,19 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
         var chatOpen = chat != null && chat.gameObject.activeSelf;
         var unobstructed = NOUIManager.I != null && APIBus.MainCamera != null &&
             !PlayerSettings.cinematicMode && !DynamicMap.mapMaximized && !CursorManager.GetFlag(CursorFlags.GameMenu) && !chatOpen &&
-            (SceneSingleton<RadialMenuMain>.i == null || !RadialMenuMain.IsInUse()) &&
+            !NativeRadialMenuState.IsBlockingInput &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen);
         _feedMode = CockpitFeedPresentation.Choose((Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, unobstructed,
-            _active, _hadCockpit, lostCockpit);
+            _active, _hadCockpit, lostCockpit, spectatorReady);
         Place();
         var hasThreats = _missiles.Count > 0;
         var hasEw = hasThreats || _signals.Count > 0;
-        var recovery = _feedMode == CockpitFeedMode.Recovery;
+        var recovery = _feedMode is CockpitFeedMode.Recovery or CockpitFeedMode.Spectator;
         var feedVisible = _feedMode == CockpitFeedMode.Cockpit ? WidgetVisible("feed") : recovery && _feedPose.Visible;
         // Ownership, not whether there is currently text, controls the source.
         // Hiding the widget must never bring back its old vanilla duplicate.
         var suppressNativeFeed = CockpitFeedPresentation.SuppressNative(
-            (Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, _hadCockpit);
+            (Settings.Enabled.Value || _recovering) && XRSettings.enabled, playing, _hadCockpit, spectatorReady);
         var feedOpacity = recovery ? _feedPose.Opacity : 1;
         var feedTextScale = recovery ? _feedPose.TextScale : CockpitHudWidgets.GetTextScale("feed");
         if (_root != null)
@@ -287,7 +292,7 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
 
     private void Place()
     {
-        if (_feedMode == CockpitFeedMode.Recovery)
+        if (_feedMode is CockpitFeedMode.Recovery or CockpitFeedMode.Spectator)
             PlaceRecoveryFeed();
         if (!_active || _root == null || _aircraft == null || _aircraft.cockpitViewPoint == null)
             return;
@@ -330,10 +335,11 @@ internal sealed partial class CockpitAlerts : MonoBehaviour
             return;
         if (_feedRoot.parent != transform)
             _feedRoot.SetParent(transform, false);
-        // No surviving seat is required. Keep crash/respawn messages compact and
-        // below-right of the recovery view until a cockpit or full menu returns.
-        _feedRoot.SetPositionAndRotation(camera.transform.TransformPoint(new Vector3(.24f, -.18f, .85f)), camera.transform.rotation);
-        _feedRoot.localScale = Vector3.one * (.0007f * _feedPose.Scale * (460f / 520f));
+        // Spectator/crash views use a readable below-left panel rather than an
+        // arbitrary previous aircraft's physical widget size or placement.
+        var placement = CockpitFeedPresentation.ViewPlacement(Settings.Scale.Value);
+        _feedRoot.SetPositionAndRotation(camera.transform.TransformPoint(new Vector3(placement.x, placement.y, placement.z)), camera.transform.rotation);
+        _feedRoot.localScale = Vector3.one * placement.scale;
         var canvas = _feedRoot.GetComponent<Canvas>();
         if (canvas != null)
             canvas.worldCamera = camera;

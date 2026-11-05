@@ -47,7 +47,7 @@ internal sealed partial class WristMenu
         NativeButtonFeedback.Configure(button, danger ? new Color(.36f, .13f, .10f) : new Color(.12f, .18f, .21f));
         return label;
     }
-    private void Choice(Transform parent, string title, string[] options, Func<int> read, Action<int> write, float y)
+    private void Choice(Transform parent, string title, string[] options, Func<int> read, Action<int> write, float y, Func<int, bool>? canSelect = null)
     {
         var label = ViewMenuControls.Text(parent, _font!, title, new Vector2(0, y + 22), new Vector2(620, 24), 19);
         var width = (620 - (options.Length - 1) * 8f) / options.Length;
@@ -55,7 +55,11 @@ internal sealed partial class WristMenu
         for (var i = 0; i < options.Length; i++)
         {
             var index = i;
-            var text = AddButton(parent, options[i], 0, 0, () => write(index));
+            var text = AddButton(parent, options[i], 0, 0, () =>
+            {
+                if (canSelect == null || canSelect(index))
+                    write(index);
+            });
             var rect = (RectTransform)text.transform.parent;
             rect.anchoredPosition = new Vector2((i - (options.Length - 1) * .5f) * (width + 8), y - 13);
             rect.sizeDelta = new Vector2(width, 38);
@@ -67,6 +71,8 @@ internal sealed partial class WristMenu
         _settingRefresh.Add((parent.gameObject, () =>
         {
             var selected = read();
+            for (var i = 0; i < buttons.Length; i++)
+                buttons[i].interactable = canSelect == null || canSelect(i);
             if (selected == shown)
                 return;
             shown = selected;

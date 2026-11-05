@@ -32,3 +32,10 @@ Full license: `plugins/NOVR/ThirdParty/Valve-SteamFrame-LICENSE.txt`.
 Valve glove credits and modification details are included in
 `plugins/NOVR/ThirdParty/Valve-Gloves-NOTICE.txt`, with their BSD 3-Clause license
 alongside it. Existing NOVR/upstream notices and licensing continue to apply.
+
+## Optional fixed-foveation component
+
+The optional `plugins/NOVR/Native/NovrFoveation.dll` uses NVIDIA NVAPI declarations
+and Unity's native render-callback declarations. Pinned sources and licenses are
+in `native/foveation/vendor`; the binary package includes their notices beside
+the DLL. NVIDIA's driver DLL is loaded from Windows and is not redistributed.

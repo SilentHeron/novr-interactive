@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/VrCamera/SpectatorStickInput.cs" Link="SpectatorStickInput.cs" />
+    <Compile Include="../../NOVR/VrCamera/SpectatorCameraInput.cs" Link="SpectatorCameraInput.cs" />
+    <Compile Include="../../NOVR/VrCamera/CameraOrbitStatePatch.cs" Link="CameraOrbitStatePatch.cs" />
+    <Compile Include="../../NOVR/VrCamera/CameraSelectionStatePatch.cs" Link="CameraSelectionStatePatch.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuState.cs" Link="NativeRadialMenuState.cs" />
+  </ItemGroup>
+</Project>

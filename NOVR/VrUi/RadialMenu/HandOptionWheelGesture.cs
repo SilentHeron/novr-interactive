@@ -39,7 +39,7 @@ internal sealed class HandOptionWheelGesture
     internal int Committed { get; private set; } = -1;
     private bool _clickArmed, _triggerArmed, _centred;
 
-    internal HandOptionWheelEvent Update(bool available, bool click, float trigger, float x, float y, int count)
+    internal HandOptionWheelEvent Update(bool available, bool click, float trigger, float x, float y, int count, bool canChangePage = true)
     {
         Committed = -1;
         if (!available || !Finite(x) || !Finite(y) || !Finite(trigger))
@@ -50,7 +50,7 @@ internal sealed class HandOptionWheelGesture
         }
         var clicked = click && _clickArmed;
         _clickArmed = !click;
-        var page = trigger >= .75f && _triggerArmed;
+        var page = canChangePage && trigger >= .75f && _triggerArmed;
         if (trigger <= .25f)
             _triggerArmed = true;
         else if (page)

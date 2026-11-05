@@ -194,6 +194,9 @@ namespace NOVR
 }
 namespace NOVR.VrUi.SpecialBehavior
 {
+    public sealed class VrGameMenuBackdrop : UnityEngine.MonoBehaviour
+    {
+    }
     public sealed class NOVRFlightHudBehavior : UnityEngine.MonoBehaviour
     {
     }
@@ -210,6 +213,12 @@ namespace NOVR.VrUi.SpecialBehavior
     {
     }
     public sealed class PositionZeroBehavior : UnityEngine.MonoBehaviour
+    {
+    }
+}
+namespace NuclearOption.UI
+{
+    public sealed class LeaderboardMenu : UnityEngine.MonoBehaviour
     {
     }
 }

@@ -7,7 +7,7 @@ namespace UnityEngine.XR.OpenXR;
 public partial class OpenXRSettings
 {
     // NOVR creates its loader at runtime, without Unity's serialized XR settings asset.
-    // Register controller profiles before loader initialization, or only the HMD is exposed.
+    // Register input profiles before loader initialization, or only the HMD is exposed.
     public void EnableNovrControllerProfiles()
     {
         var profiles = new List<OpenXRFeature>(features);
@@ -26,6 +26,12 @@ public partial class OpenXRSettings
         var frame = profiles.Find(item => item is Valve.OpenXR.Utils.SteamFrameControllerProfile)!;
         frame.company = "Valve";
         frame.openxrExtensionStrings = "XR_VALVE_frame_controller_interaction";
+        // Gaze is optional input, independent of the rendering backend. The
+        // feature's extension guard leaves unsupported headsets fully usable.
+        AddProfile<EyeGazeInteraction>(profiles, EyeGazeInteraction.featureId);
+        var gaze = profiles.Find(item => item is EyeGazeInteraction)!;
+        gaze.openxrExtensionStrings = EyeGazeInteraction.extensionString;
+        gaze.required = false;
         features = profiles.ToArray();
     }
 

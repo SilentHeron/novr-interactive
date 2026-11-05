@@ -205,6 +205,7 @@ namespace UnityEngine
     public class CanvasRenderer : Component
     {
         public bool cull;
+        public bool cullTransparentMesh = true;
     }
     public class Camera : Component
     {
@@ -234,6 +235,13 @@ namespace UnityEngine
         public DefaultExecutionOrder(int order)
         {
         }
+    }
+}
+namespace UnityEngine.XR
+{
+    public static class XRSettings
+    {
+        public static bool enabled;
     }
 }
 namespace UnityEngine.UI

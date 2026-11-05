@@ -18,6 +18,8 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private readonly EjectConfirmationGesture _eject = new();
     private static readonly System.Reflection.FieldInfo? ActionIcon = AccessTools.Field(typeof(RadialMenuAction), "iconSprite");
     private NativeRadialMenuLease? _lease;
+    private HandMenuWheelGraphic? _menus;
+    private bool _menuOnly;
     private Aircraft? _aircraft;
     private RadialMenuAction? _pendingEject;
     private int Owner => _ownership.Owner;
@@ -30,7 +32,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private bool _ejectHapticActive;
     private float _nextEjectHaptic;
     private bool _reportedFailure;
-    internal static bool IsOpen => _instance?._lease != null;
+    internal static bool IsOpen => _instance != null && _instance.Owner >= 0;
     internal static bool OwnsHand(bool left) => _instance?._ownership.Owns(left ? 0 : 1, Time.frameCount) == true;
     internal static bool OwnsNative(RadialMenuMain menu) => _instance?._lease?.Native == menu;
     private void Awake() => _instance = this;
@@ -38,28 +40,37 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private void Update()
     {
         var native = SceneSingleton<RadialMenuMain>.i;
-        var ready = TrackedControllers.Available && Time.timeScale > 0 && GameManager.flightControlsEnabled &&
-            CameraStateManager.cameraMode == CameraMode.cockpit && !DynamicMap.mapMaximized &&
+        var flags = CursorManager.GetFlags();
+        // Map/selection camera UI is normal while dead or waiting to spawn.
+        // Keep menu access there without taking input from chat/loading/dialogs.
+        var allowedFlags = CursorFlags.Map | CursorFlags.SelectionMenu | CursorFlags.CameraControlUI;
+        var ready = TrackedControllers.Available && !GameplayUI.GameIsPaused &&
+            (GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer) &&
             !WristMenu.IsOpen && !CockpitLayout.Active && !CockpitHudWidgets.Editing &&
-            CursorManager.GetFlags() == CursorFlags.None &&
+            (flags & ~allowedFlags) == CursorFlags.None &&
             (GameManager.controlMapper == null || !GameManager.controlMapper.isOpen) &&
-            APIBus.CockpitHudCamera != null && native != null && native.isActiveAndEnabled;
-        if (!GameManager.GetLocalAircraft(out var aircraft) || aircraft.disabled || aircraft.HasEjected() || aircraft.cockpit == null || aircraft.cockpit.IsDetached())
-            ready = false;
-        if (!ready || _lease != null && (!_lease.Valid || _lease.Native != native || aircraft != _aircraft))
+            APIBus.CockpitHudCamera != null;
+        var usableAircraft = GameManager.GetLocalAircraft(out var aircraft) && !aircraft.disabled &&
+            !aircraft.HasEjected() && aircraft.cockpit != null && !aircraft.cockpit.IsDetached();
+        var flight = usableAircraft && CameraStateManager.cameraMode == CameraMode.cockpit &&
+            Time.timeScale > 0 && GameManager.flightControlsEnabled && !DynamicMap.mapMaximized && flags == CursorFlags.None;
+        if (!ready || flight && (native == null || !native.isActiveAndEnabled) ||
+            Owner >= 0 && (_menuOnly == flight || _lease != null && (!_lease.Valid || _lease.Native != native || aircraft != _aircraft)))
         {
             Cancel();
             return;
         }
         // Do not hijack a wheel already opened through the game's desktop input.
-        if (_lease == null && RadialMenuMain.IsInUse())
+        if (_lease == null && NativeRadialMenuState.IsBlockingInput)
         {
-            ResetGestures();
+            Cancel();
             return;
         }
 
         if (Owner >= 0)
         {
+            if (_menuOnly)
+                _menus!.RefreshMapState(DynamicMap.mapMaximized, DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
             var side = Owner;
             var hand = TrackedControllers.Read(side == 0);
             if (_eject.Active)
@@ -68,8 +79,8 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
                 return;
             }
             var gesture = _gestures[side];
-            var change = gesture.Update(HandAvailable(side, hand), hand.StickClick, hand.Trigger,
-                hand.Axis.x, hand.Axis.y, _lease!.Count);
+            var change = gesture.Update(HandAvailable(side, hand, flight), hand.StickClick, hand.Trigger,
+                hand.Axis.x, hand.Axis.y, _lease?.Count ?? HandMenuWheelGraphic.Count, !_menuOnly);
             if (change == HandOptionWheelEvent.Cancel)
             {
                 if (hand.Valid && hand.StickClick)
@@ -79,14 +90,14 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             }
             if (change == HandOptionWheelEvent.Commit)
             {
-                var menu = _lease!.MenuAt(gesture.Committed);
+                var menu = _lease != null ? _lease.MenuAt(gesture.Committed) : HandMenuWheelGraphic.MenuAt(gesture.Committed);
                 if (menu != NativeWheelMenuAction.None)
                 {
                     if (NativeWheelMenuActions.Open(menu, Close))
                         InteractionHaptics.Pulse(hand.Device, .22f, .025f);
                     return;
                 }
-                var action = _lease.ActionAt(gesture.Committed);
+                var action = _lease?.ActionAt(gesture.Committed);
                 if (action != null && action.GetActionType() == RadialMenuAction.ActionType.Eject)
                 {
                     if (aircraft == null || !action.AllowedOnAircraft(aircraft))
@@ -98,7 +109,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
                     // of this hand and the borrowed native wheel throughout it.
                     _pendingEject = action;
                     _eject.Begin();
-                    _lease.Hover(-1);
+                    _lease!.Hover(-1);
                     _ejectGraphic!.Show(ActionIcon?.GetValue(action) as Sprite);
                     _title!.text = "EJECT?";
                     _guidance!.text = "Centre + hold stick click: eject\nRelease: reset  ·  Tilt stick / trigger: cancel";
@@ -116,11 +127,11 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             }
             if (change == HandOptionWheelEvent.ChangePage)
             {
-                _lease.ChangePage();
+                _lease!.ChangePage();
                 UpdateTitle();
                 InteractionHaptics.Pulse(hand.Device, .18f, .025f);
             }
-            if (_lease.Hover(gesture.Hovered))
+            if (_lease != null ? _lease.Hover(gesture.Hovered) : _menus!.Hover(gesture.Hovered))
                 InteractionHaptics.PulseOnly(hand.Device, .10f, .015f);
             return;
         }
@@ -128,7 +139,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         for (var side = 0; side < 2; side++)
         {
             var hand = TrackedControllers.Read(side == 0);
-            var change = _gestures[side].Update(HandAvailable(side, hand), hand.StickClick, hand.Trigger,
+            var change = _gestures[side].Update(HandAvailable(side, hand, flight), hand.StickClick, hand.Trigger,
                 hand.Axis.x, hand.Axis.y, 0);
             if (change != HandOptionWheelEvent.Open)
                 continue;
@@ -136,10 +147,19 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             {
                 EnsureView();
                 _ownership.Open(side, Time.frameCount);
-                _aircraft = aircraft;
-                _lease = new NativeRadialMenuLease(native!, (RectTransform)_view!.transform);
+                _menuOnly = !flight;
+                _aircraft = flight ? aircraft : null;
+                if (flight)
+                    _lease = new NativeRadialMenuLease(native!, (RectTransform)_view!.transform);
+                else
+                {
+                    EnsureMenuOnlyView();
+                    _menus!.RefreshMapState(DynamicMap.mapMaximized, DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
+                    _menus!.Hover(-1);
+                    _menus.gameObject.SetActive(true);
+                }
                 _gestures[1 - side].Reset();
-                _view.SetActive(true);
+                _view!.SetActive(true);
                 UpdateTitle();
                 _ejectGraphic!.transform.SetAsLastSibling();
                 InteractionHaptics.Pulse(hand.Device, .22f, .025f);
@@ -159,7 +179,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private void UpdateEjectConfirmation(ControllerSample hand, Aircraft aircraft)
     {
         var action = _pendingEject;
-        var result = _eject.Update(HandAvailable(Owner, hand) && action != null &&
+        var result = _eject.Update(HandAvailable(Owner, hand, true) && action != null &&
             action.GetActionType() == RadialMenuAction.ActionType.Eject && action.AllowedOnAircraft(aircraft),
             hand.StickClick, hand.Trigger, hand.Axis.x, hand.Axis.y, Time.unscaledDeltaTime);
         if (result == EjectConfirmationEvent.Cancel)
@@ -206,17 +226,21 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         _nextEjectHaptic = 0;
     }
 
-    private static bool HandAvailable(int side, ControllerSample hand)
+    private static bool HandAvailable(int side, ControllerSample hand, bool flight)
     {
-        if (!hand.Valid || !hand.HasAxis || HelmetNightVision.OwnsHand(side == 0) || CockpitMapInteraction.ReservesThumbstick(side == 0))
+        if (!hand.Valid || !hand.HasAxis)
             return false;
+        // Dead/spectating input cannot stay blocked by a grip or map gesture
+        // that belonged to the previous aircraft.
+        if (!flight) return true;
+        if (HelmetNightVision.OwnsHand(side == 0) || CockpitMapInteraction.ReservesThumbstick(side == 0)) return false;
         var controls = MotionFlightController.Instance;
         var stick = (side == 0) == ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         return controls == null || !(stick ? controls.StickHeld : controls.ThrottleHeld);
     }
     private void LateUpdate()
     {
-        if (_lease == null || _view == null || Owner < 0)
+        if (_view == null || Owner < 0)
             return;
         var camera = APIBus.CockpitHudCamera;
         var hand = TrackedControllers.Read(Owner == 0);
@@ -280,12 +304,21 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         label.rectTransform.anchoredPosition = new Vector2(0, y);
         return label;
     }
+    private void EnsureMenuOnlyView()
+    {
+        if (_menus != null) return;
+        var menu = new GameObject("NOVR Gameplay Menu Wheel", typeof(RectTransform), typeof(HandMenuWheelGraphic));
+        menu.transform.SetParent(_view!.transform, false);
+        menu.layer = _view.layer;
+        _menus = menu.GetComponent<HandMenuWheelGraphic>();
+        _menus.Initialize();
+    }
     private void UpdateTitle()
     {
         if (_title != null)
-            _title.text = _lease?.WeaponsPage == true ? "Weapons" : "Options";
+            _title.text = _menuOnly ? "Menus" : _lease?.WeaponsPage == true ? "Weapons" : "Options";
         if (_guidance != null)
-            _guidance.text = "Trigger: change page\nCentre stick: select  ·  Click stick: cancel";
+            _guidance.text = (_menuOnly ? "" : "Trigger: change page\n") + "Centre stick: select  ·  Click stick: cancel";
     }
     private void ResetGestures()
     {
@@ -307,7 +340,9 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         finally
         {
             _lease = null;
+            _menuOnly = false;
             _aircraft = null;
+            if (_menus != null) _menus.gameObject.SetActive(false);
             if (_view != null)
                 _view.SetActive(false);
             ResetGestures();

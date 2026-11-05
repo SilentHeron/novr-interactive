@@ -15,6 +15,10 @@
         <RequiresNuclearOptionGameReferences>true</RequiresNuclearOptionGameReferences>
         <RootNamespace>NOVR</RootNamespace>
     </PropertyGroup>
+    <PropertyGroup Label="FixedFoveationNative">
+        <IncludeFixedFoveationNative Condition="'$(IncludeFixedFoveationNative)' == ''">false</IncludeFixedFoveationNative>
+        <FixedFoveationNativeSourceDir Condition="'$(FixedFoveationNativeSourceDir)' == ''">$(MSBuildProjectDirectory)/../native/foveation</FixedFoveationNativeSourceDir>
+    </PropertyGroup>
     <ItemGroup>
         <Reference Include="System.Numerics" />
         <EmbeddedResource Include="Assets/Controllers/*.png"><LogicalName>NOVR.Controllers.%(Filename)%(Extension)</LogicalName></EmbeddedResource>
@@ -36,4 +40,19 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
+    <!-- This optional library is loaded by NOVR only after platform eligibility.
+         Keep it out of the patcher and all XR/game runtime replacement paths. -->
+    <ItemGroup Label="FixedFoveationNative" Condition="'$(IncludeFixedFoveationNative)' == 'true'">
+        <Content Include="$(FixedFoveationNativeSourceDir)/bin/NovrFoveation.dll" Link="Native/NovrFoveation.dll" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="$(FixedFoveationNativeSourceDir)/vendor/nvapi/License.txt" Link="Native/NVIDIA-NVAPI-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="$(FixedFoveationNativeSourceDir)/vendor/Unity/LICENSE" Link="Native/Unity-NativePlugin-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="$(FixedFoveationNativeSourceDir)/THIRD-PARTY-NOTICES.txt" Link="Native/THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+    <Target Name="ValidateFixedFoveationNative" BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems;StageGameLayout"
+            Condition="'$(IncludeFixedFoveationNative)' == 'true' And '$(DesignTimeBuild)' != 'true'">
+        <Error Condition="!Exists('$(FixedFoveationNativeSourceDir)/bin/NovrFoveation.dll')"
+               Text="Cannot build NOVR with IncludeFixedFoveationNative=true: native/foveation/bin/NovrFoveation.dll is missing. Build the optional Windows native backend first, or omit IncludeFixedFoveationNative for a managed-only build." />
+        <Error Condition="!Exists('$(FixedFoveationNativeSourceDir)/vendor/nvapi/License.txt') Or !Exists('$(FixedFoveationNativeSourceDir)/vendor/Unity/LICENSE') Or !Exists('$(FixedFoveationNativeSourceDir)/THIRD-PARTY-NOTICES.txt')"
+               Text="Cannot build NOVR with IncludeFixedFoveationNative=true: the native backend's NVIDIA and Unity license files and third-party notice are required." />
+    </Target>
 </Project>

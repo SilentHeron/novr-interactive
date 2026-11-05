@@ -94,4 +94,6 @@ LeaseChecks.Run(Check);
 GameMenuChecks.Run(Check);
 PoseChecks.Run(Check);
 EjectConfirmationChecks.Run(Check);
+WheelRuntimeChecks.Run(Check);
+WristContextChecks.Run(Check);
 Console.WriteLine($"PASS: {checks} native option-wheel gesture, ownership, lease, pose and eject confirmation assertions.");

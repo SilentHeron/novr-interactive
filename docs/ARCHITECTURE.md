@@ -27,6 +27,18 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
    camera changes; [`NOUIManager`](../NOVR/VrUi/NOUIManager.cs) attaches VR UI as
    scene/menu objects appear. Startup does not imply an aircraft or HUD is ready.
 
+[`SpectatorCameraInput`](../NOVR/VrCamera/SpectatorCameraInput.cs) adds gated
+thumbstick orbit/distance input while following a unit in VR. Native camera motion
+keeps its target-scaled external distance, collision and smoothing; the tracked
+child remains the stereo view. Input requires neutral after menus or target
+changes and excludes the spawn map and aircraft selection. The outside-aircraft
+wheel owns its menu/map actions without borrowing the aircraft's native wheel.
+Native wheel blocking checks require an active/enabled owner: its child can
+remain activeSelf under the inactive spectator HUD before the first spawn.
+Map access uses the native Maximize/Minimize lifecycle and does not require a
+cached local player or aircraft. Opening locks still belong to native UI; closing
+an existing map remains possible without changing the followed unit.
+
 Folders group code by feature. Existing CLR namespaces and public type names
 are deliberately retained during reorganization: integrations, reflection and
 assembly contracts can depend on those names. Moving a file is not permission
@@ -223,3 +235,28 @@ These focused checks do not establish rendered fit, headset comfort or hardware
 behavior. Run full verification before submission and report runtime evidence
 separately. Prefer a small owner/helper with an explicit lifetime over another
 cross-feature framework.
+
+## Optional foveated rendering
+
+`Rendering/FixedFoveationRuntime` probes native Windows/NVIDIA/D3D11 eligibility
+before explicitly loading the optional native payload. The native probe must
+also confirm VRS hardware support. `FixedFoveationPasses` brackets only the tracked
+world camera's forward opaque draw pass; all other camera and pass boundaries
+restore full rate. Native scope packets survive asynchronous render submission
+and are retired by End. Off with measurements disabled dispatches no steady-state
+render events. The DLL remains loaded until process exit so queued callbacks
+cannot outlive their code. Never infer performance gains from capability or
+command counters; the optional GPU queries and headset comparisons are separate
+validation. See [the experiment](PC_FOVEATION.md).
+
+`NovrEyeGaze` in the OpenXR input project provides one validated tracking-space
+eye/head sample per frame, including actual input-event age. The optional eye
+interaction profile is registered before loader initialization and is never
+required for other headsets. `FixedFoveationGaze` transforms gaze through the
+tracking origin and each eye's actual view and frustum, including canted eyes;
+unavailable input retains the fixed centre. Gaze
+does not share gameplay targeting state. Native rate-map buffers reuse storage
+and texture/view resources, updating only changed tile rectangles.
+
+`GameGraphicsSettings` exposes only native tree, cloud and shadow setters. It
+does not own parallel saved values or apply quality changes on menu creation.

@@ -207,4 +207,5 @@ backgroundHide.Release();
 
 assertions += CockpitAlerts.RunThreatChecks();
 assertions += NotificationChecks.Run();
+assertions += GameMenuBackdropChecks.Run();
 Console.WriteLine($"HUD status checks passed: {assertions} assertions (source-linked draw suppression, ownership, recovery and threat refresh).");

@@ -19,5 +19,6 @@ switches, EOTS and inspection zoom describe retired experiments. Those systems w
 reporting bugs or testing a build. Cockpit widgets now have per-aircraft saved
 positions, sizes, visibility and backplate opacity rather than fixed placements.
 
-The [PC foveation experiment](PC_FOVEATION.md) is discontinued. It is not part of
-the release package or the active development plan.
+[PC foveated rendering](PC_FOVEATION.md) is optional and experimental, with
+fixed and eye-tracked modes on supported native Windows/NVIDIA/Direct3D 11
+systems. It defaults to Off and stays unavailable on Linux/Proton.

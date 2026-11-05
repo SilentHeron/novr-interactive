@@ -95,7 +95,7 @@ internal static class LeaseChecks
             }
         }
     }
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         internal readonly GameObject Parent = new("RadialMenu"), Menu = new("MenuObject"), Main = new("actionsMain"), Weapons = new("actionsWeapons");
         internal readonly RectTransform Host = new GameObject("Hand canvas") { layer = 30 }.transform;

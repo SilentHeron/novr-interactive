@@ -87,9 +87,10 @@ Wireless interruption, encoding delay and tracking loss can cause shaking or
 stutter even when game rendering fits the budget. Record these separately rather
 than attributing every missed frame to the mod.
 
-NOVR does not provide PC-side foveated rendering. The private experiment was
-[discontinued](PC_FOVEATION.md). Steam Frame's foveated **streaming** is a separate
-runtime feature; its presence does not mean NOVR renders fewer pixels.
+NOVR offers optional [PC foveated rendering](PC_FOVEATION.md) on supported native
+Windows/NVIDIA/Direct3D 11 systems. Fixed and eye-tracked modes are experimental
+and default to Off; Linux/Proton keeps normal rendering. Steam Frame's foveated
+**streaming** remains a separate runtime feature.
 
 ## Useful bug reports
 

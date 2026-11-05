@@ -48,6 +48,7 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<MotionControls.NativeHandOptionWheel>();
         gameObject.AddComponent<MotionControls.TargetAcquisitionCue>();
         gameObject.AddComponent<MotionControls.PcVrCapabilities>();
+        gameObject.AddComponent<Rendering.FixedFoveationRuntime>();
         gameObject.AddComponent<VrUi.WristMenu>();
     }
 

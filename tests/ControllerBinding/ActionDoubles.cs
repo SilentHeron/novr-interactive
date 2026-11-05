@@ -76,6 +76,7 @@ public static class GameManager
     public static bool flightControlsEnabled = true;
     public static GameState gameState;
     public static ControlMapper? controlMapper;
+    public static NuclearOption.Networking.Player? LocalPlayer;
     public static bool GetLocalAircraft(out Aircraft aircraft)
     {
         aircraft = Aircraft!;
@@ -83,8 +84,8 @@ public static class GameManager
     }
     public static bool GetLocalPlayer<T>(out T? player) where T : class
     {
-        player = null;
-        return false;
+        player = LocalPlayer as T;
+        return player != null;
     }
 }
 [Flags]
@@ -104,6 +105,7 @@ public enum CameraMode
 public sealed class CameraStateManager
 {
     public static CameraMode cameraMode;
+    public object? followingUnit;
 }
 public static class SceneSingleton<T> where T : class
 {
@@ -118,12 +120,14 @@ public sealed class MapOptions
 public sealed class DynamicMap
 {
     public static bool mapMaximized, AllowedToOpen = true;
-    public void Minimize() => mapMaximized = false;
-    public void Maximize() => mapMaximized = true;
+    public int Opens, Closes;
+    public void Minimize() { mapMaximized = false; Closes++; }
+    public void Maximize() { if (AllowedToOpen) { mapMaximized = true; Opens++; } }
 }
 public sealed class RadialMenuMain
 {
     public static bool InUse;
+    public bool isActiveAndEnabled = true;
     public static bool IsInUse() => InUse;
 }
 public sealed class CombatHUD

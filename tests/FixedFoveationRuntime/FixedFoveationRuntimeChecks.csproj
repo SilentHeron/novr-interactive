@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Rendering/FixedFoveationRuntime.cs" Link="FixedFoveationRuntime.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationPasses.cs" Link="FixedFoveationPasses.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationPolicy.cs" Link="FixedFoveationPolicy.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationCameraPolicy.cs" Link="FixedFoveationCameraPolicy.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationGaze.cs" Link="FixedFoveationGaze.cs" />
+    <Compile Include="../../NOVR/Rendering/FoveationGazePolicy.cs" Link="FoveationGazePolicy.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationSettings.cs" Link="FixedFoveationSettings.cs" />
+    <Compile Include="../FixedFoveation/Doubles.cs" Link="ConfigDoubles.cs" />
+  </ItemGroup>
+</Project>

@@ -178,7 +178,7 @@ namespace UnityEngine.XR.OpenXR.Features
 {
     public class OpenXRFeature
     {
-        public string nameUi, featureIdInternal, company, openxrExtensionStrings; public bool enabled;
+        public string nameUi, featureIdInternal, company, openxrExtensionStrings; public bool enabled, required;
     }
     public class OpenXRInteractionFeature : OpenXRFeature
     {

@@ -13,6 +13,7 @@
     <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
     <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
     <Compile Include="../../NOVR/Input/ControllerActions.cs" Link="ControllerActions.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuState.cs" Link="NativeRadialMenuState.cs" />
     <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
     <Compile Include="../../NOVR/Input/FrameActionQueue.cs" Link="FrameActionQueue.cs" />
     <Compile Include="../../NOVR/Input/NativeControllerAction.cs" Link="NativeControllerAction.cs" />

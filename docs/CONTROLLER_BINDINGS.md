@@ -59,6 +59,8 @@ Existing Frame custom bindings are retained. Switching between controller famili
 
 ## Hand option wheel
 
+Outside a cockpit, the wheel offers **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**. The default **B** binding on Frame and Quest also opens/closes the map while spectating; closing keeps your current target. Map controls remain available when the controller pointer is disabled.
+
 Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings without needing the physical Menu button, which Steam Link may consume on Quest.
 
 Selecting **Eject** shows a red eject symbol in the center of the wheel. Keep the thumbstick centered and hold a fresh stick-click for **1.2 seconds** to confirm. The ring expands and fills as vibration builds on that hand. Releasing early resets the hold; tilting the stick or pressing trigger cancels. Tracking loss, a menu or leaving the cockpit also cancels. Other wheel actions still select on return to center.

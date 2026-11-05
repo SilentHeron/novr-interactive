@@ -8,13 +8,7 @@ internal static class CameraOrbitStatePatch
     private static class CameraMotionPatch
     {
         [HarmonyPrefix]
-        private static bool Prefix(CameraStateManager cam)
-        {
-            if (cam?.cameraPivot == null)
-                return true;
-
-            cam.transform.SetPositionAndRotation(cam.cameraPivot.position, cam.cameraPivot.rotation);
-            return false;
-        }
+        private static void Prefix(CameraOrbitState __instance, CameraStateManager cam) =>
+            SpectatorCameraInput.ApplyOrbit(__instance, cam);
     }
 }

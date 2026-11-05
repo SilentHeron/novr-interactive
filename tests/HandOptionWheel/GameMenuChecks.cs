@@ -72,6 +72,44 @@ internal static class GameMenuChecks
             string.Join(",", Events) == "close wheel,reset grips,reset buttons", "An already-open game pause menu cannot acquire a second VR menu");
         GameplayUI.GameIsPaused = false;
 
+        GameplayUI.AllowPauseKeybind = false;
+        CursorManager.Flags = CursorFlags.SelectionMenu;
+        SceneSingleton<GameplayUI>.i = ui;
+        check(NativeWheelMenuActions.Open(NativeWheelMenuAction.GameMenu, () => { }) && GameplayUI.GameIsPaused && !GameplayUI.AllowPauseKeybind,
+            "Explicit Game Menu works during aircraft selection without modifying its reserved Escape keybind.");
+        GameplayUI.GameIsPaused = false;
+        foreach (var blocked in new[] { CursorFlags.Chat, CursorFlags.Dialogue, CursorFlags.Loading, CursorFlags.GameMenu })
+        {
+            CursorManager.Flags = CursorFlags.SelectionMenu | blocked;
+            Events.Clear();
+            check(!NativeWheelMenuActions.Open(NativeWheelMenuAction.GameMenu, () => { }) && !Events.Contains("native pause"),
+                "Selection-screen exception cannot bypass blocking cursor context: " + blocked);
+        }
+        CursorManager.Flags = CursorFlags.None;
+        GameplayUI.AllowPauseKeybind = true;
+
+        foreach (var blocked in new[] { "pause menu", "chat", "native lock during release", "map policy during release" })
+        {
+            DynamicMap.mapMaximized = false;
+            DynamicMap.AllowedToOpen = true;
+            ControllerActions.MapBlocked = false;
+            Events.Clear();
+            check(!NativeWheelMenuActions.Open(NativeWheelMenuAction.Map, () =>
+            {
+                Events.Add("close wheel");
+                if (blocked == "pause menu") GameplayUI.GameIsPaused = true;
+                if (blocked == "chat") CursorManager.Flags = CursorFlags.Chat;
+                if (blocked == "native lock during release") DynamicMap.AllowedToOpen = false;
+                if (blocked == "map policy during release") ControllerActions.MapBlocked = true;
+            }), "Map action rechecks context after release: " + blocked);
+            check(!DynamicMap.mapMaximized && string.Join(",", Events) == "close wheel,reset grips,reset buttons",
+                "A newly blocking context cannot receive a map callback.");
+            GameplayUI.GameIsPaused = false;
+            CursorManager.Flags = CursorFlags.None;
+        }
+        DynamicMap.AllowedToOpen = true;
+        ControllerActions.MapBlocked = false;
+
         foreach (var count in new[] { 0, 1, 5, 8, 11 })
         {
             var parent = new GameObject("Main page");
@@ -144,6 +182,10 @@ public enum GameState
 public static class GameManager
 {
     public static GameState gameState;
+    public static bool flightControlsEnabled = true;
+    public static ControlMapper? controlMapper;
+    public static Aircraft? Aircraft;
+    public static bool GetLocalAircraft(out Aircraft aircraft) { aircraft = Aircraft!; return aircraft != null; }
 }
 public sealed class GameplayUI : MonoBehaviour
 {
@@ -159,11 +201,25 @@ namespace NOVR.MotionControls
     internal sealed class MotionFlightController
     {
         internal static MotionFlightController? Instance;
+        internal bool StickHeld, ThrottleHeld;
         internal void ResetGrips() => GameMenuChecks.Events.Add("reset grips");
     }
     internal sealed class ControllerActions
     {
         internal static ControllerActions? Instance;
+        internal static bool MapBlocked;
+        internal static Action? OnToggleMap;
+        internal static bool MapAccessAvailable => !MapBlocked && !NativeHandOptionWheel.IsOpen &&
+            !NativeRadialMenuState.IsBlockingInput &&
+            (DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
+        internal static void ToggleMap()
+        {
+            if (!MapAccessAvailable) throw new InvalidOperationException("Map invoked before releasing wheel or during native lock.");
+            OnToggleMap?.Invoke();
+            DynamicMap.mapMaximized = !DynamicMap.mapMaximized;
+            CursorManager.Flags = DynamicMap.mapMaximized ? CursorFlags.Map : CursorFlags.None;
+            GameMenuChecks.Events.Add(DynamicMap.mapMaximized ? "open map" : "close map");
+        }
         internal void ResetButtons() => GameMenuChecks.Events.Add("reset buttons");
     }
 }
@@ -172,6 +228,7 @@ namespace NOVR.VrUi
     internal static class WristMenu
     {
         internal static bool Available = true;
+        internal static bool IsOpen;
         internal static bool OpenFromHandWheel()
         {
             if (!Available)

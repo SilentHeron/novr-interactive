@@ -15,6 +15,7 @@ public class UIBehaviorPatcher : NOVRBehaviour
     {
         { typeof(FlightHud), typeof(NOVRFlightHudBehavior) },
         { typeof(GameplayUI), typeof(NOVRGameplayUIBehaviour) },
+        { typeof(NuclearOption.UI.LeaderboardMenu), typeof(VrGameMenuBackdrop) },
         { typeof(MessageUI), typeof(NOVRGameplayUIBehaviour) },
         { typeof(StatusDisplay), typeof(NOVRStatusDisplayBehavior) }
     };

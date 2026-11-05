@@ -11,7 +11,11 @@
     <Compile Include="../../NOVR/VrUi/RadialMenu/EjectConfirmationGesture.cs" Link="EjectConfirmationGesture.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/HandOptionWheelPose.cs" Link="HandOptionWheelPose.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuLease.cs" Link="NativeRadialMenuLease.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuState.cs" Link="NativeRadialMenuState.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/NativeWheelMenuEntries.cs" Link="NativeWheelMenuEntries.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/NativeWheelMenuActions.cs" Link="NativeWheelMenuActions.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/NativeHandOptionWheel.cs" Link="NativeHandOptionWheel.cs" />
+    <Compile Include="../../NOVR/VrUi/RadialMenu/HandMenuWheelGraphic.cs" Link="HandMenuWheelGraphic.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuGameplayContext.cs" Link="WristMenuGameplayContext.cs" />
   </ItemGroup>
 </Project>

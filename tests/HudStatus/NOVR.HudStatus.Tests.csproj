@@ -7,6 +7,7 @@
     <Compile Include="../../NOVR/VrUi/Shared/HudCanvasGroupLease.cs" Link="HudCanvasGroupLease.cs" />
     <Compile Include="../../NOVR/VrUi/Shared/HudCanvasVisibilityLease.cs" Link="HudCanvasVisibilityLease.cs" />
     <Compile Include="../../NOVR/VrUi/Shared/HudGraphicVisibilityLease.cs" Link="HudGraphicVisibilityLease.cs" />
+    <Compile Include="../../NOVR/VrUi/SceneAdapters/VrGameMenuBackdrop.cs" Link="VrGameMenuBackdrop.cs" />
     <Compile Include="../../NOVR/VrUi/Hud/HudReadability.cs" Link="HudReadability.cs" />
     <Compile Include="../../NOVR/VrUi/Hud/Fs20HudPresentation.cs" Link="Fs20HudPresentation.cs" />
     <Compile Include="../../NOVR/VrUi/Hud/NativeWeaponSafetyIndicator.cs" Link="NativeWeaponSafetyIndicator.cs" />

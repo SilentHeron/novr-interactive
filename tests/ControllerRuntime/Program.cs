@@ -139,7 +139,8 @@ yes(TrackedControllers.Profile(true) == ControllerHardwareProfile.Unknown);
 
 var settings = new OpenXRSettings();
 settings.EnableNovrControllerProfiles();
-yes(!settings.features.Any(f => f is EyeGazeInteraction));
+var existingGaze = settings.features.Single(f => f is EyeGazeInteraction);
+yes(existingGaze.enabled && !existingGaze.required && existingGaze.openxrExtensionStrings == EyeGazeInteraction.extensionString);
 var existingFrame = settings.features.Single(f => f is SteamFrameControllerProfile);
 settings.EnableNovrControllerProfiles();
 yes(settings.features.Count(f => f is SteamFrameControllerProfile) == 1 && settings.features.Contains(existingFrame));
@@ -147,7 +148,7 @@ yes(settings.features.Count(f => f is OculusTouchControllerProfile) == 1);
 yes(settings.features.Single(f => f is MetaQuestTouchPlusControllerProfile).openxrExtensionStrings == "XR_META_touch_controller_plus");
 yes(settings.features.Single(f => f is MetaQuestTouchProControllerProfile).openxrExtensionStrings == "XR_FB_touch_controller_pro");
 yes(existingFrame.openxrExtensionStrings == "XR_VALVE_frame_controller_interaction" && settings.features.All(f => f.enabled));
-yes(!settings.features.Any(f => f is EyeGazeInteraction || f.openxrExtensionStrings == EyeGazeInteraction.extensionString));
+yes(settings.features.Count(f => f is EyeGazeInteraction) == 1 && settings.features.Contains(existingGaze));
 
 // Production report updates once at startup, then only while its page is open.
 var performance = new PcVrCapabilities();

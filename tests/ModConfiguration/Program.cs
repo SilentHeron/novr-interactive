@@ -1,6 +1,7 @@
 using System.Reflection;
 using BepInEx.Configuration;
 using NOVR;
+using NOVR.Rendering;
 
 var checks = 0;
 void Check(bool condition, string label)
@@ -37,6 +38,10 @@ foreach (var field in typeof(ModConfiguration).GetFields(BindingFlags.Instance |
     Check(field.GetValue(first) != null, $"Published settings include {field.Name}.");
 Check(first.NativeMenuScale.Value == 1.25f && first.FlightHudScale.Value == .38f,
     "Lifecycle changes preserve existing menu and HUD defaults.");
+Check(first.FixedFoveation.RequestedLevel == FixedFoveationLevel.Off,
+    "New configurations leave experimental fixed foveated rendering off.");
+Check(!first.FixedFoveation.UseEyeTracking.Value,
+    "Optional eye-tracked foveation is disabled for new configurations.");
 
 Check(first.SeatClearanceEnabled.Value, "Head clearance is enabled by default for new settings.");
 Check(first.SeatClearanceRadius.Value == .25f, "Head clearance starts at a 25 cm radius.");
@@ -60,11 +65,17 @@ foreach (var failAt in new[] { 2, firstFile.BindCount / 2, firstFile.BindCount }
 var nextFile = new ConfigFile();
 nextFile.Seed("Comfort", "Head Clearance", false);
 nextFile.Seed("Comfort", "Head Clearance Radius", .16f);
+nextFile.Seed("VR Performance", "Fixed Foveated Rendering", FixedFoveationLevel.Balanced);
+nextFile.Seed("VR Performance", "Eye Tracked Foveation", true);
 nextFile.BeforeBind = _ => Check(ReferenceEquals(first, ModConfiguration.Current), "Successful replacement publishes only after its last bind.");
 var next = new ModConfiguration(nextFile);
 Check(ReferenceEquals(next, ModConfiguration.Instance), "A successful replacement becomes current.");
 Check(!next.SeatClearanceEnabled.Value && next.SeatClearanceRadius.Value == .16f,
     "Saved head-clearance opt-out and custom radius survive configuration initialization.");
+Check(next.FixedFoveation.RequestedLevel == FixedFoveationLevel.Balanced,
+    "An explicit saved fixed-foveation preference survives configuration initialization.");
+Check(next.FixedFoveation.UseEyeTracking.Value && !first.FixedFoveation.UseEyeTracking.Value,
+    "Saved eye tracking survives binding without changing the previous configuration object.");
 Check(ReferenceEquals(firstFile, first.Config), "Replacing current settings does not mutate the previous object.");
 Check(firstFile.BindCount == nextFile.BindCount, "Every settings binding is still performed.");
 foreach (var savedRadius in new[] { .05f, .12f, .25f, .40f })
@@ -74,5 +85,20 @@ foreach (var savedRadius in new[] { .05f, .12f, .25f, .40f })
     var saved = new ModConfiguration(savedFile);
     Check(saved.SeatClearanceRadius.Value == savedRadius, "Existing radius choices, including the former 12 cm default, remain unchanged.");
 }
+foreach (var strength in Enum.GetValues<FixedFoveationLevel>())
+    foreach (var eyeTracking in new[] { false, true })
+    {
+        var savedFile = new ConfigFile();
+        savedFile.Seed("VR Performance", "Fixed Foveated Rendering", strength);
+        savedFile.Seed("VR Performance", "Eye Tracked Foveation", eyeTracking);
+        savedFile.Seed("Comfort", "Head Clearance Radius", .18f);
+        var saved = new ModConfiguration(savedFile);
+        Check(saved.FixedFoveation.RequestedLevel == strength && saved.FixedFoveation.UseEyeTracking.Value == eyeTracking,
+            "Every strength, including Extreme/Maximum, retains independent fixed/eye-tracking preference through full configuration binding.");
+        Check(saved.SeatClearanceRadius.Value == .18f && saved.NativeMenuScale.Value == first.NativeMenuScale.Value,
+            "Adding stronger rendering modes does not migrate unrelated comfort or interface preferences.");
+        Check(savedFile.BoundKeys.Count(key => key == "Fixed Foveated Rendering") == 1,
+            "The original strength key remains the only persisted strength control.");
+    }
 MotionControlMigrationChecks.Run(Check);
 Console.WriteLine($"PASS {checks} configuration lifecycle checks (production ModConfiguration, configuration boundary doubles).");
