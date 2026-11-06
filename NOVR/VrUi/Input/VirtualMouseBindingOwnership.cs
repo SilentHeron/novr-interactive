@@ -16,6 +16,7 @@ internal sealed class VirtualMouseBindingOwnership
     private InputSystemUIInputModule? _module;
     private InputAction? _point, _left, _middle, _right, _scroll, _move;
     private bool _acquired, _acquiring, _releasing, _acquisitionCanceled;
+    internal bool IsAcquired => _acquired;
 
     internal bool Matches(InputSystemUIInputModule? module) =>
         _acquired && module != null && ReferenceEquals(module, _module) &&

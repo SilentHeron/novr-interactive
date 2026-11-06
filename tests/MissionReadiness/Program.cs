@@ -176,10 +176,49 @@ Check("Late attachment remains truthfully unverified without locking a completed
 });
 Check("Unknown loader versions retain stock behavior with unverified status", () =>
 {
+    foreach (var version in new[] { new Version(2, 0, 0), new Version(2, 1, 0), new Version(2, 1, 2), new Version(3, 0, 0) })
+    {
+        Reset();
+        Install(version);
+        var s = BlueprinterContentReadiness.Read();
+        Assert(s.CanLaunch && s.Phase == MissionContentPhase.Unverified && Harmony.Patches == 0);
+    }
+});
+Check("Blueprinter 2.1.1 preserves the loading gate until success and root completion", () =>
+{
     Reset();
-    Install(new Version(3, 0, 0));
+    Install(new Version(2, 1, 1));
     var s = BlueprinterContentReadiness.Read();
-    Assert(s.CanLaunch && s.Phase == MissionContentPhase.Unverified && Harmony.Patches == 0);
+    Assert(s.Phase == MissionContentPhase.Preparing && !s.CanLaunch && Harmony.Patches == 1);
+    var routine = Wrap(Sequence(() => source.Emit(success), () => { }));
+    Assert(routine.MoveNext() && !s.CanLaunch && source.Subscribers == 1);
+    Assert(routine.MoveNext() && !s.CanLaunch);
+    Assert(!routine.MoveNext() && s.Phase == MissionContentPhase.Ready && s.CanLaunch && source.Subscribers == 0);
+});
+Check("Blueprinter 2.1.1 failure and cleanup exceptions cannot unlock mission launch", () =>
+{
+    Reset();
+    Install(new Version(2, 1, 1));
+    var s = BlueprinterContentReadiness.Read();
+    Drain(Wrap(Array.Empty<object>().GetEnumerator()));
+    Assert(s.Phase == MissionContentPhase.Failed && !s.CanLaunch && source.Subscribers == 0);
+    var routine = Wrap(Sequence(() => source.Emit(success), () => throw new InvalidOperationException("cleanup failed")));
+    Assert(routine.MoveNext() && !s.CanLaunch);
+    try
+    {
+        routine.MoveNext();
+        throw new Exception("Cleanup exception suppressed");
+    }
+    catch (InvalidOperationException) { }
+    Assert(s.Phase == MissionContentPhase.Failed && !s.CanLaunch && source.Subscribers == 0);
+});
+Check("Blueprinter 2.1.1 late attachment keeps the truthful fallback and no stale subscription", () =>
+{
+    Reset();
+    Install(new Version(2, 1, 1));
+    Blueprinter.EncyclopediaAfterLoadPatch.Started = true;
+    var s = BlueprinterContentReadiness.Read();
+    Assert(s.Phase == MissionContentPhase.Unverified && s.CanLaunch && Harmony.Patches == 0 && source.Subscribers == 0);
 });
 Check("Only the exact known terminal message shape is accepted", () =>
 {

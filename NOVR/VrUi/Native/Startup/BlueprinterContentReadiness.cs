@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace NOVR.VrUi.Native;
 
-// Optional adapter for the locally verified Blueprinter 2.0.1 contract. That
+// Optional adapter for the verified Blueprinter 2.0.1 and 2.1.1 contract. That
 // loader opens its own offline mission during startup, so the existence of a
 // NetworkManager, a bundle signature or a vanished loading screen is NOT ready.
 // Its terminal success message is emitted only after patches/ops and host cleanup.
@@ -47,7 +47,8 @@ internal static class BlueprinterContentReadiness
         try
         {
             var type = plugin.Instance?.GetType();
-            if (plugin.Metadata.Version != new Version(2, 0, 1) || type?.FullName != "Blueprinter.Plugin")
+            var version = plugin.Metadata.Version;
+            if ((version != new Version(2, 0, 1) && version != new Version(2, 1, 1)) || type?.FullName != "Blueprinter.Plugin")
             {
                 Unknown("the installed Blueprinter version is not supported by the readiness adapter");
                 return;
@@ -76,7 +77,7 @@ internal static class BlueprinterContentReadiness
             State.Preparing();
             Application.quitting += Shutdown;
             _quittingHook = true;
-            Debug.Log("[NOVR] Blueprinter 2.0.1 startup readiness tracking enabled.");
+            Debug.Log($"[NOVR] Blueprinter {version} startup readiness tracking enabled.");
         }
         catch (Exception exception)
         {

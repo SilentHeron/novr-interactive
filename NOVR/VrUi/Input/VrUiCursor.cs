@@ -39,6 +39,8 @@ public class VrUiCursor : NOVRBehaviour
     internal bool ControllerOverMap => IsControllerPointer && _controllerPointer.OverMap;
     private readonly ControllerUiPointer _controllerPointer = new();
     private readonly ControllerButtonGate _mouseClick = new();
+    private readonly ControllerButtonGate _mouseRight = new(), _mouseMiddle = new();
+    private readonly UiPointerOwnership _pointerOwnership = new();
     private readonly List<RaycastResult> _mouseRaycastResults = new();
     private EventSystem? _mouseRaycastSystem;
     private PointerEventData? _mouseRaycastData;
@@ -72,18 +74,7 @@ public class VrUiCursor : NOVRBehaviour
         {
             Instance = null;
         }
-        if (_virtualMouse != null)
-        {
-            try
-            {
-                InputSystem.RemoveDevice(_virtualMouse);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[{nameof(VrUiCursor)}] Failed to remove VirtualMouse during OnDestroy: {ex}");
-            }
-            _virtualMouse = null;
-        }
+        DisposeVirtualMouse();
     }
 
     private Texture2D? _texture;
@@ -164,12 +155,30 @@ public class VrUiCursor : NOVRBehaviour
         // Release the previous scene's actions even while the pointer is hidden.
         var currentModule = EventSystem.current?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         if (!_uiBindings.Matches(currentModule))
-            _uiBindings.Release();
-        var camera = UiCamera;
-        if (XRSettings.enabled ? !OpenXRUtility.IsSessionFocused : !Application.isFocused)
         {
-            ReportPointerState("hidden: input focus");
+            if (_uiBindings.IsAcquired)
+            {
+                // A new input module/action must not interpret an old held
+                // desktop button as a new press in the replacement scene.
+                _mouseClick.Reset();
+                _mouseRight.Reset();
+                _mouseMiddle.Reset();
+                _pointerOwnership.Reset();
+                if (_virtualMouse != null)
+                    InputState.Change(_virtualMouse, new MouseState { position = new Vector2(-10000, -10000) });
+            }
+            _uiBindings.Release();
+        }
+        var camera = UiCamera;
+        // A normal desktop launch keeps the native mouse actions. During VR,
+        // desktop focus and XR focus are independent: removing the headset must
+        // not prevent a focused game window from accepting mouse input.
+        if (!XRSettings.enabled || !OpenXRUtility.IsSessionFocused && !Application.isFocused)
+        {
+            ReportPointerState(!XRSettings.enabled ? "native desktop input" : "hidden: input focus");
             HidePointer();
+            if (!XRSettings.enabled)
+                DisposeVirtualMouse();
             return;
         }
         if (_nativeMenu == null && transform.parent != null)
@@ -182,28 +191,57 @@ public class VrUiCursor : NOVRBehaviour
             HidePointer();
             return;
         }
-        if (_virtualMouse == null)
+        if (_realMouse == null || !_realMouse.added)
         {
+            _realMouse = null;
             foreach (var device in InputSystem.devices)
-                if (device is Mouse mouse)
+                if (device is Mouse mouse && mouse != _virtualMouse)
                 {
                     _realMouse = mouse;
                     break;
                 }
-            _virtualMouse = InputSystem.AddDevice<Mouse>("VirtualMouse");
         }
-        // Menus may recreate their EventSystem after a scene transition.
+        if (_texture == null)
+        {
+            HidePointer();
+            return;
+        }
+        EnsureCursorCanvas(camera);
+        var mouseAvailable = Application.isFocused && _realMouse != null;
+        UpdateMouseButton(_mouseClick, mouseAvailable, _realMouse?.leftButton);
+        UpdateMouseButton(_mouseRight, mouseAvailable, _realMouse?.rightButton);
+        UpdateMouseButton(_mouseMiddle, mouseAvailable, _realMouse?.middleButton);
+        var mouseMoved = mouseAvailable && _realMouse!.delta.ReadValue().sqrMagnitude >= 1f;
+        var mouseScrolled = mouseAvailable && _realMouse!.scroll.ReadValue().sqrMagnitude > 0f;
+        var mouseInput = mouseMoved || mouseScrolled || _mouseClick.Pressed || _mouseRight.Pressed || _mouseMiddle.Pressed;
+        var mouseCapture = _mouseClick.Held || _mouseClick.Released || _mouseRight.Held || _mouseRight.Released ||
+                           _mouseMiddle.Held || _mouseMiddle.Released;
+        var controllerAvailable = _controllerPointer.Prepare(camera, OpenXRUtility.IsSessionFocused);
+        var owner = _pointerOwnership.Update(mouseAvailable, mouseInput, mouseCapture,
+            controllerAvailable, _controllerPointer.InputPressed, _controllerPointer.Capturing);
+        if (owner == UiPointerOwner.None)
+        {
+            ReportPointerState("hidden: no available input");
+            HidePointer(false);
+            return;
+        }
+        if (_virtualMouse == null)
+            _virtualMouse = InputSystem.AddDevice<Mouse>("VirtualMouse");
+        // Menus may recreate their EventSystem after a scene transition. Both
+        // input owners use this lease; returning real mouse bindings here would
+        // send a second click in addition to the projected mouse/controller event.
         if (!_uiBindings.Matches(currentModule))
             RestrictUIModuleToVirtualMouse();
-        if (_texture == null)
-            return;
-        EnsureCursorCanvas(camera);
-        var wasController = IsControllerPointer;
-        IsControllerPointer = _controllerPointer.Update(camera);
+        IsControllerPointer = owner == UiPointerOwner.Controller;
         if (IsControllerPointer)
         {
+            _controllerPointer.Dispatch(camera);
             ReportPointerState("controller pointer active");
+            // A mouse press rejected during controller capture is consumed,
+            // not queued until a later movement transfers ownership.
             _mouseClick.Reset();
+            _mouseRight.Reset();
+            _mouseMiddle.Reset();
             _cursor!.SetActive(true);
             _cursor.transform.position = _controllerPointer.HitPosition;
             _cursor.transform.rotation = Quaternion.LookRotation(_controllerPointer.Ray.direction, camera.transform.up);
@@ -218,43 +256,18 @@ public class VrUiCursor : NOVRBehaviour
         }
         else
         {
+            _controllerPointer.Suspend();
             if (_laser != null)
                 _laser.enabled = false;
-            // A background desktop must not feed mouse clicks into the headset.
-            if (!Application.isFocused)
-            {
-                ReportPointerState("hidden: no tracked pointer and desktop unfocused");
-                HidePointer(false);
-                return;
-            }
-            if (_realMouse == null || !_realMouse.added)
-            {
-                _realMouse = null;
-                foreach (var device in InputSystem.devices)
-                    if (device is Mouse mouse && mouse != _virtualMouse)
-                    {
-                        _realMouse = mouse;
-                        break;
-                    }
-                if (_realMouse == null)
-                {
-                    ReportPointerState("hidden: no tracked pointer or mouse");
-                    HidePointer(false);
-                    return;
-                }
-            }
-            ReportPointerState("mouse fallback active");
-            if (wasController)
-                _mouseClick.Reset();
+            ReportPointerState("mouse pointer active");
             UpdateCursorAngles();
-            _mouseClick.Update(true, _realMouse.leftButton.isPressed ? 1f : 0f);
             PrimaryHeld = _mouseClick.Held;
             PrimaryPressed = _mouseClick.Pressed;
-            Scroll = _realMouse.scroll.ReadValue();
+            Scroll = _realMouse!.scroll.ReadValue();
             ushort buttons = PrimaryHeld ? (ushort)1 : (ushort)0;
-            if (_realMouse.rightButton.isPressed)
+            if (_mouseRight.Held)
                 buttons |= 2;
-            if (_realMouse.middleButton.isPressed)
+            if (_mouseMiddle.Held)
                 buttons |= 4;
             InputState.Change(_virtualMouse, new MouseState
             {
@@ -265,6 +278,15 @@ public class VrUiCursor : NOVRBehaviour
             });
         }
         UpdateCursorAnimation();
+    }
+
+    private static void UpdateMouseButton(ControllerButtonGate gate, bool available, UnityEngine.InputSystem.Controls.ButtonControl? button)
+    {
+        // Unlike a held button on focus/tracking restoration, an actual fresh
+        // mouse-down may also be the first frame this menu exists. Accept it.
+        if (available && button?.wasPressedThisFrame == true && !gate.Held)
+            gate.Update(true, 0f);
+        gate.Update(available, button?.isPressed == true ? 1f : 0f);
     }
 
     private void ReportPointerState(string state)
@@ -291,7 +313,10 @@ public class VrUiCursor : NOVRBehaviour
         // observation here so an available non-owner can deliberately take over.
         if (cancelController)
             _controllerPointer.Cancel();
+        _pointerOwnership.Reset();
         _mouseClick.Reset();
+        _mouseRight.Reset();
+        _mouseMiddle.Reset();
         IsControllerPointer = PrimaryHeld = PrimaryPressed = false;
         Scroll = Vector2.zero;
         if (_cursor != null)
@@ -300,6 +325,7 @@ public class VrUiCursor : NOVRBehaviour
             _laser.enabled = false;
         if (_virtualMouse != null)
             InputState.Change(_virtualMouse, new MouseState { position = new Vector2(-10000, -10000) });
+        _uiBindings.Release();
     }
 
     private void UpdateLaser(Vector3 start, Vector3 end)
@@ -335,7 +361,27 @@ public class VrUiCursor : NOVRBehaviour
         finally
         {
             _uiBindings.Release();
+            DisposeVirtualMouse();
             base.OnDisable();
+        }
+    }
+
+    private void DisposeVirtualMouse()
+    {
+        if (_virtualMouse == null)
+            return;
+        try
+        {
+            // Once native desktop bindings are restored, our offscreen device
+            // must no longer match <Mouse> or shadow Mouse.current.
+            InputSystem.RemoveDevice(_virtualMouse);
+            _virtualMouse = null;
+            if (_realMouse != null && _realMouse.added)
+                _realMouse.MakeCurrent();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[{nameof(VrUiCursor)}] Failed to remove VirtualMouse: {ex}");
         }
     }
 

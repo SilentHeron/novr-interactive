@@ -30,6 +30,8 @@ internal sealed class ControllerUiPointer
     }
     internal bool Held => Trigger.Held;
     internal bool Pressed => Trigger.Pressed;
+    internal bool InputPressed => _hands.InputPressed;
+    internal bool Capturing => Trigger.Held || Trigger.Released;
     internal Vector2 Scroll
     {
         get; private set;
@@ -45,12 +47,22 @@ internal sealed class ControllerUiPointer
 
     internal bool Update(Camera camera)
     {
+        if (!Prepare(camera))
+            return false;
+        Dispatch(camera);
+        return true;
+    }
+
+    // Observe button edges even while the mouse owns the UI. Dispatch only
+    // after ownership is decided, so a takeover click is neither lost nor sent twice.
+    internal bool Prepare(Camera camera, bool inputAllowed = true)
+    {
         var settings = ModConfiguration.Instance;
         var leftHand = TrackedControllers.Read(true);
         var rightHand = TrackedControllers.Read(false);
         var leftAvailable = leftHand.Valid && !HelmetNightVision.OwnsHand(true) && !NativeHandOptionWheel.OwnsHand(true);
         var rightAvailable = rightHand.Valid && !HelmetNightVision.OwnsHand(false) && !NativeHandOptionWheel.OwnsHand(false);
-        if (!settings.ControllerBindings.PointerEnabled.Value || (!leftAvailable && !rightAvailable) || EventSystem.current == null)
+        if (!inputAllowed || !settings.ControllerBindings.PointerEnabled.Value || (!leftAvailable && !rightAvailable) || EventSystem.current == null)
         {
             Cancel();
             return false;
@@ -91,8 +103,13 @@ internal sealed class ControllerUiPointer
             Scroll = Vector2.zero;
             return false;
         }
-        var hand = _hands.Left ? leftHand : rightHand;
         Ray = _hands.Left ? leftRay : rightRay;
+        return true;
+    }
+
+    internal void Dispatch(Camera camera)
+    {
+        var hand = TrackedControllers.Read(_hands.Left);
         var hit = Raycast(Ray, camera);
         HitPosition = hit.gameObject != null ? hit.worldPosition : Ray.GetPoint(5);
         var eventCamera = hit.module != null ? hit.module.eventCamera ?? camera : camera;
@@ -135,7 +152,6 @@ internal sealed class ControllerUiPointer
             Release(false);
         if (Scroll.sqrMagnitude > 0 && !OverMap)
             ExecuteEvents.ExecuteHierarchy(hit.gameObject, data, ExecuteEvents.scrollHandler);
-        return true;
     }
 
     private static bool Interactive(GameObject? target)
@@ -285,10 +301,15 @@ internal sealed class ControllerUiPointer
 
     internal void Cancel()
     {
-        Release(true);
-        SetHover(null);
+        Suspend();
         _hands.Reset();
         _hasPose[0] = _hasPose[1] = false;
+    }
+
+    internal void Suspend()
+    {
+        Release(true);
+        SetHover(null);
         OverMap = OverInteractive = false;
         Scroll = Vector2.zero;
     }

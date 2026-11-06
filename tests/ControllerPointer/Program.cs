@@ -228,7 +228,8 @@ foreach (var wheel in new[] { false, true })
     Check(s.Pointer.Ray.origin.x < 0, "A released reserved hand can deliberately acquire the pointer");
 }
 
-Console.WriteLine($"Controller pointer: {checks} assertions passed (production dispatch + hand ownership; no headset simulation).");
+checks += CursorChecks.Run();
+Console.WriteLine($"Controller pointer: {checks} assertions passed (production cursor, focus, dispatch and ownership; no headset simulation).");
 
 sealed class Scene
 {

@@ -7,6 +7,7 @@ namespace UnityEngine
     public class Object
     {
         public bool Destroyed; public string name = "";
+        public static void Destroy(Object value) => value.Destroyed = true;
         public static bool operator ==(Object? a, Object? b) => ReferenceEquals(a, b) || a is null && b!.Destroyed || b is null && a!.Destroyed;
         public static bool operator !=(Object? a, Object? b) => !(a == b);
         public override bool Equals(object? o) => this == o as Object;
@@ -15,7 +16,8 @@ namespace UnityEngine
     public class Component : Object
     {
         public GameObject gameObject = null!; public Transform transform => gameObject.transform;
-        public T? GetComponent<T>() where T : class => gameObject.GetComponent<T>();
+        public T GetComponent<T>() where T : class => gameObject.GetComponent<T>();
+        public T? GetComponentInChildren<T>(bool includeInactive) where T : class => gameObject.GetComponent<T>();
     }
     public class Behaviour : Component
     {
@@ -37,7 +39,8 @@ namespace UnityEngine
             Components.Add(c);
             return c;
         }
-        public T? GetComponent<T>() where T : class => Components.OfType<T>().FirstOrDefault(c => c is not Object o || !o.Destroyed);
+        public T GetComponent<T>() where T : class => Components.OfType<T>().FirstOrDefault(c => c is not Object o || !o.Destroyed)!;
+        public void SetActive(bool value) => activeSelf = value;
         public T? GetComponentInParent<T>() where T : class
         {
             for (Transform? p = transform; p != null; p = p.parent)
@@ -53,6 +56,7 @@ namespace UnityEngine
     {
         public Transform? parent; public Vector3 position; public Quaternion rotation = Quaternion.identity; public Vector3 localScale = new(1, 1, 1);
         public Vector3 forward => rotation * Vector3.forward; public Vector3 up => rotation * new Vector3(0, 1, 0);
+        public void SetParent(Transform value, bool worldPositionStays) => parent = value;
         public Vector3 TransformPoint(Vector3 v) => position + rotation * new Vector3(v.x * localScale.x, v.y * localScale.y, v.z * localScale.z);
         public Vector3 InverseTransformPoint(Vector3 v) => InverseTransformVector(v - position);
         public Vector3 InverseTransformVector(Vector3 v)
@@ -71,6 +75,7 @@ namespace UnityEngine
     public sealed class RectTransform : Transform
     {
         public Rect rect = new(-.5f, -.5f, 1, 1);
+        public Vector2 sizeDelta;
     }
     public readonly record struct Rect(float x, float y, float width, float height)
     {
@@ -81,10 +86,12 @@ namespace UnityEngine
         public static Vector2 zero => default; public float sqrMagnitude => x * x + y * y;
         public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.x - b.x, a.y - b.y);
         public static explicit operator Vector2(Vector3 a) => new(a.x, a.y);
+        public static float Distance(Vector2 a, Vector2 b) => MathF.Sqrt((a - b).sqrMagnitude);
     }
     public readonly record struct Vector3(float x, float y, float z)
     {
         internal N.Vector3 Numerics => new(x, y, z); internal static Vector3 From(N.Vector3 n) => new(n.X, n.Y, n.Z);
+        public static Vector3 one => new(1, 1, 1);
         public static Vector3 forward => new(0, 0, 1); public static Vector3 zero => default;
         public static Vector3 operator +(Vector3 a, Vector3 b) => From(a.Numerics + b.Numerics); public static Vector3 operator -(Vector3 a, Vector3 b) => From(a.Numerics - b.Numerics);
         public static Vector3 operator -(Vector3 a) => new(-a.x, -a.y, -a.z); public static Vector3 operator *(Vector3 a, float b) => From(a.Numerics * b); public static float Dot(Vector3 a, Vector3 b) => N.Vector3.Dot(a.Numerics, b.Numerics);
@@ -97,6 +104,8 @@ namespace UnityEngine
         public static Quaternion operator *(Quaternion a, Quaternion b) => new(a.Value * b.Value);
         public static Vector3 operator *(Quaternion a, Vector3 b) => Vector3.From(N.Vector3.Transform(b.Numerics, a.Value));
         public static Quaternion Slerp(Quaternion a, Quaternion b, float t) => new(N.Quaternion.Slerp(a.Value, b.Value, t));
+        public static Quaternion LookRotation(Vector3 direction, Vector3 up) => Forward(direction);
+        public static Quaternion Euler(float x, float y, float z) => new(N.Quaternion.CreateFromYawPitchRoll(y * MathF.PI / 180, x * MathF.PI / 180, z * MathF.PI / 180));
         public static Quaternion Forward(Vector3 direction)
         {
             var d = N.Vector3.Normalize(direction.Numerics);
@@ -128,6 +137,7 @@ namespace UnityEngine
     }
     public sealed class Camera : Behaviour
     {
+        public float nearClipPlane = .01f;
         public enum MonoOrStereoscopicEye
         {
             Mono
@@ -138,6 +148,11 @@ namespace UnityEngine
             return new(point.x / point.z * 1000, point.y / point.z * 1000, point.z);
         }
         public Ray ScreenRay(Vector2 p) => new(transform.position, transform.rotation * Vector3.From(N.Vector3.Normalize(new(p.x / 1000, p.y / 1000, 1))));
+        public Vector3 WorldToViewportPoint(Vector3 p, MonoOrStereoscopicEye eye)
+        {
+            var screen = WorldToScreenPoint(p, eye);
+            return new(screen.x / Screen.width, screen.y / Screen.height, screen.z);
+        }
     }
     public enum RenderMode
     {
@@ -146,6 +161,7 @@ namespace UnityEngine
     public sealed class Canvas : Behaviour
     {
         public RenderMode renderMode = RenderMode.WorldSpace; public int sortingLayerID, sortingOrder;
+        public float planeDistance; public bool overrideSorting, pixelPerfect;
     }
     public static class SortingLayer
     {
@@ -154,6 +170,12 @@ namespace UnityEngine
     public static class Mathf
     {
         public static float Min(float a, float b) => Math.Min(a, b);
+        public static float Max(float a, float b) => Math.Max(a, b);
+        public static float Clamp(float value, float min, float max) => Math.Clamp(value, min, max);
+        public static float Clamp01(float value) => Clamp(value, 0, 1);
+        public static float Sin(float value) => MathF.Sin(value);
+        public static float Lerp(float a, float b, float value) => a + (b - a) * Clamp01(value);
+        public const float PI = MathF.PI;
     }
     public static class Time
     {
@@ -164,6 +186,8 @@ namespace UnityEngine
         public static void Log(object message)
         {
         }
+        public static void LogWarning(object message) { }
+        public static void LogError(object message) { }
     }
 }
 namespace UnityEngine.EventSystems
@@ -172,6 +196,7 @@ namespace UnityEngine.EventSystems
     {
         public static EventSystem? current; public int pixelDragThreshold = 5; public GameObject? currentSelectedGameObject;
         public void SetSelectedGameObject(GameObject? target, PointerEventData data) => currentSelectedGameObject = target;
+        public void RaycastAll(PointerEventData data, List<RaycastResult> results) => results.Clear();
     }
     public class BaseRaycaster : Behaviour
     {
@@ -179,7 +204,7 @@ namespace UnityEngine.EventSystems
     }
     public struct RaycastResult
     {
-        public GameObject? gameObject; public BaseRaycaster? module; public float distance; public Vector3 worldPosition, worldNormal; public Vector2 screenPosition; public int depth, sortingLayer, sortingOrder;
+        public GameObject gameObject; public BaseRaycaster? module; public float distance; public Vector3 worldPosition, worldNormal; public Vector2 screenPosition; public int depth, sortingLayer, sortingOrder;
     }
     public sealed class PointerEventData(EventSystem system)
     {
@@ -194,11 +219,13 @@ namespace UnityEngine.EventSystems
         public readonly List<GameObject> hovered = new(); public bool eligibleForClick, dragging, useDragThreshold;
         public Camera? pressEventCamera => pointerPressRaycast.module?.eventCamera;
         public EventSystem eventSystem => system;
+        public void Reset() { }
     }
     public interface IPointerClickHandler
     {
         void OnPointerClick(PointerEventData d);
     }
+    public interface ISubmitHandler { }
     public interface IPointerDownHandler
     {
         void OnPointerDown(PointerEventData d);
@@ -318,6 +345,7 @@ namespace NOVR
     public static class LayerHelper
     {
         public static int GetVrUiLayer() => 30;
+        public static void SetLayerRecursive(UnityEngine.Transform root, int layer) => root.gameObject.layer = layer;
     }
     public sealed class ModConfiguration
     {

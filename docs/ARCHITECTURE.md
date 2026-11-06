@@ -151,6 +151,11 @@ rows only bind controls to it. `VirtualMouseBindingOwnership` borrows the native
 UI actions, restoring each override tuple only if it still matches NOVR's change.
 Module replacement and cursor disable/destroy release ownership before removing
 the virtual device; unrelated external rebindings are preserved.
+`UiPointerOwnership` arbitrates deliberate desktop mouse input against controller
+button input before either pointer dispatches events. Idle tracking never takes
+the pointer back from the mouse. Active gestures retain their release frame,
+and ignored presses cannot become deferred clicks. Desktop and XR focus are
+checked independently; hidden or non-VR cursors release the native UI bindings.
 
 ## Asynchronous native menus
 

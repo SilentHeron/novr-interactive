@@ -10,7 +10,7 @@ namespace NOVR;
 [BepInPlugin(
     "deltawing.novr",
     "NOVR Interactive",
-    "0.4.8.31")]
+    "0.4.8.32")]
 public class NOVRPlugin : BaseUnityPlugin
 {
     public static string ModFolderPath { get; private set; } = string.Empty;

@@ -13,6 +13,7 @@ internal sealed class PointerHandSelection
         get; private set;
     } // Right initially; retain the last chosen hand across menus.
     internal ControllerButtonGate Trigger => Left ? _left : _right;
+    internal bool InputPressed { get; private set; }
 
     internal void Update(bool leftAvailable, float leftTrigger, float leftGrip, uint leftButtons,
         bool rightAvailable, float rightTrigger, float rightGrip, uint rightButtons)
@@ -23,6 +24,7 @@ internal sealed class PointerHandSelection
         _rightGrip.Update(rightAvailable, rightGrip);
         var leftPressed = ButtonPressed(leftAvailable, leftButtons, ref _leftValid, ref _leftButtons) || _left.Pressed || _leftGrip.Pressed;
         var rightPressed = ButtonPressed(rightAvailable, rightButtons, ref _rightValid, ref _rightButtons) || _right.Pressed || _rightGrip.Pressed;
+        InputPressed = leftPressed || rightPressed;
         // Consume both hands' edges even during capture: a press ignored while
         // dragging must not become a delayed takeover when the drag ends.
         if (Trigger.Held || Trigger.Released)
@@ -47,5 +49,6 @@ internal sealed class PointerHandSelection
         _rightGrip.Reset();
         _leftValid = _rightValid = false;
         _leftButtons = _rightButtons = 0;
+        InputPressed = false;
     }
 }

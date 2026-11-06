@@ -10,7 +10,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.8.31**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
+Experimental version **0.4.8.32**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
 
 ## Install
 
@@ -72,7 +72,7 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **Game graphics:** View → VR performance → Game graphics adjusts the game's tree distance, shadow quality and cloud detail. Lower settings can help in scenes heavy with trees, shadows or clouds. Existing settings stay unchanged until you adjust them.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.31.md)
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.32.md)
 
 ## Build
 
