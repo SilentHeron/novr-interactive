@@ -31,6 +31,9 @@
   hidden immediately on the minimized map, as native code does one second later.
 - Hit markers are projected along the hit direction instead of flat-screen
   pixel coordinates.
+- Cycling weapons no longer flashes an oversized targeting symbol. The game
+  builds a new native-size weapon widget on every switch, and NOVR resized it
+  only on its next half-second scan; the widget is now sized as it is created.
 - Crashes that leave the pilot alive in an intact cockpit no longer strand you.
   When the cockpit detaches or the airframe is destroyed, the thumbstick wheel
   now adds **EJECT** (same centred 1.2-second hold) beside Game Menu, VR Menu
@@ -62,5 +65,5 @@
   reads as a grey wall around the horizon. Nearby clouds and the cloud layer stay.
 
 Foveation changes need a native Windows/NVIDIA/Direct3D 11 playtest; the source
-checks establish the mapping, not image quality. Nothing changes antialiasing,
-headset resolution or SteamVR settings. One package for Windows and Linux/Proton.
+checks establish the mapping, not image quality. Apart from restoring the game
+camera's own SMAA, nothing changes MSAA, headset resolution or SteamVR settings. One package for Windows and Linux/Proton.

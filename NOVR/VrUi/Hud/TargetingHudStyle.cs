@@ -53,7 +53,14 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         if (_targetInfoStyle != null)
             _targetInfoStyle.SetAircraftLabelAffiliation(AircraftLabelAffiliation.Other);
     }
-    private void OnDisable() => RestoreAircraftLabels();
+    private static int _enabledCount;
+    internal static bool Styling => _enabledCount > 0;
+    private void OnEnable() => _enabledCount++;
+    private void OnDisable()
+    {
+        _enabledCount--;
+        RestoreAircraftLabels();
+    }
 
     private void LateUpdate()
     {
@@ -75,41 +82,48 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         if (flight == null)
             return;
         foreach (var state in flight.GetComponentsInChildren<HUDWeaponState>(true))
+            StyleWeaponState(state);
+    }
+
+    // CombatHUD.ShowWeaponStation destroys the previous weapon widget and
+    // instantiates a fresh native-size prefab on every switch. The periodic
+    // scan above would leave it unstyled (about twice the VR size) for up to
+    // half a second, so the switch patch styles it before its first frame.
+    internal static void StyleWeaponState(HUDWeaponState state)
+    {
+        var widget = state is HUDMissileState || state is HUDLaserGuidedState || state is HUDCargoState;
+        if (widget)
         {
-            var widget = state is HUDMissileState || state is HUDLaserGuidedState || state is HUDCargoState;
-            if (widget)
+            // Scale every part around the authored widget origin, including
+            // static labels/artwork that have no serialized script field.
+            // Target-designator objects are outside this hierarchy.
+            foreach (var graphic in state.GetComponentsInChildren<Graphic>(true))
+                // TMP's parent callback already styles every material mesh.
+                if (graphic is not TMP_SubMeshUI)
+                    HudElementStyle.Add(graphic, HudElementKind.Weapon, state.transform);
+            return;
+        }
+        foreach (var field in state.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+        {
+            void Register(Graphic g)
             {
-                // Scale every part around the authored widget origin, including
-                // static labels/artwork that have no serialized script field.
-                // Target-designator objects are outside this hierarchy.
-                foreach (var graphic in state.GetComponentsInChildren<Graphic>(true))
-                    // TMP's parent callback already styles every material mesh.
-                    if (graphic is not TMP_SubMeshUI)
-                        HudElementStyle.Add(graphic, HudElementKind.Weapon, state.transform);
-                continue;
+                // Shared target-designator graphics belong to the flight HUD.
+                if (!g.transform.IsChildOf(state.transform))
+                    return;
+                var kind = g is TMP_Text ? HudElementKind.Label :
+                    field.Name == "line" ? HudElementKind.HorizontalLine :
+                    field.Name == "ccipLine" || field.Name == "alignmentBar" ? HudElementKind.VerticalLine : HudElementKind.Reticle;
+                HudElementStyle.Add(g, kind);
             }
-            foreach (var field in state.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+            if (typeof(Graphic).IsAssignableFrom(field.FieldType))
             {
-                void Register(Graphic g)
-                {
-                    // Shared target-designator graphics belong to the flight HUD.
-                    if (!g.transform.IsChildOf(state.transform))
-                        return;
-                    var kind = g is TMP_Text ? HudElementKind.Label :
-                        field.Name == "line" ? HudElementKind.HorizontalLine :
-                        field.Name == "ccipLine" || field.Name == "alignmentBar" ? HudElementKind.VerticalLine : HudElementKind.Reticle;
-                    HudElementStyle.Add(g, kind);
-                }
-                if (typeof(Graphic).IsAssignableFrom(field.FieldType))
-                {
-                    if (field.GetValue(state) is Graphic g)
+                if (field.GetValue(state) is Graphic g)
+                    Register(g);
+            }
+            else if (typeof(Graphic[]).IsAssignableFrom(field.FieldType) && field.GetValue(state) is Graphic[] graphics)
+                foreach (var g in graphics)
+                    if (g != null)
                         Register(g);
-                }
-                else if (typeof(Graphic[]).IsAssignableFrom(field.FieldType) && field.GetValue(state) is Graphic[] graphics)
-                    foreach (var g in graphics)
-                        if (g != null)
-                            Register(g);
-            }
         }
     }
 }

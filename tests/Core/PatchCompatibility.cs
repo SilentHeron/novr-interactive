@@ -224,6 +224,18 @@ internal static class PatchCompatibility
             !selectCalls.Any(m => m.DeclaringType.Name == "WeaponManager" && m.Name == "AddTargetList") ||
             !selectCalls.Any(m => m.DeclaringType.Name == "SoundManager" && m.Name == "PlayInterfaceOneShot"))
             failures.Add("Native SelectUnit no longer applies marker, weapon-target and sound updates together.");
+        // The weapon-switch styling postfix reads weaponState after the native
+        // method returns, so every widget the game creates must be stored there
+        // by ShowWeaponStation itself, after an Instantiate in the same method.
+        var weaponStateWriters = combatHud.Methods.Where(m => m.HasBody && m.Body.Instructions.Any(i =>
+            i.OpCode == Mono.Cecil.Cil.OpCodes.Stfld && i.Operand is FieldReference f &&
+            f.Name == "weaponState" && f.DeclaringType.Name == "CombatHUD")).ToArray();
+        var showStation = combatHud.Methods.SingleOrDefault(m => m.Name == "ShowWeaponStation");
+        if (showStation == null || !showStation.IsPublic || showStation.IsStatic || showStation.Parameters.Count != 1 ||
+            showStation.Parameters[0].ParameterType.FullName != "WeaponStation" ||
+            weaponStateWriters.Length != 1 || weaponStateWriters[0] != showStation ||
+            !showStation.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "Instantiate"))
+            failures.Add("Native weapon widgets are no longer created only in CombatHUD.ShowWeaponStation; the switch styling patch needs review.");
         var addTarget = game.MainModule.Types.Single(t => t.Name == "WeaponManager").Methods.Single(m => m.Name == "AddTargetList");
         if (!addTarget.Body.Instructions.Any(i => i.Operand is MethodReference m &&
             m.DeclaringType.Name == "WeaponManager" && m.Name == "TargetListChanged"))
