@@ -31,6 +31,7 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> SeatClearanceEnabled;
     public readonly ConfigEntry<float> SeatClearanceRadius;
     public readonly ConfigEntry<float> VrFarClipDistance;
+    public readonly ConfigEntry<bool> HideDistantCloudsInVr;
 
     public ModConfiguration(ConfigFile config)
     {
@@ -49,6 +50,8 @@ public class ModConfiguration
         VrFarClipDistance = config.Bind("VR View", "Far Clip Distance", VrCamera.VrFarClipPolicy.Default,
             new ConfigDescription("Minimum far clip distance in metres for the tracked VR view. The game's camera stops at 80 km; at altitude that cut shows as a flat wall of fogged terrain that pivots with your head. Only extends the game's value; 0 keeps it.",
                 new AcceptableValueRange<float>(0f, VrCamera.VrFarClipPolicy.Maximum)));
+        HideDistantCloudsInVr = config.Bind("VR View", "Hide Distant Cloud Banks", true,
+            "Hide the game's ring of distant cloud meshes (10-40 km out, shown when weather coverage is above 10%, as on most multiplayer servers) while in VR, where it appears as a grey wall around the horizon. Nearby clouds and the cloud layer are unchanged.");
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
             "Context shows the look-direction cue only near a selectable target that is not already in your target list. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
         LookCue = new MotionControls.GazeCueSettings(config);

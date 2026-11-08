@@ -32,6 +32,11 @@
   altitude the 80 km cut shows as a flat grey wall that pivots with head turns.
   The grass/tree detail window is centred along the aircraft's forward instead
   of the head, so its edge no longer swings when looking around.
+- Distant cloud banks are hidden in VR by default (**View → VR performance →
+  Hide distant cloud banks**, applies live). With weather coverage above 10%,
+  as on most multiplayer servers, the game rings you with about 300 cloud meshes
+  of 1.2 km and up, 10-40 km out at the cloud height; in the headset that ring
+  reads as a grey wall around the horizon. Nearby clouds and the cloud layer stay.
 
 Foveation changes need a native Windows/NVIDIA/Direct3D 11 playtest; the source
 checks establish the mapping, not image quality. Nothing changes antialiasing,

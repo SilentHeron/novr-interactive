@@ -74,6 +74,8 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **HUD symbol size:** target and location symbols, marker labels and reticles follow **Flight HUD Scale** (relative to its 38% default) when **Symbols Follow Flight HUD Scale** is on, in addition to their own sliders under View → HUD & markers → Symbols. The game's HMD icon size setting and its distance-based marker shrink still apply underneath.
 
+**Distant cloud banks:** with cloudy weather (most multiplayer servers) the game rings you with large distant cloud meshes that read as a grey wall around the horizon in VR. They are hidden in VR by default; toggle **View → VR performance → Hide distant cloud banks** to compare live.
+
 **View distance:** the game's camera stops rendering 80 km out, which a head-tracked view at altitude sees as a flat grey wall that pivots with your head. NOVR extends the tracked VR view's far plane to 250 km by default; **VR View → Far Clip Distance** in the BepInEx config is a minimum (0 keeps the game's value). The grass and tree detail window also stays centred on the aircraft's forward instead of swinging with your head.
 
 [Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.33.md)

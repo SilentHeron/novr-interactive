@@ -93,6 +93,8 @@ internal sealed partial class WristMenu
         _liveLabels.Add((performanceInfo, () => PcVrCapabilities.Report));
         var foveationPage = BuildFixedFoveationPage();
         var graphicsPage = BuildGameGraphicsPage();
+        Setting(parent, "Hide distant cloud banks", () => GameplayPatches.DistantCloudBanks.HideInVr,
+            GameplayPatches.DistantCloudBanks.SetHideInVr, 0, -166);
         ActionButton(parent, "Foveated rendering  ›", 0, -211, () => ShowPage(foveationPage));
         ActionButton(parent, "Game graphics  ›", 1, -211, () => ShowPage(graphicsPage));
     }
