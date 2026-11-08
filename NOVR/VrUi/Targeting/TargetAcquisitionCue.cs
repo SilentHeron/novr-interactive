@@ -5,7 +5,8 @@ using UnityEngine.XR;
 
 namespace NOVR.MotionControls;
 
-// A readable hollow circle whose adjusted centre defines the selection ray.
+// NOVR's own look-direction cue (the game's diamond by default) replaces the
+// native designator image; its adjusted centre defines the selection ray.
 [DefaultExecutionOrder(110)]
 internal sealed class TargetAcquisitionCue : MonoBehaviour
 {

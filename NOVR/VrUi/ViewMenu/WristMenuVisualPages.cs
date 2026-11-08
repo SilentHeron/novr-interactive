@@ -126,7 +126,7 @@ internal sealed partial class WristMenu
         Section(parent, "Appearance", 214);
         Setting(parent, "Size", cue.Size, 159, Percent, .05f);
         Setting(parent, "Opacity", cue.Opacity, 89, Percent, .01f);
-        Choice(parent, "Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets" }, () => (int)cue.CurrentShape, value => cue.Shape.Value = (GazeCueShape)value, 17);
+        Choice(parent, "Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets", "Diamond" }, () => (int)cue.CurrentShape, value => cue.Shape.Value = (GazeCueShape)value, 17);
         Choice(parent, "Show cue", new[] { "Near targets", "Always", "Off" }, () => (int)config.TargetCue.Value, value => config.TargetCue.Value = (TargetCueMode)value, -59);
         Setting(parent, "Vertical position", cue.VerticalDegrees, -140, _ => cue.PositionLabel, .25f);
         CompactAction(ActionButton(parent, "Reset cue", 0, -213, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; }), 0, 3);

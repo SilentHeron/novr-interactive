@@ -63,15 +63,18 @@ Check(tracked != null && !main.enabled && tracked.enabled, "Main root transfers 
 Check(tracked.fieldOfView == 75 && tracked.tag == "MainCamera" && main.tag == "Untagged", "Native camera settings and main ownership preserved");
 Check(tracked.GetComponent<UniversalAdditionalCameraData>()!.cameraStack.Single() == overlay, "Native overlay stack is copied intact");
 var trackedData = tracked.GetComponent<UniversalAdditionalCameraData>()!;
-Check(trackedData.antialiasing == AntialiasingMode.SubpixelMorphologicalAntiAliasing && trackedData.antialiasingQuality == AntialiasingQuality.Medium,
-    "The tracked view inherits the native camera's post-process anti-aliasing (stock SMAA Medium)");
-NOVR.ModConfiguration.Instance.VrGameAntialiasing.Value = false;
-update();
-Check(trackedData.antialiasing == AntialiasingMode.None, "Turning the VR preference off removes post-process anti-aliasing live");
+Check(trackedData.antialiasing == AntialiasingMode.None,
+    "By default the tracked view skips the native camera's costly post-process anti-aliasing");
 NOVR.ModConfiguration.Instance.VrGameAntialiasing.Value = true;
+update();
+Check(trackedData.antialiasing == AntialiasingMode.SubpixelMorphologicalAntiAliasing && trackedData.antialiasingQuality == AntialiasingQuality.Medium,
+    "Opting in applies the native camera's post-process anti-aliasing live (stock SMAA Medium)");
 originalData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
 update();
-Check(trackedData.antialiasing == AntialiasingMode.FastApproximateAntialiasing, "A native change to the base camera's anti-aliasing is followed");
+Check(trackedData.antialiasing == AntialiasingMode.FastApproximateAntialiasing, "While opted in, a native change to the base camera's anti-aliasing is followed");
+NOVR.ModConfiguration.Instance.VrGameAntialiasing.Value = false;
+update();
+Check(trackedData.antialiasing == AntialiasingMode.None, "Opting out removes post-process anti-aliasing live");
 originalData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
 update();
 Check(!listener.enabled && tracked.GetComponent<AudioListener>()!.enabled, "Audio listener moves to tracked view");

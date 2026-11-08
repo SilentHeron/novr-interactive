@@ -87,7 +87,7 @@ internal static class FoveationMenuChecks
         check(widgets.Where(w => w.Label == "Live text").Select(w => w.Height).SequenceEqual(new[] { 32f, 94f }),
             "The page reserves distinct gaze text and a four-line runtime status area.");
         check(supported.Notes.Any(note => note.Contains("test levels")) &&
-              supported.Notes.Any(note => note.Contains("4×4") && note.Contains("Keep MSAA on") && !note.Contains("needs MSAA off")) &&
+              supported.Notes.Any(note => note.Contains("4×4") && note.Contains("MSAA off") && note.Contains("2×2")) &&
               supported.Notes.Any(note => note.Contains("world opaques") && note.Contains("whole-frame line")),
             "Visible notes identify the aggressive test levels, MSAA rate cap and measurement scope.");
     }

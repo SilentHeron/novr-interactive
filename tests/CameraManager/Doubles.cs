@@ -176,7 +176,7 @@ namespace NOVR
     {
         internal static ModConfiguration Instance = new();
         internal readonly BepInEx.Configuration.ConfigEntry<float> VrFarClipDistance = new(VrCamera.VrFarClipPolicy.Default);
-        internal readonly BepInEx.Configuration.ConfigEntry<bool> VrGameAntialiasing = new(true);
+        internal readonly BepInEx.Configuration.ConfigEntry<bool> VrGameAntialiasing = new(false);
     }
 }
 namespace UnityEngine.Rendering.Universal

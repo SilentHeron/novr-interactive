@@ -474,9 +474,8 @@ struct NvRateAdapter
         NV_D3D11_VIEWPORT_SHADING_RATE_DESC viewport{};
         viewport.enableVariablePixelShadingRate = true;
         for (auto& entry : viewport.shadingRateTable) entry = NV_PIXEL_X1_PER_RASTER_PIXEL;
-        viewport.shadingRateTable[1] = rates.middle == novr::foveation::PixelRate::Full ? NV_PIXEL_X1_PER_RASTER_PIXEL
-            : rates.middle == novr::foveation::PixelRate::HalfHorizontal ? NV_PIXEL_X1_PER_2X1_RASTER_PIXELS
-            : NV_PIXEL_X1_PER_2X2_RASTER_PIXELS;
+        viewport.shadingRateTable[1] = rates.middle == novr::foveation::PixelRate::HalfHorizontal
+            ? NV_PIXEL_X1_PER_2X1_RASTER_PIXELS : NV_PIXEL_X1_PER_2X2_RASTER_PIXELS;
         viewport.shadingRateTable[2] = rates.outer == novr::foveation::PixelRate::Sixteenth
             ? NV_PIXEL_X1_PER_4X4_RASTER_PIXELS : NV_PIXEL_X1_PER_2X2_RASTER_PIXELS;
         NV_D3D11_VIEWPORTS_SHADING_RATE_DESC desc{};

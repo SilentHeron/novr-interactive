@@ -334,7 +334,7 @@ public partial class NativeSettingsPanel : MonoBehaviour
             MotionControls.GazeCueSettings.MinSize, MotionControls.GazeCueSettings.MaxSize, .1f, value => $"{value * 100:0}%");
         AddFloatRow("Cue Opacity", () => cue.Alpha, value => cue.Opacity.Value = value,
             MotionControls.GazeCueSettings.MinOpacity, 1, .05f, value => $"{value * 100:0}%");
-        AddOptionRow("Cue Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets" }, () => (int)cue.CurrentShape,
+        AddOptionRow("Cue Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets", "Diamond" }, () => (int)cue.CurrentShape,
             value => cue.Shape.Value = (MotionControls.GazeCueShape)value);
         AddOptionRow("Show Cue", new[] { "Near targets", "Always", "Off" }, () => (int)config.TargetCue.Value,
             value => config.TargetCue.Value = (MotionControls.TargetCueMode)value);

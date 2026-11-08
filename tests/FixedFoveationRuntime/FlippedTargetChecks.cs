@@ -70,12 +70,9 @@ internal static class FlippedTargetChecks
             check(Native.AcquiredScopes[^1].Y > 1 - FixedY(eye), "Looking up moves a flipped centre toward the last rows, where the image top is drawn.");
             check(FixedFoveationRuntime.EyeTrackingStatus.Contains("following tracked eyes"),
                 "Mirroring the centre is not reported as a tracking fallback.");
-            var scale = FixedFoveationPolicy.AngularScale(projections[eye].m00, projections[eye].m11);
-            FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, false, false, scale, out var fixedInner, out var fixedOuter);
-            FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, true, false, scale, out var trackedInner, out var trackedOuter);
-            check(Math.Abs(Native.AcquiredScopes[^1].Inner - trackedInner) < .00001f && Math.Abs(Native.AcquiredScopes[^1].Outer - trackedOuter) < .00001f &&
-                  trackedInner > fixedInner && trackedOuter > fixedOuter,
-                "Tracked gaze protects a wider region than the fixed-centre preset to cover eye-tracking lag.");
+            FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, out var presetInner, out var presetOuter);
+            check(Math.Abs(Native.AcquiredScopes[^1].Inner - presetInner) < .00001f && Math.Abs(Native.AcquiredScopes[^1].Outer - presetOuter) < .00001f,
+                "Tracked gaze moves the preset region without widening its full-rate area.");
         }
 
         // Fallbacks must mirror as well: an untracked eye on a flipped target
@@ -87,9 +84,8 @@ internal static class FlippedTargetChecks
         Near(1 - FixedY(0), Native.AcquiredScopes[^1].Y, "Untracked gaze falls back to the mirrored fixed centre on a flipped target.");
         Near(FixedX(0), Native.AcquiredScopes[^1].X, "Fallback keeps the horizontal centre.");
         check(FixedFoveationRuntime.EyeTrackingStatus.Contains("not tracked"), "Fallback reporting is unchanged by target orientation.");
-        FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, false, false,
-            FixedFoveationPolicy.AngularScale(projections[0].m00, projections[0].m11), out var fallbackInner, out _);
-        check(Math.Abs(Native.AcquiredScopes[^1].Inner - fallbackInner) < .00001f, "The fixed fallback uses the unwidened preset radii.");
+        FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, out var fallbackInner, out _);
+        check(Math.Abs(Native.AcquiredScopes[^1].Inner - fallbackInner) < .00001f, "The fixed fallback uses the preset radii.");
         NovrEyeGaze.State = NovrEyeGazeReadState.Tracked;
         f.Tick();
         var recovered = View(0, false);

@@ -1,23 +1,23 @@
 # 0.4.8.33 — eye-tracked foveation alignment, cockpit map markers, view distance
 
-- Clearer image in VR. NOVR's VR camera now applies the game camera's own
-  post-process anti-aliasing (SMAA in the stock flight scene) on top of MSAA;
-  earlier builds rendered without it (**VR View → Game Anti-Aliasing**).
-- Foveation is easier on foliage. Mild, Balanced and Strong keep their radii but
-  shade the middle ring at full rate instead of 2×1, so only the outer edge is
-  coarse. The game's trees and grass use alpha-to-coverage, which coarse shading
-  turns blocky and shimmering. Eye tracking also protects a wider region (+0.12)
-  while the gaze is tracked, covering input lag during eye movements. The menu
-  no longer suggests turning MSAA off for Extreme/Maximum 4×4 edges.
-- Trees and grass stay sharp with foveation on (**Full-Rate Foliage**, default on):
-  the world pass now draws alpha-tested opaques after the reduced-shading scope.
-- Foveation radii scale with each eye's field of view, so presets protect the
-  same angle on every headset.
+- Foveation keeps its 0.4.8.32 cost. An earlier test build of this version
+  shaded the middle ring at full rate, widened the sharp region for eye tracking
+  and fast eye movements, scaled it by each eye's field of view, drew foliage at
+  full rate and added the game's SMAA. Together they made frame rates much worse,
+  so the presets are back to 1×1 / 2×1 / 2×2 with their original radii. Two
+  extras stay as opt-ins in the BepInEx config, both off by default and renamed
+  so a saved "on" from the test build does not carry over:
+  **VR Performance → Full-Rate Foliage (Costly)** keeps trees and grass sharp
+  inside reduced areas, and **VR View → Game SMAA (Costly)** adds the game
+  camera's post-process anti-aliasing on top of MSAA.
 - Eye-tracked foveation holds its centre through fixation jitter (one-tile
-  deadband, so the edge no longer shimmers) and widens by a further 0.15 during
-  fast eye movements.
+  deadband), so the edge of the sharp region no longer shimmers.
 - With **Measure GPU cost** on, the readout adds a whole-frame line: smoothed
   frame interval and FPS, plus the app's total GPU time when the runtime reports it.
+- The look-direction cue now defaults to the game's own squashed diamond, drawn
+  to the vanilla target designator's proportions in the HUD colour. A saved
+  circle, the previous default, switches once; other chosen shapes are kept, and
+  the circle stays available under **View → Look direction cue**.
 - Eye-tracked foveation now protects where you look. URP renders the world pass
   into an intermediate texture that Direct3D 11 stores upside down; the
   protected centre was mapped onto an upright image, so it moved opposite to
@@ -65,5 +65,6 @@
   reads as a grey wall around the horizon. Nearby clouds and the cloud layer stay.
 
 Foveation changes need a native Windows/NVIDIA/Direct3D 11 playtest; the source
-checks establish the mapping, not image quality. Apart from restoring the game
-camera's own SMAA, nothing changes MSAA, headset resolution or SteamVR settings. One package for Windows and Linux/Proton.
+checks establish the mapping, not image quality. Nothing changes antialiasing
+unless you opt in to Game SMAA, and nothing changes MSAA, headset resolution or
+SteamVR settings. One package for Windows and Linux/Proton.

@@ -11,9 +11,6 @@ internal sealed partial class FixedFoveationRuntime
     private int _gazeFrame = -1;
     private bool _gazeReadWarning;
     private readonly FoveationGazeStabilizer _gazeStabilizer = new();
-    private readonly GazeSaccadeDetector _saccades = new();
-    private int _saccadeFrame = -1;
-    private bool _saccadeActive;
 
     private FixedFoveationLevel CurrentRenderLevel => FixedFoveationPolicy.WithGazeFallback(_level,
         ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value,
@@ -61,10 +58,8 @@ internal sealed partial class FixedFoveationRuntime
         if (_gazeState != NovrEyeGazeReadState.Tracked || _level == FixedFoveationLevel.Off ||
             !ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value)
         {
-            // Fallback and fixed centres never inherit a held gaze or motion state.
+            // Fallback and fixed centres never inherit a held gaze.
             _gazeStabilizer.Reset();
-            _saccades.Reset();
-            _saccadeActive = false;
         }
         // URP draws this bracketed opaque pass into an intermediate texture
         // whenever a camera stack or post-processing is active. On Direct3D the
@@ -102,13 +97,6 @@ internal sealed partial class FixedFoveationRuntime
             if (FoveationGazePolicy.TryProject(direction.x, direction.y, -direction.z,
                 projection.m00, projection.m11, projection.m02, projection.m12, out var gazeX, out var gazeY))
             {
-                // Both eyes share one sample: measure eye-in-head speed once a frame.
-                if (_saccadeFrame != Time.frameCount)
-                {
-                    _saccadeFrame = Time.frameCount;
-                    var eyeInHead = Quaternion.Inverse(pose.HeadRotation) * (pose.Rotation * Vector3.forward);
-                    _saccadeActive = _saccades.Update(eyeInHead.x, eyeInHead.y, eyeInHead.z, Time.unscaledTime);
-                }
                 var target = cameraData.cameraTargetDescriptor;
                 _gazeStabilizer.Stabilize(cameraData.xr.multipassId, target.width, target.height, ref gazeX, ref gazeY);
                 x = gazeX; y = gazeY;

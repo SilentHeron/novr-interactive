@@ -10,52 +10,39 @@ to D3D12/Vulkan or changes antialiasing, headset resolution or streaming setting
 
 Open **View → VR performance → Foveated rendering**. The stepped **Strength**
 slider works for both fixed and eye-tracked modes. **Off** remains the default;
-existing selections are preserved. Since 0.4.8.33 the three original presets
-keep their radii but shade the middle ring at full rate: only the outer edge is
-coarse.
+existing selections are preserved. The three original presets are unchanged.
 
 | Strength | Full-rate radius | Middle-region radius | Centre / middle / outer shading |
 | --- | ---: | ---: | --- |
-| Mild | 0.70 | 0.95 | 1×1 / 1×1 / 2×2 |
-| Balanced | 0.55 | 0.85 | 1×1 / 1×1 / 2×2 |
-| Strong | 0.40 | 0.75 | 1×1 / 1×1 / 2×2 |
+| Mild | 0.70 | 0.95 | 1×1 / 2×1 / 2×2 |
+| Balanced | 0.55 | 0.85 | 1×1 / 2×1 / 2×2 |
+| Strong | 0.40 | 0.75 | 1×1 / 2×1 / 2×2 |
 | Extreme — test | 0.30 | 0.60 | 1×1 / 2×2 / up to 4×4 |
 | Maximum — test | 0.18 | 0.40 | 1×1 / 2×2 / up to 4×4 |
 
-Radii use half-viewport extents, not degrees. Full-rate protection includes the
-whole 16-pixel tile touching its boundary. Extreme and Maximum reduce both the
-protected area and peripheral shading frequency. 4×4 shades once per 16 raster
-pixels; it requires a single-sample target (MSAA off). With 2×/4× MSAA, the new
-presets use 1×1 / 2×2 / 2×2. Keep MSAA on: turning it off to unlock 4×4 removes
-anti-aliasing from the whole image, which costs far more clarity than the outer
-4×4 edge saves.
+Radii use half-viewport extents, not degrees, and are the same for fixed and
+eye-tracked centres. Full-rate protection includes the whole 16-pixel tile
+touching its boundary. Extreme and Maximum reduce both the protected area and
+peripheral shading frequency. 4×4 shades once per 16 raster pixels; it requires
+a single-sample target (MSAA off). With 2×/4× MSAA, the new presets use
+1×1 / 2×2 / 2×2.
 
-Why no 2×1 ring: the game's trees and grass are alpha-tested with
-alpha-to-coverage, and they draw in the same world-opaque pass that foveation
-reduces. Coarse shading computes their edge coverage once per block, so foliage
-turns blocky and shimmers wherever it is coarse. Horizontal 2×1 shading also
-smeared vertical edges such as trunks inside the still-sharp part of the lens.
+With eye tracking, fixation jitter does not move the region: each eye's centre
+is held until the gaze leaves a one-tile (16-pixel) box, which stops the
+region's edge from shimmering between tiles.
 
-**Full-rate foliage** (on by default) goes further: the world-opaque pass is
-drawn in two halves, ordinary opaques with reduced shading, then the shading
-scope ends and alpha-tested opaques (render queue 2450 and above: the game's
-trees, grass and similar cutouts) draw at full rate with the same culling,
-sorting and targets. Foliage stays sharp everywhere while terrain, buildings
-and vehicles keep the savings.
+**Full-Rate Foliage (Costly)** is an opt-in BepInEx setting under
+**VR Performance**, off by default. When on, the world-opaque pass is drawn in
+two halves: ordinary opaques with reduced shading, then the shading scope ends
+and alpha-tested opaques (render queue 2450 and above: the game's trees, grass
+and similar cutouts) draw at full rate with the same culling, sorting and
+targets. Foliage edges stay sharp, but over forests at low altitude most of the
+saving is lost.
 
-Preset radii are tuned for an eye with roughly 100 degrees of field of view.
-Each eye's radii are scaled by its actual projection (bounded to 0.7-1.3×), so a
-preset protects about the same angle on every headset and on each eye's
-asymmetric frustum.
-
-With eye tracking, the full-rate and middle radii grow by 0.12 while the gaze
-is tracked. Gaze input lags the eye, and without that margin the sharp region's
-edge sweeps across what you are looking at during each saccade. The fixed
-fallback uses the unwidened radii. During fast eye movements (above 120 degrees
-per second, held for 0.12 s after they stop) they grow by a further 0.15, so the
-eyes land inside full-rate shading. Fixation jitter no longer moves the region:
-each eye's centre is held until the gaze leaves a one-tile (16-pixel) box, which
-stops the region's edge from shimmering between tiles. A driver rejection also falls back to 2×2 without
+A 0.4.8.33 test build also shaded the middle ring at full rate, widened the
+radii for eye tracking and fast eye movements, and scaled them by each eye's
+field of view. Together they shaded nearly the whole view at full rate and were
+removed. A driver rejection also falls back to 2×2 without
 disabling working foveation. The menu shows the actual rates and MSAA/driver
 limit. Antialiasing is never changed automatically.
 
@@ -107,8 +94,8 @@ it does not create textures/views or allocate the rate image each frame.
    Compare several seconds in each mode, not individual samples. Measurements
    identify the selected mode and require fresh data from both eyes.
 3. The two GPU times and pixel-shader invocation counts cover each eye's world
-   opaque pass, not the entire frame (with full-rate foliage on, only its
-   non-foliage half). The **Whole frame** line adds the smoothed frame interval
+   opaque pass, not the entire frame (with the full-rate foliage opt-in on, only
+   its non-foliage half). The **Whole frame** line adds the smoothed frame interval
    and, when the XR runtime reports it, the app's total GPU time per frame. Also compare SteamVR's application GPU frame
    time, missed frames and head-motion stability. CPU-limited missions may barely
    benefit even if pixel-shader work decreases.

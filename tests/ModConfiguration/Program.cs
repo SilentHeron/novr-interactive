@@ -38,6 +38,8 @@ foreach (var field in typeof(ModConfiguration).GetFields(BindingFlags.Instance |
     Check(field.GetValue(first) != null, $"Published settings include {field.Name}.");
 Check(first.NativeMenuScale.Value == 1.25f && first.FlightHudScale.Value == .38f,
     "Lifecycle changes preserve existing menu and HUD defaults.");
+Check(!first.VrGameAntialiasing.Value && !first.FixedFoveation.FullRateFoliage.Value,
+    "Costly game SMAA and full-rate foliage are opt-in.");
 Check(first.FixedFoveation.RequestedLevel == FixedFoveationLevel.Off,
     "New configurations leave experimental fixed foveated rendering off.");
 Check(!first.FixedFoveation.UseEyeTracking.Value,

@@ -51,8 +51,10 @@ public class ModConfiguration
         VrFarClipDistance = config.Bind("VR View", "Far Clip Distance", VrCamera.VrFarClipPolicy.Default,
             new ConfigDescription("Minimum far clip distance in metres for the tracked VR view. The game's camera stops at 80 km; at altitude that cut shows as a flat wall of fogged terrain that pivots with your head. Only extends the game's value; 0 keeps it.",
                 new AcceptableValueRange<float>(0f, VrCamera.VrFarClipPolicy.Maximum)));
-        VrGameAntialiasing = config.Bind("VR View", "Game Anti-Aliasing", true,
-            "Apply the game camera's post-process anti-aliasing (SMAA in the stock flight scene) to the VR view, on top of MSAA. Earlier NOVR builds rendered without it. Turn off to compare or to save a little GPU time.");
+        // Renamed from "Game Anti-Aliasing" (on by default in a 0.4.8.33 test
+        // build) so a saved true value from that build cannot keep it on.
+        VrGameAntialiasing = config.Bind("VR View", "Game SMAA (Costly)", false,
+            "Opt in: apply the game camera's post-process anti-aliasing (SMAA in the stock flight scene) to the VR view, on top of MSAA. It runs for each eye at full headset resolution and can cost a large share of the frame; NOVR renders without it by default.");
         HideDistantCloudsInVr = config.Bind("VR View", "Hide Distant Cloud Banks", true,
             "Hide the game's ring of distant cloud meshes (10-40 km out, shown when weather coverage is above 10%, as on most multiplayer servers) while in VR, where it appears as a grey wall around the horizon. Nearby clouds and the cloud layer are unchanged.");
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,

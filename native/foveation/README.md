@@ -24,16 +24,15 @@ accepts only a full-target Texture2D at mip zero, one viewport, and 1x/2x/4x MSA
 It rejects texture arrays, partial viewports, mismatched sizes and unsupported
 sample counts. Draws inside a successful scope must keep the same target.
 
-The rate map uses 16x16 tiles. Profiles 0 through 2 keep their masks but, since
-0.4.8.33, shade the middle region at 1x1 (previously 2x1) so alpha-to-coverage
-foliage and vertical edges stay sharp; only their outer region is 2x2. Profiles
-3 and 4 add a coarser middle and outer rate as well as smaller protected regions:
+The rate map uses 16x16 tiles. Profiles 0 through 2 preserve the previous rates
+and masks exactly. Profiles 3 and 4 add a coarser middle and outer rate as well as
+smaller protected regions:
 
 | Profile | Name | Inner / outer radius | Center | Middle | Outer, one sample |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Mild | .70 / .95 | 1x1 | 1x1 | 2x2 |
-| 1 | Balanced | .55 / .85 | 1x1 | 1x1 | 2x2 |
-| 2 | Strong | .40 / .75 | 1x1 | 1x1 | 2x2 |
+| 0 | Mild | .70 / .95 | 1x1 | 2x1 | 2x2 |
+| 1 | Balanced | .55 / .85 | 1x1 | 2x1 | 2x2 |
+| 2 | Strong | .40 / .75 | 1x1 | 2x1 | 2x2 |
 | 3 | Extreme | .30 / .60 | 1x1 | 2x2 | 4x4 |
 | 4 | Maximum | .18 / .40 | 1x1 | 2x2 | 4x4 |
 

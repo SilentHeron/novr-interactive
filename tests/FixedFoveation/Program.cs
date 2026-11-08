@@ -18,8 +18,15 @@ Check(defaults.Level.Value == FixedFoveationLevel.Off && defaults.RequestedLevel
     "A new installation must not enable experimental rendering.");
 Check(!defaults.MeasureGpuCost.Value, "Optional GPU measurement is also disabled by default.");
 Check(!defaults.UseEyeTracking.Value, "New installations leave optional eye tracking disabled.");
-Check(defaultsFile.BoundKeys.SequenceEqual(new[] { ("VR Performance", "Fixed Foveated Rendering"), ("VR Performance", "Measure Foveation GPU Cost"), ("VR Performance", "Eye Tracked Foveation"), ("VR Performance", "Full-Rate Foliage") }),
+Check(defaultsFile.BoundKeys.SequenceEqual(new[] { ("VR Performance", "Fixed Foveated Rendering"), ("VR Performance", "Measure Foveation GPU Cost"), ("VR Performance", "Eye Tracked Foveation"), ("VR Performance", "Full-Rate Foliage (Costly)") }),
     "Foveation binds mode, optional measurement and gaze without changing resolution, renderer or streaming settings.");
+Check(!defaults.FullRateFoliage.Value, "Full-rate foliage costs GPU time and stays opt-in.");
+{
+    // The 0.4.8.33 test build saved this as "Full-Rate Foliage" = true.
+    var legacy = new ConfigFile();
+    legacy.Seed("VR Performance", "Full-Rate Foliage", true);
+    Check(!new FixedFoveationSettings(legacy).FullRateFoliage.Value, "A value saved under the old on-by-default key cannot opt in.");
+}
 
 foreach (var eyeTracking in new[] { false, true })
 {

@@ -103,7 +103,7 @@ using (var f = new Fixture())
     Check(Math.Abs(left.X - .4f) < .00001f && Math.Abs(right.X - .6f) < .00001f && left.Y > .5f && right.Y < .5f,
         "Each eye uses its own asymmetric projection centre.");
     f.Tick();
-    Check(FixedFoveationRuntime.Status.Contains("both eyes") && FixedFoveationRuntime.Status.Contains("1×1 / 1×1 / 2×2"),
+    Check(FixedFoveationRuntime.Status.Contains("both eyes") && FixedFoveationRuntime.Status.Contains("1×1 / 2×1 / 2×2"),
         "Both-eye command confirmation reports the actual shading pattern without claiming a performance gain.");
     FixedFoveationRuntime.SetLevel(3);
     f.Tick();

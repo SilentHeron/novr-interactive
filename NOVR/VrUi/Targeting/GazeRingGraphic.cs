@@ -4,8 +4,8 @@ using UnityEngine.UI;
 
 namespace NOVR.MotionControls;
 
-// At the unchanged 3 m depth / .001 canvas scale, the default 60-unit circle
-// spans about 1.15 degrees. Its centre also defines the selection ray.
+// At the unchanged 3 m depth / .001 canvas scale, the 60-unit cue spans about
+// 1.15 degrees across. Its centre also defines the selection ray.
 internal sealed class GazeRingGraphic : MaskableGraphic
 {
     private GazeCueShape _shape;
@@ -70,11 +70,45 @@ internal sealed class GazeRingGraphic : MaskableGraphic
                 Brackets(vh, rect.center, radius, .14f, rim);
                 Brackets(vh, rect.center, radius, .08f, color);
                 break;
+            case GazeCueShape.Diamond:
+                // The game's own target designator: a hollow diamond half as
+                // tall as it is wide, whose inner edge sits at 74% of the outer.
+                Diamond(vh, rect.center, radius, DiamondAspect, 1f, .68f, rim);
+                Diamond(vh, rect.center, radius, DiamondAspect, .965f, .965f * DiamondInner, color);
+                break;
             default:
                 // Keep the existing default mesh, proportions and rim intact.
                 Ring(vh, rect.center, radius * .83f, radius, rim);
                 Ring(vh, rect.center, radius * .87f, radius * .97f, color);
                 break;
+        }
+    }
+
+    // Measured from the game's targetDesignator sprite (outer 222 x 110 px,
+    // 29 px horizontal and 14 px vertical stroke).
+    internal const float DiamondAspect = .5f, DiamondInner = .74f;
+
+    // A hollow rhombus. The inner outline is the outer one scaled uniformly,
+    // which keeps the stroke width constant along all four edges.
+    private static void Diamond(VertexHelper vh, Vector2 c, float halfWidth, float aspect, float outer, float inner, Color tint)
+    {
+        var start = vh.currentVertCount;
+        for (var i = 0; i <= 4; i++)
+        {
+            var corner = (i % 4) switch
+            {
+                0 => new Vector2(halfWidth, 0),
+                1 => new Vector2(0, halfWidth * aspect),
+                2 => new Vector2(-halfWidth, 0),
+                _ => new Vector2(0, -halfWidth * aspect)
+            };
+            vh.AddVert(c + corner * inner, tint, Vector2.zero);
+            vh.AddVert(c + corner * outer, tint, Vector2.zero);
+            if (i == 4)
+                continue;
+            var index = start + i * 2;
+            vh.AddTriangle(index, index + 2, index + 1);
+            vh.AddTriangle(index + 1, index + 2, index + 3);
         }
     }
 
