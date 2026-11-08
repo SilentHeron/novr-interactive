@@ -17,7 +17,8 @@ internal static class WheelRuntimeChecks
         {
             Reset();
             GameManager.Aircraft = state == "unspawned" || state == "vehicle" || state == "missile" || state == "map selection" ? null : new();
-            if (state == "dead") GameManager.Aircraft!.disabled = true;
+            // Native pilot death also disables its aircraft on the server.
+            if (state == "dead") { GameManager.Aircraft!.disabled = true; GameManager.Aircraft.pilots[0]!.dead = true; }
             if (state == "ejected") GameManager.Aircraft!.Ejected = true;
             if (state == "detached") GameManager.Aircraft!.cockpit!.Detached = true;
             CameraStateManager.cameraMode = state == "vehicle" ? CameraMode.orbit : state == "missile" ? CameraMode.tv :
@@ -40,11 +41,16 @@ internal static class WheelRuntimeChecks
             check(wheel.Lease == null && SceneSingleton<RadialMenuMain>.i == null && wheel.Menus != null,
                 "Standalone presentation needs neither native wheel nor aircraft: " + state);
             var mapLabel = DynamicMap.mapMaximized ? "CLOSE MAP" : "OPEN MAP";
-            check(wheel.Menus!.GetComponentsInChildren<Text>(true).Select(text => text.text).Order().SequenceEqual(new[] { "GAME MENU", "VR MENU", mapLabel }.Order()),
-                "Outside flight there are only Game Menu, VR Menu and the current map action.");
-            check(HandMenuWheelGraphic.MenuAt(-1) == NativeWheelMenuAction.None && HandMenuWheelGraphic.MenuAt(3) == NativeWheelMenuAction.None &&
-                  HandMenuWheelGraphic.MenuAt(2) == NativeWheelMenuAction.Map,
-                "Three-item indices cannot expose a flight, weapon or eject action.");
+            // A seated, living pilot keeps native Eject even without a flight
+            // wheel: detached cockpit, or watching their own aircraft externally.
+            var canEject = state is "detached" or "aircraft";
+            var expected = canEject ? new[] { "GAME MENU", "VR MENU", mapLabel, "EJECT" } : new[] { "GAME MENU", "VR MENU", mapLabel };
+            check(wheel.Menus!.GetComponentsInChildren<Text>(true).Where(text => text.gameObject.activeSelf).Select(text => text.text).Order().SequenceEqual(expected.Order()),
+                "Outside flight there are Game Menu, VR Menu, the current map action and Eject only for a seated living pilot: " + state);
+            check(wheel.Menus!.MenuAt(-1) == NativeWheelMenuAction.None && wheel.Menus!.MenuAt(4) == NativeWheelMenuAction.None &&
+                  wheel.Menus!.MenuAt(2) == NativeWheelMenuAction.Map &&
+                  wheel.Menus!.MenuAt(3) == (canEject ? NativeWheelMenuAction.Eject : NativeWheelMenuAction.None),
+                "Standalone indices never expose flight or weapon actions; Eject only when native ejection is possible: " + state);
             var original = wheel.View!.transform.position;
             var sample = TrackedControllers.Read(left);
             sample.Position = new Vector3(.4f, .5f, .6f);
@@ -249,6 +255,8 @@ internal static class WheelRuntimeChecks
             check(!NativeHandOptionWheel.IsOpen, "Returning to flight cancels standalone gesture state rather than carrying a menu selection across context.");
         }
 
+        WreckEjectChecks(check);
+
         var graphicObject = new GameObject("Standalone sectors", typeof(HandMenuWheelGraphic));
         var graphic = graphicObject.GetComponent<HandMenuWheelGraphic>();
         graphic.Initialize();
@@ -270,7 +278,7 @@ internal static class WheelRuntimeChecks
         for (var index = 0; index < labels.Length; index++)
         {
             var rect = labels[index].rectTransform;
-            check(HandOptionWheelGesture.Sector(rect.anchoredPosition.x, rect.anchoredPosition.y, HandMenuWheelGraphic.Count) == index &&
+            check(HandOptionWheelGesture.Sector(rect.anchoredPosition.x, rect.anchoredPosition.y, graphic.Count) == index &&
                   Math.Abs(rect.anchoredPosition.x) + rect.sizeDelta.x * .5f < 150 && Math.Abs(rect.anchoredPosition.y) + rect.sizeDelta.y * .5f < 150,
                 "Each three-way label fits the wheel and matches its selectable sector.");
         }
@@ -280,6 +288,76 @@ internal static class WheelRuntimeChecks
         graphic.RefreshMapState(false, true);
         check(graphic.Hover(2) && labels[2].text == "OPEN MAP" && labels[2].color == Color.white,
             "Removing the native lock restores map label and hover feedback.");
+    }
+
+    // A crash can leave the cockpit intact but detached, or the airframe
+    // destroyed around a living pilot. Native respawn stays locked until the
+    // pilot ejects, so the standalone wheel must offer the native ejection.
+    private static void WreckEjectChecks(Action<bool, string> check)
+    {
+        foreach (var wreck in new[] { "detached", "destroyed airframe", "native wheel missing" })
+        foreach (var left in new[] { true, false })
+        {
+            Reset();
+            GameManager.Aircraft = new();
+            if (wreck == "detached") GameManager.Aircraft.cockpit!.Detached = true;
+            if (wreck == "destroyed airframe") GameManager.Aircraft.disabled = true;
+            // "native wheel missing": a usable cockpit whose native HUD wheel is
+            // inactive must not leave the stick click doing nothing at all.
+            using var wheel = new Wheel();
+            wheel.Open(left);
+            check(NativeHandOptionWheel.IsOpen && wheel.Lease == null && wheel.Menus!.EjectAvailable && wheel.Menus!.Count == 4,
+                "A wreck still opens a standalone wheel with Eject: " + wreck);
+            wheel.Select(left, HandMenuWheelGraphic.EjectIndex);
+            check(NativeHandOptionWheel.IsOpen && GameManager.Aircraft.EjectionRequests == 0,
+                "Selecting Eject only arms the hold confirmation: " + wreck);
+            wheel.Axis(left, Vector2.zero); // the hold needs a fresh click after selection
+            var sample = TrackedControllers.Read(left);
+            sample.Axis = Vector2.zero; sample.Trigger = 0; sample.StickClick = true;
+            Set(left, sample);
+            for (var frame = 0; frame < 80 && GameManager.Aircraft.EjectionRequests == 0; frame++)
+                wheel.Tick();
+            check(GameManager.Aircraft.EjectionRequests == 1 && !NativeHandOptionWheel.IsOpen,
+                "Holding the centred stick click calls the native ejection exactly once: " + wreck);
+            for (var frame = 0; frame < 10; frame++)
+                wheel.Tick();
+            check(GameManager.Aircraft.EjectionRequests == 1, "A continued hold cannot eject twice: " + wreck);
+        }
+
+        Reset();
+        GameManager.Aircraft = new();
+        GameManager.Aircraft.cockpit!.Detached = true;
+        using (var wheel = new Wheel())
+        {
+            wheel.Open(true);
+            wheel.Select(true, HandMenuWheelGraphic.EjectIndex);
+            wheel.Axis(true, new Vector2(.9f, 0));
+            check(!NativeHandOptionWheel.IsOpen && GameManager.Aircraft.EjectionRequests == 0,
+                "Tilting the stick cancels a wreck ejection without ejecting.");
+            wheel.Open(true);
+            wheel.Select(true, HandMenuWheelGraphic.EjectIndex);
+            GameManager.Aircraft.pilots[0]!.dead = true;
+            wheel.Axis(true, Vector2.zero);
+            var sample = TrackedControllers.Read(true);
+            sample.Axis = Vector2.zero; sample.StickClick = true;
+            Set(true, sample);
+            for (var frame = 0; frame < 80; frame++)
+                wheel.Tick();
+            check(GameManager.Aircraft.EjectionRequests == 0, "A pilot who dies during the hold is never ejected.");
+        }
+        foreach (var gone in new[] { "ejected", "dead", "no pilots", "no aircraft" })
+        {
+            Reset();
+            GameManager.Aircraft = gone == "no aircraft" ? null : new();
+            if (GameManager.Aircraft != null)
+            {
+                GameManager.Aircraft.cockpit!.Detached = true;
+                if (gone == "ejected") GameManager.Aircraft.Ejected = true;
+                if (gone == "dead") GameManager.Aircraft.pilots[0]!.dead = true;
+                if (gone == "no pilots") GameManager.Aircraft.pilots = System.Array.Empty<Pilot?>();
+            }
+            check(!NativeHandOptionWheel.CanEjectFromWreck(GameManager.Aircraft), "No wreck Eject without a seated living pilot: " + gone);
+        }
     }
 
     private static void Reset()
@@ -355,7 +433,7 @@ internal static class WheelRuntimeChecks
         }
         internal void Select(bool left, int index, float trigger = 0)
         {
-            var angle = index * 2f * MathF.PI / HandMenuWheelGraphic.Count;
+            var angle = index * 2f * MathF.PI / (Menus?.Count ?? HandMenuWheelGraphic.BaseCount);
             Axis(left, new Vector2(MathF.Sin(angle), MathF.Cos(angle)), trigger);
             Axis(left, Vector2.zero, trigger);
         }

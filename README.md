@@ -52,7 +52,7 @@ For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled
 
 **Quick wheel:** deflect to highlight; return to center to select. Click again to cancel. In flight, trigger changes Options / Weapons pages. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings, including when Steam Link consumes the Quest Menu button. Eject requires a centered stick-click hold for 1.2 seconds; release to reset, or tilt / press trigger to cancel.
 
-**Outside an aircraft:** thumbstick click opens a wheel with **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**, including while dead, waiting to spawn or spectating. **B** also toggles the map on Frame and Quest with the default right-handed layout (left-hand Y on Quest when mirrored). Closing the map returns to the same spectator target.
+**Outside an aircraft:** thumbstick click opens a wheel with **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**, including while dead, waiting to spawn or spectating. After a crash that leaves your pilot alive in a detached cockpit or wrecked airframe, the same wheel adds **EJECT** (same centred 1.2-second hold); ejecting is what unlocks respawn in that case. **B** also toggles the map on Frame and Quest with the default right-handed layout (left-hand Y on Quest when mirrored). Closing the map returns to the same spectator target.
 
 **Spectating:** a full VR view follows the selected unit from the game’s normal external camera distance. Right stick orbits; left stick up/down moves closer/farther. Center the sticks after menus to resume camera control. The spawn map and aircraft-selection pages keep their normal presentation and controls.
 

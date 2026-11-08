@@ -5,7 +5,7 @@ namespace NOVR.MotionControls;
 
 internal enum NativeWheelMenuAction
 {
-    None, GameMenu, VrMenu, Map
+    None, GameMenu, VrMenu, Map, Eject
 }
 
 internal static class NativeWheelMenuActions

@@ -22,6 +22,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private bool _menuOnly;
     private Aircraft? _aircraft;
     private RadialMenuAction? _pendingEject;
+    private bool _directEject;
     private int Owner => _ownership.Owner;
     private GameObject? _view;
     private Canvas? _canvas;
@@ -36,6 +37,18 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     internal static bool OwnsHand(bool left) => _instance?._ownership.Owns(left ? 0 : 1, Time.frameCount) == true;
     internal static bool OwnsNative(RadialMenuMain menu) => _instance?._lease?.Native == menu;
     private void Awake() => _instance = this;
+
+    // Native ejection only refuses an aircraft that already ejected. Keep that
+    // rule for wrecks whose flight wheel is gone (detached cockpit, destroyed
+    // airframe): an alive, seated pilot can always leave, which is also what
+    // unlocks native respawn. A dead pilot already disables the aircraft.
+    internal static bool CanEjectFromWreck(Aircraft? aircraft)
+    {
+        if (aircraft == null || aircraft.HasEjected() || aircraft.cockpit == null || aircraft.pilots == null || aircraft.pilots.Length == 0)
+            return false;
+        var pilot = aircraft.pilots[0];
+        return pilot != null && !pilot.dead && !pilot.ejected;
+    }
 
     private void Update()
     {
@@ -54,8 +67,14 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             !aircraft.HasEjected() && aircraft.cockpit != null && !aircraft.cockpit.IsDetached();
         var flight = usableAircraft && CameraStateManager.cameraMode == CameraMode.cockpit &&
             Time.timeScale > 0 && GameManager.flightControlsEnabled && !DynamicMap.mapMaximized && flags == CursorFlags.None;
-        if (!ready || flight && (native == null || !native.isActiveAndEnabled) ||
-            Owner >= 0 && (_menuOnly == flight || _lease != null && (!_lease.Valid || _lease.Native != native || aircraft != _aircraft)))
+        // Without the game's own wheel (for example after a crash leaves the
+        // cockpit usable but the native HUD wheel inactive) still offer the
+        // standalone menus and Eject rather than opening nothing at all.
+        var nativeWheel = flight && native != null && native.isActiveAndEnabled;
+        var wreckEject = !nativeWheel && !DynamicMap.mapMaximized && CanEjectFromWreck(aircraft);
+        if (!ready ||
+            Owner >= 0 && (_menuOnly == nativeWheel || _lease != null && (!_lease.Valid || _lease.Native != native || aircraft != _aircraft) ||
+                _directEject && aircraft != _aircraft))
         {
             Cancel();
             return;
@@ -70,17 +89,24 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         if (Owner >= 0)
         {
             if (_menuOnly)
+            {
                 _menus!.RefreshMapState(DynamicMap.mapMaximized, DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
+                if (!_eject.Active)
+                    _menus.SetEjectAvailable(wreckEject);
+            }
             var side = Owner;
             var hand = TrackedControllers.Read(side == 0);
             if (_eject.Active)
             {
-                UpdateEjectConfirmation(hand, aircraft!);
+                if (aircraft == null)
+                    Close();
+                else
+                    UpdateEjectConfirmation(hand, aircraft);
                 return;
             }
             var gesture = _gestures[side];
             var change = gesture.Update(HandAvailable(side, hand, flight), hand.StickClick, hand.Trigger,
-                hand.Axis.x, hand.Axis.y, _lease?.Count ?? HandMenuWheelGraphic.Count, !_menuOnly);
+                hand.Axis.x, hand.Axis.y, _lease?.Count ?? _menus?.Count ?? HandMenuWheelGraphic.BaseCount, !_menuOnly);
             if (change == HandOptionWheelEvent.Cancel)
             {
                 if (hand.Valid && hand.StickClick)
@@ -90,7 +116,26 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             }
             if (change == HandOptionWheelEvent.Commit)
             {
-                var menu = _lease != null ? _lease.MenuAt(gesture.Committed) : HandMenuWheelGraphic.MenuAt(gesture.Committed);
+                var menu = _lease != null ? _lease.MenuAt(gesture.Committed) : _menus!.MenuAt(gesture.Committed);
+                if (menu == NativeWheelMenuAction.Eject)
+                {
+                    if (!CanEjectFromWreck(aircraft))
+                    {
+                        Close();
+                        return;
+                    }
+                    // Same deliberate hold as the flight wheel's Eject, but it
+                    // calls the native ejection directly: no native wheel exists.
+                    _directEject = true;
+                    _aircraft = aircraft;
+                    _eject.Begin();
+                    _menus!.Hover(-1);
+                    _ejectGraphic!.Show(null);
+                    _title!.text = "EJECT?";
+                    _guidance!.text = "Centre + hold stick click: eject\nRelease: reset  ·  Tilt stick / trigger: cancel";
+                    InteractionHaptics.Pulse(hand.Device, .20f, .035f, InteractionCue.Guard);
+                    return;
+                }
                 if (menu != NativeWheelMenuAction.None)
                 {
                     if (NativeWheelMenuActions.Open(menu, Close))
@@ -147,13 +192,14 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             {
                 EnsureView();
                 _ownership.Open(side, Time.frameCount);
-                _menuOnly = !flight;
-                _aircraft = flight ? aircraft : null;
-                if (flight)
+                _menuOnly = !nativeWheel;
+                _aircraft = nativeWheel ? aircraft : null;
+                if (nativeWheel)
                     _lease = new NativeRadialMenuLease(native!, (RectTransform)_view!.transform);
                 else
                 {
                     EnsureMenuOnlyView();
+                    _menus!.SetEjectAvailable(wreckEject);
                     _menus!.RefreshMapState(DynamicMap.mapMaximized, DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
                     _menus!.Hover(-1);
                     _menus.gameObject.SetActive(true);
@@ -179,8 +225,10 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private void UpdateEjectConfirmation(ControllerSample hand, Aircraft aircraft)
     {
         var action = _pendingEject;
-        var result = _eject.Update(HandAvailable(Owner, hand, true) && action != null &&
-            action.GetActionType() == RadialMenuAction.ActionType.Eject && action.AllowedOnAircraft(aircraft),
+        var direct = _directEject;
+        var valid = direct ? CanEjectFromWreck(aircraft) && aircraft == _aircraft :
+            action != null && action.GetActionType() == RadialMenuAction.ActionType.Eject && action.AllowedOnAircraft(aircraft);
+        var result = _eject.Update(HandAvailable(Owner, hand, !_menuOnly) && valid,
             hand.StickClick, hand.Trigger, hand.Axis.x, hand.Axis.y, Time.unscaledDeltaTime);
         if (result == EjectConfirmationEvent.Cancel)
         {
@@ -194,6 +242,15 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
             // Dispose the native UI and consume this frame before the callback
             // can detach the cockpit or switch the player to the map.
             Close();
+            if (direct)
+            {
+                if (CanEjectFromWreck(aircraft))
+                {
+                    InteractionHaptics.Pulse(hand.Device, .65f, .065f, InteractionCue.Eject);
+                    aircraft.StartEjectionSequence();
+                }
+                return;
+            }
             if (action != null && !aircraft.disabled && !aircraft.HasEjected() && action.AllowedOnAircraft(aircraft))
             {
                 InteractionHaptics.Pulse(hand.Device, .65f, .065f, InteractionCue.Eject);
@@ -330,6 +387,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
         StopEjectHaptics();
         _eject.Reset();
         _pendingEject = null;
+        _directEject = false;
         if (_ejectGraphic != null)
             _ejectGraphic.gameObject.SetActive(false);
         _ownership.Close(Time.frameCount);

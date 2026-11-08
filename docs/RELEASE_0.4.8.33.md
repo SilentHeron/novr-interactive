@@ -13,6 +13,11 @@
   hidden immediately on the minimized map, as native code does one second later.
 - Hit markers are projected along the hit direction instead of flat-screen
   pixel coordinates.
+- Crashes that leave the pilot alive in an intact cockpit no longer strand you.
+  When the cockpit detaches or the airframe is destroyed, the thumbstick wheel
+  now adds **EJECT** (same centred 1.2-second hold) beside Game Menu, VR Menu
+  and Map; native respawn stays locked until the pilot ejects. If the game's
+  own flight wheel is unavailable, the same menu wheel opens instead of nothing.
 - The look-direction cue and gaze lock no longer appear on or select friendly
   units unless **Cue friendly units** is enabled (View → Look direction cue →
   Targeting). The game's own target filters still apply.

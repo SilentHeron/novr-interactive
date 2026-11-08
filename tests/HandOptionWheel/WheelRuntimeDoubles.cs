@@ -4,7 +4,20 @@ public sealed class Aircraft : UnityEngine.Object
 {
     public bool disabled, Ejected;
     public Cockpit? cockpit = new();
+    public Pilot?[] pilots = { new() };
+    public int EjectionRequests;
     public bool HasEjected() => Ejected;
+    // Native boundary: the real sequence also refuses an already-ejected aircraft.
+    public void StartEjectionSequence()
+    {
+        if (Ejected) return;
+        Ejected = true;
+        EjectionRequests++;
+    }
+}
+public sealed class Pilot
+{
+    public bool dead, ejected;
 }
 public sealed class Cockpit
 {
