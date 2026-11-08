@@ -1,3 +1,5 @@
+using System;
+
 namespace NOVR.Rendering;
 
 internal enum FixedFoveationLevel
@@ -41,6 +43,19 @@ internal static class FixedFoveationPolicy
     // leave that small region at a stale gaze or fixed centre after tracking loss.
     internal static FixedFoveationLevel WithGazeFallback(FixedFoveationLevel level, bool eyeTracking, bool tracked) =>
         eyeTracking && !tracked && level > FixedFoveationLevel.Strong ? FixedFoveationLevel.Strong : level;
+
+    // Eye tracking moves the sharp region, but gaze input lags the eye and its
+    // boundary sweeps over the scene during saccades. Protect a margin around
+    // the tracked centre instead of reusing the fixed-centre radii unchanged.
+    internal const float GazeMargin = .12f;
+    internal static void Radii(FixedFoveationLevel level, bool trackedGaze, out float inner, out float outer)
+    {
+        Radii(level, out inner, out outer);
+        if (!trackedGaze || level == FixedFoveationLevel.Off)
+            return;
+        inner = Math.Min(1.1f, inner + GazeMargin);
+        outer = Math.Min(1.4f, Math.Max(inner + .05f, outer + GazeMargin));
+    }
 
     internal static void Radii(FixedFoveationLevel level, out float inner, out float outer)
     {

@@ -4,6 +4,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.XR.OpenXR;
 
 namespace NOVR.Rendering;
 
@@ -119,8 +120,10 @@ internal sealed partial class FixedFoveationRuntime
             NoteTargetOrientation(flipped);
             if (!ResolveCenter(cameraData, projection, flipped, out var x, out var y))
             { _cameraReason = "Unsupported eye projection."; return; }
+            var trackedGaze = _level != FixedFoveationLevel.Off && ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value &&
+                _gazeState == NovrEyeGazeReadState.Tracked;
             var packet = _native.AcquireScope(target.width, target.height, target.msaaSamples, xr.multipassId, x, y,
-                _level == FixedFoveationLevel.Off ? FixedFoveationLevel.Mild : CurrentRenderLevel);
+                _level == FixedFoveationLevel.Off ? FixedFoveationLevel.Mild : CurrentRenderLevel, trackedGaze);
             if (packet == IntPtr.Zero) { _cameraReason = "Waiting for an available render scope."; return; }
             // Ownership passes to the render queue; never free this packet on
             // the main thread once Begin may have been submitted.

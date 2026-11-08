@@ -176,6 +176,7 @@ namespace NOVR
     {
         internal static ModConfiguration Instance = new();
         internal readonly BepInEx.Configuration.ConfigEntry<float> VrFarClipDistance = new(VrCamera.VrFarClipPolicy.Default);
+        internal readonly BepInEx.Configuration.ConfigEntry<bool> VrGameAntialiasing = new(true);
     }
 }
 namespace UnityEngine.Rendering.Universal
@@ -184,10 +185,20 @@ namespace UnityEngine.Rendering.Universal
     {
         Base, Overlay
     }
+    public enum AntialiasingMode
+    {
+        None, FastApproximateAntialiasing, SubpixelMorphologicalAntiAliasing, TemporalAntiAliasing
+    }
+    public enum AntialiasingQuality
+    {
+        Low, Medium, High
+    }
     public sealed class UniversalAdditionalCameraData : UnityEngine.Component
     {
         public CameraRenderType renderType;
         public bool allowXRRendering;
+        public AntialiasingMode antialiasing;
+        public AntialiasingQuality antialiasingQuality = AntialiasingQuality.High;
         public readonly List<UnityEngine.Camera> cameraStack = new();
     }
 }

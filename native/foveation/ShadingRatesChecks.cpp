@@ -28,7 +28,7 @@ int main()
             for (bool rejected : {false, true})
             {
                 const auto r = SelectShadingRates(profile, samples, rejected);
-                assert(r.middle == PixelRate::HalfHorizontal && r.outer == PixelRate::Quarter);
+                assert(r.middle == PixelRate::Full && r.outer == PixelRate::Quarter);
                 assert(r.Coarsest() == 2 && !r.Clamped());
             }
     for (unsigned profile : {3u, 4u})

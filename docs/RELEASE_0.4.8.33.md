@@ -1,5 +1,14 @@
 # 0.4.8.33 — eye-tracked foveation alignment, cockpit map markers, view distance
 
+- Clearer image in VR. NOVR's VR camera now applies the game camera's own
+  post-process anti-aliasing (SMAA in the stock flight scene) on top of MSAA;
+  earlier builds rendered without it (**VR View → Game Anti-Aliasing**).
+- Foveation is easier on foliage. Mild, Balanced and Strong keep their radii but
+  shade the middle ring at full rate instead of 2×1, so only the outer edge is
+  coarse. The game's trees and grass use alpha-to-coverage, which coarse shading
+  turns blocky and shimmering. Eye tracking also protects a wider region (+0.12)
+  while the gaze is tracked, covering input lag during eye movements. The menu
+  no longer suggests turning MSAA off for Extreme/Maximum 4×4 edges.
 - Eye-tracked foveation now protects where you look. URP renders the world pass
   into an intermediate texture that Direct3D 11 stores upside down; the
   protected centre was mapped onto an upright image, so it moved opposite to

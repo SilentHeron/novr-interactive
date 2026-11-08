@@ -70,6 +70,11 @@ internal static class FlippedTargetChecks
             check(Native.AcquiredScopes[^1].Y > 1 - FixedY(eye), "Looking up moves a flipped centre toward the last rows, where the image top is drawn.");
             check(FixedFoveationRuntime.EyeTrackingStatus.Contains("following tracked eyes"),
                 "Mirroring the centre is not reported as a tracking fallback.");
+            FixedFoveationPolicy.Radii(Native.AcquiredScopes[^1].Level, out var fixedInner, out var fixedOuter);
+            check(Native.AcquiredScopes[^1].TrackedGaze &&
+                  Math.Abs(Native.AcquiredScopes[^1].Inner - (fixedInner + FixedFoveationPolicy.GazeMargin)) < .00001f &&
+                  Native.AcquiredScopes[^1].Outer > fixedOuter,
+                "Tracked gaze protects a wider region than the fixed-centre preset to cover eye-tracking lag.");
         }
 
         // Fallbacks must mirror as well: an untracked eye on a flipped target
@@ -81,6 +86,7 @@ internal static class FlippedTargetChecks
         Near(1 - FixedY(0), Native.AcquiredScopes[^1].Y, "Untracked gaze falls back to the mirrored fixed centre on a flipped target.");
         Near(FixedX(0), Native.AcquiredScopes[^1].X, "Fallback keeps the horizontal centre.");
         check(FixedFoveationRuntime.EyeTrackingStatus.Contains("not tracked"), "Fallback reporting is unchanged by target orientation.");
+        check(!Native.AcquiredScopes[^1].TrackedGaze, "The fixed fallback uses the unwidened preset radii.");
         NovrEyeGaze.State = NovrEyeGazeReadState.Tracked;
         f.Tick();
         var recovered = View(0, false);

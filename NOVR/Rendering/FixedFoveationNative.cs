@@ -66,11 +66,12 @@ internal sealed class FixedFoveationNative
     internal bool InitializeDevice(IntPtr resource) => _initialize(resource) == 1;
     internal bool Enable(bool enabled) => _enable(enabled ? 1 : 0) == (enabled ? 1 : 0);
     internal bool SetDiagnostics(bool enabled) => _diagnostics(enabled ? 1 : 0) == (enabled ? 1 : 0);
-    internal IntPtr AcquireScope(int width, int height, int samples, int eye, float x, float y, FixedFoveationLevel level)
+    internal IntPtr AcquireScope(int width, int height, int samples, int eye, float x, float y, FixedFoveationLevel level,
+        bool trackedGaze = false)
     {
-        // Existing modes retain 1x1/2x1/2x2. Test levels request 1x1/2x2/4x4;
+        // Mild/Balanced/Strong shade 1x1/1x1/2x2. Test levels request 1x1/2x2/4x4;
         // native code caps the latter for MSAA/driver limits and reports it.
-        FixedFoveationPolicy.Radii(level, out var inner, out var outer);
+        FixedFoveationPolicy.Radii(level, trackedGaze, out var inner, out var outer);
         return _acquire(IntPtr.Zero, (uint)width, (uint)height, (uint)samples, (uint)eye,
             x, y, inner, outer, (uint)level - 1, unchecked((uint)UnityEngine.Time.frameCount));
     }

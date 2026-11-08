@@ -376,14 +376,16 @@ namespace NOVR.Rendering
                 DiagnosticsReason = "";
             return true;
         }
-        internal IntPtr AcquireScope(int width, int height, int samples, int eye, float x, float y, FixedFoveationLevel level)
+        internal IntPtr AcquireScope(int width, int height, int samples, int eye, float x, float y, FixedFoveationLevel level,
+            bool trackedGaze = false)
         {
             if (ThrowAcquire)
                 throw new InvalidOperationException("fixture acquisition failure");
             if (RejectAcquire)
                 return IntPtr.Zero;
             var packet = (IntPtr)(AcquiredScopes.Count + 1);
-            var scope = new Scope(packet, width, height, samples, eye, x, y, level);
+            FixedFoveationPolicy.Radii(level, trackedGaze, out var inner, out var outer);
+            var scope = new Scope(packet, width, height, samples, eye, x, y, level) { TrackedGaze = trackedGaze, Inner = inner, Outer = outer };
             AcquiredScopes.Add(scope);
             LiveScopes.Add(packet, scope);
             return packet;
@@ -475,6 +477,11 @@ namespace NOVR.Rendering
             AcquiredScopes.Clear();
             LiveScopes.Clear();
         }
-        internal sealed record Scope(IntPtr Packet, int Width, int Height, int Samples, int Eye, float X, float Y, FixedFoveationLevel Level);
+        internal sealed record Scope(IntPtr Packet, int Width, int Height, int Samples, int Eye, float X, float Y, FixedFoveationLevel Level)
+        {
+            internal bool TrackedGaze { get; init; }
+            internal float Inner { get; init; }
+            internal float Outer { get; init; }
+        }
     }
 }

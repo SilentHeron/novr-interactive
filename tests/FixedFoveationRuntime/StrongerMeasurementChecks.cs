@@ -63,7 +63,7 @@ internal static class StrongerMeasurementChecks
             Samples((int)FixedFoveationLevel.Strong, 2);
             f.Tick();
             check(FixedFoveationRuntime.Status.Contains("World opaque GPU (Strong fallback):") &&
-                  FixedFoveationRuntime.Status.Contains("1×1 / 2×1 / 2×2"),
+                  FixedFoveationRuntime.Status.Contains("1×1 / 1×1 / 2×2"),
                 "Fresh fallback measurements explicitly identify Strong and its actual shading rates.");
             check(ModConfiguration.Instance.FixedFoveation.RequestedLevel == level,
                 "Showing actual fallback costs never overwrites the user's requested test strength.");

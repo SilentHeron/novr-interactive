@@ -126,7 +126,7 @@ internal sealed partial class FixedFoveationRuntime : MonoBehaviour
 
     private static string RateStatus(NativeReport report, FixedFoveationLevel level)
     {
-        if (level <= FixedFoveationLevel.Strong) return "Centre → edge: 1×1 / 2×1 / 2×2 shading.";
+        if (level <= FixedFoveationLevel.Strong) return "Centre → edge: 1×1 / 1×1 / 2×2 shading.";
         if (report.leftProfile != (int)level - 1 || report.rightProfile != (int)level - 1 ||
             report.leftCoarsestRate != report.rightCoarsestRate)
             return "Waiting for matching eye shading rates.";

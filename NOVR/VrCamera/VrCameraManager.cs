@@ -104,6 +104,7 @@ public class VrCameraManager : MonoBehaviour
 
         if (universalAdditionalCameraData != null && rootUniversalAdditionalCameraData != null)
             universalAdditionalCameraData.cameraStack.AddRange(rootUniversalAdditionalCameraData.cameraStack);
+        SyncAntialiasing(rootCamera, trackedCamera);
 
 
         var rootAudioListener = rootCamera.GetComponent<AudioListener>();
@@ -156,9 +157,28 @@ public class VrCameraManager : MonoBehaviour
             trackedCamera.gameObject.AddComponent<VrCockpitNearClip>();
         if (trackedCamera.GetComponent<VrFarClip>() == null)
             trackedCamera.gameObject.AddComponent<VrFarClip>();
+        SyncAntialiasing(rootCamera, trackedCamera);
 
         IgnoredCameras.Add(rootCamera);
         IgnoredCameras.Add(trackedCamera);
+    }
+
+    // Camera.CopyFrom copies no URP data. The stock flight scene's base camera
+    // asks for SMAA (Medium), which URP applies for the whole camera stack on
+    // top of the pipeline's MSAA; a fresh tracked camera would default to none.
+    // The stack's base camera owns this setting, so mirror it every update
+    // (cheap assignments) and honour the VR preference live.
+    internal static void SyncAntialiasing(Camera rootCamera, Camera trackedCamera)
+    {
+        var root = rootCamera.GetComponent<UniversalAdditionalCameraData>();
+        var tracked = trackedCamera.GetComponent<UniversalAdditionalCameraData>();
+        if (root == null || tracked == null)
+            return;
+        var mode = ModConfiguration.Instance.VrGameAntialiasing.Value ? root.antialiasing : AntialiasingMode.None;
+        if (tracked.antialiasing != mode)
+            tracked.antialiasing = mode;
+        if (tracked.antialiasingQuality != root.antialiasingQuality)
+            tracked.antialiasingQuality = root.antialiasingQuality;
     }
 
     private void HandleChildCameras(Camera parentCamera)

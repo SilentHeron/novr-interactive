@@ -7,7 +7,11 @@ enum class PixelRate { Full, HalfHorizontal, Quarter, Sixteenth };
 enum class RateClamp { None, Msaa, Driver };
 struct ShadingRates
 {
-    PixelRate middle = PixelRate::HalfHorizontal;
+    // Mild/Balanced/Strong keep their region radii but shade the middle ring
+    // at full rate: 2x1 smeared vertical edges and the game's alpha-to-coverage
+    // foliage (trees, grass) inside the sharp lens area. Only the outer edge
+    // is coarse for these presets.
+    PixelRate middle = PixelRate::Full;
     PixelRate outer = PixelRate::Quarter;
     RateClamp clamp = RateClamp::None;
     unsigned Coarsest() const { return outer == PixelRate::Sixteenth ? 4 : 2; }
@@ -19,7 +23,7 @@ inline const char* ClampReason(RateClamp clamp)
 }
 inline ShadingRates SelectShadingRates(std::uint32_t profile, std::uint32_t samples, bool fourByFourRejected)
 {
-    if (profile < 3) return {}; // Preserve Mild/Balanced/Strong exactly.
+    if (profile < 3) return {}; // Mild/Balanced/Strong: 1x1 / 1x1 / 2x2.
     // NVIDIA documents 4x4 at one sample per raster pixel. The public sample
     // order structs likewise provide 4x4 X1 only, but 2x2 X1/X2/X4.
     if (samples != 1) return {PixelRate::Quarter, PixelRate::Quarter, RateClamp::Msaa};
