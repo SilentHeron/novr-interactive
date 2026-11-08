@@ -14,6 +14,10 @@ internal static class WristMenuSettingsActions
         var amount = value - config.FlightHudScale.Value;
         config.FocusedFlightHud.Value = true;
         config.FlightHudScale.Value = value;
+        // When symbols already follow Flight HUD Scale multiplicatively, the
+        // additive nudge would apply the change twice.
+        if (config.SymbolsFollowFlightHud.Value)
+            return;
         config.MarkerScale.Value += amount;
         config.MarkerLabelScale.Value += amount;
         config.ReticleScale.Value += amount;

@@ -338,6 +338,9 @@ public partial class NativeSettingsPanel : MonoBehaviour
             value => cue.Shape.Value = (MotionControls.GazeCueShape)value);
         AddOptionRow("Show Cue", new[] { "Near targets", "Always", "Off" }, () => (int)config.TargetCue.Value,
             value => config.TargetCue.Value = (MotionControls.TargetCueMode)value);
+        AddOptionRow("Gaze Lock Priority", new[] { "Nearest", "Units first", "Aircraft first" }, () => (int)cue.CurrentLockPriority,
+            value => cue.LockPriority.Value = (MotionControls.GazeLockPriority)value);
+        AddToggleRow("Cue Friendly Units", () => cue.FriendlyUnits.Value, value => cue.FriendlyUnits.Value = value);
         if (_contentRoot != null)
         {
             GazeCuePositionSlider.Create(_contentRoot, new Vector2(0, ConsumeRowY() - 12), 1000, _font!, 18);

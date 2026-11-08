@@ -79,6 +79,30 @@ internal static class VegetationViewPatch
         }
     }
 
+    // The game centres its grass/tree position window ahead of this pass's
+    // camera. With the tracked head substituted above (and CameraStateManager's
+    // main camera already pointing at the tracked view), that bias would swing
+    // the window and its outer edge with every head turn, popping trees in and
+    // out around the horizon. Keep the native rig's forward for the bias; the
+    // head still owns the camera position and the stereo frustum planes.
+    [HarmonyPatch(typeof(ShaderGlobalManager), "CalculateCameraTarget")]
+    private static class StableDetailWindow
+    {
+        [HarmonyPrefix]
+        private static void Prefix(ref Vector3 forward)
+        {
+            if (!IsTrackedView(APIBus.MainCamera))
+                return;
+            var rig = SceneSingleton<CameraStateManager>.i;
+            if (rig == null)
+                return;
+            var stable = rig.transform.forward;
+            if (MotionControls.FlightControlMath.IsFinite(stable.x) && MotionControls.FlightControlMath.IsFinite(stable.y) &&
+                MotionControls.FlightControlMath.IsFinite(stable.z) && stable.sqrMagnitude > .5f)
+                forward = stable;
+        }
+    }
+
     private static bool TryExtents(Matrix4x4 projection, out Vector4 extents)
     {
         extents = default;

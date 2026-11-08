@@ -3,5 +3,7 @@
   <ItemGroup>
     <Compile Include="../../NOVR/VrCamera/VrCameraManager.cs" Link="VrCameraManager.cs" />
     <Compile Include="../../NOVR/VrCamera/VrCockpitNearClip.cs" Link="VrCockpitNearClip.cs" />
+    <Compile Include="../../NOVR/VrCamera/VrFarClip.cs" Link="VrFarClip.cs" />
+    <Compile Include="../../NOVR/VrCamera/VrFarClipPolicy.cs" Link="VrFarClipPolicy.cs" />
   </ItemGroup>
 </Project>

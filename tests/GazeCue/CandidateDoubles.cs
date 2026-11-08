@@ -34,11 +34,22 @@ namespace HarmonyLib
 public class Unit
 {
     public bool disabled;
+    public FactionHQ? NetworkHQ;
 }
 public sealed class Aircraft : Unit
 {
     public WeaponManager? weaponManager = new();
     public Cockpit? cockpit = new();
+}
+public sealed class Missile : Unit
+{
+}
+public sealed class FactionHQ
+{
+}
+public enum FactionMode
+{
+    NoFaction = 0, Spectator = 1, Friendly = 2, Enemy = 4
 }
 public sealed class Cockpit
 {
@@ -96,6 +107,11 @@ public static class CameraStateManager
 public static class DynamicMap
 {
     public static bool mapMaximized;
+    // Native faction classification boundary: the local HQ's allies are
+    // friendly, anything else with a faction is an enemy.
+    public static readonly HashSet<FactionHQ> FriendlyFactions = new();
+    public static FactionMode GetFactionMode(FactionHQ? hq) =>
+        hq == null ? FactionMode.NoFaction : FriendlyFactions.Contains(hq) ? FactionMode.Friendly : FactionMode.Enemy;
 }
 namespace UnityEngine.XR
 {

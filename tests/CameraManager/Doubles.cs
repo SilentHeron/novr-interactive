@@ -64,6 +64,7 @@ namespace UnityEngine
         }
         public float fieldOfView = 60;
         public float nearClipPlane = .2f;
+        public float farClipPlane = 80000f;
         public StereoTargetEyeMask stereoTargetEye = StereoTargetEyeMask.Both;
         public void CopyFrom(Camera camera) => fieldOfView = camera.fieldOfView;
     }
@@ -160,6 +161,22 @@ internal static class CameraStateManager
 internal static class APIBus
 {
     internal static UnityEngine.Camera? MainCamera;
+}
+namespace BepInEx.Configuration
+{
+    public sealed class ConfigEntry<T>(T value)
+    {
+        public T Value { get; set; } = value;
+    }
+}
+namespace NOVR
+{
+    // Only the far-plane preference is read by the camera components under test.
+    internal sealed class ModConfiguration
+    {
+        internal static ModConfiguration Instance = new();
+        internal readonly BepInEx.Configuration.ConfigEntry<float> VrFarClipDistance = new(VrCamera.VrFarClipPolicy.Default);
+    }
 }
 namespace UnityEngine.Rendering.Universal
 {

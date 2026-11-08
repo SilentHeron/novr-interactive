@@ -277,6 +277,10 @@ namespace UnityEngine.Rendering.Universal
         public XrPass xr;
         public RenderTextureDescriptor cameraTargetDescriptor;
         public CameraRenderType renderType;
+        // URP answers this from the bound colour target: an intermediate
+        // texture is Y-flipped on Direct3D, the swapchain target is not.
+        public bool Flipped;
+        public bool IsCameraProjectionMatrixFlipped() => Flipped;
     }
     public struct RenderingData
     {

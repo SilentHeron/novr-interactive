@@ -48,7 +48,8 @@ remains a fatal backend error. This is an application-level rate cap, not a
 claim that the driver has revealed every supported shading rate.
 
 The entire tile is full-rate if any part intersects the protected inner ellipse.
-Centers use normalized top-left-origin target coordinates. Radii use normalized
+Centers use normalized top-left-origin target coordinates; the managed caller
+mirrors Y when URP's intermediate target is drawn upside down. Radii use normalized
 half-viewport extents, matching the managed projection-derived optical center.
 Each eye has its own cached texture/view and retained CPU image. Unchanged fixed
 centers produce the exact original mask and require no upload. A new gaze center

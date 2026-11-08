@@ -14,6 +14,12 @@ internal static class HudPresentationChecks
                 near(HudPresentationMath.AircraftLabelScale(userScale, AircraftLabelAffiliation.Other, true), userScale);
                 foreach (var affiliation in Enum.GetValues<AircraftLabelAffiliation>())
                     near(HudPresentationMath.AircraftLabelScale(userScale, affiliation, false), 1);
+            near(HudPresentationMath.SymbolFollowFactor(true, true, .38f), 1);
+            near(HudPresentationMath.SymbolFollowFactor(true, true, .57f), 1.5f);
+            near(HudPresentationMath.SymbolFollowFactor(false, true, .57f), 1);
+            near(HudPresentationMath.SymbolFollowFactor(true, false, .57f), 1);
+            foreach (var bad in new[] { 0f, -1f, float.NaN, float.PositiveInfinity })
+                near(HudPresentationMath.SymbolFollowFactor(true, true, bad), 1);
             }
         });
 

@@ -38,6 +38,7 @@ internal sealed partial class FixedFoveationRuntime : MonoBehaviour
         _previousLeft = _previousRight = _previousLeftSample = _previousRightSample = 0;
         _gazeFrame = -1;
         _gazeReadWarning = false;
+        _targetOrientation = -1;
         _alive = true;
         RenderPipelineManager.endFrameRendering += AfterFrame;
     }

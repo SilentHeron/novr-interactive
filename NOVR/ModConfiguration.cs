@@ -25,11 +25,12 @@ public class ModConfiguration
     internal readonly ConfigEntry<MotionControls.TargetCueMode> TargetCue;
     internal readonly MotionControls.GazeCueSettings LookCue;
     public readonly ConfigEntry<float> HudPanelScale, HudPanelDistance;
-    public readonly ConfigEntry<bool> HudContrast, HudDeclutter, FocusedFlightHud;
+    public readonly ConfigEntry<bool> HudContrast, HudDeclutter, FocusedFlightHud, SymbolsFollowFlightHud;
     public readonly ConfigEntry<float> FlightHudScale, InstrumentBrightness;
     public readonly ConfigEntry<float> MarkerScale, MarkerLabelScale, ReticleScale, WeaponHudScale;
     public readonly ConfigEntry<bool> SeatClearanceEnabled;
     public readonly ConfigEntry<float> SeatClearanceRadius;
+    public readonly ConfigEntry<float> VrFarClipDistance;
 
     public ModConfiguration(ConfigFile config)
     {
@@ -45,6 +46,9 @@ public class ModConfiguration
         SeatClearanceRadius = config.Bind("Comfort", "Head Clearance Radius", Comfort.SeatClearanceRange.Default,
             new ConfigDescription("Local head-clearance radius in meters. Applies only when Head Clearance is enabled.",
                 new AcceptableValueRange<float>(Comfort.SeatClearanceRange.Minimum, Comfort.SeatClearanceRange.Maximum)));
+        VrFarClipDistance = config.Bind("VR View", "Far Clip Distance", VrCamera.VrFarClipPolicy.Default,
+            new ConfigDescription("Minimum far clip distance in metres for the tracked VR view. The game's camera stops at 80 km; at altitude that cut shows as a flat wall of fogged terrain that pivots with your head. Only extends the game's value; 0 keeps it.",
+                new AcceptableValueRange<float>(0f, VrCamera.VrFarClipPolicy.Maximum)));
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,
             "Context shows the look-direction cue only near a selectable target that is not already in your target list. Pressing Select over empty space does not show it. Always keeps it visible during cockpit flight; Off hides it. Brightness follows the HUD instruments. Target diamonds and weapon sights are unchanged.");
         LookCue = new MotionControls.GazeCueSettings(config);
@@ -52,6 +56,8 @@ public class ModConfiguration
             new ConfigDescription("Brightness of flight instruments, compass and pitch ladder only. Target/flight-path markers and missile warnings retain their native brightness.", new AcceptableValueRange<float>(.35f, 1f)));
         FocusedFlightHud = config.Bind("VR HUD", "Focused Flight HUD", true, "Compact flight instruments and a limited forward pitch ladder. Target and missile-warning projections remain independent.");
         FlightHudScale = config.Bind("VR HUD", "Flight HUD Scale", .38f, new ConfigDescription("Size of the focused flight instruments and pitch-ladder window.", new AcceptableValueRange<float>(.22f, .75f)));
+        SymbolsFollowFlightHud = config.Bind("VR HUD", "Symbols Follow Flight HUD Scale", true,
+            "Scale target/location symbols, marker labels and reticles with Flight HUD Scale, relative to its 38% default, so the whole HUD resizes together. Off sizes them from their own sliders only.");
         MarkerScale = config.Bind("VR HUD", "Marker Scale", .45f, new ConfigDescription("Size of target diamonds and location symbols, preserving their world alignment.", new AcceptableValueRange<float>(.2f, 1f)));
         MarkerLabelScale = config.Bind("VR HUD", "Marker Label Scale", .55f, new ConfigDescription("Size of target, location and aiming labels.", new AcceptableValueRange<float>(.2f, 1f)));
         ReticleScale = config.Bind("VR HUD", "Reticle Scale", .45f, new ConfigDescription("Crosshair and bombing-pipper size; connecting lines retain their aim geometry.", new AcceptableValueRange<float>(.2f, 1f)));

@@ -120,6 +120,7 @@ public class VrCameraManager : MonoBehaviour
 
         trackedCameraObject.AddComponent<VrCamera>();
         trackedCameraObject.AddComponent<VrCockpitNearClip>();
+        trackedCameraObject.AddComponent<VrFarClip>();
 
         IgnoredCameras.Add(rootCamera);
         IgnoredCameras.Add(trackedCamera);
@@ -153,6 +154,8 @@ public class VrCameraManager : MonoBehaviour
         }
         if (trackedCamera.GetComponent<VrCockpitNearClip>() == null)
             trackedCamera.gameObject.AddComponent<VrCockpitNearClip>();
+        if (trackedCamera.GetComponent<VrFarClip>() == null)
+            trackedCamera.gameObject.AddComponent<VrFarClip>();
 
         IgnoredCameras.Add(rootCamera);
         IgnoredCameras.Add(trackedCamera);

@@ -47,6 +47,16 @@ it. Restart after installing this version so OpenXR can register the input
 feature. The menu distinguishes tracked eyes from fixed fallback and its reason.
 This does not move the targeting cue or change weapon aiming.
 
+The centre is expressed in rows of the eye texture that the world pass actually
+draws into. With a camera stack or post-processing active, URP renders that pass
+into an intermediate texture, and on Direct3D 11 the engine flips the projection
+so the top of the image is stored in the last rows. NOVR asks URP for that
+orientation on every pass and mirrors the centre to match; the log reports the
+orientation once when it is first seen. Versions before 0.4.8.33 mapped an
+upright image, so an eye-tracked centre moved opposite to vertical gaze and
+coarse shading reached the fovea whenever the eyes left the horizontal centre.
+Fixed foveation was barely affected because its centre is nearly symmetric.
+
 Untracked, unfocused, invalid or older-than-100ms gaze falls back immediately to
 the existing fixed centre. Extreme/Maximum require a sample no older than 50ms
 and fall back to **Strong**, restoring its larger protected region and gentler
@@ -72,7 +82,9 @@ it does not create textures/views or allocate the rate image each frame.
 4. Check peripheral terrain, native instrument text, HUD, shadows and both eyes.
    If artifacts or stutter appear, use Off. Disable measurements after comparing.
 5. For eye tracking, hold your head still and look around with your eyes. Confirm
-   the menu reports tracked eyes and detail follows them. Also check fast eye
+   the menu reports tracked eyes and detail follows them. Use Maximum for this
+   check: look well above and below the centre and confirm the sharp region
+   moves the same way as your eyes, not the opposite way. Also check fast eye
    movements, blinks, loss of focus and turning eye tracking off. Allow each mode
    to settle before comparing timings. Extreme/Maximum are optional test steps
    beyond Strong; compare both steady fixation and fast eye movements. Keep MSAA

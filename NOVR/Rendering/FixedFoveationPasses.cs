@@ -16,6 +16,19 @@ internal sealed partial class FixedFoveationRuntime
     private readonly Dictionary<ScriptableRenderer, bool> _forward = new();
     private FoveationPass? _reset, _begin, _end;
     private IntPtr _pending;
+    private int _targetOrientation = -1;
+
+    private void NoteTargetOrientation(bool flipped)
+    {
+        // One line per change lets a log confirm which target layout the
+        // centre was mapped to; the orientation is stable in normal play.
+        var state = flipped ? 1 : 0;
+        if (_targetOrientation == state) return;
+        _targetOrientation = state;
+        Debug.Log(flipped
+            ? "[NOVR] Foveated rendering: the eye target is an upside-down intermediate texture; mirroring the protected centre vertically."
+            : "[NOVR] Foveated rendering: the eye target is drawn upright; using the projected centre directly.");
+    }
 
     private void PreparePasses()
     {
@@ -100,7 +113,11 @@ internal sealed partial class FixedFoveationRuntime
                 xr.supportsFoveatedRendering || xr.foveatedRenderingInfo != IntPtr.Zero);
             if (reason != null) { _cameraReason = reason; return; }
             var projection = xr.GetProjMatrix(0);
-            if (!ResolveCenter(cameraData, projection, out var x, out var y))
+            // URP's own matrix setup uses this answer to flip the projection for
+            // intermediate textures; the rate map must address the same rows.
+            var flipped = cameraData.IsCameraProjectionMatrixFlipped();
+            NoteTargetOrientation(flipped);
+            if (!ResolveCenter(cameraData, projection, flipped, out var x, out var y))
             { _cameraReason = "Unsupported eye projection."; return; }
             var packet = _native.AcquireScope(target.width, target.height, target.msaaSamples, xr.multipassId, x, y,
                 _level == FixedFoveationLevel.Off ? FixedFoveationLevel.Mild : CurrentRenderLevel);

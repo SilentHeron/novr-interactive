@@ -18,6 +18,8 @@ internal static class TargetCueCandidates
     // Native threat/range priority must not override an explicit gaze choice.
     // Marker positions already contain the game's known-position rules and the
     // VR projection; reading the underlying unit would bypass those rules.
+    // Inside the cone the configured class tier wins first (so an aircraft is
+    // not lost to the missile it just launched); angle decides within a tier.
     internal static HUDUnitMarker? Nearest(CombatHUD? hud)
     {
         var camera = APIBus.CockpitHudCamera;
@@ -30,9 +32,13 @@ internal static class TargetCueCandidates
         if (selected == null)
             return null;
 
+        var settings = ModConfiguration.Instance.LookCue;
+        var priority = settings.CurrentLockPriority;
+        var allowFriendly = settings.FriendlyUnits.Value;
         var origin = camera.transform.position;
         var forward = GazeCueRay.Direction(camera.transform);
         var bestAlignment = MinimumAlignment;
+        var bestTier = int.MaxValue;
         HUDUnitMarker? best = null;
         foreach (var marker in Markers(hud))
         {
@@ -40,14 +46,21 @@ internal static class TargetCueCandidates
                 marker.unit.disabled || marker.image == null || !marker.image.isActiveAndEnabled ||
                 !(marker.image.canvasRenderer.GetInheritedAlpha() > .01f) || exclusions.CheckExclusions(marker.unit))
                 continue;
+            if (!TargetCuePriority.Eligible(allowFriendly, DynamicMap.GetFactionMode(marker.unit.NetworkHQ) == FactionMode.Friendly))
+                continue;
             var direction = marker.image.transform.position - origin;
             var distanceSquared = direction.sqrMagnitude;
             var along = Vector3.Dot(direction, forward);
             if (!(distanceSquared > 0) || float.IsInfinity(distanceSquared) || !(along > 0) || float.IsInfinity(along))
                 continue;
             var alignment = along / Mathf.Sqrt(distanceSquared);
-            if (alignment <= bestAlignment)
+            if (alignment <= MinimumAlignment)
                 continue;
+            var tier = TargetCuePriority.Tier(priority, marker.unit is Aircraft, marker.unit is Missile);
+            // Exact angular ties keep the earlier marker, as before.
+            if (tier > bestTier || (tier == bestTier && alignment <= bestAlignment))
+                continue;
+            bestTier = tier;
             bestAlignment = alignment;
             best = marker;
         }

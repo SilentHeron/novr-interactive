@@ -10,7 +10,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.8.32**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
+Experimental version **0.4.8.33**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
 
 ## Install
 
@@ -46,7 +46,7 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | Quick wheel | Either thumbstick click | Either thumbstick click | That hand free |
 | Reopen layout menu | Either thumbstick click | Either thumbstick click | Edit layout active |
 
-Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** View in the cockpit; map outside it.
+Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. The look-direction cue and **Select target nearest cue** prefer aircraft, ground units and ships over missiles inside the cue's cone, so an aircraft is not lost to the missile it just fired (**View → Look direction cue → Targeting**: Nearest, Units first or Aircraft first). Friendly units get no cue and no gaze lock unless **Cue friendly units** is on; the game's own target filters still apply. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** View in the cockpit; map outside it.
 
 For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled assist resumes native automatic control. For wing sweep, push the thumbstick forward to extend the wings or backward to sweep them aft.
 
@@ -68,11 +68,15 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **Head clearance:** enabled by default with a 25 cm radius; adjust it from 5–40 cm in View settings. It cuts only eligible seat geometry near your head. Saved settings are retained when upgrading.
 
-**Foveated rendering (experimental):** available on native Windows with compatible NVIDIA hardware and Direct3D 11. View → VR performance → Foveated rendering has a strength slider for fixed or eye-tracked use. Extreme and Maximum test smaller protected regions and coarser peripheral shading; MSAA limits the outer rate to 2×2. **Follow eye tracking** uses supported OpenXR gaze, including Steam Frame; missing tracking uses a fixed fallback. Foveation, eye tracking and GPU measurements default to Off. The same package works on Linux/Proton with foveation unavailable. [Details and comparison steps](docs/PC_FOVEATION.md).
+**Foveated rendering (experimental):** available on native Windows with compatible NVIDIA hardware and Direct3D 11. View → VR performance → Foveated rendering has a strength slider for fixed or eye-tracked use. Extreme and Maximum test smaller protected regions and coarser peripheral shading; MSAA limits the outer rate to 2×2. **Follow eye tracking** uses supported OpenXR gaze, including Steam Frame; missing tracking uses a fixed fallback. The protected centre is mapped onto the actual eye render target, which URP draws upside down on Direct3D 11, so it follows vertical gaze correctly. Foveation, eye tracking and GPU measurements default to Off. The same package works on Linux/Proton with foveation unavailable. [Details and comparison steps](docs/PC_FOVEATION.md).
 
 **Game graphics:** View → VR performance → Game graphics adjusts the game's tree distance, shadow quality and cloud detail. Lower settings can help in scenes heavy with trees, shadows or clouds. Existing settings stay unchanged until you adjust them.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.32.md)
+**HUD symbol size:** target and location symbols, marker labels and reticles follow **Flight HUD Scale** (relative to its 38% default) when **Symbols Follow Flight HUD Scale** is on, in addition to their own sliders under View → HUD & markers → Symbols. The game's HMD icon size setting and its distance-based marker shrink still apply underneath.
+
+**View distance:** the game's camera stops rendering 80 km out, which a head-tracked view at altitude sees as a flat grey wall that pivots with your head. NOVR extends the tracked VR view's far plane to 250 km by default; **VR View → Far Clip Distance** in the BepInEx config is a minimum (0 keeps the game's value). The grass and tree detail window also stays centred on the aircraft's forward instead of swinging with your head.
+
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.33.md)
 
 ## Build
 

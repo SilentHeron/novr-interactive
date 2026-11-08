@@ -16,6 +16,8 @@ try
     var config = new ModConfiguration(file);
     var settings = config.LookCue;
     Check(settings.Size.Value == 1 && settings.Opacity.Value == .65f && settings.Shape.Value == GazeCueShape.Circle, "No new appearance defaults");
+    Check(settings.CurrentLockPriority == GazeLockPriority.UnitsBeforeMissiles && !settings.FriendlyUnits.Value,
+        "Gaze lock prefers units over missiles and skips friendly units by default");
     var go = GazeRingGraphic.Create(new GameObject("parent").transform);
     var cue = go.GetComponent<GazeRingGraphic>();
     void Refresh() => typeof(GazeRingGraphic).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(cue, null);
@@ -117,12 +119,16 @@ try
     settings.Opacity.Value = .4f;
     settings.Shape.Value = GazeCueShape.Brackets;
     settings.VerticalDegrees.Value = -2.25f;
+    settings.LockPriority.Value = GazeLockPriority.AircraftFirst;
+    settings.FriendlyUnits.Value = true;
     file.Save();
     var reloaded = new GazeCueSettings(new ConfigFile(Path.Combine(dir, "cue.cfg"), false));
     Check(reloaded.Scale == 1.5f && reloaded.Alpha == .4f && reloaded.CurrentShape == GazeCueShape.Brackets, "Custom appearance persists across reload");
     Check(reloaded.VerticalAngle == -2.25f, "Custom angular position persists across reload");
+    Check(reloaded.CurrentLockPriority == GazeLockPriority.AircraftFirst && reloaded.FriendlyUnits.Value, "Gaze lock priority and friendly cue persist across reload");
     reloaded.Reset();
     Check(reloaded.VerticalAngle == -1, "Reset restores modest lower default");
+    Check(reloaded.CurrentLockPriority == GazeLockPriority.UnitsBeforeMissiles && !reloaded.FriendlyUnits.Value, "Reset restores the default gaze lock rules");
     CandidateChecks.Run(Check);
     SelectionChecks.Run(Check);
     OffsetRayChecks.Run(Check);

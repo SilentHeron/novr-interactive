@@ -197,6 +197,8 @@ namespace NOVR
     internal sealed partial class ModConfiguration
     {
         internal readonly BepInEx.Configuration.ConfigEntry<bool> FocusedFlightHud = new(false, new(null));
+        // Production defaults this on; the legacy additive checks below run with it off.
+        internal readonly BepInEx.Configuration.ConfigEntry<bool> SymbolsFollowFlightHud = new(false, new(null));
         internal readonly BepInEx.Configuration.ConfigEntry<float> FlightHudScale = new(.38f, new(new BepInEx.Configuration.AcceptableValueRange<float>(.22f, .75f))),
             MarkerScale = new(.45f, new(null)), MarkerLabelScale = new(.55f, new(null)), ReticleScale = new(.45f, new(null)), WeaponHudScale = new(.5f, new(null));
     }

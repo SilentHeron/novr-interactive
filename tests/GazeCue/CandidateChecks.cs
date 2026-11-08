@@ -21,6 +21,9 @@ internal static class CandidateChecks
     {
         Time.unscaledTime = 1;
         ModConfiguration.Instance.LookCue.VerticalDegrees.Value = 0;
+        ModConfiguration.Instance.LookCue.LockPriority.Value = TargetCuePriority.Default;
+        ModConfiguration.Instance.LookCue.FriendlyUnits.Value = false;
+        DynamicMap.FriendlyFactions.Clear();
         SceneSingleton<TargetListSelector>.i = new TargetListSelector();
         APIBus.CockpitHudCamera = new GameObject("Actual HUD camera").AddComponent<Camera>();
         UnityEngine.XR.XRSettings.enabled = true;
@@ -163,5 +166,62 @@ internal static class CandidateChecks
             check(!TargetCueCandidates.Nearby(hud), "lost or invalid native context fails closed");
         }
         check(!TargetCueCandidates.Nearby(null), "missing HUD fails closed");
+
+        // Friendly units: no cue and no gaze lock unless the option allows them.
+        hud = Fresh(out marker);
+        var allies = new FactionHQ();
+        DynamicMap.FriendlyFactions.Add(allies);
+        marker.unit!.NetworkHQ = allies;
+        check(!TargetCueCandidates.Nearby(hud), "friendly units get no cue by default");
+        ModConfiguration.Instance.LookCue.FriendlyUnits.Value = true;
+        check(TargetCueCandidates.Nearest(hud) == marker, "the friendly-units option restores the cue for allies");
+        ModConfiguration.Instance.LookCue.FriendlyUnits.Value = false;
+        var hostile = Marker(new Vector3(60, 0, 1000));
+        hostile.unit!.NetworkHQ = new FactionHQ();
+        hud.Add(hostile);
+        check(TargetCueCandidates.Nearest(hud) == hostile, "an off-centre hostile wins over a centred friendly");
+        marker.unit.NetworkHQ = null;
+        check(TargetCueCandidates.Nearest(hud) == marker, "units without a faction remain eligible");
+
+        // Lock priority: the configured class tier wins inside the cone and the
+        // nearest angle decides within a tier, so an aircraft is not lost to the
+        // missile it just launched.
+        HUDUnitMarker Typed(Unit unit, Vector3 position)
+        {
+            var typed = Marker(position);
+            typed.unit = unit;
+            return typed;
+        }
+        foreach (var priority in Enum.GetValues<GazeLockPriority>())
+        {
+            ResetContext();
+            ModConfiguration.Instance.LookCue.LockPriority.Value = priority;
+            var missile = Typed(new Missile(), new Vector3(0, 0, 1000));
+            var ground = Typed(new Unit(), new Vector3(30, 0, 1000));
+            var aircraft = Typed(new Aircraft(), new Vector3(60, 0, 1000));
+            hud = Hud(missile, ground, aircraft);
+            var expected = priority switch
+            {
+                GazeLockPriority.Nearest => missile,
+                GazeLockPriority.UnitsBeforeMissiles => ground,
+                _ => aircraft
+            };
+            check(TargetCueCandidates.Nearest(hud) == expected, priority + " picks its preferred class inside the cone before the nearest angle");
+            hud = Hud(aircraft, ground, missile);
+            check(TargetCueCandidates.Nearest(hud) == expected, priority + " does not depend on marker order");
+            hud = Hud(missile, Typed(new Aircraft(), new Vector3(200, 0, 1000)));
+            check(TargetCueCandidates.Nearest(hud) == missile, priority + " still cues a lone missile when no preferred unit is inside the cone");
+            hud = Hud(Typed(new Missile(), new Vector3(0, 0, 1000)), Typed(new Missile(), new Vector3(20, 0, 1000)));
+            check(TargetCueCandidates.Nearest(hud)!.image!.transform.position.x == 0, priority + " uses the nearest angle within one class");
+        }
+        ResetContext();
+        ModConfiguration.Instance.LookCue.LockPriority.Value = (GazeLockPriority)99;
+        check(ModConfiguration.Instance.LookCue.CurrentLockPriority == TargetCuePriority.Default &&
+            TargetCuePriority.Tier((GazeLockPriority)99, false, true) == 1, "an invalid saved priority behaves as the default, not as nearest");
+        check(TargetCuePriority.Tier(GazeLockPriority.AircraftFirst, true, false) == 0 && TargetCuePriority.Tier(GazeLockPriority.AircraftFirst, false, false) == 1 &&
+            TargetCuePriority.Tier(GazeLockPriority.AircraftFirst, false, true) == 2 && TargetCuePriority.Tier(GazeLockPriority.Nearest, false, true) == 0,
+            "tiers order aircraft, other units and missiles as documented");
+        check(!TargetCuePriority.Eligible(false, true) && TargetCuePriority.Eligible(true, true) && TargetCuePriority.Eligible(false, false),
+            "friendly eligibility follows the option without touching other factions");
     }
 }

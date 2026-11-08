@@ -68,13 +68,15 @@ for (var i = 0; i < 20; i++) { main.enabled = true; update(); }
 Check(Camera.Creations == creations && ReferenceEquals(tracked, VrCameraManager.GetTrackedMainCamera(main.gameObject)), "Native root re-enables reuse the same tracked rig");
 Check(tracked.gameObject.Count<VrCamera>() == 1, "Rig maintenance does not duplicate tracking behaviour");
 Check(tracked.gameObject.Count<VrCockpitNearClip>() == 1, "Tracked main view owns exactly one cockpit near-plane lease");
+Check(tracked.gameObject.Count<VrFarClip>() == 1, "Tracked main view owns exactly one far-plane lease");
 Check(VrCameraManager.IgnoredCameras.Contains(main) && VrCameraManager.IgnoredCameras.Contains(tracked), "Both live main-camera owners remain registered");
 
 var menu = Make("Menu Camera");
 update();
 update();
 Check(menu.gameObject.Count<VrCamera>() == 1, "Stable menu camera receives one tracking wrapper");
-Check(menu.gameObject.Count<VrCockpitNearClip>() == 0 && cockpit.gameObject.Count<VrCockpitNearClip>() == 0,
+Check(menu.gameObject.Count<VrCockpitNearClip>() == 0 && cockpit.gameObject.Count<VrCockpitNearClip>() == 0 &&
+      menu.gameObject.Count<VrFarClip>() == 0 && cockpit.gameObject.Count<VrFarClip>() == 0,
     "Menu and native cockpit overlay cameras retain their original clipping behaviour");
 menu.Destroyed = true;
 update();
@@ -85,4 +87,5 @@ var before = GC.GetAllocatedBytesForCurrentThread();
 for (var i = 0; i < 10000; i++) update();
 Check(GC.GetAllocatedBytesForCurrentThread() == before, "Stable source discovery and registry pruning allocate no managed memory in boundary fixture");
 checks += NearClipChecks.Run(tracked, main);
+checks += FarClipChecks.Run(tracked, main);
 Console.WriteLine($"{checks} source-linked camera manager lifecycle checks passed (Unity boundary doubles; no GPU claim).");

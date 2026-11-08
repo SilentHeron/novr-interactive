@@ -49,10 +49,25 @@ internal sealed partial class FixedFoveationRuntime
         }
     }
 
-    private bool ResolveCenter(CameraData cameraData, Matrix4x4 projection, out float x, out float y)
+    private bool ResolveCenter(CameraData cameraData, Matrix4x4 projection, bool flippedTarget, out float x, out float y)
     {
         if (!FixedFoveationCameraPolicy.TryCenter(projection.m02, projection.m12, out x, out y)) return false;
-        if (_level == FixedFoveationLevel.Off || !ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value) return true;
+        if (_level != FixedFoveationLevel.Off && ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value)
+            ResolveGaze(cameraData, projection, ref x, ref y);
+        // URP draws this bracketed opaque pass into an intermediate texture
+        // whenever a camera stack or post-processing is active. On Direct3D the
+        // engine flips that projection, so the top of the eye image lands on the
+        // last target rows. The rate texture addresses target rows, not the
+        // upright image: mirror the centre so the protected region stays where
+        // the pilot actually looks. A fixed centre barely moves (its vertical
+        // asymmetry is small); an eye-tracked centre would otherwise move
+        // opposite to vertical gaze and expose coarse shading in the fovea.
+        if (flippedTarget) y = 1 - y;
+        return true;
+    }
+
+    private void ResolveGaze(CameraData cameraData, Matrix4x4 projection, ref float x, ref float y)
+    {
         // The input reader shares one fresh sample between both eyes. Remove
         // its head rotation from the actual camera pose to recover the complete
         // tracking origin, including NOVR's recenter calibration. Use the actual
@@ -61,11 +76,11 @@ internal sealed partial class FixedFoveationRuntime
         try
         {
             _gazeState = NovrEyeGaze.Read(out var pose);
-            if (_gazeState != NovrEyeGazeReadState.Tracked) return true;
+            if (_gazeState != NovrEyeGazeReadState.Tracked) return;
             // The small test regions need fresher input than the legacy presets.
             // This is sample age, not a claim about end-to-end tracking latency.
             if (_level > FixedFoveationLevel.Strong && pose.AgeSeconds > .05)
-            { _gazeState = NovrEyeGazeReadState.Stale; return true; }
+            { _gazeState = NovrEyeGazeReadState.Stale; return; }
             var camera = cameraData.camera;
             var eyeView = cameraData.xr.GetViewMatrix(0);
             var originRotation = camera.transform.rotation * Quaternion.Inverse(pose.HeadRotation);
@@ -86,6 +101,5 @@ internal sealed partial class FixedFoveationRuntime
                 Debug.LogWarning("[NOVR] Eye input unavailable; using fixed foveation: " + error.Message);
             }
         }
-        return true;
     }
 }

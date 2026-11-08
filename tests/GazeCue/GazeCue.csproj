@@ -8,6 +8,7 @@
     <Compile Include="../../NOVR/VrUi/Targeting/GazeCueRay.cs" Link="GazeCueRay.cs" />
     <Compile Include="../../NOVR/VrUi/Targeting/GazeRingGraphic.cs" Link="GazeRingGraphic.cs" />
     <Compile Include="../../NOVR/VrUi/Targeting/TargetCueMode.cs" Link="TargetCueMode.cs" />
+    <Compile Include="../../NOVR/VrUi/Targeting/GazeLockPriority.cs" Link="GazeLockPriority.cs" />
     <Compile Include="../../NOVR/VrUi/Targeting/TargetCueCandidates.cs" Link="TargetCueCandidates.cs" />
     <Compile Include="../../NOVR/VrUi/HarmonyPatches/GazeTargetSelectionPatch.cs" Link="GazeTargetSelectionPatch.cs" />
     <Compile Include="../../NOVR/VrUi/Hud/NOVRTargetDesignatorBehavior.cs" Link="NOVRTargetDesignatorBehavior.cs" />

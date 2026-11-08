@@ -408,6 +408,7 @@ using (var f = new Fixture())
 GazeRuntimeChecks.Run(Check);
 StrongerLevelsChecks.Run(Check);
 StrongerMeasurementChecks.Run(Check);
+FlippedTargetChecks.Run(Check);
 Console.WriteLine($"PASS {checks} source-linked fixed-foveation runtime checks (Unity/URP/native boundary doubles; no GPU assertions).");
 
 internal sealed class Fixture : IDisposable

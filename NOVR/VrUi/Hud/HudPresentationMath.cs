@@ -19,6 +19,12 @@ internal static class HudPresentationMath
             _ => 1f
         });
     internal static float ScaleCoordinate(float coordinate, float anchor, float scale) => anchor + (coordinate - anchor) * scale;
+    // Flight HUD Scale defaults to .38; symbols follow its ratio to that default
+    // so existing symbol sliders keep their meaning at the default HUD size.
+    internal const float DefaultFlightHudScale = .38f;
+    internal static float SymbolFollowFactor(bool follow, bool focusedHud, float flightHudScale) =>
+        !follow || !focusedHud || float.IsNaN(flightHudScale) || float.IsInfinity(flightHudScale) || flightHudScale <= 0
+            ? 1f : flightHudScale / DefaultFlightHudScale;
     internal static float WidgetFit(float width, float height, float userScale) =>
         Math.Min(180 * userScale / .5f / Math.Max(1, width), 350 * userScale / .5f / Math.Max(1, height));
 }

@@ -28,17 +28,24 @@ internal sealed class HudElementStyle : BaseMeshEffect
     private AircraftLabelAffiliation _aircraftLabelAffiliation;
     internal float Scale => Kind switch
     {
-        HudElementKind.Marker => ModConfiguration.Instance.MarkerScale.Value,
-        HudElementKind.Label => _aircraftTargetLabel
+        // Symbols default to their own sliders; with the follow option they also
+        // track Flight HUD Scale relative to its default, so one slider resizes
+        // instruments and world-aligned symbols together (unlike the native
+        // per-distance marker scale, which stays untouched underneath).
+        HudElementKind.Marker => ModConfiguration.Instance.MarkerScale.Value * HudPresentationMath.SymbolFollowFactor(
+            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value),
+        HudElementKind.Label => (_aircraftTargetLabel
             ? HudPresentationMath.AircraftLabelScale(ModConfiguration.Instance.MarkerLabelScale.Value, _aircraftLabelAffiliation, XRSettings.enabled)
-            : ModConfiguration.Instance.MarkerLabelScale.Value,
+            : ModConfiguration.Instance.MarkerLabelScale.Value) * HudPresentationMath.SymbolFollowFactor(
+            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value),
         // Range/guidance widgets follow the same master scale as the native
         // instrument layout. Keep their existing size control as a relative
         // trim (the default .5 is neutral), without touching aim projections.
         HudElementKind.Weapon => ModConfiguration.Instance.WeaponHudScale.Value / .5f *
             (ModConfiguration.Instance.FocusedFlightHud.Value && !_flightScaleInherited ? ModConfiguration.Instance.FlightHudScale.Value : 1f),
         HudElementKind.WorldGeometry => 1,
-        _ => ModConfiguration.Instance.ReticleScale.Value
+        _ => ModConfiguration.Instance.ReticleScale.Value * HudPresentationMath.SymbolFollowFactor(
+            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value)
     };
     internal Vector3 Anchor => Group == null ? Vector3.zero : transform.InverseTransformPoint(Group.position);
     internal static HudElementStyle? Add(Graphic? graphic, HudElementKind kind, Transform? group = null)

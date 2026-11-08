@@ -75,6 +75,13 @@ internal static class ControlChecks
         hud.Slider.value = .38f;
         check(Near(config.MarkerScale.Value, .45f) && Near(config.MarkerLabelScale.Value, .55f) && Near(config.ReticleScale.Value, .45f) && Near(config.WeaponHudScale.Value, .5f),
             "Reversing combined HUD adjustment restores each independent initial size");
+        config.SymbolsFollowFlightHud.Value = true;
+        hud.Slider.value = .5f;
+        check(config.FocusedFlightHud.Value && Near(config.FlightHudScale.Value, .5f) && Near(config.MarkerScale.Value, .45f) &&
+            Near(config.MarkerLabelScale.Value, .55f) && Near(config.ReticleScale.Value, .45f) && Near(config.WeaponHudScale.Value, .5f),
+            "With symbols following Flight HUD Scale, the combined slider does not also nudge the symbol sliders");
+        hud.Slider.value = .38f;
+        config.SymbolsFollowFlightHud.Value = false;
         foreach (var left in new[] { false, true })
         {
             check(WristMenuSettingsActions.PalmPreset(new Vector3(0, 0, left ? 90 : -90), left) == 0, "Only the fitted upright orientation selects the upright preset");

@@ -114,6 +114,7 @@ internal sealed partial class WristMenu
         Setting(parent, "Weapon range readouts", config.WeaponHudScale, -51, Percent, .01f);
         Note(parent, "Size changes preserve each element's aim point.", -116, 42);
         ActionButton(parent, "Look direction cue  ›", 0, -185, () => ShowPage(_lookCuePage!));
+        Setting(parent, "Follow Flight HUD size", config.SymbolsFollowFlightHud, 1, -185);
     }
 
     private void BuildLookCuePage()
@@ -128,7 +129,22 @@ internal sealed partial class WristMenu
         Choice(parent, "Shape", new[] { "Circle", "Dot", "Crosshair", "Brackets" }, () => (int)cue.CurrentShape, value => cue.Shape.Value = (GazeCueShape)value, 17);
         Choice(parent, "Show cue", new[] { "Near targets", "Always", "Off" }, () => (int)config.TargetCue.Value, value => config.TargetCue.Value = (TargetCueMode)value, -59);
         Setting(parent, "Vertical position", cue.VerticalDegrees, -140, _ => cue.PositionLabel, .25f);
-        ActionButton(parent, "Reset cue", 0, -213, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; });
-        ActionButton(parent, "Centre cue", 1, -213, () => cue.VerticalDegrees.Value = 0);
+        CompactAction(ActionButton(parent, "Reset cue", 0, -213, () => { cue.Reset(); config.TargetCue.Value = TargetCueMode.Context; }), 0, 3);
+        CompactAction(ActionButton(parent, "Centre cue", 1, -213, () => cue.VerticalDegrees.Value = 0), 1, 3);
+        CompactAction(ActionButton(parent, "Targeting  ›", 1, -213, () => ShowPage(_gazeTargetingPage!)), 2, 3);
+    }
+
+    private void BuildGazeTargetingPage()
+    {
+        _gazeTargetingPage = Page("GAZE TARGETING");
+        var parent = _gazeTargetingPage.transform;
+        var cue = ModConfiguration.Instance.LookCue;
+        Section(parent, "Gaze lock", 214);
+        Choice(parent, "Prefer inside the cue", new[] { "Nearest", "Units first", "Aircraft first" }, () => (int)cue.CurrentLockPriority,
+            value => cue.LockPriority.Value = (GazeLockPriority)value, 159);
+        Note(parent, "The preferred class wins inside the cue's cone; the nearest\nangle decides within it. Units first: aircraft, ground and\nships before missiles. A lone missile still locks.", 68, 84);
+        Section(parent, "Eligible units", 2);
+        Setting(parent, "Cue friendly units", cue.FriendlyUnits, 0, -42);
+        Note(parent, "Off: no cue or gaze lock on allies. The game's own\ntarget filters (factions, unit types) still apply.", -108, 64);
     }
 }

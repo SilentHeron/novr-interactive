@@ -27,6 +27,14 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
    camera changes; [`NOUIManager`](../NOVR/VrUi/NOUIManager.cs) attaches VR UI as
    scene/menu objects appear. Startup does not imply an aircraft or HUD is ready.
 
+[`VrCockpitNearClip`](../NOVR/VrCamera/VrCockpitNearClip.cs) and
+[`VrFarClip`](../NOVR/VrCamera/VrFarClip.cs) lease only the tracked view's clip
+planes: a closer near plane in the cockpit, and a far plane extended beyond the
+game's 80 km when the preference asks for more. Both adopt native rewrites as
+their restore value. [`VegetationViewPatch`](../NOVR/VrCamera/VegetationViewPatch.cs)
+gives the detail pass the tracked view and stereo frustum planes, but keeps the
+grass/tree window biased along the native rig's forward rather than the head.
+
 [`SpectatorCameraInput`](../NOVR/VrCamera/SpectatorCameraInput.cs) adds gated
 thumbstick orbit/distance input while following a unit in VR. Native camera motion
 keeps its target-scaled external distance, collision and smoothing; the tracked
@@ -118,7 +126,9 @@ or native UI. Two-hand resizing suppresses docking until a fresh grab.
 ## Borrowed native UI
 
 [`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) ranks eligible
-native markers by angle from the adjusted cue ray. `GazeCueRay` derives this ray
+native markers by angle from the adjusted cue ray, after the configured class tier
+(`TargetCuePriority`: units before missiles by default) and the friendly-unit
+option; native `TargetListSelector` exclusions still apply first. `GazeCueRay` derives this ray
 from the tracked HUD camera and the same sanitized canvas offset as the visible
 symbol. The cue and VR single-target
 selection share this fresh scan; visible marker positions preserve native known-
@@ -136,6 +146,13 @@ mutation. Restore surviving sources on release, invalidation, context changes
 and disable/destroy; unwind partial attachment failures too. Release the map
 before native full-map transitions. Do not edit shared game materials or disable
 whole native HUD roots to hide one borrowed leaf.
+
+`UnitMapIconPlanePatch` and `MapMarkerPlanePatch` keep native map icons, target
+info and objective markers in the map frame: native code writes world rotations
+that only match a flat canvas. Target info is also hidden immediately on the
+minimized cockpit map, where native code would show it for its one-second refresh.
+`HitMarkerViewPositionPatch` projects hit markers like unit markers instead of
+screen pixels.
 
 `NativeMessageFeedPatch` observes the native feed’s refresh into weakly keyed text
 snapshots. This avoids the installed TMP StringBuilder getter returning stale
@@ -254,6 +271,14 @@ cannot outlive their code. Never infer performance gains from capability or
 command counters; the optional GPU queries and headset comparisons are separate
 validation. See [the experiment](PC_FOVEATION.md).
 
+`FixedFoveationPasses` asks URP whether the bracketed colour target is Y-flipped
+(`CameraData.IsCameraProjectionMatrixFlipped`), the same answer URP uses to flip
+its own projection. The opaque pass draws into an intermediate texture whenever
+a camera stack or post-processing is active, and Direct3D stores that upside
+down, so the centre is mirrored onto target rows before it reaches the native
+rate map. A fixed centre barely moves; an eye-tracked centre would otherwise
+travel opposite to vertical gaze.
+
 `NovrEyeGaze` in the OpenXR input project provides one validated tracking-space
 eye/head sample per frame, including actual input-event age. The optional eye
 interaction profile is registered before loader initialization and is never
@@ -262,6 +287,12 @@ tracking origin and each eye's actual view and frustum, including canted eyes;
 unavailable input retains the fixed centre. Gaze
 does not share gameplay targeting state. Native rate-map buffers reuse storage
 and texture/view resources, updating only changed tile rectangles.
+
+`HudElementStyle` rescales drawn vertices per element kind: symbols, labels and
+reticles use their own sliders times `HudPresentationMath.SymbolFollowFactor`
+(Flight HUD Scale over its .38 default when the follow option is on); weapon
+readouts multiply Flight HUD Scale directly. Native per-distance marker scaling
+remains in the transforms underneath.
 
 `GameGraphicsSettings` exposes only native tree, cloud and shadow setters. It
 does not own parallel saved values or apply quality changes on menu creation.

@@ -22,7 +22,7 @@ internal sealed partial class WristMenu : MonoBehaviour
     private Text? _status;
     private Font? _font;
     private GameObject? _alertsPage;
-    private GameObject? _flightPage, _ejectPage, _controlsPage, _throttlePage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _menuOptionsPage, _displayPage, _feedbackPage, _aimingPage, _lookCuePage;
+    private GameObject? _flightPage, _ejectPage, _controlsPage, _throttlePage, _helpPage, _bindingsPage, _handsPage, _resetPage, _homePage, _seatPage, _menuOptionsPage, _displayPage, _feedbackPage, _aimingPage, _lookCuePage, _gazeTargetingPage;
     private readonly Dictionary<GameObject, string> _pageTitles = new();
     private GameObject? _performancePage, _handPositionPage, _handAnglesPage;
     private bool _fittingLeftHand = true;
@@ -344,6 +344,7 @@ internal sealed partial class WristMenu : MonoBehaviour
         CreateHudLayoutPages();
         BuildSymbolsPage();
         BuildLookCuePage();
+        BuildGazeTargetingPage();
         BuildPerformancePage();
         BuildFeedbackPage();
 
