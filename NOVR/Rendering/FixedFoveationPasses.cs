@@ -122,8 +122,11 @@ internal sealed partial class FixedFoveationRuntime
             { _cameraReason = "Unsupported eye projection."; return; }
             var trackedGaze = _level != FixedFoveationLevel.Off && ModConfiguration.Instance.FixedFoveation.UseEyeTracking.Value &&
                 _gazeState == NovrEyeGazeReadState.Tracked;
+            var level = _level == FixedFoveationLevel.Off ? FixedFoveationLevel.Mild : CurrentRenderLevel;
+            FixedFoveationPolicy.Radii(level, trackedGaze, trackedGaze && _saccadeActive,
+                FixedFoveationPolicy.AngularScale(projection.m00, projection.m11), out var inner, out var outer);
             var packet = _native.AcquireScope(target.width, target.height, target.msaaSamples, xr.multipassId, x, y,
-                _level == FixedFoveationLevel.Off ? FixedFoveationLevel.Mild : CurrentRenderLevel, trackedGaze);
+                level, inner, outer);
             if (packet == IntPtr.Zero) { _cameraReason = "Waiting for an available render scope."; return; }
             // Ownership passes to the render queue; never free this packet on
             // the main thread once Begin may have been submitted.

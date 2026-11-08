@@ -8,6 +8,7 @@
     <Compile Include="../../NOVR/Rendering/FixedFoveationGaze.cs" Link="FixedFoveationGaze.cs" />
     <Compile Include="../../NOVR/Rendering/FoveationGazePolicy.cs" Link="FoveationGazePolicy.cs" />
     <Compile Include="../../NOVR/Rendering/FixedFoveationSettings.cs" Link="FixedFoveationSettings.cs" />
+    <Compile Include="../../NOVR/Rendering/FixedFoveationFrameStats.cs" Link="FixedFoveationFrameStats.cs" />
     <Compile Include="../FixedFoveation/Doubles.cs" Link="ConfigDoubles.cs" />
   </ItemGroup>
 </Project>

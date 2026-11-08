@@ -53,6 +53,8 @@ internal sealed partial class FixedFoveationRuntime : MonoBehaviour
         if (_native == null || _faulted) return;
         try
         {
+            if (_diagnostics) SampleFrame();
+            else ResetFrameStats();
             var diagnostics = IsAvailable && XRSettings.enabled && !_diagnosticsBlocked &&
                 ModConfiguration.Instance.FixedFoveation.MeasureGpuCost.Value;
             if (_diagnostics != diagnostics)
@@ -109,8 +111,9 @@ internal sealed partial class FixedFoveationRuntime : MonoBehaviour
                 var sameMode = report.leftSampleMode == (int)renderLevel && report.rightSampleMode == (int)renderLevel;
                 var label = fallback ? "World opaque GPU (Strong fallback)" : "World opaque GPU";
                 Status += fresh && sameMode && SamplesMatchRates(report, renderLevel) && report.leftGpuMs >= 0 && report.rightGpuMs >= 0
-                    ? $"\n{label}: {report.leftGpuMs:F2} / {report.rightGpuMs:F2} ms\nPixel shader calls: {report.leftPixelInvocations / 1000000.0:F2} / {report.rightPixelInvocations / 1000000.0:F2} M"
+                    ? $"\n{label}: {report.leftGpuMs:F2} / {report.rightGpuMs:F2} ms · Pixel shader calls: {report.leftPixelInvocations / 1000000.0:F2} / {report.rightPixelInvocations / 1000000.0:F2} M"
                     : "\nGPU measurement: waiting for matching eye samples.";
+                Status += FrameLine();
                 _previousLeftSample = report.leftSequence; _previousRightSample = report.rightSequence;
             }
             else if (_diagnosticsBlocked && ModConfiguration.Instance.FixedFoveation.MeasureGpuCost.Value)

@@ -18,7 +18,7 @@ Check(defaults.Level.Value == FixedFoveationLevel.Off && defaults.RequestedLevel
     "A new installation must not enable experimental rendering.");
 Check(!defaults.MeasureGpuCost.Value, "Optional GPU measurement is also disabled by default.");
 Check(!defaults.UseEyeTracking.Value, "New installations leave optional eye tracking disabled.");
-Check(defaultsFile.BoundKeys.SequenceEqual(new[] { ("VR Performance", "Fixed Foveated Rendering"), ("VR Performance", "Measure Foveation GPU Cost"), ("VR Performance", "Eye Tracked Foveation") }),
+Check(defaultsFile.BoundKeys.SequenceEqual(new[] { ("VR Performance", "Fixed Foveated Rendering"), ("VR Performance", "Measure Foveation GPU Cost"), ("VR Performance", "Eye Tracked Foveation"), ("VR Performance", "Full-Rate Foliage") }),
     "Foveation binds mode, optional measurement and gaze without changing resolution, renderer or streaming settings.");
 
 foreach (var eyeTracking in new[] { false, true })
@@ -78,5 +78,6 @@ Check(FixedFoveationPolicy.UnavailableReason(true, false, false, FixedFoveationP
 
 CameraPolicyChecks.Run(Check);
 GazeProjectionChecks.Run(Check);
+GazeFilterChecks.Run(Check);
 StrengthProfileChecks.Run(Check);
 Console.WriteLine($"PASS {checks} source-linked fixed-foveation policy/settings checks.");

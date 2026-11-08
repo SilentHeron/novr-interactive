@@ -386,6 +386,13 @@ using (var f = new Fixture())
     f.Tick();
     Check(FixedFoveationRuntime.Status.Contains("World opaque GPU") && FixedFoveationRuntime.Status.Contains("Pixel shader calls"),
         "Fresh matching eye samples can show the measured world-opaque interval and invocation counts.");
+    Check(FixedFoveationRuntime.Status.Contains("Whole frame: 11.1 ms (90 fps)") && FixedFoveationRuntime.Status.Contains("not reported by runtime"),
+        "Measurements also show the whole-frame interval and say when the runtime reports no GPU time.");
+    UnityEngine.XR.XRDisplaySubsystem.Active.AppGpuSeconds = .008f;
+    for (var frame = 0; frame < 200; frame++)
+        f.Tick();
+    Check(FixedFoveationRuntime.Status.Contains("app GPU 8.0 ms"), "A runtime-reported app GPU time is shown in milliseconds.");
+    UnityEngine.XR.XRDisplaySubsystem.Active.AppGpuSeconds = -1;
     f.Tick();
     Check(FixedFoveationRuntime.Status.Contains("waiting for matching eye samples"),
         "Stale measurements are not presented as current GPU costs.");

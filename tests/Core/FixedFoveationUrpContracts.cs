@@ -45,6 +45,27 @@ internal static class FixedFoveationUrpContracts
             Require(mode is { IsEnum: true } && mode.Fields.Any(f => f.Name == "Forward") && mode.Fields.Any(f => f.Name == "ForwardPlus"),
                 "UniversalRenderer.renderingModeRequested no longer exposes the expected Forward/ForwardPlus enum names.");
         });
+        check("Local URP metadata: full-rate foliage can split the forward opaque pass", () =>
+        {
+            var renderer = module.Types.Single(t => t.FullName == "UnityEngine.Rendering.Universal.UniversalRenderer");
+            var opaque = renderer.Fields.SingleOrDefault(f => f.Name == "m_RenderOpaqueForwardPass");
+            Require(opaque is { IsStatic: false } && opaque.FieldType.FullName == "UnityEngine.Rendering.Universal.Internal.DrawObjectsPass",
+                "UniversalRenderer.m_RenderOpaqueForwardPass is missing or no longer a DrawObjectsPass.");
+            var pass = module.Types.Single(t => t.FullName == "UnityEngine.Rendering.Universal.Internal.DrawObjectsPass");
+            var filtering = pass.Fields.SingleOrDefault(f => f.Name == "m_FilteringSettings");
+            Require(filtering is { IsStatic: false } && filtering.FieldType.FullName == "UnityEngine.Rendering.FilteringSettings",
+                "DrawObjectsPass.m_FilteringSettings is missing or changed type.");
+            var execute = pass.Methods.Where(m => m.Name == "Execute" && !m.IsStatic).ToArray();
+            Require(execute.Length == 1 && execute[0].HasBody && execute[0].Parameters.Count == 2 &&
+                    execute[0].Parameters[0].ParameterType.FullName == "UnityEngine.Rendering.ScriptableRenderContext" &&
+                    execute[0].Parameters[0].Name == "context" &&
+                    execute[0].Parameters[1].ParameterType.FullName == "UnityEngine.Rendering.Universal.RenderingData&" &&
+                    execute[0].Parameters[1].Name == "renderingData",
+                "DrawObjectsPass.Execute no longer matches the full-rate foliage prefix/postfix signature.");
+            // The patch reads the filter on every call; Execute must copy it into its pass data.
+            Require(execute[0].Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "m_FilteringSettings"),
+                "DrawObjectsPass.Execute no longer reads m_FilteringSettings, so narrowing it would not split the pass.");
+        });
     }
 
     private static void Require(bool condition, string message)

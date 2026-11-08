@@ -41,6 +41,16 @@ public class VrCameraManager : MonoBehaviour
             if (camera == null)
                 continue;
             var gameObject = camera.gameObject;
+            if (gameObject.name == VrCameraChildName)
+            {
+                // The native root is disabled once this tracked view renders,
+                // so Camera.GetAllCameras never visits it again: keep the URP
+                // anti-aliasing in step from the enabled tracked child instead.
+                var root = camera.transform.parent != null ? camera.transform.parent.GetComponent<Camera>() : null;
+                if (root != null)
+                    SyncAntialiasing(root, camera);
+                continue;
+            }
             if (gameObject.name is not (NuclearOptionMainCameraName or NuclearOptionMenuCameraName))
             {
                 continue;

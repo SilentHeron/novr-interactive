@@ -59,7 +59,19 @@ namespace UnityEngine
     }
     public static class Time
     {
-        public static int frameCount; public static float unscaledTime;
+        public static int frameCount; public static float unscaledTime, unscaledDeltaTime = 1f / 90f;
+    }
+    public static class Mathf
+    {
+        public static float Lerp(float a, float b, float t) => a + (b - a) * Math.Clamp(t, 0f, 1f);
+    }
+    public static class SubsystemManager
+    {
+        public static void GetInstances<T>(List<T> instances) where T : class
+        {
+            if (typeof(T) == typeof(XR.XRDisplaySubsystem))
+                instances.Add((T)(object)XR.XRDisplaySubsystem.Active);
+        }
     }
     public static class Debug
     {
@@ -157,6 +169,18 @@ namespace UnityEngine
 
 namespace UnityEngine.XR
 {
+    // Runtime timing boundary: tests decide whether the runtime reports GPU time.
+    public sealed class XRDisplaySubsystem
+    {
+        internal static XRDisplaySubsystem Active = new();
+        internal float AppGpuSeconds = -1;
+        public bool running = true;
+        public bool TryGetAppGPUTimeLastFrame(out float seconds)
+        {
+            seconds = AppGpuSeconds;
+            return AppGpuSeconds >= 0;
+        }
+    }
     public static class XRSettings
     {
         public static bool enabled = true;
@@ -377,15 +401,14 @@ namespace NOVR.Rendering
             return true;
         }
         internal IntPtr AcquireScope(int width, int height, int samples, int eye, float x, float y, FixedFoveationLevel level,
-            bool trackedGaze = false)
+            float inner, float outer)
         {
             if (ThrowAcquire)
                 throw new InvalidOperationException("fixture acquisition failure");
             if (RejectAcquire)
                 return IntPtr.Zero;
             var packet = (IntPtr)(AcquiredScopes.Count + 1);
-            FixedFoveationPolicy.Radii(level, trackedGaze, out var inner, out var outer);
-            var scope = new Scope(packet, width, height, samples, eye, x, y, level) { TrackedGaze = trackedGaze, Inner = inner, Outer = outer };
+            var scope = new Scope(packet, width, height, samples, eye, x, y, level) { Inner = inner, Outer = outer };
             AcquiredScopes.Add(scope);
             LiveScopes.Add(packet, scope);
             return packet;
@@ -479,7 +502,6 @@ namespace NOVR.Rendering
         }
         internal sealed record Scope(IntPtr Packet, int Width, int Height, int Samples, int Eye, float X, float Y, FixedFoveationLevel Level)
         {
-            internal bool TrackedGaze { get; init; }
             internal float Inner { get; init; }
             internal float Outer { get; init; }
         }

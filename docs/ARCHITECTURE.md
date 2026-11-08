@@ -279,6 +279,13 @@ down, so the centre is mirrored onto target rows before it reaches the native
 rate map. A fixed centre barely moves; an eye-tracked centre would otherwise
 travel opposite to vertical gaze.
 
+`FixedFoveationFoliage` patches URP's `DrawObjectsPass.Execute` for the main
+camera's forward opaque pass while a scope is open: it narrows the pass to queues
+below 2450, ends the scope, and re-executes the pass for 2450-2500 at full rate,
+restoring the shared filter in a finalizer. Radii come from
+`FixedFoveationPolicy.Radii(level, tracked, saccade, angularScale)`;
+`FoveationGazeStabilizer` and `GazeSaccadeDetector` are pure helpers.
+
 `NovrEyeGaze` in the OpenXR input project provides one validated tracking-space
 eye/head sample per frame, including actual input-event age. The optional eye
 interaction profile is registered before loader initialization and is never

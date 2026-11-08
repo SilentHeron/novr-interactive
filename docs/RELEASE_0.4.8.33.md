@@ -9,6 +9,15 @@
   turns blocky and shimmering. Eye tracking also protects a wider region (+0.12)
   while the gaze is tracked, covering input lag during eye movements. The menu
   no longer suggests turning MSAA off for Extreme/Maximum 4×4 edges.
+- Trees and grass stay sharp with foveation on (**Full-Rate Foliage**, default on):
+  the world pass now draws alpha-tested opaques after the reduced-shading scope.
+- Foveation radii scale with each eye's field of view, so presets protect the
+  same angle on every headset.
+- Eye-tracked foveation holds its centre through fixation jitter (one-tile
+  deadband, so the edge no longer shimmers) and widens by a further 0.15 during
+  fast eye movements.
+- With **Measure GPU cost** on, the readout adds a whole-frame line: smoothed
+  frame interval and FPS, plus the app's total GPU time when the runtime reports it.
 - Eye-tracked foveation now protects where you look. URP renders the world pass
   into an intermediate texture that Direct3D 11 stores upside down; the
   protected centre was mapped onto an upright image, so it moved opposite to

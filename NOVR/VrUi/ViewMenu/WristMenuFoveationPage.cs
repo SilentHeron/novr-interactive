@@ -36,7 +36,7 @@ internal sealed partial class WristMenu
             measure.Toggle.interactable = FixedFoveationRuntime.IsAvailable ||
                 ModConfiguration.Instance.FixedFoveation.MeasureGpuCost.Value;
         }));
-        Note(parent, "Compare the same scene; measures world\nopaques, not total frame time or FPS.", -135, 42);
+        Note(parent, "Compare the same scene: GPU timer covers\nworld opaques; the whole-frame line shows FPS.", -135, 42);
         Note(parent, "Extreme/Maximum: test levels. Keep MSAA on:\nturning it off to unlock 4×4 edges adds\nfar more aliasing than it saves.", -202, 72);
         return page;
     }

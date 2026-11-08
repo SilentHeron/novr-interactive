@@ -7,6 +7,7 @@ internal sealed class FixedFoveationSettings
     internal readonly ConfigEntry<FixedFoveationLevel> Level;
     internal readonly ConfigEntry<bool> MeasureGpuCost;
     internal readonly ConfigEntry<bool> UseEyeTracking;
+    internal readonly ConfigEntry<bool> FullRateFoliage;
 
     internal FixedFoveationSettings(ConfigFile config)
     {
@@ -16,6 +17,8 @@ internal sealed class FixedFoveationSettings
             "Optional asynchronous GPU timing and pixel-shader counters for comparing Off with fixed-foveation modes. Measures the outside-world opaque pass, not total frame time. Disable after testing.");
         UseEyeTracking = config.Bind("VR Performance", "Eye Tracked Foveation", false,
             "Move the protected shading region with valid OpenXR eye gaze on supported Windows/NVIDIA/D3D11 systems. Falls back to the fixed centre if gaze is unavailable, untracked or stale; Extreme/Maximum also use Strong's larger protected region during fallback. Does not change targeting or SteamVR settings. Requires a headset/runtime exposing eye gaze, such as Steam Frame.");
+        FullRateFoliage = config.Bind("VR Performance", "Full-Rate Foliage", true,
+            "Draw alpha-tested opaque objects (the game's trees and grass) at full shading rate even where foveation is coarse. Their alpha-to-coverage edges turn blocky and shimmer under coarse shading. Off includes them in the reduced region for the largest savings.");
     }
 
     // Invalid persisted enum values must never opt a user into the experiment.

@@ -36,10 +36,26 @@ reduces. Coarse shading computes their edge coverage once per block, so foliage
 turns blocky and shimmers wherever it is coarse. Horizontal 2×1 shading also
 smeared vertical edges such as trunks inside the still-sharp part of the lens.
 
+**Full-rate foliage** (on by default) goes further: the world-opaque pass is
+drawn in two halves, ordinary opaques with reduced shading, then the shading
+scope ends and alpha-tested opaques (render queue 2450 and above: the game's
+trees, grass and similar cutouts) draw at full rate with the same culling,
+sorting and targets. Foliage stays sharp everywhere while terrain, buildings
+and vehicles keep the savings.
+
+Preset radii are tuned for an eye with roughly 100 degrees of field of view.
+Each eye's radii are scaled by its actual projection (bounded to 0.7-1.3×), so a
+preset protects about the same angle on every headset and on each eye's
+asymmetric frustum.
+
 With eye tracking, the full-rate and middle radii grow by 0.12 while the gaze
 is tracked. Gaze input lags the eye, and without that margin the sharp region's
 edge sweeps across what you are looking at during each saccade. The fixed
-fallback uses the unwidened radii. A driver rejection also falls back to 2×2 without
+fallback uses the unwidened radii. During fast eye movements (above 120 degrees
+per second, held for 0.12 s after they stop) they grow by a further 0.15, so the
+eyes land inside full-rate shading. Fixation jitter no longer moves the region:
+each eye's centre is held until the gaze leaves a one-tile (16-pixel) box, which
+stops the region's edge from shimmering between tiles. A driver rejection also falls back to 2×2 without
 disabling working foveation. The menu shows the actual rates and MSAA/driver
 limit. Antialiasing is never changed automatically.
 
@@ -91,7 +107,9 @@ it does not create textures/views or allocate the rate image each frame.
    Compare several seconds in each mode, not individual samples. Measurements
    identify the selected mode and require fresh data from both eyes.
 3. The two GPU times and pixel-shader invocation counts cover each eye's world
-   opaque pass, not the entire frame. Also compare SteamVR's application GPU frame
+   opaque pass, not the entire frame (with full-rate foliage on, only its
+   non-foliage half). The **Whole frame** line adds the smoothed frame interval
+   and, when the XR runtime reports it, the app's total GPU time per frame. Also compare SteamVR's application GPU frame
    time, missed frames and head-motion stability. CPU-limited missions may barely
    benefit even if pixel-shader work decreases.
 4. Check peripheral terrain, native instrument text, HUD, shadows and both eyes.
