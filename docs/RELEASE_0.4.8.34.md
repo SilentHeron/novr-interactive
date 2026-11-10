@@ -3,24 +3,21 @@
 - New **outside view** while flying. In the cockpit, click a free thumbstick
   and pick **OUTSIDE VIEW** on the quick wheel (also **View → Flight actions →
   Outside view**). The camera moves to the game's own orbit camera around your
-  aircraft and you keep flying. The virtual handles stay in the cockpit, so the
-  controllers follow the game's own gamepad layout, the same for either
-  handedness:
+  aircraft and you keep it under control. It is for looking at the aircraft,
+  not a second cockpit: the throttle stays where you left it and there is no
+  brake. The virtual handles stay in the cockpit, so steering follows the
+  game's own gamepad layout, the same for either handedness:
   - Left thumbstick is the flight stick: pull back for nose up, left and right
     to roll.
-  - Right thumbstick looks around the aircraft.
+  - Right thumbstick looks around the aircraft. Hold either grip and its up
+    and down move the camera closer or farther.
   - Triggers are the rudder: left trigger left, right trigger right.
-  - Grips are the throttle, where a gamepad has its bumpers: left grip down,
-    right grip up. The throttle keeps its setting when you let go.
-  - Both grips held: the right thumbstick moves the camera closer or farther,
-    and the throttle does not move.
   - Buttons work without a handle to hold: weapon release, countermeasures,
     next weapon and the rest act as bound. Anything bound to a trigger (guns
     and the brake by default) does not act out there, because the triggers
     steer. To make up for it, the weapon-release button fires the selected
     weapon whatever it is, guns included, as the game's gamepad Fire button
-    does. There is no brake in the outside view unless you bind one to a
-    button other than a trigger.
+    does.
   - **B** on the stick hand returns to the cockpit (Frame and Quest; the
     mirrored button when left-handed). The quick wheel offers **COCKPIT VIEW**
     too. Thumbstick click still opens the wheel, so those two buttons are not

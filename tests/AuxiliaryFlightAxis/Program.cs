@@ -178,36 +178,19 @@ flown = Fly();
 Check(flown.pitch == -1 && flown.roll == -1, "A held virtual stick in the cockpit always outranks the thumbsticks.");
 suspended.FlightActive = false;
 
-ExternalFlightInput.Step = .1f;
-var pushed = Push(.4f);
-Check(Near(pushed.Command, .5f) && Near(pushed.Simulated, .5f), "Outside view: a throttle step moves the game's command and seeds its accumulator.");
-pushed = Push(.4f);
-Check(pushed.Command == .4f && pushed.Simulated == -9f, "A throttle step is applied once; without one the native throttle is untouched.");
-ExternalFlightInput.Step = .9f;
-Check(Near(Push(.4f).Command, 1f), "Throttle steps clamp at full power.");
-ExternalFlightInput.Step = -.9f;
-Check(Near(Push(.4f).Command, 0f), "Throttle steps clamp at idle.");
-PlayerSettings.throttleUseNegative = true;
-ExternalFlightInput.Step = .1f;
-Check(Near(Push(.4f).Simulated, 0f), "The seeded accumulator honours the negative-range throttle setting.");
-PlayerSettings.throttleUseNegative = false;
-PlayerSettings.invertCollective = true;
-ExternalFlightInput.Step = .1f;
-pushed = Push(.4f, collective: true);
-Check(Near(pushed.Command, .5f) && Near(pushed.Simulated, .5f), "The seeded accumulator honours an inverted collective.");
-ExternalFlightInput.Step = .25f;
-pushed = Push(.5f, collective: true);
-Check(Near(pushed.Command, .75f) && Near(pushed.Simulated, .25f), "An inverted collective stores the mirrored binding value.");
-PlayerSettings.invertCollective = false;
-ExternalFlightInput.Step = .1f;
-Check(Push(.4f, strength: .1f).Command == .4f, "A blacked-out pilot cannot move the throttle from outside.");
-ExternalFlightInput.Step = .1f;
-pushed = Push(float.NaN);
-Check(float.IsNaN(pushed.Command) && pushed.Simulated == -9f, "An invalid native throttle is never rewritten.");
-ExternalFlightInput.Active = false;
-ExternalFlightInput.Step = .1f;
-Check(Push(.4f).Command == .4f, "Throttle steps do nothing once outside-view flight ends.");
-ExternalFlightInput.Step = 0;
+// The outside view is not a second cockpit: it never writes the throttle.
+ExternalFlightInput.Active = ExternalFlightInput.Flying = ExternalFlightInput.Rudder = true;
+foreach (var collective in new[] { false, true })
+{
+    var pushed = Push(.4f, collective);
+    Check(pushed.Command == .4f && pushed.Simulated == -9f, "Outside view leaves the game's throttle command and accumulator untouched.");
+}
+suspended.FlightActive = true;
+suspended.Throttle = .8f;
+var held = Push(.4f);
+Check(Near(held.Command, .8f) && Near(held.Simulated, .8f), "Back in the cockpit a held virtual throttle commands as before.");
+suspended.FlightActive = false;
+ExternalFlightInput.Active = ExternalFlightInput.Flying = ExternalFlightInput.Rudder = false;
 MotionFlightController.Instance = null;
 
 Console.WriteLine($"PASS {passed} source-linked auxiliary-axis checks (controller/game boundaries doubled; no native physics/headset).");

@@ -19,7 +19,6 @@ internal static class OutsideFlightChecks
         ExternalFlightMotion Read(float lx = 0, float ly = 0, float rx = 0, float ry = 0, float lt = 0, float rt = 0,
             float lg = 0, float rg = 0, float dt = .02f, bool left = true, bool right = true, bool available = true) =>
             sticks.Update(available, left, right, lx, ly, rx, ry, lt, rt, lg, rg, dt);
-        void Hold(int frames, float lg = 0, float rg = 0) { for (var i = 0; i < frames; i++) Read(lg: lg, rg: rg); }
         Check(!Read(lx: 1, ly: -1).Flying, "A thumbstick held while entering the outside view does not fly the aircraft");
         Check(!Read(lx: 1, ly: -1).Flying, "A held thumbstick cannot arm itself over time");
         Check(Read().Flying && Read().Pitch == 0 && Read().Roll == 0, "A centred stick arms flight with neutral input");
@@ -30,13 +29,13 @@ internal static class OutsideFlightChecks
         Check(Read(lx: .1f, ly: -.1f).Pitch == 0 && Read(lx: .1f).Roll == 0, "Thumbstick drift does not move the aircraft");
         Check(float.IsFinite(Read(lx: float.MaxValue, ly: float.MaxValue).Roll), "Malformed finite values cannot overflow");
         var flown = Read(lx: 1, ly: 1);
-        Check(!flown.Camera.HasOrbitMotion && flown.Yaw == 0 && flown.ThrottleStep == 0, "The left thumbstick only flies: no camera, rudder or throttle");
+        Check(!flown.Camera.HasOrbitMotion && flown.Yaw == 0, "The left thumbstick only flies: no camera and no rudder");
         sticks.Reset();
         Check(!Read(rx: 1, ry: 1).Camera.HasOrbitMotion, "The camera stick also needs a fresh centre");
         Read();
         var look = Read(rx: 1);
         Check(Near(look.Camera.YawDegrees, 1.5f) && look.Camera.PitchDegrees == 0 && look.Camera.Distance == 0 &&
-              look.Roll == 0 && look.Pitch == 0 && !look.Rudder && look.ThrottleStep == 0,
+              look.Roll == 0 && look.Pitch == 0 && !look.Rudder,
             "The right thumbstick orbits the camera and commands nothing");
         Check(Read(ry: 1).Camera.PitchDegrees < 0 && Read(ry: -1).Camera.PitchDegrees > 0,
             "Camera stick up raises the vantage, matching the spectator orbit");
@@ -55,53 +54,32 @@ internal static class OutsideFlightChecks
         Check(!Read().Rudder && Read(rt: 1).Yaw > 0, "After one release the trigger is rudder");
         Check(!Read(rt: 1, right: false).Rudder && !Read(rt: 1).Rudder, "A trigger held through lost tracking needs a release too");
 
-        // Grips stand in for the gamepad's bumpers: throttle down and up.
-        sticks.Reset(); Read();
-        Check(Read(rg: 1).ThrottleStep == 0, "A squeeze does not move the throttle on its first frames");
-        Hold(8, rg: 1);
-        Check(Near(Read(rg: 1).ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .02f), "Right grip held raises the throttle at the full rate");
-        Read(); Hold(8, lg: 1);
-        Check(Near(Read(lg: 1).ThrottleStep, -ExternalFlightSticks.ThrottlePerSecond * .02f), "Left grip held lowers the throttle");
-        Read(); Hold(8, rg: .45f);
-        Check(Read(rg: .45f).ThrottleStep == 0, "A light hold on the controller is not a throttle command");
-        Read(); Hold(8, rg: .75f);
-        var gentle = Read(rg: .75f).ThrottleStep;
-        Check(gentle > 0 && gentle < ExternalFlightSticks.ThrottlePerSecond * .02f, "A partial squeeze moves the throttle more slowly");
-        sticks.Reset();
-        Hold(20, rg: 1);
-        Check(Read(rg: 1).ThrottleStep == 0, "A grip still squeezed from holding a virtual handle does not move the throttle");
-        Read(); Hold(8, rg: 1);
-        Check(Read(rg: 1).ThrottleStep > 0, "After one release the grip is throttle");
-        foreach (var dt in new[] { 1f / 60, 1f / 90, 1f / 144 })
+        // A grip held turns the camera stick's up and down into distance.
+        foreach (var hand in new[] { "left", "right" })
         {
+            float Lg(float v) => hand == "left" ? v : 0;
+            float Rg(float v) => hand == "right" ? v : 0;
             sticks.Reset(); Read();
-            var total = 0f;
-            for (var i = 0; i < (int)MathF.Round(1 / dt); i++) total += Read(rg: 1, dt: dt).ThrottleStep;
-            var expected = ExternalFlightSticks.ThrottlePerSecond * (1 - ExternalFlightSticks.GripDelay);
-            Check(Math.Abs(total - expected) < ExternalFlightSticks.ThrottlePerSecond * dt * 1.5f, "Throttle rate is independent of headset refresh rate");
+            Check(!Read(lg: Lg(1), rg: Rg(1), rx: 1, ry: 1).Camera.HasOrbitMotion,
+                "Squeezing a grip with the camera stick deflected does not zoom: " + hand);
+            Read(lg: Lg(1), rg: Rg(1));
+            var zoom = Read(lg: Lg(1), rg: Rg(1), rx: 1, ry: 1);
+            Check(zoom.Camera.Distance < 0 && zoom.Camera.YawDegrees > 0 && zoom.Camera.PitchDegrees == 0,
+                "With a grip held the camera stick moves closer or farther and still orbits: " + hand);
+            Check(Read(lg: Lg(1), rg: Rg(1), ry: -1).Camera.Distance > 0, "Stick back moves the camera away: " + hand);
+            Check(!Read(rx: 1, ry: 1).Camera.HasOrbitMotion, "Releasing the grip with the stick deflected does not swing the camera: " + hand);
+            Read();
+            Check(Read(ry: 1).Camera.PitchDegrees < 0 && Read(ry: 1).Camera.Distance == 0, "After centring, the stick looks around again: " + hand);
+            Read(); Read(lg: Lg(.45f), rg: Rg(.45f));
+            Check(Read(lg: Lg(.45f), rg: Rg(.45f), ry: 1).Camera.Distance == 0, "A light hold on the controller is not the zoom grip: " + hand);
+            sticks.Reset();
+            Read(lg: Lg(1), rg: Rg(1)); Read(lg: Lg(1), rg: Rg(1));
+            Check(Read(lg: Lg(1), rg: Rg(1), ry: 1).Camera.Distance == 0 && Read(lg: Lg(1), rg: Rg(1), ry: 1).Camera.PitchDegrees < 0,
+                "A grip still squeezed from holding a virtual handle is not the zoom grip until released: " + hand);
         }
-        sticks.Reset(); Read(); Hold(8, rg: 1);
-        Check(Near(Read(rg: 1, dt: 10).ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .05f), "A stalled frame cannot jump the throttle");
-
-        // Both grips: no throttle change, and the camera stick moves closer or farther.
         sticks.Reset(); Read();
-        var both = Read(lg: 1, rg: 1, rx: 1, ry: 1);
-        Check(both.ThrottleStep == 0 && !both.Camera.HasOrbitMotion, "Squeezing both grips with the camera stick deflected neither zooms nor moves the throttle");
-        Read(lg: 1, rg: 1);
-        var zoom = Read(lg: 1, rg: 1, rx: 1, ry: 1);
-        Check(zoom.Camera.Distance < 0 && zoom.Camera.YawDegrees > 0 && zoom.Camera.PitchDegrees == 0 && zoom.ThrottleStep == 0,
-            "With both grips held the camera stick moves closer or farther and still orbits");
-        sticks.Reset(); Read();
-        Read(rg: 1); Read(rg: 1); // the second hand arrives a moment later
-        var total2 = 0f;
-        for (var i = 0; i < 30; i++) total2 += Read(lg: 1, rg: 1).ThrottleStep;
-        Check(total2 == 0, "Closing both grips a moment apart does not nudge the throttle");
-        var release = 0f;
-        for (var i = 0; i < 30; i++) release += Read(rg: 1, ry: 1).ThrottleStep;
-        Check(release == 0, "Letting go of one grip first does not move the throttle either");
-        Check(!Read(rg: 1, ry: 1).Camera.HasOrbitMotion, "And a stick held through that change does not swing the camera");
-        Read(); Hold(8, rg: 1);
-        Check(Read(rg: 1).ThrottleStep > 0, "Once both grips were released, one grip is throttle again");
+        var gripOnly = Read(lg: 1, rg: 1, lx: 1, ly: -1);
+        Check(gripOnly.Flying && gripOnly.Roll > 0 && gripOnly.Pitch < 0 && !gripOnly.Rudder, "Grips never change what the flight stick or the rudder do");
 
         sticks.Reset(); Read();
         Check(!Read(lx: 1, left: false).Flying && !Read(lx: 1).Flying, "Losing the flight hand's tracking requires a fresh centre");
@@ -117,8 +95,8 @@ internal static class OutsideFlightChecks
         foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
         {
             sticks.Reset(); Read();
-            var broken = Read(rt: bad, rg: bad);
-            Check(!broken.Rudder && broken.ThrottleStep == 0 && !Read(rt: 1).Rudder, "A malformed trigger or grip value is ignored and needs a release");
+            var broken = Read(rt: bad, rg: bad, ry: 1);
+            Check(!broken.Rudder && broken.Camera.Distance == 0 && !Read(rt: 1).Rudder, "A malformed trigger or grip value is ignored and needs a release");
         }
         sticks.Reset(); Read();
         Check(!Read(lx: 1, rt: 1, available: false).Flying && !Read(lx: 1, rt: 1).Flying && !Read(lx: 1, rt: 1).Rudder,
@@ -236,7 +214,7 @@ internal static class OutsideFlightChecks
         void Step(float lx = 0, float ly = 0, float rx = 0, float ry = 0) { Frame(lx, ly, rx, ry); ExternalFlightInput.Sample(); Orbit(); }
         Fresh(); ui.Messages.Clear();
         Frame(); Check(ExternalFlightInput.Sample() && ExternalFlightInput.Active, "Outside-view flight starts with motion controls on");
-        Check(ui.Messages.Count == 3 && ui.Messages[0] == "Left stick flies, right stick looks" && ui.Messages[2].Contains("B: cockpit"),
+        Check(ui.Messages.Count == 3 && ui.Messages[0] == "Left stick flies, right stick looks" && ui.Messages[2] == "B returns to the cockpit",
             "Entering the outside view names the controls once in the game's feed");
         Orbit();
         Step(lx: 1, ly: -1);
@@ -261,32 +239,17 @@ internal static class OutsideFlightChecks
         Step();
         Check(!ExternalFlightInput.Rudder, "Released triggers leave the game's own yaw alone");
         TrackedControllers.Right.Grip = 1;
-        for (var i = 0; i < 12; i++) Step();
-        var took = ExternalFlightInput.TakeThrottleStep(out var step);
-        Check(took && step > 0 && !ExternalFlightInput.TakeThrottleStep(out _), "Right grip raises the throttle, handed out once");
-        // Two rendered frames pass before the next physics step asks.
-        Step(); Step();
-        Check(ExternalFlightInput.TakeThrottleStep(out var two) && Near(two, ExternalFlightSticks.ThrottlePerSecond * .04f),
-            "Throttle steps accumulate across frames without a physics step");
-        TrackedControllers.Right.Grip = 0; TrackedControllers.Left.Grip = 1;
-        Step();
-        for (var i = 0; i < 12; i++) Step();
-        Check(ExternalFlightInput.TakeThrottleStep(out var down) && down < 0, "Left grip lowers the throttle");
-        TrackedControllers.Left.Grip = 0;
-        Step();
-        TrackedControllers.Left.Grip = TrackedControllers.Right.Grip = 1;
         Step(); Step(ry: 1);
         Check(camera.orbitState.Distance == 0 && camera.orbitState.Pan == pan, "Zoom cannot go below the native minimum distance");
         Step(ry: -1);
-        Check(camera.orbitState.Distance > 0 && !ExternalFlightInput.TakeThrottleStep(out _),
-            "Both grips held: the right stick changes camera distance and the throttle stays put");
-        TrackedControllers.Left.Grip = TrackedControllers.Right.Grip = 0;
+        Check(camera.orbitState.Distance > 0, "A grip held: the right stick changes camera distance");
+        TrackedControllers.Right.Grip = 0;
 
         // A gamepad does not mirror: cockpit handedness only moves the way back.
         Fresh(); ModConfiguration.Instance.MotionControls.LeftHanded.Value = true;
         Step(); Step(lx: 1, rx: 1);
         Check(ExternalFlightInput.Roll > 0 && camera.orbitState.Pan > 0, "Left-handed cockpit: the left stick still flies and the right stick still looks");
-        Check(ui.Messages.Any(m => m.EndsWith("Y: cockpit")), "Left-handed hints name the mirrored cockpit button");
+        Check(ui.Messages.Any(m => m == "Y returns to the cockpit"), "Left-handed hints name the mirrored cockpit button");
 
         Fresh(); NativeHandOptionWheel.LeftOwned = true;
         Step(); Frame(lx: 1);

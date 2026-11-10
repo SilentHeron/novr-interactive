@@ -18,7 +18,6 @@ internal static class ExternalFlightInput
     private static int _frame = -1, _cameraFrame = -1;
     private static Aircraft? _aircraft;
     private static ExternalFlightMotion _motion;
-    private static float _throttleStep;
     private static bool _announced;
     private static int _hints;
     private const int MaxHints = 3;
@@ -42,10 +41,7 @@ internal static class ExternalFlightInput
         _frame = Time.frameCount;
         var active = Available(out var aircraft);
         if (!active || !continuous || aircraft != _aircraft)
-        {
             Sticks.Reset();
-            _throttleStep = 0;
-        }
         _aircraft = active ? aircraft : null;
         Active = active;
         // One announcement per visit to the outside view, not per menu or map.
@@ -69,20 +65,11 @@ internal static class ExternalFlightInput
         var rightValid = right.Valid && right.HasAxis && !NativeHandOptionWheel.OwnsHand(false);
         _motion = Sticks.Update(true, leftValid, rightValid, left.Axis.x, left.Axis.y, right.Axis.x, right.Axis.y,
             left.Trigger, right.Trigger, left.Grip, right.Grip, Time.unscaledDeltaTime);
-        // The pilot hooks may run in physics steps: none or several per frame.
-        _throttleStep += _motion.ThrottleStep;
         return true;
     }
 
     internal static bool SampleFor(Pilot pilot) => Sample() && pilot != null && !pilot.dead &&
         pilot.aircraft == _aircraft && pilot.currentState == pilot.playerState;
-
-    internal static bool TakeThrottleStep(out float step)
-    {
-        step = _throttleStep;
-        _throttleStep = 0;
-        return step != 0;
-    }
 
     // Camera motion for this frame, handed out once so several native camera
     // callbacks in one frame cannot apply it twice.
@@ -101,8 +88,8 @@ internal static class ExternalFlightInput
     internal static string[] HintLines(string cockpitButton) => new[]
     {
         "Left stick flies, right stick looks",
-        "Triggers: rudder. Grips: throttle down, up",
-        $"Both grips + right stick: zoom. {cockpitButton}: cockpit"
+        "Triggers: rudder. Grip + right stick: zoom",
+        $"{cockpitButton} returns to the cockpit"
     };
 
     private static void Announce(bool leftHanded)

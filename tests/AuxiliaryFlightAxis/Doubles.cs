@@ -120,14 +120,8 @@ namespace NOVR.MotionControls
     internal static class ExternalFlightInput
     {
         internal static bool Active, Flying, Rudder;
-        internal static float Pitch, Roll, Yaw, Step;
+        internal static float Pitch, Roll, Yaw;
         internal static bool SampleFor(Pilot pilot) => Active;
-        internal static bool TakeThrottleStep(out float step)
-        {
-            step = Step;
-            Step = 0;
-            return step != 0;
-        }
     }
     // Rest-of-coordinator state supplied to the source-linked auxiliary partial.
     // Physical tracking/handle latch behavior has its own source-linked suites.

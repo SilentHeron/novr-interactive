@@ -8,43 +8,35 @@ internal readonly struct ExternalFlightMotion
     // Flying is false until the flight thumbstick has been centred once, so
     // entering the outside view with it deflected cannot move the aircraft.
     internal readonly bool Flying;
-    internal readonly float Pitch, Roll, Yaw, ThrottleStep;
+    internal readonly float Pitch, Roll, Yaw;
     internal readonly SpectatorStickMotion Camera;
     internal bool Rudder => Yaw != 0;
-    internal ExternalFlightMotion(bool flying, float pitch, float roll, float yaw, float throttleStep, SpectatorStickMotion camera)
+    internal ExternalFlightMotion(bool flying, float pitch, float roll, float yaw, SpectatorStickMotion camera)
     {
         Flying = flying;
         Pitch = pitch;
         Roll = roll;
         Yaw = yaw;
-        ThrottleStep = throttleStep;
         Camera = camera;
     }
 }
 
 // Flying from the outside view, laid out like the game's own gamepad defaults:
 // left thumbstick pitch and roll, right thumbstick camera, left and right
-// trigger rudder, and throttle down and up on the two shoulder inputs. Quest
-// controllers have no bumpers, so the grips take that role on every controller.
-// Squeezing both grips is no throttle change at all, which frees the camera
-// thumbstick to move closer or farther. Sides are physical, as on a gamepad;
-// cockpit handedness does not mirror them.
+// trigger rudder. It is for looking at the aircraft while keeping it under
+// control, not a second cockpit: the throttle stays where the cockpit left it
+// and there is no brake. Holding a grip turns the camera thumbstick's up and
+// down into camera distance. Sides are physical, as on a gamepad; cockpit
+// handedness does not mirror them.
 // No Unity input here: the caller owns tracking and menus.
 internal sealed class ExternalFlightSticks
 {
-    internal const float ThrottlePerSecond = .6f, ResponseExponent = 1.5f;
-    // One grip has to be held this long before it moves the throttle, so
-    // squeezing both for the camera does not nudge the throttle on the way in.
-    internal const float GripDelay = .12f;
+    internal const float ResponseExponent = 1.5f;
     private const float TriggerRest = .15f, TriggerStart = .08f, GripRest = .35f, GripStart = .5f;
     private bool _flightArmed, _cameraArmed, _leftTriggerArmed, _rightTriggerArmed, _leftGripArmed, _rightGripArmed, _distance;
-    private float _oneGripSeconds;
 
-    internal void Reset()
-    {
+    internal void Reset() =>
         _flightArmed = _cameraArmed = _leftTriggerArmed = _rightTriggerArmed = _leftGripArmed = _rightGripArmed = _distance = false;
-        _oneGripSeconds = 0;
-    }
 
     internal ExternalFlightMotion Update(bool available, bool leftValid, bool rightValid,
         float leftX, float leftY, float rightX, float rightY,
@@ -57,37 +49,27 @@ internal sealed class ExternalFlightSticks
         }
         var rudderLeft = Press(leftValid, leftTrigger, ref _leftTriggerArmed, TriggerRest, TriggerStart);
         var rudderRight = Press(rightValid, rightTrigger, ref _rightTriggerArmed, TriggerRest, TriggerStart);
-        var throttleDown = Press(leftValid, leftGrip, ref _leftGripArmed, GripRest, GripStart);
-        var throttleUp = Press(rightValid, rightGrip, ref _rightGripArmed, GripRest, GripStart);
-        var dt = Math.Min(deltaSeconds, .05f);
-        var distance = throttleDown > 0 && throttleUp > 0;
+        var leftHeld = Press(leftValid, leftGrip, ref _leftGripArmed, GripRest, GripStart) > 0;
+        var rightHeld = Press(rightValid, rightGrip, ref _rightGripArmed, GripRest, GripStart) > 0;
+        var distance = leftHeld || rightHeld;
         if (distance != _distance)
         {
             // A deflection meant for looking around must not become a zoom
-            // (or the reverse) when the grips change what the thumbstick does.
+            // (or the reverse) when a grip changes what the thumbstick does.
             _distance = distance;
             _cameraArmed = false;
-            if (!distance)
-            {
-                // Letting go of one grip before the other must not move the
-                // throttle: both start over from a release.
-                _leftGripArmed = _rightGripArmed = false;
-                throttleDown = throttleUp = 0;
-            }
         }
-        _oneGripSeconds = !distance && (throttleDown > 0 || throttleUp > 0) ? _oneGripSeconds + dt : 0;
-        if (distance || _oneGripSeconds <= GripDelay)
-            throttleDown = throttleUp = 0;
         SpectatorStickInput.Filter(leftValid, leftX, leftY, ref _flightArmed, out leftX, out leftY);
         SpectatorStickInput.Filter(rightValid, rightX, rightY, ref _cameraArmed, out rightX, out rightY);
+        var dt = Math.Min(deltaSeconds, .05f);
         var flying = leftValid && _flightArmed;
-        // Nuclear Option uses negative pitch for nose-up: pulling the thumbstick
-        // back raises the nose, as the virtual stick does.
         var camera = distance
             ? new SpectatorStickMotion(rightX * 75f * dt, 0, -rightY * 1.5f * dt, 0, 0)
             : new SpectatorStickMotion(rightX * 75f * dt, -rightY * 60f * dt, 0, 0, 0);
+        // Nuclear Option uses negative pitch for nose-up: pulling the thumbstick
+        // back raises the nose, as the virtual stick does.
         return new ExternalFlightMotion(flying, flying ? Curve(leftY) : 0, flying ? Curve(leftX) : 0,
-            Curve(rudderRight) - Curve(rudderLeft), (throttleUp - throttleDown) * ThrottlePerSecond * dt, camera);
+            Curve(rudderRight) - Curve(rudderLeft), camera);
     }
 
     // A trigger or grip that is already squeezed when the outside view starts
