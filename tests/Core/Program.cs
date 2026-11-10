@@ -833,6 +833,10 @@ if (args.Length == 2)
         PatchCompatibility.Verify(args[0], args[1]));
     Check("Proton input workaround matches Rewired pre-initialization hooks and public configuration", () =>
         PatchCompatibility.VerifyInputBackend(args[1]));
+    Check("Cached private-field handles name members that exist in the installed game", () =>
+        NativeDriftContracts.VerifyHandles(args[0], args[1]));
+    Check("Game methods that a NOVR prefix can replace are unchanged since their copies were written", () =>
+        NativeDriftContracts.VerifyReplacedMethods(args[0], args[1]));
 }
 
 if (args.Length >= 1)

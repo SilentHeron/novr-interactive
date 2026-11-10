@@ -177,10 +177,18 @@ namespace UnityEngine.Rendering.Universal
     {
         Base, Overlay
     }
+    public enum CameraOverrideOption
+    {
+        Off, On, UsePipelineSettings
+    }
     public sealed class UniversalAdditionalCameraData : UnityEngine.Component
     {
         public CameraRenderType renderType;
         public bool renderPostProcessing;
+        // Unity's defaults for a newly added component.
+        public bool renderShadows = true;
+        public CameraOverrideOption requiresDepthOption = CameraOverrideOption.UsePipelineSettings;
+        public CameraOverrideOption requiresColorOption = CameraOverrideOption.UsePipelineSettings;
         public readonly List<UnityEngine.Camera> cameraStack = new();
     }
 }

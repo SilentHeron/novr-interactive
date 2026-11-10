@@ -123,7 +123,12 @@ separate from behavior changes and leave imported `NOVR.XR.*` source in its exis
   runs on Windows and Linux, but it does not test either platform's live VR driver.
 
 For a runtime build, also run the optional assembly contracts described in the
-verification guide. State separately what was checked in code, in a running game
+verification guide. They check that every Harmony target and cached private-field
+handle exists in your installed game, and that the game methods a NOVR prefix can
+skip are unchanged since their NOVR copies were written
+(`tests/Core/ReplacedMethodFingerprints.txt`). After a game update, review each
+method the contract names against its NOVR patch, then regenerate the file by
+running the contracts with `NOVR_UPDATE_FINGERPRINTS=1`. State separately what was checked in code, in a running game
 and in a headset. A boundary test cannot establish haptic feel or stereo comfort.
 Use offline sessions for synthetic input; remove temporary diagnostics afterward.
 

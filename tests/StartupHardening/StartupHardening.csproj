@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Compatibility/GameHandles.cs" Link="GameHandles.cs" />
+    <Compile Include="../../NOVR/Compatibility/PatchInstaller.cs" Link="PatchInstaller.cs" />
+    <Compile Include="../../NOVR/Compatibility/StartupDiagnostics.cs" Link="StartupDiagnostics.cs" />
+    <Compile Include="../../NOVR/Compatibility/DeferredConfigSave.cs" Link="DeferredConfigSave.cs" />
+  </ItemGroup>
+</Project>

@@ -11,9 +11,9 @@ namespace NOVR.VrUi.SpecialBehavior;
 // their text is presented here: timers, progress and runway state remain native.
 internal sealed class CockpitInstructionSources
 {
-    private static readonly FieldInfo ActionsText = AccessTools.Field(typeof(AircraftActionsReport), "actionsText");
-    private static readonly FieldInfo ActionsBackground = AccessTools.Field(typeof(AircraftActionsReport), "background");
-    private static readonly FieldInfo AirbaseText = AccessTools.Field(typeof(AirbaseOverlay), "airbaseLabel");
+    private static readonly FieldInfo? ActionsText = AccessTools.Field(typeof(AircraftActionsReport), "actionsText");
+    private static readonly FieldInfo? ActionsBackground = AccessTools.Field(typeof(AircraftActionsReport), "background");
+    private static readonly FieldInfo? AirbaseText = AccessTools.Field(typeof(AirbaseOverlay), "airbaseLabel");
 
     private sealed class TextLeaf
     {
@@ -118,8 +118,8 @@ internal sealed class CockpitInstructionSources
         {
             _nextFind = Time.unscaledTime + .5f;
             var report = SceneSingleton<AircraftActionsReport>.i;
-            SetLeaf(ref _actions, report != null ? ActionsText.GetValue(report) as TMP_Text : null);
-            var background = report != null ? ActionsBackground.GetValue(report) as Image : null;
+            SetLeaf(ref _actions, report != null ? ActionsText?.GetValue(report) as TMP_Text : null);
+            var background = report != null ? ActionsBackground?.GetValue(report) as Image : null;
             if (background != _background || background == null && _backgroundHide != null)
             {
                 _backgroundHide?.Release();
@@ -128,7 +128,7 @@ internal sealed class CockpitInstructionSources
             }
             var hud = SceneSingleton<FlightHud>.i;
             var airbase = hud != null ? FindAirbase(hud.transform) : null;
-            SetLeaf(ref _taxi, airbase != null ? AirbaseText.GetValue(airbase) as TMP_Text : null);
+            SetLeaf(ref _taxi, airbase != null ? AirbaseText?.GetValue(airbase) as TMP_Text : null);
         }
 
         var owned = CockpitHudWidgets.TryGetContent("objectives", out var slot);

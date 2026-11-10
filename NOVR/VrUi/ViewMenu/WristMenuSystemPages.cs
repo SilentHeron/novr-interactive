@@ -95,6 +95,8 @@ internal sealed partial class WristMenu
         var graphicsPage = BuildGameGraphicsPage();
         Setting(parent, "Hide distant cloud banks", () => GameplayPatches.DistantCloudBanks.HideInVr,
             GameplayPatches.DistantCloudBanks.SetHideInVr, 0, -166);
+        Setting(parent, "Share shadows (test)", () => Rendering.SharedEyeShadows.Enabled,
+            Rendering.SharedEyeShadows.SetEnabled, 1, -166);
         ActionButton(parent, "Foveated rendering  ›", 0, -211, () => ShowPage(foveationPage));
         ActionButton(parent, "Game graphics  ›", 1, -211, () => ShowPage(graphicsPage));
     }

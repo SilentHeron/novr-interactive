@@ -33,6 +33,17 @@ Launch the game through Steam. Remove any `run_bepinex.sh` command from Steam's
 launch options and keep the `winhttp` override from the README. Leave unrelated
 launch options in place.
 
+**The game shows "NOVR: VR has not started" on the desktop:** the headset or its
+runtime was not ready when the game launched. NOVR tries again by itself three
+times over the first minute. After that, press **F11** once SteamVR shows the
+headset as ready; there is no need to restart the game. To play on the desktop
+on purpose, start the game with `-novr-flat`.
+
+**The wrist menu's VR performance page lists NOVR warnings:** the game is a
+different version from the one this NOVR build targets, or some VR adjustments
+could not be installed for it. The rest of the mod keeps working; the log names
+each skipped adjustment. Update NOVR when a matching build is available.
+
 **The game starts but NOVR does not:** check these locations inside the game's
 installation folder:
 

@@ -11,6 +11,8 @@
     <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/Compatibility/PcVrCapabilities.cs" Link="PcVrCapabilities.cs" />
+    <Compile Include="../../NOVR/Compatibility/StartupDiagnostics.cs" Link="StartupDiagnostics.cs" />
+    <Compile Include="../../NOVR/Compatibility/PatchInstaller.cs" Link="PatchInstaller.cs" />
     <Compile Include="../../NOVR.XR.OpenXR/Settings/NovrControllerProfiles.cs" Link="NovrControllerProfiles.cs" />
   </ItemGroup>
 </Project>

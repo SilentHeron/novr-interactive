@@ -20,11 +20,41 @@ public class VrCameraManager : MonoBehaviour
     private Camera[] _cameraBuffer = System.Array.Empty<Camera>();
     private int _cameraCount;
 
+    // Cameras are recognised by object name, and reading a name allocates a
+    // new string on every call. Remember each camera's role instead and ask
+    // again about once a second, in case something renames a camera.
+    private enum CameraRole : byte
+    {
+        Other, TrackedView, GameMain, GameMenu
+    }
+    private const int RoleRefreshFrames = 90;
+    private readonly Dictionary<int, CameraRole> _roles = new();
+    private int _roleAge;
+
+    private CameraRole Role(Camera camera)
+    {
+        var id = camera.GetInstanceID();
+        if (_roles.TryGetValue(id, out var role))
+            return role;
+        var name = camera.gameObject.name;
+        role = name == VrCameraChildName ? CameraRole.TrackedView
+            : name == NuclearOptionMainCameraName ? CameraRole.GameMain
+            : name == NuclearOptionMenuCameraName ? CameraRole.GameMenu
+            : CameraRole.Other;
+        _roles[id] = role;
+        return role;
+    }
+
     private void Update() // Todo: Make me behave on events if possible
     {
         // Scene cameras leave managed wrappers behind after Unity destroys them.
         // Retain live owners (including disabled cameras), not every old scene.
         IgnoredCameras.RemoveWhere(IsDestroyedCamera);
+        if (++_roleAge >= RoleRefreshFrames)
+        {
+            _roleAge = 0;
+            _roles.Clear();
+        }
         // Keep discovering scene/menu cameras every frame, but reuse storage
         // instead of allocating an array for every headset frame.
         var capacity = Camera.allCamerasCount;
@@ -40,8 +70,11 @@ public class VrCameraManager : MonoBehaviour
             var camera = _cameraBuffer[i];
             if (camera == null)
                 continue;
+            var role = Role(camera);
+            if (role == CameraRole.Other)
+                continue;
             var gameObject = camera.gameObject;
-            if (gameObject.name == VrCameraChildName)
+            if (role == CameraRole.TrackedView)
             {
                 // The native root is disabled once this tracked view renders,
                 // so Camera.GetAllCameras never visits it again: keep the URP
@@ -51,12 +84,7 @@ public class VrCameraManager : MonoBehaviour
                     SyncAntialiasing(root, camera);
                 continue;
             }
-            if (gameObject.name is not (NuclearOptionMainCameraName or NuclearOptionMenuCameraName))
-            {
-                continue;
-            }
-
-            if (gameObject.name == NuclearOptionMainCameraName)
+            if (role == CameraRole.GameMain)
             {
                 var existingTrackedCamera = GetTrackedMainCamera(gameObject);
                 if (existingTrackedCamera != null)
@@ -71,7 +99,7 @@ public class VrCameraManager : MonoBehaviour
                 continue;
             }
 
-            if (gameObject.name == NuclearOptionMainCameraName)
+            if (role == CameraRole.GameMain)
             {
                 SetUpMainCameraRig(camera);
             }

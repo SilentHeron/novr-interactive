@@ -37,10 +37,17 @@ internal sealed class PcVrCapabilities : MonoBehaviour
             var height = XRSettings.eyeTextureHeight;
             var eyeSize = width > 0 && height > 0 ? $"{width} × {height} per eye" : "Waiting for eye textures";
             Report = $"Runtime: {runtime}\nGraphics: {backend}\n\nHeadset rendering: {eyeSize}\n" +
-                $"Desktop mirror: {Screen.width} × {Screen.height}\n\n" +
-                "Lower headset resolution if the GPU is overloaded.\n" +
-                "A lower refresh rate allows more time per frame.\n\n" +
-                "Mirror size does not change headset resolution.";
+                $"Desktop mirror: {Screen.width} × {Screen.height}\n" +
+                (Rendering.SharedEyeShadows.Enabled
+                    ? Rendering.SharedEyeShadows.Active ? "Shadows: one map shared by both eyes\n\n" : "Shadows: sharing is on but not in use right now\n\n"
+                    : "\n") +
+                // Startup problems (another game version, adjustments that
+                // could not be installed) take the place of the general advice.
+                (Compatibility.StartupDiagnostics.Warnings.Count > 0
+                    ? Compatibility.StartupDiagnostics.Summary
+                    : "Lower headset resolution if the GPU is overloaded.\n" +
+                      "A lower refresh rate allows more time per frame.\n\n" +
+                      "Mirror size does not change headset resolution.");
             _queryWarning = false;
             if (!_reported)
             {

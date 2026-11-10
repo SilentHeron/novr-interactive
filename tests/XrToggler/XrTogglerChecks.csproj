@@ -5,5 +5,6 @@
     <Compile Include="../../NOVR/VrTogglers/XrPluginToggler.cs" Link="XrPluginToggler.cs" />
     <Compile Include="../../NOVR/VrTogglers/XrPluginOpenXrToggler.cs" Link="XrPluginOpenXrToggler.cs" />
     <Compile Include="../../NOVR/VrTogglers/VrTogglerManager.cs" Link="VrTogglerManager.cs" />
+    <Compile Include="../../NOVR/VrTogglers/VrStartRetry.cs" Link="VrStartRetry.cs" />
   </ItemGroup>
 </Project>

@@ -10,80 +10,119 @@ internal static class VrHudProjection
     private const float VrViewportHalfHorizontalDegrees = VrViewportHorizontalDegrees * 0.5f;
     private const float VrViewportHalfVerticalDegrees = VrViewportVerticalDegrees * 0.5f;
 
+    // Both camera poses, read once. A loop that places many symbols in one
+    // call (every unit marker, each frame) captures this once instead of
+    // asking Unity for the same transforms again for each symbol. Capture it
+    // inside the call that uses it: the head pose is updated several times a
+    // frame, and a pose kept across calls would lag it.
+    internal readonly struct HudView
+    {
+        internal readonly Vector3 MainPosition, MainForward, HudPosition;
+        internal readonly Quaternion HudRotation;
+        private readonly Quaternion _mainInverseRotation;
+        private readonly Matrix4x4 _worldToMain;
+
+        private HudView(Transform main, Transform hud)
+        {
+            var mainRotation = main.rotation;
+            MainPosition = main.position;
+            MainForward = mainRotation * Vector3.forward;
+            _mainInverseRotation = Quaternion.Inverse(mainRotation);
+            _worldToMain = main.worldToLocalMatrix;
+            HudPosition = hud.position;
+            HudRotation = hud.rotation;
+        }
+
+        internal static bool TryCapture(out HudView view)
+        {
+            var mainCamera = APIBus.MainCamera;
+            var cockpitHudCamera = APIBus.CockpitHudCamera;
+            if (mainCamera == null || cockpitHudCamera == null)
+            {
+                view = default;
+                return false;
+            }
+            view = new HudView(mainCamera.transform, cockpitHudCamera.transform);
+            return true;
+        }
+
+        internal bool TryProject(Vector3 worldPosition, out Vector3 hudPosition)
+        {
+            var mainCameraLocal = _worldToMain.MultiplyPoint3x4(worldPosition);
+            if (mainCameraLocal.z <= 0.0f)
+            {
+                hudPosition = Vector3.zero;
+                return false;
+            }
+            hudPosition = HudPosition + HudRotation * mainCameraLocal.normalized * HudDistance;
+            return true;
+        }
+
+        internal bool TryProjectDirection(Vector3 worldPosition, out Vector3 hudPosition)
+        {
+            var mainCameraLocal = _worldToMain.MultiplyPoint3x4(worldPosition);
+            if (mainCameraLocal.sqrMagnitude <= Mathf.Epsilon)
+            {
+                hudPosition = Vector3.zero;
+                return false;
+            }
+            hudPosition = HudPosition + HudRotation * mainCameraLocal.normalized * HudDistance;
+            return true;
+        }
+
+        internal bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle)
+        {
+            arrowAngle = 0.0f;
+            var directionToTarget = worldPosition - MainPosition;
+            if (directionToTarget.sqrMagnitude <= Mathf.Epsilon)
+            {
+                hudPosition = HudPosition + HudRotation * Vector3.forward * HudDistance;
+                return false;
+            }
+
+            var mainCameraLocalDirection = _mainInverseRotation * directionToTarget.normalized;
+            var targetYawDegrees = Mathf.Atan2(mainCameraLocalDirection.x, mainCameraLocalDirection.z) * Mathf.Rad2Deg;
+            var targetPitchDegrees = Mathf.Atan2(
+                mainCameraLocalDirection.y,
+                new Vector2(mainCameraLocalDirection.x, mainCameraLocalDirection.z).magnitude) * Mathf.Rad2Deg;
+
+            var horizontalRatio = targetYawDegrees / VrViewportHalfHorizontalDegrees;
+            var verticalRatio = targetPitchDegrees / VrViewportHalfVerticalDegrees;
+            var ellipseDistance = Mathf.Sqrt(horizontalRatio * horizontalRatio + verticalRatio * verticalRatio);
+            var screenEdge = mainCameraLocalDirection.z <= 0.0f || ellipseDistance > 1.0f;
+
+            var pinnedYawDegrees = targetYawDegrees;
+            var pinnedPitchDegrees = targetPitchDegrees;
+            if (screenEdge && ellipseDistance > Mathf.Epsilon)
+            {
+                pinnedYawDegrees /= ellipseDistance;
+                pinnedPitchDegrees /= ellipseDistance;
+            }
+
+            var pinnedLocalDirection = DirectionFromYawPitch(pinnedYawDegrees, pinnedPitchDegrees);
+            hudPosition = HudPosition + (HudRotation * pinnedLocalDirection).normalized * HudDistance;
+            arrowAngle = Mathf.Atan2(targetPitchDegrees, targetYawDegrees);
+            return screenEdge;
+        }
+    }
+
     public static bool TryProjectToCockpitHud(Vector3 worldPosition, out Vector3 hudPosition)
     {
         hudPosition = Vector3.zero;
-        var mainCamera = APIBus.MainCamera;
-        var cockpitHudCamera = APIBus.CockpitHudCamera;
-        if (mainCamera == null || cockpitHudCamera == null)
-            return false;
-
-        var mainCameraLocal = mainCamera.transform.InverseTransformPoint(worldPosition);
-        if (mainCameraLocal.z <= 0.0f)
-            return false;
-
-        hudPosition = cockpitHudCamera.transform.position +
-                      cockpitHudCamera.transform.TransformDirection(mainCameraLocal.normalized) * HudDistance;
-        return true;
+        return HudView.TryCapture(out var view) && view.TryProject(worldPosition, out hudPosition);
     }
 
     public static bool TryProjectDirectionToCockpitHud(Vector3 worldPosition, out Vector3 hudPosition)
     {
         hudPosition = Vector3.zero;
-        var mainCamera = APIBus.MainCamera;
-        var cockpitHudCamera = APIBus.CockpitHudCamera;
-        if (mainCamera == null || cockpitHudCamera == null)
-            return false;
-
-        var mainCameraLocal = mainCamera.transform.InverseTransformPoint(worldPosition);
-        if (mainCameraLocal.sqrMagnitude <= Mathf.Epsilon)
-            return false;
-
-        hudPosition = cockpitHudCamera.transform.position +
-                      cockpitHudCamera.transform.TransformDirection(mainCameraLocal.normalized) * HudDistance;
-        return true;
+        return HudView.TryCapture(out var view) && view.TryProjectDirection(worldPosition, out hudPosition);
     }
 
     public static bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle)
     {
         hudPosition = Vector3.zero;
         arrowAngle = 0.0f;
-        var mainCamera = APIBus.MainCamera;
-        var cockpitHudCamera = APIBus.CockpitHudCamera;
-        if (mainCamera == null || cockpitHudCamera == null)
-            return false;
-
-        var directionToTarget = worldPosition - mainCamera.transform.position;
-        if (directionToTarget.sqrMagnitude <= Mathf.Epsilon)
-        {
-            hudPosition = cockpitHudCamera.transform.position + cockpitHudCamera.transform.forward * HudDistance;
-            return false;
-        }
-
-        var mainCameraLocalDirection = mainCamera.transform.InverseTransformDirection(directionToTarget.normalized);
-        var targetYawDegrees = Mathf.Atan2(mainCameraLocalDirection.x, mainCameraLocalDirection.z) * Mathf.Rad2Deg;
-        var targetPitchDegrees = Mathf.Atan2(
-            mainCameraLocalDirection.y,
-            new Vector2(mainCameraLocalDirection.x, mainCameraLocalDirection.z).magnitude) * Mathf.Rad2Deg;
-
-        var horizontalRatio = targetYawDegrees / VrViewportHalfHorizontalDegrees;
-        var verticalRatio = targetPitchDegrees / VrViewportHalfVerticalDegrees;
-        var ellipseDistance = Mathf.Sqrt(horizontalRatio * horizontalRatio + verticalRatio * verticalRatio);
-        var screenEdge = mainCameraLocalDirection.z <= 0.0f || ellipseDistance > 1.0f;
-
-        var pinnedYawDegrees = targetYawDegrees;
-        var pinnedPitchDegrees = targetPitchDegrees;
-        if (screenEdge && ellipseDistance > Mathf.Epsilon)
-        {
-            pinnedYawDegrees /= ellipseDistance;
-            pinnedPitchDegrees /= ellipseDistance;
-        }
-
-        var pinnedLocalDirection = DirectionFromYawPitch(pinnedYawDegrees, pinnedPitchDegrees);
-        hudPosition = cockpitHudCamera.transform.position +
-                      cockpitHudCamera.transform.TransformDirection(pinnedLocalDirection).normalized * HudDistance;
-        arrowAngle = Mathf.Atan2(targetPitchDegrees, targetYawDegrees);
-        return screenEdge;
+        return HudView.TryCapture(out var view) && view.PinToScreenEdge(worldPosition, out hudPosition, out arrowAngle);
     }
 
     public static bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition) =>

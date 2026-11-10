@@ -10,10 +10,10 @@ namespace NOVR.VrUi.SpecialBehavior;
 // state untouched; exact graphic values resume when the preview ends.
 internal sealed class WingGaugeEditPreview
 {
-    private static readonly FieldInfo Fade = AccessTools.Field(typeof(WingAngleGauge), "fade");
-    private static readonly FieldInfo Images = AccessTools.Field(typeof(WingAngleGauge), "fadeImages");
-    private static readonly FieldInfo Alphas = AccessTools.Field(typeof(WingAngleGauge), "imageAlphas");
-    private static readonly FieldInfo Label = AccessTools.Field(typeof(WingAngleGauge), "label");
+    private static readonly FieldInfo? Fade = AccessTools.Field(typeof(WingAngleGauge), "fade");
+    private static readonly FieldInfo? Images = AccessTools.Field(typeof(WingAngleGauge), "fadeImages");
+    private static readonly FieldInfo? Alphas = AccessTools.Field(typeof(WingAngleGauge), "imageAlphas");
+    private static readonly FieldInfo? Label = AccessTools.Field(typeof(WingAngleGauge), "label");
     private readonly WingAngleGauge _source;
     private readonly List<Graphic> _graphics = new();
     private readonly List<(Graphic graphic, bool enabled, float alpha, bool show, float shownAlpha)> _states = new();
@@ -33,10 +33,10 @@ internal sealed class WingGaugeEditPreview
             // A future game revision may replace this gauge. Keep its native
             // behavior if the inspected fade fields are no longer available.
             if (Fade == null || Images == null || Alphas == null || Label == null ||
-                !(Images.GetValue(_source) is Image[] images) || !(Alphas.GetValue(_source) is float[] alphas) ||
-                !(Fade.GetValue(_source) is bool nativeFade))
+                !(Images?.GetValue(_source) is Image[] images) || !(Alphas?.GetValue(_source) is float[] alphas) ||
+                !(Fade?.GetValue(_source) is bool nativeFade))
                 return;
-            var label = Label.GetValue(_source) as Graphic;
+            var label = Label?.GetValue(_source) as Graphic;
             _source.GetComponentsInChildren(true, _graphics);
             foreach (var graphic in _graphics)
             {
@@ -58,7 +58,7 @@ internal sealed class WingGaugeEditPreview
             }
             _graphics.Clear();
             _fade = nativeFade;
-            Fade.SetValue(_source, false);
+            Fade?.SetValue(_source, false);
             _active = true;
         }
         foreach (var state in _states)
@@ -68,7 +68,7 @@ internal sealed class WingGaugeEditPreview
     internal void Restore()
     {
         if (_active && _source != null)
-            Fade.SetValue(_source, _fade);
+            Fade?.SetValue(_source, _fade);
         foreach (var state in _states)
             Apply(state.graphic, state.enabled, state.alpha);
         _states.Clear();

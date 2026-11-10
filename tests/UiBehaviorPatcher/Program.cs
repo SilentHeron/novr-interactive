@@ -91,6 +91,30 @@ using (var world = new World())
 
 using (var world = new World())
 {
+    // "Canvas" is Unity's default name; the game has one per cockpit screen.
+    var root = new GameObject("SceneEssentials");
+    var container = new GameObject("Canvas");
+    container.transform.parent = root.transform;
+    var cockpitScreen = new GameObject("tacScreen_fighter1");
+    var screenCanvas = new GameObject("Canvas");
+    screenCanvas.transform.parent = cockpitScreen.transform;
+    var loose = new GameObject("Canvas");
+    var nested = new GameObject("Canvas");
+    nested.transform.parent = container.transform;
+    var nestedEssentials = new GameObject("SceneEssentials");
+    nestedEssentials.transform.parent = cockpitScreen.transform;
+    world.Tick();
+    Check(root.Get<PositionZeroBehavior>() != null && container.Get<PositionZeroBehavior>() != null,
+        "The scene root and its UI container are still held at the origin");
+    Check(screenCanvas.Get<PositionZeroBehavior>() == null && loose.Get<PositionZeroBehavior>() == null &&
+          nested.Get<PositionZeroBehavior>() == null && nestedEssentials.Get<PositionZeroBehavior>() == null,
+        "Other objects that merely share a generic name are left alone");
+    Check(UIBehaviorPatcher.IsSceneHook("MainCanvas", null, false) && UIBehaviorPatcher.IsSceneHook("MenuCanvas", "Canvas", false),
+        "Distinctively named canvases are hooked wherever they sit");
+}
+
+using (var world = new World())
+{
     var loading = world.Native<ModFlightHud>("unnamed loading HUD");
     loading.gameObject.scene = new Scene(true, false);
     var alreadyLoaded = new GameObject("created before patch registration").AddComponent<StatusDisplay>();

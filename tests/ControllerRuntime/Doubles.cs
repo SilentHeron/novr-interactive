@@ -257,3 +257,10 @@ namespace NOVR.VrUi
         public static bool IsPerformancePage;
     }
 }
+namespace NOVR.Rendering
+{
+    internal static class SharedEyeShadows
+    {
+        public static bool Enabled, Active;
+    }
+}

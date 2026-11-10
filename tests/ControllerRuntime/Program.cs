@@ -184,6 +184,26 @@ OpenXRRuntime.Fail = false;
 XRSettings.eyeTextureWidth = 0;
 performanceTick(7);
 yes(Debug.Logs.Count == 2 && PcVrCapabilities.Report.Contains("Waiting for eye textures"));
+{
+    // Startup problems and the experimental shadow option are reported on the same page.
+    XRSettings.eyeTextureWidth = 2400;
+    NOVR.VrUi.WristMenu.IsPerformancePage = true;
+    performanceTick(20);
+    yes(PcVrCapabilities.Report.Contains("Lower headset resolution") && !PcVrCapabilities.Report.Contains("Shadows:") && !PcVrCapabilities.Report.Contains("NOVR warnings"));
+    NOVR.Compatibility.StartupDiagnostics.Warn("Built for Nuclear Option 0.34.6; this game reports 0.35.0.");
+    NOVR.Rendering.SharedEyeShadows.Enabled = true;
+    performanceTick(22);
+    yes(PcVrCapabilities.Report.Contains("NOVR warnings:") && PcVrCapabilities.Report.Contains("0.35.0") && !PcVrCapabilities.Report.Contains("Lower headset resolution"));
+    yes(PcVrCapabilities.Report.Contains("Shadows: sharing is on but not in use right now"));
+    NOVR.Rendering.SharedEyeShadows.Active = true;
+    performanceTick(24);
+    yes(PcVrCapabilities.Report.Contains("Shadows: one map shared by both eyes"));
+    NOVR.Compatibility.StartupDiagnostics.Reset();
+    NOVR.Rendering.SharedEyeShadows.Enabled = NOVR.Rendering.SharedEyeShadows.Active = false;
+    performanceTick(26);
+    yes(PcVrCapabilities.Report.Contains("Lower headset resolution") && !PcVrCapabilities.Report.Contains("Shadows:"));
+    NOVR.VrUi.WristMenu.IsPerformancePage = false;
+}
 Console.WriteLine($"{assertions} controller runtime/profile assertions passed (source linked; no headset or game). ");
 
 sealed class DerivedTouch : OculusTouchControllerProfile.OculusTouchController

@@ -8,8 +8,7 @@ public static class LayerHelper
 {
 
 
-    // Check me on game updates!!
-    [Flags]
+    // Layer indices, not a bit mask. Check me on game updates!!
     public enum Layers
     {
 
@@ -41,6 +40,9 @@ public static class LayerHelper
         VrUi = 30,
         VrUiCapture = 31,
     }
+
+    // The layers this mod claims for itself; checked at startup for a clash.
+    internal static readonly int[] OwnLayers = { (int)Layers.VrForeground, (int)Layers.VrUi, (int)Layers.VrUiCapture };
 
     public static Layers GetVrUiLayer() => Layers.VrUi;
 

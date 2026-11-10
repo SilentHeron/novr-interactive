@@ -161,7 +161,9 @@ internal sealed partial class FixedFoveationRuntime : MonoBehaviour
                 windows && FixedFoveationNative.IsWine(),
                 SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11,
                 SystemInfo.graphicsDeviceVendorID);
-            if (reason != null) { Status = reason; return; }
+            // Say outright that the page is inert here: the controls are greyed
+            // out, but a short "Unavailable" line is easy to miss in the headset.
+            if (reason != null) { Status = reason + "\nThese settings do nothing on this system."; return; }
             _native = new FixedFoveationNative();
             // One tiny resource obtains the actual Unity D3D11 device. Never
             // call GetNativeTexturePtr each frame: that can stall the renderer.

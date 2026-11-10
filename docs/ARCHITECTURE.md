@@ -17,9 +17,33 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
    options. Flat/headless launches skip NOVR runtime creation. Normal startup then
    publishes configuration, initializes compatibility handling, applies Harmony
    patches and creates `Core`.
+   - Configuration is bound with BepInEx's save-on-every-change turned off, written
+     once, and afterwards saved by
+     [`DeferredConfigSave`](../NOVR/Compatibility/DeferredConfigSave.cs) a second
+     after the last change and when the game closes. The default rewrote the whole
+     file for each of several hundred binds at every launch.
+   - [`PatchInstaller`](../NOVR/Compatibility/PatchInstaller.cs) installs each
+     Harmony patch class separately. A class is skipped, and reported, when
+     Harmony cannot patch it or when
+     [`GameHandles`](../NOVR/Compatibility/GameHandles.cs) finds that one of its
+     required `static readonly` reflection handles did not resolve. Declare a
+     handle nullable (`FieldInfo?`) only if every use copes with null; a
+     non-nullable handle may be used unguarded because its patch is never
+     installed without it.
+   - [`StartupDiagnostics`](../NOVR/Compatibility/StartupDiagnostics.cs) collects
+     what the player should know about a degraded start (a game version other
+     than `SupportedGameVersion`, skipped patches, a layer NOVR uses that
+     something else named). The log gets every line; the wrist menu's VR
+     performance page shows the summary.
 3. [`Core.Awake`](../NOVR/Core.cs) registers the persistent feature components.
    `Core.Start` creates headset/UI state and enables XR through
-   [`VrTogglerManager`](../NOVR/VrTogglers/VrTogglerManager.cs).
+   [`VrTogglerManager`](../NOVR/VrTogglers/VrTogglerManager.cs). A runtime that
+   is not ready is not an error: the manager records the reason,
+   [`VrStartRetry`](../NOVR/VrTogglers/VrStartRetry.cs) schedules three automatic
+   attempts (5, 15 and 30 seconds apart), **F11** tries again on demand, and
+   [`VrStartNotice`](../NOVR/VrTogglers/VrStartNotice.cs) says so on the desktop
+   window. Automatic attempts are limited because creating an OpenXR instance can
+   launch the runtime's own application.
    [`XrPluginOpenXrToggler`](../NOVR/VrTogglers/XrPluginOpenXrToggler.cs) registers
    controller profiles and selects multipass before loader initialization.
 4. [`VrCameraManager`](../NOVR/VrCamera/VrCameraManager.cs) discovers scene cameras
@@ -257,6 +281,29 @@ These focused checks do not establish rendered fit, headset comfort or hardware
 behavior. Run full verification before submission and report runtime evidence
 separately. Prefer a small owner/helper with an explicit lifetime over another
 cross-feature framework.
+
+## Rendering cost
+
+The game's shaders contain no single-pass stereo variants (checked across every
+compiled variant in the player data), so VR draws each eye as a separate camera
+pass; `NOVR.Patcher` and `XrPluginOpenXrToggler` force that mode. Work that is
+the same for both eyes is therefore the main thing a mod can still remove:
+
+- NOVR's interface camera (`NOUIManager.ConfigureUiOnly`) asks for no depth
+  texture, colour copy or shadows. The game's pipeline enables all three for
+  every camera, and each stacked camera otherwise resolves the multisampled
+  depth buffer again for each eye.
+- [`SharedEyeShadows`](../NOVR/Rendering/SharedEyeShadows.cs) (experimental, off
+  by default) keeps the first eye's sun shadow map for the second eye. The pass
+  still runs, because URP resets the shadow keywords for every camera, but it
+  neither clears nor redraws the map. It falls back to normal rendering unless
+  the same pass rendered the same camera's first eye in the same frame.
+- `HUDUnitMarkerViewPositionPatch` runs for every unit marker on every frame. It
+  reads private fields through field-reference delegates and captures both
+  camera poses once per `CombatHUD.UpdateMarkers` call
+  (`VrHudProjection.HudView`). Capture a view inside the call that uses it; the
+  head pose changes several times a frame.
+- `HudElementStyleDriver` refreshes all styled HUD graphics from one callback.
 
 ## Optional foveated rendering
 

@@ -12,6 +12,7 @@ namespace UnityEngine
         public static bool operator !=(Object? a, Object? b) => !(a == b);
         public override bool Equals(object? obj) => this == obj as Object;
         public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+        public int GetInstanceID() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
     }
     public class Component : Object
     {

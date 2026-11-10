@@ -3,7 +3,9 @@
 The optional backend uses NVIDIA variable-rate shading with the
 existing Direct3D 11 renderer. One ZIP contains the regular mod and the optional
 component. Native Windows, a compatible NVIDIA GPU/driver and an eligible stereo
-render path are required. Linux/Proton never loads it. Nothing switches the game
+render path are required. Linux/Proton never loads it: the page stays greyed out
+there, its status says the settings do nothing on that system, and frame rate
+cannot change. Nothing switches the game
 to D3D12/Vulkan or changes antialiasing, headset resolution or streaming settings.
 
 ## Controls
@@ -85,6 +87,24 @@ frusta and eye view angles. Tracking-origin rotation is accounted for and
 translation is excluded, so aircraft attitude and seat adjustments do not offset
 it. Moving gaze updates reusable per-eye rate textures;
 it does not create textures/views or allocate the rate image each frame.
+
+## What it can and cannot save
+
+Foveation here lowers the pixel-shading rate of one pass: the tracked world
+camera's opaque geometry (terrain, buildings, vehicles), in cockpit view. A
+preset removes roughly a third to half of that pass's pixel-shader work. It does
+not touch the cockpit (a separate camera drawn over the world), the sky, clouds
+and other transparent effects, shadows, post-processing or anti-aliasing
+resolves. It also does nothing for CPU time, and with one camera pass per eye
+this game is often limited by the CPU in busy missions.
+
+So the frame rate changes only when the GPU is the limit and the opaque world
+pass is a large share of its work, and a headset that is holding half its
+refresh rate shows no change until the saving is large enough to reach full
+rate. Use the readout below rather than the frame counter to see the saving.
+Extending the reduced rate to transparent effects and the cockpit camera is
+the change that would make it matter more; it needs native work and a Windows
+headset test.
 
 ## Compare before keeping it enabled
 

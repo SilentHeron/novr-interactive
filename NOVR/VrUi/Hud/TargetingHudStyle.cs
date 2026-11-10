@@ -10,9 +10,9 @@ namespace NOVR.VrUi.SpecialBehavior;
 
 internal sealed class TargetingHudStyle : MonoBehaviour
 {
-    private static readonly FieldInfo TargetTextField = AccessTools.Field(typeof(CombatHUD), "targetText");
-    private static readonly FieldInfo TargetInfoField = AccessTools.Field(typeof(CombatHUD), "targetInfo");
-    private static readonly FieldInfo TargetArrowField = AccessTools.Field(typeof(CombatHUD), "targetArrow");
+    private static readonly FieldInfo? TargetTextField = AccessTools.Field(typeof(CombatHUD), "targetText");
+    private static readonly FieldInfo? TargetInfoField = AccessTools.Field(typeof(CombatHUD), "targetInfo");
+    private static readonly FieldInfo? TargetArrowField = AccessTools.Field(typeof(CombatHUD), "targetArrow");
     private float _nextScan;
     private CombatHUD? _labelOwner;
     private HudElementStyle? _targetTextStyle, _targetInfoStyle;
@@ -23,8 +23,8 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         {
             RestoreAircraftLabels();
             _labelOwner = combat;
-            _targetTextStyle = combat == null ? null : HudElementStyle.Add(TargetTextField.GetValue(combat) as TMP_Text, HudElementKind.Label);
-            _targetInfoStyle = combat == null ? null : HudElementStyle.Add(TargetInfoField.GetValue(combat) as TMP_Text, HudElementKind.Label);
+            _targetTextStyle = combat == null ? null : HudElementStyle.Add(TargetTextField?.GetValue(combat) as TMP_Text, HudElementKind.Label);
+            _targetInfoStyle = combat == null ? null : HudElementStyle.Add(TargetInfoField?.GetValue(combat) as TMP_Text, HudElementKind.Label);
         }
         var targets = combat?.GetTargetList();
         var affiliation = LabelAffiliation(targets != null && targets.Count > 0 ? targets[0] : null);
@@ -78,7 +78,7 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         if (combat == null)
             return;
         HudElementStyle.Add(combat.targetDesignator, HudElementKind.Reticle);
-        HudElementStyle.Add(TargetArrowField.GetValue(combat) as Graphic, HudElementKind.Marker);
+        HudElementStyle.Add(TargetArrowField?.GetValue(combat) as Graphic, HudElementKind.Marker);
         if (flight == null)
             return;
         foreach (var state in flight.GetComponentsInChildren<HUDWeaponState>(true))

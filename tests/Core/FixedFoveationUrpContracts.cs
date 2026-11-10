@@ -66,6 +66,56 @@ internal static class FixedFoveationUrpContracts
             Require(execute[0].Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "m_FilteringSettings"),
                 "DrawObjectsPass.Execute no longer reads m_FilteringSettings, so narrowing it would not split the pass.");
         });
+        check("Local URP metadata: the sun shadow pass can keep the first eye's map for the second eye", () =>
+        {
+            // SharedEyeShadows relies on this exact shape of the pass; any
+            // difference must be reviewed before the option is trusted again.
+            var pass = module.Types.Single(t => t.FullName == "UnityEngine.Rendering.Universal.Internal.MainLightShadowCasterPass");
+            MethodDefinition One(string name) => pass.Methods.Single(m => m.Name == name);
+            bool Calls(MethodDefinition method, string type, string name) => method.Body.Instructions.Any(i =>
+                i.Operand is MethodReference call && call.DeclaringType.Name == type && call.Name == name);
+            int First(MethodDefinition method, Func<Mono.Cecil.Cil.Instruction, bool> match) =>
+                method.Body.Instructions.Select((instruction, index) => (instruction, index)).Where(x => match(x.instruction)).Select(x => x.index).DefaultIfEmpty(-1).First();
+            var empty = pass.Fields.SingleOrDefault(f => f.Name == "m_CreateEmptyShadowmap");
+            Require(empty is { IsStatic: false } && empty.FieldType.FullName == "System.Boolean", "m_CreateEmptyShadowmap is missing or changed type.");
+            var setup = One("Setup");
+            Require(setup.ReturnType.FullName == "System.Boolean" && setup.Parameters.Count == 1 &&
+                    setup.Parameters[0].ParameterType.FullName == "UnityEngine.Rendering.Universal.RenderingData&" && setup.Parameters[0].Name == "renderingData",
+                "MainLightShadowCasterPass.Setup no longer matches the patch signature.");
+            // A camera without shadow support must leave an earlier map's cascade data alone.
+            var supports = First(setup, i => i.Operand is FieldReference f && f.Name == "supportsMainLightShadows");
+            var clear = First(setup, i => i.Operand is MethodReference m && m.Name == "Clear" && m.DeclaringType.Name == "MainLightShadowCasterPass");
+            Require(supports >= 0 && clear > supports, "Setup no longer checks supportsMainLightShadows before clearing its cascade data.");
+            Require(setup.Body.Instructions.Any(i => i.OpCode == Mono.Cecil.Cil.OpCodes.Stfld && i.Operand is FieldReference f && f.Name == "m_CreateEmptyShadowmap"),
+                "Setup no longer decides m_CreateEmptyShadowmap.");
+            var configure = One("Configure");
+            Require(Calls(configure, "ScriptableRenderPass", "ConfigureTarget") && Calls(configure, "ScriptableRenderPass", "ConfigureClear") &&
+                    configure.Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "m_CreateEmptyShadowmap"),
+                "Configure no longer selects and clears the shadow map target itself.");
+            var execute = One("Execute");
+            Require(execute.Parameters.Count == 2 && Calls(execute, "MainLightShadowCasterPass", "RenderMainLightCascadeShadowmap") &&
+                    Calls(execute, "CommandBuffer", "SetGlobalTexture"), "Execute no longer draws the cascades and binds the map in one call.");
+            var render = One("RenderMainLightCascadeShadowmap");
+            var slice = First(render, i => i.Operand is MethodReference m && m.DeclaringType.Name == "ShadowUtils" && m.Name == "RenderShadowSlice" && m.Parameters.Count == 6);
+            var constants = First(render, i => i.Operand is MethodReference m && m.Name == "SetupMainLightShadowReceiverConstants");
+            Require(slice >= 0 && constants > slice, "The cascade draws are no longer separate from the receiver constants that follow them.");
+            Require(render.Body.Instructions.Count(i => i.Operand is MethodReference m && m.DeclaringType.Name == "CommandBuffer" &&
+                    (m.Name == "SetRenderTarget" || m.Name == "ClearRenderTarget")) == 0,
+                "RenderMainLightCascadeShadowmap now clears or rebinds the map itself; skipping the slices would leave it empty.");
+            var utils = module.Types.Single(t => t.FullName == "UnityEngine.Rendering.Universal.ShadowUtils");
+            var sliceMethod = utils.Methods.SingleOrDefault(m => m.Name == "RenderShadowSlice" && m.Parameters.Count == 6);
+            Require(sliceMethod is { IsStatic: true, IsPublic: true } &&
+                    sliceMethod.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(new[]
+                    {
+                        "UnityEngine.Rendering.CommandBuffer", "UnityEngine.Rendering.ScriptableRenderContext&",
+                        "UnityEngine.Rendering.Universal.ShadowSliceData&", "UnityEngine.Rendering.ShadowDrawingSettings&",
+                        "UnityEngine.Matrix4x4", "UnityEngine.Matrix4x4"
+                    }), "ShadowUtils.RenderShadowSlice no longer has the six-argument overload the patch targets.");
+            // URP resets the shadow keywords at the start of every camera, which is why the pass must still run.
+            var renderer = module.Types.Single(t => t.FullName == "UnityEngine.Rendering.Universal.ScriptableRenderer");
+            Require(renderer.Methods.Any(m => m.HasBody && m.Body.Instructions.Any(i => i.Operand is MethodReference call && call.Name == "DisableShaderKeyword")),
+                "ScriptableRenderer no longer resets rendering keywords per camera; the reuse path needs review.");
+        });
     }
 
     private static void Require(bool condition, string message)

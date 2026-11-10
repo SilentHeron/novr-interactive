@@ -148,8 +148,13 @@ public class UIBehaviorPatcher : NOVRBehaviour
             // FindObjectsOfTypeAll includes prefab/assets; never mutate those.
             if (go == null || !go.scene.IsValid() || !go.scene.isLoaded)
                 continue;
-            if (ScenePatchMap.TryGetValue(go.name, out var behavior))
-                AddBehavior(go.transform, new PendingAddition(behavior));
+            var name = go.name;
+            if (ScenePatchMap.TryGetValue(name, out var behavior))
+            {
+                var parent = go.transform.parent;
+                if (IsSceneHook(name, parent != null ? parent.name : null, parent != null && parent.parent == null))
+                    AddBehavior(go.transform, new PendingAddition(behavior));
+            }
             // Constructor notifications can precede scene readiness, or even
             // registration of the constructor patch. Recover those components
             // after loading without keeping prefab assets in the retry queue.
@@ -159,6 +164,17 @@ public class UIBehaviorPatcher : NOVRBehaviour
                     Enqueue(source, new PendingAddition(mapping.Value));
         }
     }
+
+    // "Canvas" is Unity's default object name: the game alone has dozens
+    // (every cockpit screen, debug and settings panels) and other mods add
+    // more. Only the UI container directly under the scene root is the one to
+    // hold at the origin, and only a root object is the scene root.
+    internal static bool IsSceneHook(string name, string? parentName, bool parentIsRoot) => name switch
+    {
+        "Canvas" => parentIsRoot && parentName == "SceneEssentials",
+        "SceneEssentials" => parentName == null,
+        _ => true
+    };
 
     private static void AddBehavior(Component source, PendingAddition addition)
     {

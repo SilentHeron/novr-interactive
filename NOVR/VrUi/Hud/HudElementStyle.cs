@@ -95,7 +95,15 @@ internal sealed class HudElementStyle : BaseMeshEffect
         Elements.Remove(this);
         base.OnDisable();
     }
-    private void LateUpdate()
+    // Driven from one place (HudElementStyleDriver) rather than a LateUpdate
+    // on every styled graphic: each unit marker carries one of these, and a
+    // per-component engine callback for hundreds of them adds up.
+    internal static void RefreshAll()
+    {
+        foreach (var element in Elements)
+            element.Refresh();
+    }
+    private void Refresh()
     {
         var anchor = Anchor;
         var scale = Scale;
@@ -144,4 +152,10 @@ internal sealed class HudElementStyle : BaseMeshEffect
                 mesh.vertices[i] = Style(mesh.vertices[i], anchor, scale);
         }
     }
+}
+
+// Keeps every styled HUD graphic in step with the size settings once a frame.
+internal sealed class HudElementStyleDriver : MonoBehaviour
+{
+    private void LateUpdate() => HudElementStyle.RefreshAll();
 }

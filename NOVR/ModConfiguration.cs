@@ -33,6 +33,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> VrFarClipDistance;
     public readonly ConfigEntry<bool> HideDistantCloudsInVr;
     public readonly ConfigEntry<bool> VrGameAntialiasing;
+    internal readonly ConfigEntry<bool> ShareEyeShadows;
 
     public ModConfiguration(ConfigFile config)
     {
@@ -55,6 +56,8 @@ public class ModConfiguration
         // build) so a saved true value from that build cannot keep it on.
         VrGameAntialiasing = config.Bind("VR View", "Game SMAA (Costly)", false,
             "Opt in: apply the game camera's post-process anti-aliasing (SMAA in the stock flight scene) to the VR view, on top of MSAA. It runs for each eye at full headset resolution and can cost a large share of the frame; NOVR renders without it by default.");
+        ShareEyeShadows = config.Bind("VR Performance", "Share Shadows Between Eyes", false,
+            "Experimental. Draw the sun's shadow map once per frame and reuse it for the second eye, instead of once per eye. Saves the second submission of every shadow caster. Turn off if shadows flicker, shift or disappear in one eye.");
         HideDistantCloudsInVr = config.Bind("VR View", "Hide Distant Cloud Banks", true,
             "Hide the game's ring of distant cloud meshes (10-40 km out, shown when weather coverage is above 10%, as on most multiplayer servers) while in VR, where it appears as a grey wall around the horizon. Nearby clouds and the cloud layer are unchanged.");
         TargetCue = config.Bind("VR HUD", "Target Aim Cue", global::NOVR.MotionControls.TargetCueMode.Context,

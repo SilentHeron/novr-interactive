@@ -142,6 +142,12 @@ var unrelated = SceneCamera("native overlay");
 Stack(first).Add(unrelated);
 var manager = CreateUi();
 var hud = manager.CockpitHudCamera;
+{
+    var hudData = hud.GetComponent<UniversalAdditionalCameraData>()!;
+    Check(hudData.renderType == CameraRenderType.Overlay && !hudData.renderShadows &&
+          hudData.requiresDepthOption == CameraOverrideOption.Off && hudData.requiresColorOption == CameraOverrideOption.Off,
+        "The interface camera asks the pipeline for no depth copy, colour copy or shadows");
+}
 Check(Stack(first).Count(x => ReferenceEquals(x, hud)) == 1, "Late UI manager attaches to an already-published camera");
 Check(VrCameraManager.IgnoredCameras.Contains(hud), "Owned HUD camera is excluded from world camera scanning");
 APIBus.OnMainCameraChanged?.Invoke(first, first);

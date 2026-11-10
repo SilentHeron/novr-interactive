@@ -53,6 +53,7 @@ namespace UnityEngine
     }
     public sealed class Transform : Component
     {
+        public Transform? parent;
     }
     public sealed class GameObject : Object
     {

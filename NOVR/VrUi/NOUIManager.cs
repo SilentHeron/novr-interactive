@@ -70,6 +70,7 @@ public class NOUIManager : NOVRBehaviour
             var data = pose.gameObject.AddComponent<UniversalAdditionalCameraData>();
             data.renderType = CameraRenderType.Base;
             data.renderPostProcessing = false;
+            ConfigureUiOnly(data);
             VrCameraManager.IgnoredCameras.Add(_startupCamera);
         }
         if (_startupCamera != null)
@@ -169,8 +170,20 @@ public class NOUIManager : NOVRBehaviour
         camera.allowMSAA = false;
         camera.cullingMask = 1 << (int)LayerHelper.GetVrUiLayer();
         additionalCameraData.renderType = CameraRenderType.Overlay;
+        ConfigureUiOnly(additionalCameraData);
 
         return camera;
+    }
+
+    // The game's pipeline asks every camera for a depth texture and an opaque
+    // colour copy, and for shadows. Each stacked camera then resolves the
+    // multisampled depth buffer again, once per eye. This camera draws only
+    // interface graphics, which sample neither and cast or receive no shadow.
+    private static void ConfigureUiOnly(UniversalAdditionalCameraData data)
+    {
+        data.requiresDepthOption = CameraOverrideOption.Off;
+        data.requiresColorOption = CameraOverrideOption.Off;
+        data.renderShadows = false;
     }
 
     private void OnMainCameraChanged(Camera? previous, Camera? newCam)

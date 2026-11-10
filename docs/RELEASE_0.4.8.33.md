@@ -1,5 +1,30 @@
 # 0.4.8.33 — eye-tracked foveation alignment, cockpit map markers, view distance
 
+- Starting up no longer depends on everything matching. Each VR adjustment is
+  installed on its own, so a game update that renames one target disables that
+  adjustment instead of leaving the game half patched and NOVR unstarted. An
+  adjustment whose private game fields are missing is skipped before it can
+  throw inside the game's own code. A different game version and any skipped
+  adjustments are listed on the wrist menu's VR performance page.
+- A headset that is not ready at launch no longer needs a game restart. The
+  desktop window says VR has not started, NOVR tries again three times over the
+  first minute, and **F11** tries again after that.
+- Faster launch and smoother menus. Settings were rewritten to disk in full for
+  every one of several hundred settings at each launch (about two seconds
+  here) and on every step of a dragged slider; they are now written once at
+  launch and a second after the last change.
+- Less per-frame work. Unit markers are placed without reflection and read both
+  camera poses once per frame instead of once per marker; styled HUD graphics
+  share one update; cameras are no longer looked up by name every frame; and
+  NOVR's interface camera no longer asks for a depth copy, colour copy or
+  shadows for each eye.
+- New experimental **Share shadows (test)** (View → VR performance, off by
+  default): the sun's shadow map is drawn once per frame and reused for the
+  second eye. Not yet checked in a headset.
+- Only the game's own scene container named "Canvas" is held at the origin;
+  cockpit screens and other mods' objects with that default name are left alone.
+- The foveation page now says outright when its settings do nothing on the
+  current system, as on Linux/Proton.
 - Foveation keeps its 0.4.8.32 cost. An earlier test build of this version
   shaded the middle ring at full rate, widened the sharp region for eye tracking
   and fast eye movements, scaled it by each eye's field of view, drew foliage at

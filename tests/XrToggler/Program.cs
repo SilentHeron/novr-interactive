@@ -118,6 +118,49 @@ manager.ToggleVr();
 Check(actual.activeLoader == loader && loader.Initializes == 2 && loader.Starts == 2, "Public toggle path re-enables the same OpenXR loader");
 manager.ToggleVr();
 Check(!Application.runInBackground && actual.activeLoader == null, "Public manager disable restores normal background policy");
+
+// A headset that is not ready at launch must not abort startup: the manager
+// records why, stays usable, and a later attempt succeeds.
+{
+    Application.runInBackground = false;
+    var notReady = new TestXrToggler();
+    notReady.Loader.CanInitialize = false;
+    var late = new VrTogglerManager(notReady);
+    Check(!late.IsVrEnabled && late.LastFailure != null && late.LastFailure.StartsWith("Cannot initialize OpenXR Loader") && !Application.runInBackground,
+        "A runtime that is not ready is reported instead of thrown, and nothing is left half started");
+    Check(!late.TryEnable() && notReady.Loader.Initializes == 2 && notReady.Creates == 1, "A retry while still not ready fails the same way without rebuilding settings");
+    notReady.Loader.CanInitialize = true;
+    Check(late.TryEnable() && late.IsVrEnabled && late.LastFailure == null && notReady.Loader.Starts == 1 && Application.runInBackground,
+        "A retry once the headset is ready starts VR and clears the failure");
+    Check(late.TryEnable() && notReady.Loader.Starts == 1, "Trying again while VR is running does nothing");
+    var refused = new ControlledToggler { EnableResult = false };
+    var quiet = new VrTogglerManager(refused);
+    Check(!quiet.IsVrEnabled && quiet.LastFailure == "The VR runtime did not start.", "A start that fails without an exception still has a reason");
+    late.ToggleVr();
+    Application.runInBackground = false;
+}
+
+// Retry schedule: a few automatic attempts, then only on request.
+{
+    var retry = new VrStartRetry();
+    Check(!retry.WaitingToRetry && !retry.Due(1000) && retry.SecondsUntilRetry(0) == -1, "Nothing is scheduled before a failure");
+    var now = 10f;
+    foreach (var delay in VrStartRetry.AutomaticDelays)
+    {
+        retry.Failed(now);
+        Check(retry.WaitingToRetry && Math.Abs(retry.SecondsUntilRetry(now) - delay) < .001f && !retry.Due(now + delay - .01f), "Each failure schedules the next automatic attempt");
+        now += delay;
+        Check(retry.Due(now) && !retry.Due(now + 1000) && !retry.WaitingToRetry, "A scheduled attempt is due exactly once");
+    }
+    retry.Failed(now);
+    Check(!retry.WaitingToRetry && retry.AutomaticAttemptsLeft == 0 && !retry.Due(now + 100000) && retry.SecondsUntilRetry(now) == -1,
+        "After the automatic attempts the mod stops reopening the runtime on its own");
+    retry.Failed(now);
+    Check(!retry.WaitingToRetry, "A failed manual attempt schedules nothing further");
+    retry.Succeeded();
+    retry.Failed(now);
+    Check(retry.WaitingToRetry && retry.AutomaticAttemptsLeft == VrStartRetry.AutomaticDelays.Length - 1, "A successful start restores the automatic attempts for a later loss");
+}
 Console.WriteLine($"{checks} source-linked VR toggler lifecycle checks passed (XR boundary doubles; no headset/runtime launched).");
 
 sealed class ControlledToggler : VrToggler
