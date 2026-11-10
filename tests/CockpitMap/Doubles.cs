@@ -56,7 +56,18 @@ namespace UnityEngine
         internal readonly List<Component> Components = new();
         public readonly RectTransform transform;
         public string name;
-        public int layer;
+        // Reads are counted: on the real map each one is an engine call per icon.
+        internal int LayerReads;
+        private int _layer;
+        public int layer
+        {
+            get
+            {
+                LayerReads++;
+                return _layer;
+            }
+            set => _layer = value;
+        }
         public bool activeSelf = true, FailNextCanvasGroup;
         public bool activeInHierarchy => !Dead && activeSelf && (transform.parent == null || transform.parent.gameObject.activeInHierarchy);
         public GameObject(string name, params Type[] components)

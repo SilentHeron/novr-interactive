@@ -603,6 +603,87 @@ using (var f = new Fixture())
     Near(gauge.transform.localScale.x, pose.Item1.x, "Native faded diagram reserves the same fit for when it returns");
     Check(!image.enabled && image.color.a == 0 && gauge.GetComponent<Image>().enabled, "Fitting respects faded animation state and preserves visible root artwork");
 }
+// The HUD's first child holds one object per unit marker. Periodic searches
+// for instruments must cost the same however many markers a mission has.
+{
+    (int names, List<GameObject> visited, GameObject layer, GameObject navRoot, Fixture fixture) Search(int markerCount)
+    {
+        var f = new Fixture();
+        var hud = SceneSingleton<FlightHud>.i!;
+        var combat = hud.gameObject.AddComponent<CombatHUD>();
+        SceneSingleton<CombatHUD>.i = combat;
+        var layer = new GameObject("IconLayer");
+        layer.transform.SetParent(hud.transform, false);
+        layer.transform.SetSiblingIndex(0);
+        combat.iconLayer = layer.transform;
+        for (var i = 0; i < markerCount; i++)
+        {
+            var marker = new GameObject("unit marker", typeof(Image));
+            marker.transform.SetParent(layer.transform, false);
+        }
+        // "power" has no native panel on this aircraft, so it is searched
+        // for by name on every discovery pass.
+        Object.Destroy(f.Widgets["power"]);
+        f.Widgets["power"].transform.SetParent(null, false);
+        var manager = new GameObject("Native HUD apps");
+        manager.transform.SetParent(hud.transform, false);
+        manager.AddComponent<HUDAppManager>();
+        var gauge = new GameObject("Native gauge", typeof(NozzleGauge), typeof(Image));
+        gauge.transform.SetParent(manager.transform, false);
+        var auxiliary = new GameObject("auxiliary content") { layer = 30 }.transform;
+        auxiliary.sizeDelta = new Vector2(300, 170);
+        CockpitHudWidgets.Slots["auxiliary"] = auxiliary;
+        var navRoot = new GameObject("AirbaseOverlay");
+        navRoot.transform.SetParent(hud.transform, false);
+        var overlay = navRoot.AddComponent<AirbaseOverlay>();
+        var taxiObject = new GameObject("AirbaseLabel");
+        taxiObject.transform.SetParent(navRoot.transform, false);
+        var taxi = taxiObject.AddComponent<TextMeshProUGUI>();
+        overlay.SetLabel(taxi);
+        overlay.NativeLabel("Taxi to Runway 21 187m");
+        var objectives = new GameObject("Instructions content") { layer = 30 }.transform;
+        objectives.sizeDelta = new Vector2(420, 150);
+        CockpitHudWidgets.Slots["objectives"] = objectives;
+        Component.Visited.Clear();
+        var names = Component.NameReads;
+        f.Tick();
+        Check(gauge.transform.IsChildOf(auxiliary) && f.Widgets["weapons"].transform.parent == CockpitHudWidgets.Slots["weapons"] &&
+            objectives.Children.Count > 0, "Instruments, status panels and taxi guidance are all found with " + markerCount + " markers on the HUD");
+        return (Component.NameReads - names, Component.Visited.Select(visit => visit.Object).ToList(), layer, navRoot, f);
+    }
+    var few = Search(0);
+    var many = Search(300);
+    Check(many.names == few.names, "The name search for a status panel reads no marker's name");
+    Check(!many.visited.Contains(many.layer) && many.visited.All(go => go.transform.parent != many.layer.transform),
+        "No component search walks the marker layer");
+    Component.Visited.Clear();
+    many.fixture.Tick();
+    many.fixture.Tick();
+    Check(Component.Visited.Count > 0 && Component.Visited.All(visit => visit.Wanted != typeof(AirbaseOverlay)),
+        "The airbase overlay is looked for once, not on every discovery pass");
+    Object.Destroy(many.navRoot.GetComponent<AirbaseOverlay>());
+    var replacement = new GameObject("AirbaseOverlay");
+    replacement.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    replacement.AddComponent<AirbaseOverlay>();
+    Component.Visited.Clear();
+    many.fixture.Tick();
+    Check(Component.Visited.Contains((replacement, typeof(AirbaseOverlay))), "A destroyed overlay is searched for again");
+    // Without a marker layer to leave out, the same searches still find everything.
+    SceneSingleton<CombatHUD>.i = null;
+    few.fixture.Dispose();
+    many.fixture.Dispose();
+    using var plain = new Fixture();
+    var plainManager = new GameObject("Native HUD apps");
+    plainManager.transform.SetParent(SceneSingleton<FlightHud>.i!.transform, false);
+    plainManager.AddComponent<HUDAppManager>();
+    var plainGauge = new GameObject("Native gauge", typeof(WingAngleGauge), typeof(Image));
+    plainGauge.transform.SetParent(plainManager.transform, false);
+    var plainSlot = new GameObject("auxiliary content") { layer = 30 }.transform;
+    plainSlot.sizeDelta = new Vector2(300, 170);
+    CockpitHudWidgets.Slots["auxiliary"] = plainSlot;
+    plain.Tick();
+    Check(plainGauge.transform.IsChildOf(plainSlot), "A HUD with no combat display is still searched in full");
+}
 Console.WriteLine($"{count} source-linked cockpit widget lifecycle checks passed.");
 
 sealed class Fixture : IDisposable

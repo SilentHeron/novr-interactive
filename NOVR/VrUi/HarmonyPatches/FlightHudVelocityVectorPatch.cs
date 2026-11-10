@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,8 +7,10 @@ namespace NOVR.VrUi.HarmonyPatches;
 internal static class FlightHudVelocityVectorPatch
 {
     private const float VelocityVectorProjectionDistance = 1000.0f;
-    private static readonly FieldInfo CockpitTransformField = AccessTools.Field(typeof(global::FlightHud), "cockpitTransform");
-    private static readonly FieldInfo CockpitRbField = AccessTools.Field(typeof(global::FlightHud), "cockpitRB");
+    private static readonly AccessTools.FieldRef<global::FlightHud, Transform> CockpitTransform =
+        AccessTools.FieldRefAccess<global::FlightHud, Transform>("cockpitTransform");
+    private static readonly AccessTools.FieldRef<global::FlightHud, Rigidbody> CockpitRb =
+        AccessTools.FieldRefAccess<global::FlightHud, Rigidbody>("cockpitRB");
 
     [HarmonyPatch(typeof(global::FlightHud), "Update")]
     private static class UpdatePatch
@@ -21,8 +22,8 @@ internal static class FlightHudVelocityVectorPatch
             if (velocityVector == null)
                 return;
 
-            var cockpitTransform = (Transform)CockpitTransformField.GetValue(__instance);
-            var cockpitRb = (Rigidbody)CockpitRbField.GetValue(__instance);
+            var cockpitTransform = CockpitTransform(__instance);
+            var cockpitRb = CockpitRb(__instance);
             if (cockpitTransform == null || cockpitRb == null)
                 return;
 

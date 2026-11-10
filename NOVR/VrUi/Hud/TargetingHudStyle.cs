@@ -1,7 +1,8 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using NOVR.Compatibility;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +11,21 @@ namespace NOVR.VrUi.SpecialBehavior;
 
 internal sealed class TargetingHudStyle : MonoBehaviour
 {
-    private static readonly FieldInfo? TargetTextField = AccessTools.Field(typeof(CombatHUD), "targetText");
-    private static readonly FieldInfo? TargetInfoField = AccessTools.Field(typeof(CombatHUD), "targetInfo");
-    private static readonly FieldInfo? TargetArrowField = AccessTools.Field(typeof(CombatHUD), "targetArrow");
+    private static readonly AccessTools.FieldRef<CombatHUD, TextMeshProUGUI>? TargetText =
+        GameField.Optional<CombatHUD, TextMeshProUGUI>("targetText");
+    private static readonly AccessTools.FieldRef<CombatHUD, TextMeshProUGUI>? TargetInfo =
+        GameField.Optional<CombatHUD, TextMeshProUGUI>("targetInfo");
+    private static readonly AccessTools.FieldRef<CombatHUD, Image>? TargetArrow =
+        GameField.Optional<CombatHUD, Image>("targetArrow");
+    // The one weapon widget on the HUD. CombatHUD.ShowWeaponStation is the
+    // only game code that creates one, and it stores the new widget here.
+    private static readonly AccessTools.FieldRef<CombatHUD, HUDWeaponState>? WeaponState =
+        GameField.Optional<CombatHUD, HUDWeaponState>("weaponState");
+    // The graphic-typed fields of each weapon-state class, looked up once.
+    private static readonly Dictionary<Type, FieldInfo[]> GraphicFields = new();
+    private readonly List<HUDWeaponState> _states = new(), _scratch = new();
     private float _nextScan;
+    private HUDWeaponState? _styledWeapon;
     private CombatHUD? _labelOwner;
     private HudElementStyle? _targetTextStyle, _targetInfoStyle;
 
@@ -23,8 +35,8 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         {
             RestoreAircraftLabels();
             _labelOwner = combat;
-            _targetTextStyle = combat == null ? null : HudElementStyle.Add(TargetTextField?.GetValue(combat) as TMP_Text, HudElementKind.Label);
-            _targetInfoStyle = combat == null ? null : HudElementStyle.Add(TargetInfoField?.GetValue(combat) as TMP_Text, HudElementKind.Label);
+            _targetTextStyle = combat == null || TargetText == null ? null : HudElementStyle.Add(TargetText(combat), HudElementKind.Label);
+            _targetInfoStyle = combat == null || TargetInfo == null ? null : HudElementStyle.Add(TargetInfo(combat), HudElementKind.Label);
         }
         var targets = combat?.GetTargetList();
         var affiliation = LabelAffiliation(targets != null && targets.Count > 0 ? targets[0] : null);
@@ -66,6 +78,16 @@ internal sealed class TargetingHudStyle : MonoBehaviour
     {
         var combat = SceneSingleton<CombatHUD>.i;
         UpdateAircraftLabels(combat);
+        // The game replaces the weapon widget on every weapon switch. Comparing
+        // one reference each frame styles a new widget before it is first
+        // drawn, even if the switch patch could not be installed.
+        var weapon = combat != null && WeaponState != null ? WeaponState(combat) : null;
+        if (!ReferenceEquals(weapon, _styledWeapon))
+        {
+            _styledWeapon = weapon;
+            if (weapon != null)
+                StyleWeaponState(weapon);
+        }
         if (Time.unscaledTime < _nextScan)
             return;
         _nextScan = Time.unscaledTime + .5f;
@@ -78,16 +100,27 @@ internal sealed class TargetingHudStyle : MonoBehaviour
         if (combat == null)
             return;
         HudElementStyle.Add(combat.targetDesignator, HudElementKind.Reticle);
-        HudElementStyle.Add(TargetArrowField?.GetValue(combat) as Graphic, HudElementKind.Marker);
+        HudElementStyle.Add(TargetArrow != null ? TargetArrow(combat) : null, HudElementKind.Marker);
+        if (WeaponState != null)
+        {
+            // Re-assert the current widget's styles without looking for it.
+            if (weapon != null)
+                StyleWeaponState(weapon);
+            return;
+        }
+        // This game build has no weaponState field: find widgets the old way,
+        // leaving out the layer that holds one object per unit marker.
         if (flight == null)
             return;
-        foreach (var state in flight.GetComponentsInChildren<HUDWeaponState>(true))
+        HudHierarchy.Collect(flight.transform, combat.iconLayer, _states, _scratch);
+        foreach (var state in _states)
             StyleWeaponState(state);
+        _states.Clear();
     }
 
     // CombatHUD.ShowWeaponStation destroys the previous weapon widget and
-    // instantiates a fresh native-size prefab on every switch. The periodic
-    // scan above would leave it unstyled (about twice the VR size) for up to
+    // instantiates a fresh native-size prefab on every switch. Left to the
+    // periodic pass it would stay unstyled (about twice the VR size) for up to
     // half a second, so the switch patch styles it before its first frame.
     internal static void StyleWeaponState(HUDWeaponState state)
     {
@@ -103,27 +136,37 @@ internal sealed class TargetingHudStyle : MonoBehaviour
                     HudElementStyle.Add(graphic, HudElementKind.Weapon, state.transform);
             return;
         }
-        foreach (var field in state.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+        foreach (var field in FieldsOf(state.GetType()))
         {
-            void Register(Graphic g)
-            {
-                // Shared target-designator graphics belong to the flight HUD.
-                if (!g.transform.IsChildOf(state.transform))
-                    return;
-                var kind = g is TMP_Text ? HudElementKind.Label :
-                    field.Name == "line" ? HudElementKind.HorizontalLine :
-                    field.Name == "ccipLine" || field.Name == "alignmentBar" ? HudElementKind.VerticalLine : HudElementKind.Reticle;
-                HudElementStyle.Add(g, kind);
-            }
-            if (typeof(Graphic).IsAssignableFrom(field.FieldType))
-            {
-                if (field.GetValue(state) is Graphic g)
-                    Register(g);
-            }
-            else if (typeof(Graphic[]).IsAssignableFrom(field.FieldType) && field.GetValue(state) is Graphic[] graphics)
-                foreach (var g in graphics)
-                    if (g != null)
-                        Register(g);
+            var value = field.GetValue(state);
+            if (value is Graphic single)
+                Register(state, field, single);
+            else if (value is Graphic[] graphics)
+                foreach (var graphic in graphics)
+                    if (graphic != null)
+                        Register(state, field, graphic);
         }
+    }
+
+    private static FieldInfo[] FieldsOf(Type type)
+    {
+        if (GraphicFields.TryGetValue(type, out var known))
+            return known;
+        var fields = new List<FieldInfo>();
+        foreach (var field in type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+            if (typeof(Graphic).IsAssignableFrom(field.FieldType) || typeof(Graphic[]).IsAssignableFrom(field.FieldType))
+                fields.Add(field);
+        return GraphicFields[type] = fields.ToArray();
+    }
+
+    private static void Register(HUDWeaponState state, FieldInfo field, Graphic graphic)
+    {
+        // Shared target-designator graphics belong to the flight HUD.
+        if (!graphic.transform.IsChildOf(state.transform))
+            return;
+        var kind = graphic is TMP_Text ? HudElementKind.Label :
+            field.Name == "line" ? HudElementKind.HorizontalLine :
+            field.Name == "ccipLine" || field.Name == "alignmentBar" ? HudElementKind.VerticalLine : HudElementKind.Reticle;
+        HudElementStyle.Add(graphic, kind);
     }
 }

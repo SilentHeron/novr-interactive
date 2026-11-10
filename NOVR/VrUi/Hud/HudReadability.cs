@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,12 +17,23 @@ internal sealed class HudReadability : MonoBehaviour
     private float _readabilityAlpha = 1f;
     private ThreatList? _threats;
 
+    // Every panel made readable, in the order added, with a counter that
+    // moves whenever the list does. Add is the only place one is created, so
+    // nothing needs to search the HUD for them.
+    internal static readonly List<HudReadability> Panels = new();
+    internal static int PanelsVersion { get; private set; }
+
     internal static void Add(Transform panel, bool secondary)
     {
         var behavior = panel.GetComponent<HudReadability>();
         if (behavior == null)
             behavior = panel.gameObject.AddComponent<HudReadability>();
         behavior._secondary = secondary;
+        if (Panels.Contains(behavior))
+            return;
+        Panels.RemoveAll(known => known == null);
+        Panels.Add(behavior);
+        PanelsVersion++;
     }
 
     private void Awake()

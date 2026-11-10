@@ -116,6 +116,56 @@ Check(adapter.GetModifiedMaterial(original) == original, "Screen-space canvas ne
 roots[0].GetComponent<Canvas>()!.renderMode = RenderMode.WorldSpace;
 Call(owner, "LateUpdate");
 copy = adapter.GetModifiedMaterial(original);
+// The per-frame work is a change test; graphics are only walked when one could
+// have appeared or gone, or when the periodic pass is due.
+var walks = Component.HierarchyWalks;
+Call(owner, "LateUpdate");
+Call(owner, "LateUpdate");
+Check(Component.HierarchyWalks == walks, "Frames with an unchanged hierarchy and the same widgets walk no graphics");
+var added = MakeGraphic(CockpitHudWidgets.Slots["feed"], additive);
+Call(owner, "LateUpdate");
+Check(Component.HierarchyWalks > walks && added.GetComponent<CockpitWidgetDepthMaterial>() != null,
+    "A new object under any widget is adopted on the next frame");
+// A component added to an existing object changes no hierarchy size, and
+// neither does one object replacing another within a frame.
+var host = new GameObject("existing native object");
+host.transform.SetParent(CockpitHudWidgets.Slots["power"]);
+Call(owner, "LateUpdate");
+var quiet = host.AddComponent<Graphic>();
+quiet.material = new Material(additive);
+var replaced = added.gameObject;
+replaced.transform.SetParent(null);
+var replacement = MakeGraphic(CockpitHudWidgets.Slots["feed"], additive);
+walks = Component.HierarchyWalks;
+Call(owner, "LateUpdate");
+Check(Component.HierarchyWalks == walks && quiet.GetComponent<CockpitWidgetDepthMaterial>() == null &&
+    replacement.GetComponent<CockpitWidgetDepthMaterial>() == null, "Changes of equal size are invisible to the change test alone");
+Time.unscaledTime += CockpitWidgetDepthMaterials.RescanSeconds * .5f;
+Call(owner, "LateUpdate");
+Check(Component.HierarchyWalks == walks, "The periodic pass waits for its interval");
+Time.unscaledTime += CockpitWidgetDepthMaterials.RescanSeconds * .5f;
+Call(owner, "LateUpdate");
+Check(quiet.GetComponent<CockpitWidgetDepthMaterial>() != null && replacement.GetComponent<CockpitWidgetDepthMaterial>() != null,
+    "The periodic pass adopts what the change test could not see");
+Check(added.GetComponent<CockpitWidgetDepthMaterial>()!.GetModifiedMaterial(added.material) == added.material,
+    "A graphic that left its widget is back on its native material");
+// The game hides and shows icons by toggling them. That must not need a scan.
+var toggled = replacement.GetComponent<CockpitWidgetDepthMaterial>()!;
+var shown = toggled.GetModifiedMaterial(replacement.material);
+Check(shown != replacement.material, "An attached graphic draws with its depth-respecting copy");
+replacement.gameObject.activeSelf = false;
+Call(toggled, "OnDisable");
+Check(shown == null && toggled.GetModifiedMaterial(replacement.material) == replacement.material,
+    "A deactivated graphic releases its copy and is out of scope");
+replacement.gameObject.activeSelf = true;
+var dirtied = replacement.Dirties;
+Call(toggled, "OnEnable");
+walks = Component.HierarchyWalks;
+Call(owner, "LateUpdate");
+Check(Component.HierarchyWalks == walks && replacement.Dirties > dirtied &&
+    toggled.GetModifiedMaterial(replacement.material) != replacement.material,
+    "A reactivated graphic is in scope again at once, without waiting for a scan");
+copy = adapter.GetModifiedMaterial(original);
 Call(owner, "OnDisable");
 Check(copy == null && adapter.GetModifiedMaterial(original) == original, "Disabling manager releases copied materials and native state");
 Call(owner, "LateUpdate");

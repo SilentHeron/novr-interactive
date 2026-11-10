@@ -31,7 +31,16 @@ namespace UnityEngine
     {
         public GameObject gameObject = null!;
         public Transform transform => gameObject.transform;
-        public string name => gameObject.name;
+        // In the engine, reading a name copies a string out of native memory.
+        public static int NameReads;
+        public string name
+        {
+            get
+            {
+                NameReads++;
+                return gameObject.name;
+            }
+        }
         public T GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
         public T GetComponentInParent<T>() where T : Component
         {
@@ -40,17 +49,32 @@ namespace UnityEngine
                     return found;
             return null!;
         }
+        // Every object a hierarchy search visited and what it was looking for,
+        // so checks can tell which parts of the HUD each search walked.
+        public static readonly List<(GameObject Object, Type Wanted)> Visited = new();
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
         {
             void Visit(Transform root)
             {
                 if (!includeInactive && !root.gameObject.activeInHierarchy)
                     return;
+                Visited.Add((root.gameObject, typeof(T)));
                 results.AddRange(root.gameObject.Components.OfType<T>().Where(x => !x.Dead));
                 foreach (var child in root.Children)
                     Visit(child);
             }
             Visit(transform);
+        }
+        public void GetComponents<T>(List<T> results) where T : Component
+        {
+            results.Clear();
+            results.AddRange(gameObject.Components.OfType<T>().Where(x => !x.Dead));
+        }
+        public T GetComponentInChildren<T>(bool includeInactive) where T : Component
+        {
+            var found = new List<T>();
+            GetComponentsInChildren(includeInactive, found);
+            return found.FirstOrDefault()!;
         }
     }
     public class MonoBehaviour : Component
@@ -316,6 +340,11 @@ public sealed class Aircraft : UnityEngine.Object
 public sealed class FlightHud : UnityEngine.MonoBehaviour
 {
     public UnityEngine.Transform statusAnchor = null!;
+}
+public sealed class CombatHUD : UnityEngine.MonoBehaviour
+{
+    // The game parents one object per unit marker here.
+    public UnityEngine.Transform iconLayer = null!;
 }
 public sealed class StatusDisplay : UnityEngine.MonoBehaviour
 {

@@ -235,9 +235,9 @@ namespace TMPro
 }
 namespace HarmonyLib
 {
-    public static class AccessTools
+    // FieldRef and FieldRefAccess come from tests/Shared/FieldRefDouble.cs.
+    public static partial class AccessTools
     {
-        public static FieldInfo? Field(Type type, string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
     }
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class HarmonyPatch(Type type, string method) : Attribute

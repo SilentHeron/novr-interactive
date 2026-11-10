@@ -8,6 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/FlightControls/MotionFlightController.AuxiliaryAxis.cs" Link="MotionFlightController.AuxiliaryAxis.cs" />
+    <Compile Include="../../NOVR/Compatibility/GameField.cs" Link="GameField.cs" />
+    <Compile Include="../Shared/FieldRefDouble.cs" Link="FieldRefDouble.cs" />
     <Compile Include="../../NOVR/FlightControls/PilotMotionInputPatch.cs" Link="PilotMotionInputPatch.cs" />
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
   </ItemGroup>

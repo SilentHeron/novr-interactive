@@ -1,5 +1,5 @@
-using System.Reflection;
 using HarmonyLib;
+using NOVR.Compatibility;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,8 +13,10 @@ public class PitchCompassBehavior : MonoBehaviour
     private const float PitchStepDegrees = PitchRangeDegrees / FullPitchStepCount;
     private const string SliceRootName = "NOVR_PitchCompassSlices";
 
-    private static readonly FieldInfo? PitchCompassField = AccessTools.Field(typeof(global::FlightHud), "pitchCompass");
-    private static readonly FieldInfo? CockpitTransformField = AccessTools.Field(typeof(global::FlightHud), "cockpitTransform");
+    private static readonly AccessTools.FieldRef<global::FlightHud, RawImage>? PitchCompass =
+        GameField.Optional<global::FlightHud, RawImage>("pitchCompass");
+    private static readonly AccessTools.FieldRef<global::FlightHud, Transform>? CockpitTransform =
+        GameField.Optional<global::FlightHud, Transform>("cockpitTransform");
 
     private RawImage? _sourcePitchCompass;
     private Texture? _sourceTexture;
@@ -31,7 +33,7 @@ public class PitchCompassBehavior : MonoBehaviour
         BuildSlices();
         var root = _sliceRoot;
         var source = _sourcePitchCompass;
-        var cockpit = _flightHud != null ? CockpitTransformField?.GetValue(_flightHud) as Transform : null;
+        var cockpit = _flightHud != null && CockpitTransform != null ? CockpitTransform(_flightHud) : null;
         var camera = APIBus.CockpitHudCamera;
         if (root == null || source == null || cockpit == null || camera == null ||
             !source.gameObject.activeInHierarchy || (!_suppressedSource && !source.enabled))
@@ -77,7 +79,7 @@ public class PitchCompassBehavior : MonoBehaviour
     {
         if (_flightHud == null)
             _flightHud = GetComponent<global::FlightHud>();
-        var source = _flightHud != null ? PitchCompassField?.GetValue(_flightHud) as RawImage : null;
+        var source = _flightHud != null && PitchCompass != null ? PitchCompass(_flightHud) : null;
         var texture = source != null ? source.texture : null;
         if (_sliceRoot != null && source != null && texture != null &&
             source == _sourcePitchCompass && texture == _sourceTexture)

@@ -1,5 +1,5 @@
-using System.Reflection;
 using HarmonyLib;
+using NOVR.Compatibility;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
 
@@ -7,7 +7,8 @@ namespace NOVR.MotionControls;
 
 public sealed partial class MotionFlightController
 {
-    private static readonly FieldInfo? TiltWingAutoTilt = AccessTools.Field(typeof(TiltWingController), "autoTilt");
+    private static readonly AccessTools.FieldRef<TiltWingController, bool>? TiltWingAutoTilt =
+        GameField.Optional<TiltWingController, bool>("autoTilt");
     private TiltWingController? _tiltWing;
     private bool _auxiliaryUsesNozzles;
     private bool _auxiliaryUsesWingSweep;
@@ -34,8 +35,8 @@ public sealed partial class MotionFlightController
             // systems. Native input integrates these +/-1 commands and retains
             // the selected position on release; no aircraft whitelist is needed.
             // Keep nozzle hover protection and the existing tiltwing takeover.
-            if (_tiltWing != null)
-                TiltWingAutoTilt?.SetValue(_tiltWing, false);
+            if (_tiltWing != null && TiltWingAutoTilt != null)
+                TiltWingAutoTilt(_tiltWing) = false;
             // Forward extends swept wings; backward sweeps them aft. Tiltwing,
             // nozzle and pusher-fan controls keep their existing direction.
             return Mathf.Sign(_throttleHand.Axis.y) * (_auxiliaryUsesWingSweep ? -1f : 1f);

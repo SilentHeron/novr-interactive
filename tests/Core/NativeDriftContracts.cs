@@ -15,13 +15,17 @@ internal static class NativeDriftContracts
     // Set to 1 to rewrite the baseline after reviewing each reported method.
     private const string UpdateVariable = "NOVR_UPDATE_FINGERPRINTS";
 
-    // Every static readonly handle initialised with AccessTools.Field(typeof(T), "name")
-    // or AccessTools.FieldRefAccess<T, F>("name") must name a field that exists.
+    // Every static readonly handle initialised with AccessTools.Field(typeof(T), "name"),
+    // AccessTools.FieldRefAccess<T, F>("name") or GameField.Optional<T, F>("name") must
+    // name a field that exists, and a typed handle must also fit the field's type:
+    // Harmony refuses to build a field reference of the wrong type, which would
+    // skip the patch (or leave an optional handle null) only once the game runs.
     public static void VerifyHandles(string modPath, string gameManagedDirectory)
     {
         using var mod = Read(modPath, gameManagedDirectory);
         var failures = new List<string>();
         var verified = 0;
+        var typed = 0;
         foreach (var type in AllTypes(mod.MainModule.Types))
         {
             var initializer = type.Methods.FirstOrDefault(m => m.IsConstructor && m.IsStatic && m.HasBody);
@@ -29,37 +33,79 @@ internal static class NativeDriftContracts
                 continue;
             foreach (var call in initializer.Body.Instructions)
             {
-                if (call.OpCode != OpCodes.Call || call.Operand is not MethodReference method ||
-                    method.DeclaringType.FullName != "HarmonyLib.AccessTools" || call.Previous?.OpCode != OpCodes.Ldstr)
+                if (call.OpCode != OpCodes.Call || call.Operand is not MethodReference method || call.Previous?.OpCode != OpCodes.Ldstr)
+                    continue;
+                var optionalHelper = method.DeclaringType.FullName == "NOVR.Compatibility.GameField" && method.Name == "Optional";
+                if (method.DeclaringType.FullName != "HarmonyLib.AccessTools" && !optionalHelper)
                     continue;
                 var name = (string)call.Previous.Operand;
-                TypeReference? owner = null;
+                TypeReference? owner = null, declared = null;
                 if (method.Name == "Field" && method.Parameters.Count == 2 &&
                     call.Previous.Previous?.Operand is MethodReference { Name: "GetTypeFromHandle" } &&
                     call.Previous.Previous.Previous?.Operand is TypeReference token)
                     owner = token;
-                else if (method.Name == "FieldRefAccess" && method is GenericInstanceMethod { GenericArguments.Count: 2 } generic &&
-                         method.Parameters.Count == 1)
+                else if ((method.Name == "FieldRefAccess" || optionalHelper) &&
+                         method is GenericInstanceMethod { GenericArguments.Count: 2 } generic && method.Parameters.Count == 1)
+                {
                     owner = generic.GenericArguments[0];
+                    declared = generic.GenericArguments[1];
+                }
                 if (owner == null)
                     continue;
                 // Optional handles (declared nullable and null-checked) may name
                 // members of other mods or older game builds; only fields that
                 // are stored into a non-nullable handle must exist.
                 var stored = call.Next?.OpCode == OpCodes.Stsfld ? call.Next.Operand as FieldReference : null;
-                var definition = owner.Resolve();
-                var found = false;
-                for (var current = definition; current != null && !found; current = current.BaseType?.Resolve())
-                    found = current.Fields.Any(f => f.Name == name);
-                if (found)
-                    verified++;
-                else if (stored == null || !IsNullable(stored.Resolve()))
-                    failures.Add($"{type.FullName}: {owner.FullName}.{name} does not exist");
+                FieldDefinition? field = null;
+                for (var current = owner.Resolve(); current != null && field == null; current = current.BaseType?.Resolve())
+                    field = current.Fields.FirstOrDefault(f => f.Name == name);
+                if (field == null)
+                {
+                    if (stored == null || !IsNullable(stored.Resolve()))
+                        failures.Add($"{type.FullName}: {owner.FullName}.{name} does not exist");
+                    continue;
+                }
+                if (declared != null)
+                {
+                    if (!Fits(declared, field.FieldType))
+                    {
+                        failures.Add($"{type.FullName}: {owner.FullName}.{name} is {field.FieldType.FullName}, which a field reference of type {declared.FullName} cannot read");
+                        continue;
+                    }
+                    typed++;
+                }
+                verified++;
             }
         }
         if (failures.Count != 0)
             throw new Exception(string.Join(Environment.NewLine, failures));
-        Console.WriteLine($"Verified {verified} cached private-field handles against the installed game.");
+        Console.WriteLine($"Verified {verified} cached private-field handles against the installed game ({typed} typed field references checked against the field's type).");
+    }
+
+    // Harmony's rule for FieldRefAccess<T, F>: F is the field's exact type, or
+    // for a reference-type field a type it can be assigned to; an enum field
+    // may also be read as its underlying integer.
+    private static bool Fits(TypeReference declared, TypeReference actual)
+    {
+        if (declared.FullName == actual.FullName)
+            return true;
+        if (actual is ArrayType actualArray)
+            return declared is ArrayType declaredArray && actualArray.Rank == declaredArray.Rank &&
+                !actualArray.ElementType.IsValueType && Fits(declaredArray.ElementType, actualArray.ElementType) ||
+                declared.FullName is "System.Object" or "System.Array";
+        var definition = actual.Resolve();
+        if (definition == null)
+            return false;
+        if (definition.IsEnum)
+            return declared.FullName == definition.Fields.First(f => !f.IsStatic).FieldType.FullName;
+        if (definition.IsValueType || actual.IsGenericParameter)
+            return false;
+        for (var current = definition; current != null; current = current.BaseType?.Resolve())
+        {
+            if (current.FullName == declared.FullName || current.Interfaces.Any(i => i.InterfaceType.FullName == declared.FullName))
+                return true;
+        }
+        return declared.FullName == "System.Object";
     }
 
     // A prefix that returns bool can skip the game's method and usually

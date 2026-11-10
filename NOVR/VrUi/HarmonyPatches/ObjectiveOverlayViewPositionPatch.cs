@@ -1,4 +1,3 @@
-using System.Reflection;
 using HarmonyLib;
 using NOVR.VrUi.SpecialBehavior;
 using TMPro;
@@ -15,12 +14,18 @@ internal static class ObjectiveOverlayViewPositionPatch
     private const float DotLabelOffsetPixels = 25.0f;
     private const float SizeIndicatorScale = 0.18f;
 
-    private static readonly FieldInfo ObjectivePointerField = AccessTools.Field(typeof(global::ObjectiveOverlay), "objectivePointer");
-    private static readonly FieldInfo ObjectiveDotField = AccessTools.Field(typeof(global::ObjectiveOverlay), "objectiveDot");
-    private static readonly FieldInfo SizeIndicatorField = AccessTools.Field(typeof(global::ObjectiveOverlay), "sizeIndicator");
-    private static readonly FieldInfo ObjectiveInfoField = AccessTools.Field(typeof(global::ObjectiveOverlay), "objectiveInfo");
-    private static readonly FieldInfo PointerTailField = AccessTools.Field(typeof(global::ObjectiveOverlay), "pointerTail");
-    private static readonly FieldInfo HiddenField = AccessTools.Field(typeof(global::ObjectiveOverlay), "hidden");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, Image> ObjectivePointer =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, Image>("objectivePointer");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, Image> ObjectiveDot =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, Image>("objectiveDot");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, Image> SizeIndicator =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, Image>("sizeIndicator");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, TextMeshProUGUI> ObjectiveInfo =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, TextMeshProUGUI>("objectiveInfo");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, Transform> PointerTail =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, Transform>("pointerTail");
+    private static readonly AccessTools.FieldRef<global::ObjectiveOverlay, bool> Hidden =
+        AccessTools.FieldRefAccess<global::ObjectiveOverlay, bool>("hidden");
 
     private static bool VrCamerasAvailable => APIBus.MainCamera != null && APIBus.CockpitHudCamera != null;
 
@@ -35,11 +40,11 @@ internal static class ObjectiveOverlayViewPositionPatch
             if (mainCamera == null || cockpitHudCamera == null)
                 return true;
 
-            var objectivePointer = ObjectivePointerField.GetValue(__instance) as Image;
-            var objectiveDot = ObjectiveDotField.GetValue(__instance) as Image;
-            var sizeIndicator = SizeIndicatorField.GetValue(__instance) as Image;
-            var objectiveInfo = ObjectiveInfoField.GetValue(__instance) as TextMeshProUGUI;
-            var pointerTail = PointerTailField.GetValue(__instance) as Transform;
+            var objectivePointer = ObjectivePointer(__instance);
+            var objectiveDot = ObjectiveDot(__instance);
+            var sizeIndicator = SizeIndicator(__instance);
+            var objectiveInfo = ObjectiveInfo(__instance);
+            var pointerTail = PointerTail(__instance);
             if (objectivePointer == null || objectiveDot == null || sizeIndicator == null || objectiveInfo == null || pointerTail == null)
                 return true;
 
@@ -48,7 +53,7 @@ internal static class ObjectiveOverlayViewPositionPatch
             HudElementStyle.Add(objectiveInfo, HudElementKind.Label);
             HudElementStyle.Add(sizeIndicator, HudElementKind.WorldGeometry);
             PrepareForVr(__instance, objectiveInfo);
-            HiddenField.SetValue(__instance, false);
+            Hidden(__instance) = false;
             objectiveInfo.enabled = true;
 
             var hudRotation = cockpitHudCamera.transform.rotation;

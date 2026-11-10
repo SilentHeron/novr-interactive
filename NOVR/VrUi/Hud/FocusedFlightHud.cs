@@ -9,6 +9,7 @@ namespace NOVR.VrUi.SpecialBehavior;
 internal sealed class FocusedFlightHud : MonoBehaviour
 {
     private readonly Dictionary<Transform, (Vector3 position, Vector3 scale)> _instruments = new();
+    private readonly List<HUDAppManager> _managers = new(), _scratch = new();
     private Transform? _compass;
     private Vector3 _compassPosition, _compassScale;
     private FlightHud? _hud;
@@ -21,12 +22,14 @@ internal sealed class FocusedFlightHud : MonoBehaviour
         if (Time.unscaledTime >= _nextFind)
         {
             _nextFind = Time.unscaledTime + .5f;
-            foreach (var manager in _hud.GetComponentsInChildren<HUDAppManager>(true))
+            HudHierarchy.Collect(_hud.transform, HudHierarchy.MarkerLayer, _managers, _scratch);
+            foreach (var manager in _managers)
                 if (!_instruments.ContainsKey(manager.transform))
                 {
                     _instruments.Add(manager.transform, (manager.transform.localPosition, manager.transform.localScale));
                     InstrumentBrightness.Add(manager.transform);
                 }
+            _managers.Clear();
             if (_compass == null)
             {
                 _compass = _hud.GetHUDCenter().Find("compass");

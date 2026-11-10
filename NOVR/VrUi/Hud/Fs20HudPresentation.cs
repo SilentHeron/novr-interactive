@@ -10,16 +10,17 @@ namespace NOVR.VrUi.SpecialBehavior;
 internal sealed class Fs20HudPresentation : MonoBehaviour
 {
     private readonly HashSet<HudReadability> _panels = new();
-    private float _nextFind;
+    private int _version = -1;
     private FlightHud? _hud;
     private void Awake() => _hud = GetComponent<FlightHud>();
     private void LateUpdate()
     {
-        if (_hud != null && Time.unscaledTime >= _nextFind)
+        if (_hud != null && _version != HudReadability.PanelsVersion)
         {
-            _nextFind = Time.unscaledTime + .5f;
-            foreach (var panel in _hud.GetComponentsInChildren<HudReadability>(true))
-                _panels.Add(panel);
+            _version = HudReadability.PanelsVersion;
+            foreach (var panel in HudReadability.Panels)
+                if (panel != null && panel.transform.IsChildOf(_hud.transform))
+                    _panels.Add(panel);
         }
         // One component owns the existing group's alpha; Unity rejects a second
         // CanvasGroup, and two independent writers would fight over opacity.
@@ -33,7 +34,7 @@ internal sealed class Fs20HudPresentation : MonoBehaviour
             if (panel != null)
                 panel.SetWidgetSourcesMoved(false);
         _panels.Clear();
-        _nextFind = 0;
+        _version = -1;
     }
     private void OnDisable() => Release();
     private void OnDestroy() => Release();

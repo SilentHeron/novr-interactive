@@ -26,27 +26,48 @@ internal sealed class HudElementStyle : BaseMeshEffect
     private bool _flightScaleInherited;
     private bool _aircraftTargetLabel;
     private AircraftLabelAffiliation _aircraftLabelAffiliation;
-    internal float Scale => Kind switch
+    // The size settings every scale is derived from. They are the same for all
+    // elements, and each unit marker carries a styled graphic, so the per-frame
+    // refresh reads them once (RefreshAll) instead of once per element.
+    private readonly struct Factors
     {
-        // Symbols default to their own sliders; with the follow option they also
-        // track Flight HUD Scale relative to its default, so one slider resizes
-        // instruments and world-aligned symbols together (unlike the native
-        // per-distance marker scale, which stays untouched underneath).
-        HudElementKind.Marker => ModConfiguration.Instance.MarkerScale.Value * HudPresentationMath.SymbolFollowFactor(
-            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value),
+        internal readonly float Marker, Label, Reticle, Weapon, FlightHud, Follow;
+        internal readonly bool Vr;
+        private Factors(ModConfiguration config, bool vr)
+        {
+            // Symbols default to their own sliders; with the follow option they also
+            // track Flight HUD Scale relative to its default, so one slider resizes
+            // instruments and world-aligned symbols together (unlike the native
+            // per-distance marker scale, which stays untouched underneath).
+            Follow = HudPresentationMath.SymbolFollowFactor(
+                config.SymbolsFollowFlightHud.Value, config.FocusedFlightHud.Value, config.FlightHudScale.Value);
+            Marker = config.MarkerScale.Value;
+            Label = config.MarkerLabelScale.Value;
+            Reticle = config.ReticleScale.Value;
+            // Range/guidance widgets follow the same master scale as the native
+            // instrument layout. Keep their existing size control as a relative
+            // trim (the default .5 is neutral), without touching aim projections.
+            Weapon = config.WeaponHudScale.Value / .5f;
+            FlightHud = config.FocusedFlightHud.Value ? config.FlightHudScale.Value : 1f;
+            Vr = vr;
+        }
+        internal static Factors Read() => new(ModConfiguration.Instance, XRSettings.enabled);
+    }
+    private static Factors _frame;
+
+    // One formula for both uses: the live value when a mesh is built, and the
+    // per-frame change test against the factors RefreshAll read.
+    private float ScaleFrom(in Factors factors) => Kind switch
+    {
+        HudElementKind.Marker => factors.Marker * factors.Follow,
         HudElementKind.Label => (_aircraftTargetLabel
-            ? HudPresentationMath.AircraftLabelScale(ModConfiguration.Instance.MarkerLabelScale.Value, _aircraftLabelAffiliation, XRSettings.enabled)
-            : ModConfiguration.Instance.MarkerLabelScale.Value) * HudPresentationMath.SymbolFollowFactor(
-            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value),
-        // Range/guidance widgets follow the same master scale as the native
-        // instrument layout. Keep their existing size control as a relative
-        // trim (the default .5 is neutral), without touching aim projections.
-        HudElementKind.Weapon => ModConfiguration.Instance.WeaponHudScale.Value / .5f *
-            (ModConfiguration.Instance.FocusedFlightHud.Value && !_flightScaleInherited ? ModConfiguration.Instance.FlightHudScale.Value : 1f),
+            ? HudPresentationMath.AircraftLabelScale(factors.Label, _aircraftLabelAffiliation, factors.Vr)
+            : factors.Label) * factors.Follow,
+        HudElementKind.Weapon => factors.Weapon * (_flightScaleInherited ? 1f : factors.FlightHud),
         HudElementKind.WorldGeometry => 1,
-        _ => ModConfiguration.Instance.ReticleScale.Value * HudPresentationMath.SymbolFollowFactor(
-            ModConfiguration.Instance.SymbolsFollowFlightHud.Value, ModConfiguration.Instance.FocusedFlightHud.Value, ModConfiguration.Instance.FlightHudScale.Value)
+        _ => factors.Reticle * factors.Follow
     };
+    internal float Scale => ScaleFrom(Factors.Read());
     internal Vector3 Anchor => Group == null ? Vector3.zero : transform.InverseTransformPoint(Group.position);
     internal static HudElementStyle? Add(Graphic? graphic, HudElementKind kind, Transform? group = null)
     {
@@ -100,13 +121,14 @@ internal sealed class HudElementStyle : BaseMeshEffect
     // per-component engine callback for hundreds of them adds up.
     internal static void RefreshAll()
     {
+        _frame = Factors.Read();
         foreach (var element in Elements)
             element.Refresh();
     }
     private void Refresh()
     {
         var anchor = Anchor;
-        var scale = Scale;
+        var scale = ScaleFrom(_frame);
         if (scale == _lastScale && (anchor - _lastAnchor).sqrMagnitude < .0001f)
             return;
         _lastScale = scale;

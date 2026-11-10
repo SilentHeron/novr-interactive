@@ -40,10 +40,9 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         private readonly bool _compactWeapon;
         private readonly bool _damage;
         private readonly AuxiliaryGaugeBounds? _auxiliaryBounds;
-        private readonly Dictionary<GameObject, int> _layers = new();
+        private readonly BorrowedLayers _layers = new();
         private readonly List<Transform> _nodes = new();
         private readonly List<Graphic> _graphics = new();
-        private readonly List<GameObject> _gone = new();
         private readonly Vector3[] _corners = new Vector3[4];
         private Bounds _bounds;
 
@@ -100,25 +99,9 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         {
             if (!Valid)
                 return;
-            _gone.Clear();
-            foreach (var pair in _layers)
-                if (pair.Key == null)
-                    _gone.Add(pair.Key!);
-            foreach (var key in _gone)
-                _layers.Remove(key);
-            _gone.Clear();
             _nodes.Clear();
             Widget.GetComponentsInChildren(true, _nodes);
-            foreach (var node in _nodes)
-            {
-                if (node == null)
-                    continue;
-                var go = node.gameObject;
-                if (!_layers.ContainsKey(go))
-                    _layers.Add(go, go.layer);
-                if (go.layer != Slot.gameObject.layer)
-                    go.layer = Slot.gameObject.layer;
-            }
+            _layers.Apply(_nodes, Slot.gameObject.layer);
             _graphics.Clear();
             Widget.GetComponentsInChildren(true, _graphics);
             // Include dormant native rectangles too. Unity's convenience bounds
@@ -213,13 +196,9 @@ internal sealed class CockpitStatusSources : MonoBehaviour
 
         internal void Restore()
         {
-            foreach (var pair in _layers)
-                if (pair.Key != null)
-                    pair.Key.layer = pair.Value;
-            _layers.Clear();
+            _layers.Restore();
             _nodes.Clear();
             _graphics.Clear();
-            _gone.Clear();
             _safety?.Release();
             _safety = null;
             _visibility?.Release();
@@ -317,6 +296,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         var discover = Time.unscaledTime >= _nextFind;
         if (discover)
             _nextFind = Time.unscaledTime + .5f;
+        var markers = discover ? HudHierarchy.MarkerLayer : null;
         // Capture every sibling's original index before moving any of them.
         foreach (var source in _sources)
         {
@@ -334,7 +314,7 @@ internal sealed class CockpitStatusSources : MonoBehaviour
             }
             if (discover && source.Lease == null && !source.Failed)
             {
-                var widget = source.Id == "damage" ? FindDamage(hud.statusAnchor) : Find(hud.transform, source.Name);
+                var widget = source.Id == "damage" ? FindDamage(hud.statusAnchor) : Find(hud.transform, source.Name, markers);
                 if (widget != null)
                     source.Lease = new Lease(widget, content, source.Id == "weapons", source.Id == "damage");
             }
@@ -363,11 +343,16 @@ internal sealed class CockpitStatusSources : MonoBehaviour
         _auxiliary.Update(hud, discover);
     }
 
-    private static RectTransform? Find(Transform parent, string name)
+    // Reading a name copies it out of the engine, so a search through the
+    // marker layer allocated one string per unit marker. No status panel is
+    // ever in there.
+    private static RectTransform? Find(Transform parent, string name, Transform? skip = null)
     {
         for (var i = 0; i < parent.childCount; i++)
         {
             var child = parent.GetChild(i);
+            if (ReferenceEquals(child, skip))
+                continue;
             if (child.name == name && child is RectTransform rect)
                 return rect;
             var nested = Find(child, name);

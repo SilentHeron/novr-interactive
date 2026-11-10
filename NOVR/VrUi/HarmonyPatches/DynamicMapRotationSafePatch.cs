@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using NOVR.VrUi.SpecialBehavior;
@@ -8,9 +7,10 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class DynamicMapRotationSafePatch
 {
-    private static readonly FieldInfo MapBackgroundField = AccessTools.Field(typeof(global::DynamicMap), "mapBackground");
-    private static readonly FieldInfo MapTargetField = AccessTools.Field(typeof(global::DynamicMap), "mapTarget");
-    private static readonly FieldInfo IsJumpingField = AccessTools.Field(typeof(global::DynamicMap), "isJumping");
+    private static readonly AccessTools.FieldRef<global::DynamicMap, Vector3> MapTarget =
+        AccessTools.FieldRefAccess<global::DynamicMap, Vector3>("mapTarget");
+    private static readonly AccessTools.FieldRef<global::DynamicMap, bool> IsJumping =
+        AccessTools.FieldRefAccess<global::DynamicMap, bool>("isJumping");
 
     [HarmonyPatch(typeof(global::DynamicMap), "CenterMap")]
     private static class CenterMapPatch
@@ -70,12 +70,12 @@ internal static class DynamicMapRotationSafePatch
             if (CockpitMapNavigation.TryCenter(__instance))
                 return false;
             var currentPosition = __instance.mapImage.transform.localPosition;
-            var targetPosition = MapOffsetToLocalPosition(__instance, (Vector3)MapTargetField.GetValue(__instance));
+            var targetPosition = MapOffsetToLocalPosition(__instance, MapTarget(__instance));
             __instance.mapImage.transform.localPosition = Vector3.Lerp(currentPosition, targetPosition, 0.05f);
             if (Vector3.Distance(currentPosition, targetPosition) < 0.1f)
             {
-                MapTargetField.SetValue(__instance, Vector3.zero);
-                IsJumpingField.SetValue(__instance, false);
+                MapTarget(__instance) = Vector3.zero;
+                IsJumping(__instance) = false;
             }
 
             return false;
@@ -98,7 +98,7 @@ internal static class DynamicMapRotationSafePatch
 
     internal static Transform GetMapBackgroundTransform(global::DynamicMap map)
     {
-        return ((UnityEngine.UI.Image)MapBackgroundField.GetValue(map)).transform;
+        return map.mapBackground.transform;
     }
 
 }

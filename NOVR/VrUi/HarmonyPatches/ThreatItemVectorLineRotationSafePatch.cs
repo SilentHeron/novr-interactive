@@ -1,14 +1,16 @@
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 
 namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class ThreatItemVectorLineRotationSafePatch
 {
-    private static readonly FieldInfo MissileIconTransformField = AccessTools.Field(typeof(global::ThreatItem), "missileIconTransform");
-    private static readonly FieldInfo PlayerAircraftIconTransformField = AccessTools.Field(typeof(global::ThreatItem), "playerAircraftIconTransform");
-    private static readonly FieldInfo VectorLineField = AccessTools.Field(typeof(global::ThreatItem), "vectorLine");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, Transform> MissileIconTransform =
+        AccessTools.FieldRefAccess<global::ThreatItem, Transform>("missileIconTransform");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, Transform> PlayerAircraftIconTransform =
+        AccessTools.FieldRefAccess<global::ThreatItem, Transform>("playerAircraftIconTransform");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, GameObject> VectorLine =
+        AccessTools.FieldRefAccess<global::ThreatItem, GameObject>("vectorLine");
 
     [HarmonyPatch(typeof(global::ThreatItem), "AlignVectorLine")]
     private static class AlignVectorLinePatch
@@ -16,9 +18,9 @@ internal static class ThreatItemVectorLineRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::ThreatItem __instance)
         {
-            var missileIconTransform = MissileIconTransformField.GetValue(__instance) as Transform;
-            var playerAircraftIconTransform = PlayerAircraftIconTransformField.GetValue(__instance) as Transform;
-            var vectorLine = VectorLineField.GetValue(__instance) as GameObject;
+            var missileIconTransform = MissileIconTransform(__instance);
+            var playerAircraftIconTransform = PlayerAircraftIconTransform(__instance);
+            var vectorLine = VectorLine(__instance);
             if (vectorLine == null)
                 return false;
 

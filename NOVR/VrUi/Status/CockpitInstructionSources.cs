@@ -108,6 +108,8 @@ internal sealed class CockpitInstructionSources
     }
 
     private TextLeaf? _actions, _taxi;
+    private AirbaseOverlay? _airbase;
+    private FlightHud? _airbaseHud;
     private Image? _background;
     private HudGraphicVisibilityLease? _backgroundHide;
     private float _nextFind;
@@ -127,7 +129,14 @@ internal sealed class CockpitInstructionSources
                 _backgroundHide = background == null ? null : new HudGraphicVisibilityLease(background);
             }
             var hud = SceneSingleton<FlightHud>.i;
-            var airbase = hud != null ? FindAirbase(hud.transform) : null;
+            // The overlay is part of the HUD scene object. Search for it when
+            // the HUD is new or the overlay is gone, not twice a second.
+            if (!ReferenceEquals(hud, _airbaseHud) || _airbase == null)
+            {
+                _airbaseHud = hud;
+                _airbase = hud != null ? HudHierarchy.Find<AirbaseOverlay>(hud.transform, HudHierarchy.MarkerLayer) : null;
+            }
+            var airbase = _airbase;
             SetLeaf(ref _taxi, airbase != null ? AirbaseText?.GetValue(airbase) as TMP_Text : null);
         }
 
@@ -155,19 +164,6 @@ internal sealed class CockpitInstructionSources
         CockpitHudWidgets.SetHasContent("objectives", hasTaxi || hasActions);
     }
 
-    private static AirbaseOverlay? FindAirbase(Transform parent)
-    {
-        var own = parent.GetComponent<AirbaseOverlay>();
-        if (own != null)
-            return own;
-        for (var i = 0; i < parent.childCount; i++)
-        {
-            var nested = FindAirbase(parent.GetChild(i));
-            if (nested != null)
-                return nested;
-        }
-        return null;
-    }
     private static void SetLeaf(ref TextLeaf? leaf, TMP_Text? source)
     {
         // Destroyed Unity objects compare equal to null; release their draw
@@ -186,6 +182,8 @@ internal sealed class CockpitInstructionSources
         _backgroundHide?.Release();
         _backgroundHide = null;
         _background = null;
+        _airbase = null;
+        _airbaseHud = null;
         _nextFind = 0;
     }
 }

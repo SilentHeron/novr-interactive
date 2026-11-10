@@ -10,10 +10,12 @@ internal static class DynamicMapRadarVisualizationRotationSafePatch
 {
     private static readonly System.Type RadarMapVisType = AccessTools.Inner(typeof(global::DynamicMap), "RadarMapVis");
     private static readonly FieldInfo RadarVisualizationsField = AccessTools.Field(typeof(global::DynamicMap), "radarVisualizations");
-    private static readonly FieldInfo VectorImageField = AccessTools.Field(RadarMapVisType, "vectorImage");
-    private static readonly FieldInfo EmitterField = AccessTools.Field(RadarMapVisType, "emitter");
-    private static readonly FieldInfo PingTimeField = AccessTools.Field(RadarMapVisType, "pingTime");
-    private static readonly FieldInfo DelayField = AccessTools.Field(RadarMapVisType, "delay");
+    // RadarMapVis is private to DynamicMap, so the accessors take it as object.
+    // One runs per radar ping drawn on the map, every frame.
+    private static readonly AccessTools.FieldRef<object, Image> VectorImage = AccessTools.FieldRefAccess<Image>(RadarMapVisType, "vectorImage");
+    private static readonly AccessTools.FieldRef<object, Unit> Emitter = AccessTools.FieldRefAccess<Unit>(RadarMapVisType, "emitter");
+    private static readonly AccessTools.FieldRef<object, float> PingTime = AccessTools.FieldRefAccess<float>(RadarMapVisType, "pingTime");
+    private static readonly AccessTools.FieldRef<object, float> Delay = AccessTools.FieldRefAccess<float>(RadarMapVisType, "delay");
 
     [HarmonyPatch]
     private static class RefreshPatch
@@ -25,10 +27,10 @@ internal static class DynamicMapRadarVisualizationRotationSafePatch
         {
             var dynamicMap = SceneSingleton<DynamicMap>.i;
             var combatHud = SceneSingleton<CombatHUD>.i;
-            var vectorImage = (Image)VectorImageField.GetValue(__instance);
-            var emitter = (Unit)EmitterField.GetValue(__instance);
-            var pingTime = (float)PingTimeField.GetValue(__instance);
-            var delay = (float)DelayField.GetValue(__instance);
+            var vectorImage = VectorImage(__instance);
+            var emitter = Emitter(__instance);
+            var pingTime = PingTime(__instance);
+            var delay = Delay(__instance);
             var elapsed = Time.timeSinceLevelLoad - pingTime;
 
             if (emitter == null ||

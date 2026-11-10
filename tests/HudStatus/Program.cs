@@ -28,6 +28,31 @@ Near(group.alpha, 0, "Emptied status source is hidden through the existing group
 Check(!Backplate(panel).enabled, "Emptied source backplate is hidden");
 Invoke(readability, "LateUpdate");
 Near(group.alpha, 0, "Next readability update cannot reveal emptied source");
+// Panels are registered when made readable; the presentation never searches
+// the HUD for them, yet adopts one added later and ignores another HUD's.
+var late = new GameObject("LowerLeftPanel", typeof(RectTransform));
+late.transform.SetParent(hud.transform, false);
+var lateGroup = late.AddComponent<CanvasGroup>();
+lateGroup.alpha = .7f;
+HudReadability.Add(late.transform, false);
+var foreign = new GameObject("TopRightPanel", typeof(RectTransform));
+foreign.transform.SetParent(new GameObject("Another HUD").transform, false);
+var foreignGroup = foreign.AddComponent<CanvasGroup>();
+foreignGroup.alpha = .8f;
+HudReadability.Add(foreign.transform, false);
+CockpitStatusSources.Empty.Add(late.transform);
+CockpitStatusSources.Empty.Add(foreign.transform);
+Invoke(presentation, "LateUpdate");
+Near(lateGroup.alpha, 0, "A status panel made readable later is adopted on the next frame");
+Near(foreignGroup.alpha, .8f, "A status panel on another HUD is left alone");
+var versionBefore = HudReadability.PanelsVersion;
+HudReadability.Add(late.transform, true);
+Check(HudReadability.PanelsVersion == versionBefore && HudReadability.Panels.Count(known => known == late.GetComponent<HudReadability>()) == 1,
+    "Making a panel readable twice registers it once");
+CockpitStatusSources.Empty.Remove(late.transform);
+CockpitStatusSources.Empty.Remove(foreign.transform);
+Invoke(presentation, "LateUpdate");
+Near(lateGroup.alpha, .7f, "A panel whose sources returned gets its native opacity back");
 Invoke(presentation, "OnDisable");
 Near(group.alpha, .42f, "Releasing suppression restores original alpha rather than one");
 Check(panel.Components.OfType<CanvasGroup>().Count() == 1, "Presentation never creates a second group");

@@ -118,13 +118,17 @@ separate from behavior changes and leave imported `NOVR.XR.*` source in its exis
   the full portable command.
 - Keep per-frame paths allocation-free where practical. Cache reflection and
   component lookups, reuse collections, and dispose only resources NOVR owns.
+  Read private game fields through typed field references, and do not walk the
+  HUD or map hierarchy on a timer when a reference or a change test will do
+  (see "Searching the HUD and map" in the architecture guide).
 - Preserve Windows and Linux/Proton support. Keep OS-specific workarounds guarded;
   do not assume a particular Steam library, controller or GPU vendor. Portable CI
   runs on Windows and Linux, but it does not test either platform's live VR driver.
 
 For a runtime build, also run the optional assembly contracts described in the
 verification guide. They check that every Harmony target and cached private-field
-handle exists in your installed game, and that the game methods a NOVR prefix can
+handle exists in your installed game, that each typed field reference fits its
+field's type, and that the game methods a NOVR prefix can
 skip are unchanged since their NOVR copies were written
 (`tests/Core/ReplacedMethodFingerprints.txt`). After a game update, review each
 method the contract names against its NOVR patch, then regenerate the file by

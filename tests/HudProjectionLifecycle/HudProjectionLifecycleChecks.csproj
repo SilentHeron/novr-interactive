@@ -3,5 +3,7 @@
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Hud/PitchCompassBehavior.cs" Link="PitchCompassBehavior.cs" />
     <Compile Include="../../NOVR/VrUi/HarmonyPatches/AirbaseOverlayViewPositionPatch.cs" Link="AirbaseOverlayViewPositionPatch.cs" />
+    <Compile Include="../../NOVR/Compatibility/GameField.cs" Link="GameField.cs" />
+    <Compile Include="../Shared/FieldRefDouble.cs" Link="FieldRefDouble.cs" />
   </ItemGroup>
 </Project>

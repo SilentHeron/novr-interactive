@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,13 +6,20 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class JammedMarkerRotationSafePatch
 {
-    private static readonly FieldInfo VectorLineField = AccessTools.Field(typeof(global::JammedMarker), "vectorLine");
-    private static readonly FieldInfo VectorLineImageField = AccessTools.Field(typeof(global::JammedMarker), "vectorLineImage");
-    private static readonly FieldInfo RadarField = AccessTools.Field(typeof(global::JammedMarker), "radar");
-    private static readonly FieldInfo UnitField = AccessTools.Field(typeof(global::JammedMarker), "unit");
-    private static readonly FieldInfo JammedByField = AccessTools.Field(typeof(global::JammedMarker), "jammedBy");
-    private static readonly FieldInfo MapIconField = AccessTools.Field(typeof(global::JammedMarker), "mapIcon");
-    private static readonly FieldInfo JammedByIconField = AccessTools.Field(typeof(global::JammedMarker), "jammedByIcon");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, GameObject> VectorLine =
+        AccessTools.FieldRefAccess<global::JammedMarker, GameObject>("vectorLine");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, Image> VectorLineImage =
+        AccessTools.FieldRefAccess<global::JammedMarker, Image>("vectorLineImage");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, Radar> MarkerRadar =
+        AccessTools.FieldRefAccess<global::JammedMarker, Radar>("radar");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, Unit> MarkerUnit =
+        AccessTools.FieldRefAccess<global::JammedMarker, Unit>("unit");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, Unit> JammedBy =
+        AccessTools.FieldRefAccess<global::JammedMarker, Unit>("jammedBy");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, UnitMapIcon> MarkerIcon =
+        AccessTools.FieldRefAccess<global::JammedMarker, UnitMapIcon>("mapIcon");
+    private static readonly AccessTools.FieldRef<global::JammedMarker, UnitMapIcon> JammedByIcon =
+        AccessTools.FieldRefAccess<global::JammedMarker, UnitMapIcon>("jammedByIcon");
 
     [HarmonyPatch(typeof(global::JammedMarker), "Update")]
     private static class UpdatePatch
@@ -21,10 +27,10 @@ internal static class JammedMarkerRotationSafePatch
         [HarmonyPrefix]
         private static bool Prefix(global::JammedMarker __instance)
         {
-            var unit = (Unit)UnitField.GetValue(__instance);
-            var mapIcon = (UnitMapIcon)MapIconField.GetValue(__instance);
-            var radar = (Radar)RadarField.GetValue(__instance);
-            var jammedBy = (Unit)JammedByField.GetValue(__instance);
+            var unit = MarkerUnit(__instance);
+            var mapIcon = MarkerIcon(__instance);
+            var radar = MarkerRadar(__instance);
+            var jammedBy = JammedBy(__instance);
             if (unit == null || mapIcon == null || unit.disabled || radar == null || jammedBy == null || jammedBy.disabled || !radar.IsJammed())
                 return true;
 
@@ -35,9 +41,9 @@ internal static class JammedMarkerRotationSafePatch
             __instance.transform.localPosition = jammedLocalPosition;
             __instance.transform.localScale = Vector3.one / map.mapImage.transform.localScale.x;
 
-            var vectorLineImage = (Image)VectorLineImageField.GetValue(__instance);
-            var vectorLine = (GameObject)VectorLineField.GetValue(__instance);
-            var jammedByIcon = (UnitMapIcon)JammedByIconField.GetValue(__instance);
+            var vectorLineImage = VectorLineImage(__instance);
+            var vectorLine = VectorLine(__instance);
+            var jammedByIcon = JammedByIcon(__instance);
             if (jammedByIcon == null || vectorLineImage == null || vectorLine == null)
             {
                 if (vectorLineImage != null)

@@ -30,7 +30,12 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
      required `static readonly` reflection handles did not resolve. Declare a
      handle nullable (`FieldInfo?`) only if every use copes with null; a
      non-nullable handle may be used unguarded because its patch is never
-     installed without it.
+     installed without it. Read a private game field that is needed more than
+     once through a typed field reference (`AccessTools.FieldRefAccess<T, F>`
+     in a patch class, [`GameField.Optional`](../NOVR/Compatibility/GameField.cs)
+     elsewhere): `FieldInfo.GetValue` is a reflection call and boxes every
+     bool, float and struct, and `Traverse` allocates on top of that. The
+     assembly contracts check each typed handle against the field's real type.
    - [`StartupDiagnostics`](../NOVR/Compatibility/StartupDiagnostics.cs) collects
      what the player should know about a degraded start (a game version other
      than `SupportedGameVersion`, skipped patches, a layer NOVR uses that
@@ -305,6 +310,31 @@ the same for both eyes is therefore the main thing a mod can still remove:
   (`VrHudProjection.HudView`). Capture a view inside the call that uses it; the
   head pose changes several times a frame.
 - `HudElementStyleDriver` refreshes all styled HUD graphics from one callback.
+
+## Searching the HUD and map
+
+The flight HUD's first child (`CombatHUD.iconLayer`) holds one object per unit
+marker and the cockpit map holds one per unit icon, so anything that walks
+either hierarchy costs time in proportion to the size of the mission.
+
+- Nothing walks a hierarchy every frame.
+  [`CockpitWidgetDepthMaterials`](../NOVR/VrUi/Widgets/CockpitWidgetDepthMaterials.cs)
+  walks a widget's graphics only when its canvas became (un)available or
+  `Transform.hierarchyCount` changed, plus once every `RescanSeconds` for the
+  changes that test cannot see (a component added to an existing object, or
+  one object replacing another within a frame). A deactivated graphic keeps
+  its widget, so toggling an icon needs no scan.
+- Periodic searches of the HUD go through
+  [`HudHierarchy`](../NOVR/VrUi/Shared/HudHierarchy.cs), which leaves the marker
+  layer out. Prefer not searching at all: the weapon widget is read from
+  `CombatHUD.weaponState`, readable panels register themselves in
+  `HudReadability.Panels`, and the airbase overlay is found once per HUD.
+- [`BorrowedLayers`](../NOVR/VrUi/Shared/BorrowedLayers.cs) moves a borrowed
+  widget's objects to its slot's layer. Objects it has already moved are
+  skipped; one pass in `VerifyEvery` re-checks them all.
+- `Turret.FixedUpdate` runs at the physics rate for every turret with a target.
+  Its prefix must decide the common case (not under manual control) from one
+  field read and allocate nothing.
 
 ## Optional foveated rendering
 

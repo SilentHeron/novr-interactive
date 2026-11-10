@@ -193,8 +193,12 @@ foreach (var reverse in new[] { false, true })
     Check(VrHudProjection.Lines.Count == 5, "Four runway edges and one glideslope remain projected");
     Check(Math.Abs(runway.LastAimDistanceAndTime.x - (expected - aircraft.transform.position).magnitude * .9f) < .001f, "Native aimpoint distance uses touchdown rather than opposite endpoint");
 }
-var borders = typeof(AirbaseOverlayViewPositionPatch).GetMethod("GetBehaviours", BindingFlags.Static | BindingFlags.NonPublic)!;
-Check(ReferenceEquals(borders.Invoke(null, new object?[] { overlay.runwayBorders }), overlay.runwayBorders), "Native image array is reused rather than allocated per frame");
+var borders = (HarmonyLib.AccessTools.FieldRef<AirbaseOverlay, Image[]>)typeof(AirbaseOverlayViewPositionPatch)
+    .GetField("RunwayBorders", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+Check(ReferenceEquals(borders(overlay), overlay.runwayBorders), "Native image array is reused rather than allocated per frame");
+foreach (var handle in typeof(AirbaseOverlayViewPositionPatch).GetFields(BindingFlags.Static | BindingFlags.NonPublic))
+    if (typeof(Delegate).IsAssignableFrom(handle.FieldType))
+        Check(handle.GetValue(null) != null, "Typed access to the overlay's private " + handle.Name + " field resolves");
 overlay.runwayBorders[1] = null;
 ResetProjection();
 AirbaseTick();

@@ -15,9 +15,9 @@ namespace HarmonyLib
     public sealed class HarmonyPrefix : Attribute
     {
     }
-    public static class AccessTools
+    // FieldRef and FieldRefAccess come from tests/Shared/FieldRefDouble.cs.
+    public static partial class AccessTools
     {
-        public static FieldInfo Field(Type type, string name) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!;
     }
 }
 

@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,15 +6,28 @@ namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class HUDBombingStateViewPositionPatch
 {
-    private static readonly FieldInfo AlignmentBarField = AccessTools.Field(typeof(global::HUDBombingState), "alignmentBar");
-    private static readonly FieldInfo CcipPipperField = AccessTools.Field(typeof(global::HUDBombingState), "ccipPipper");
-    private static readonly FieldInfo CcipLineField = AccessTools.Field(typeof(global::HUDBombingState), "ccipLine");
-    private static readonly FieldInfo CcipFallTimeField = AccessTools.Field(typeof(global::HUDBombingState), "ccipFallTime");
-    private static readonly FieldInfo CcrpFallTimeField = AccessTools.Field(typeof(global::HUDBombingState), "ccrpFallTime");
-    private static readonly FieldInfo DropCountdownField = AccessTools.Field(typeof(global::HUDBombingState), "dropCountdown");
-    private static readonly FieldInfo CcrpCircleField = AccessTools.Field(typeof(global::HUDBombingState), "ccrpCircle");
-    private static readonly FieldInfo AverageTargetPositionField = AccessTools.Field(typeof(global::HUDBombingState), "averageTargetPosition");
-    private static readonly FieldInfo CcipImpactPointSmoothedField = AccessTools.Field(typeof(global::HUDBombingState), "ccipImpactPointSmoothed");
+    // Read on every frame the bombing display is up, so through field
+    // references rather than reflection (which also boxed the two structs).
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Image> AlignmentBar =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Image>("alignmentBar");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Image> CcipPipper =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Image>("ccipPipper");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Image> CcipLine =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Image>("ccipLine");
+    // dropCountdown/ccrpFallTime/ccipFallTime became TextMeshProUGUI in NO 0.34 - only the
+    // transform is needed here, so treat them as Component to survive the type change.
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Component> CcipFallTime =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Component>("ccipFallTime");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Component> CcrpFallTime =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Component>("ccrpFallTime");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Component> DropCountdown =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Component>("dropCountdown");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Image> CcrpCircle =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Image>("ccrpCircle");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, GlobalPosition> AverageTargetPosition =
+        AccessTools.FieldRefAccess<global::HUDBombingState, GlobalPosition>("averageTargetPosition");
+    private static readonly AccessTools.FieldRef<global::HUDBombingState, Vector3> CcipImpactPointSmoothed =
+        AccessTools.FieldRefAccess<global::HUDBombingState, Vector3>("ccipImpactPointSmoothed");
 
     [HarmonyPatch(typeof(global::HUDBombingState), nameof(global::HUDBombingState.UpdateWeaponDisplay))]
     private static class UpdateWeaponDisplayPatch
@@ -38,17 +50,15 @@ internal static class HUDBombingStateViewPositionPatch
 
     private static void UpdateCcrpDisplay(global::HUDBombingState state, Aircraft aircraft)
     {
-        var alignmentBar = (Image)AlignmentBarField.GetValue(state);
-        var ccrpCircle = (Image)CcrpCircleField.GetValue(state);
-        // dropCountdown/ccrpFallTime/ccipFallTime became TextMeshProUGUI in NO 0.34 - only the
-        // transform is needed here, so treat them as Component to survive the type change.
-        var dropCountdown = DropCountdownField.GetValue(state) as Component;
-        var ccrpFallTime = CcrpFallTimeField.GetValue(state) as Component;
+        var alignmentBar = AlignmentBar(state);
+        var ccrpCircle = CcrpCircle(state);
+        var dropCountdown = DropCountdown(state);
+        var ccrpFallTime = CcrpFallTime(state);
         var cockpitHudCamera = APIBus.CockpitHudCamera;
         if (alignmentBar == null || cockpitHudCamera == null || !alignmentBar.gameObject.activeSelf)
             return;
 
-        var averageTargetPosition = (GlobalPosition)AverageTargetPositionField.GetValue(state);
+        var averageTargetPosition = AverageTargetPosition(state);
         var targetDelta = averageTargetPosition - aircraft.GlobalPosition();
         var horizontalTargetDelta = new Vector3(targetDelta.x, 0.0f, targetDelta.z);
         var verticalOffset = -targetDelta.y + Vector3.Project(horizontalTargetDelta, aircraft.transform.forward).y;
@@ -77,15 +87,15 @@ internal static class HUDBombingStateViewPositionPatch
 
     private static void UpdateCcipDisplay(global::HUDBombingState state)
     {
-        var ccipPipper = (Image)CcipPipperField.GetValue(state);
-        var ccipLine = (Image)CcipLineField.GetValue(state);
-        var ccipFallTime = CcipFallTimeField.GetValue(state) as Component;
+        var ccipPipper = CcipPipper(state);
+        var ccipLine = CcipLine(state);
+        var ccipFallTime = CcipFallTime(state);
         var velocityVector = SceneSingleton<FlightHud>.i.velocityVector;
         var cockpitHudCamera = APIBus.CockpitHudCamera;
         if (ccipPipper == null || ccipLine == null || cockpitHudCamera == null || velocityVector == null || !ccipPipper.enabled)
             return;
 
-        var ccipImpactPointSmoothed = (Vector3)CcipImpactPointSmoothedField.GetValue(state);
+        var ccipImpactPointSmoothed = CcipImpactPointSmoothed(state);
         var impactWorldPosition = ccipImpactPointSmoothed + Datum.origin.position;
         if (!VrHudProjection.TryProjectToCockpitHud(impactWorldPosition, out var pipperHudPosition))
         {

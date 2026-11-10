@@ -11,7 +11,8 @@ namespace UnityEngine
 }
 namespace HarmonyLib
 {
-    public static class AccessTools
+    // FieldRef and FieldRefAccess come from tests/Shared/FieldRefDouble.cs.
+    public static partial class AccessTools
     {
         public static System.Reflection.FieldInfo? Field(Type type, string name) => type.GetField(name,
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);

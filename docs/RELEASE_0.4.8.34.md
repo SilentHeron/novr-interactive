@@ -22,6 +22,33 @@
   share one update; cameras are no longer looked up by name every frame; and
   NOVR's interface camera no longer asks for a depth copy, colour copy or
   shadows for each eye.
+- Less work that grows with the size of the mission. The cockpit map holds one
+  object per unit icon and the flight HUD one per unit marker, and several
+  parts of NOVR went through all of them on every frame or twice a second:
+  - The pass that makes cockpit widget text respect hand depth walked every
+    widget graphic on every frame. It now runs when a widget's contents can
+    have changed, and four times a second otherwise.
+  - Twice a second NOVR searched the whole flight HUD four times, walked it
+    once more looking for the airbase overlay, and moved every map icon to the
+    widget's layer again. The searches now skip the marker layer or are gone,
+    the overlay is found once, and icons already moved are left alone.
+  - Styled HUD graphics read the size settings once per frame instead of once
+    per unit marker.
+  - Private game fields read on every frame (bomb and gun sights, airbase and
+    objective markers, missile warnings, map lines, the turret crosshair) go
+    through typed field references instead of reflection, which also boxed
+    every flag, number and vector it returned. The check NOVR runs for every
+    turret that has a target, 60 times a second, allocated about 366 bytes each
+    time and now allocates nothing.
+
+  Timed in the game's own engine at the main menu on Linux/Proton, with
+  hierarchies built to the game's shape for a 500-unit mission: the depth pass
+  went from 108 to 3.5 microseconds on a frame where nothing changed, the
+  style refresh from 29 to 19, and the twice-a-second burst from about 315 to
+  about 40. Together that is roughly 0.12 ms of a frame, about 1% at 90 Hz
+  (about 2% with 1,000 units). Expect steadier frame times in large battles
+  rather than a higher frame rate. Method and all figures:
+  [HUD and map scans](benchmarks/HUD_SCANS_0.4.8.34.md).
 - New experimental **Share shadows (test)** (View → VR performance, off by
   default): the sun's shadow map is drawn once per frame and reused for the
   second eye. Not yet checked in a headset.
@@ -30,4 +57,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

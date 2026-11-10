@@ -99,7 +99,10 @@ using (var f = new Fixture())
     Check(icon.layer == f.Slot.gameObject.layer, "Adopt icons created by the live native map");
     icon.layer = 6;
     f.Tick(2);
-    Check(icon.layer == f.Slot.gameObject.layer, "Repair later native layer reset");
+    Check(icon.layer == 6, "A quick pass leaves an icon it has already moved alone");
+    for (var time = 3; time <= BorrowedLayers.VerifyEvery; time++)
+        f.Tick(time);
+    Check(icon.layer == f.Slot.gameObject.layer, "The periodic full pass repairs a later native layer reset");
     CockpitMapWidget.ReleaseAll();
     Check(icon.layer == 5 && f.Terrain.gameObject.layer == 3, "Restore first native layers of existing and late children");
 }
@@ -211,9 +214,19 @@ using (var f = new Fixture())
     Check(f.Map.transform.ChildrenQueries == 2 && icon.layer == f.Slot.gameObject.layer, "Scheduled refresh still adopts newly created icons");
     f.Tick(.75f);
     Check(f.Map.transform.ChildrenQueries == 2, "Stable frames do not perform extra hierarchy scans");
-    icon.layer = 6;
+    var reads = icon.LayerReads;
+    var terrainReads = f.Terrain.gameObject.LayerReads;
+    var other = new GameObject("second late icon") { layer = 5 };
+    other.transform.SetParent(f.Terrain.transform, false);
     f.Tick(1f);
-    Check(f.Map.transform.ChildrenQueries == 3 && icon.layer == f.Slot.gameObject.layer, "Next scheduled refresh still repairs native layer resets");
+    Check(f.Map.transform.ChildrenQueries == 3 && icon.LayerReads == reads && f.Terrain.gameObject.LayerReads == terrainReads,
+        "A scheduled refresh re-reads no object it has already moved");
+    Check(other.layer == f.Slot.gameObject.layer, "while still adopting an icon created since the last one");
+    f.Slot.gameObject.layer = 29;
+    f.Tick(1.5f);
+    Check(icon.layer == 29 && other.layer == 29 && f.Terrain.gameObject.layer == 29, "A change of the slot's own layer moves every object again");
+    CockpitMapWidget.ReleaseAll();
+    Check(icon.layer == 5 && other.layer == 5 && f.Terrain.gameObject.layer == 3, "Every object still gets its first native layer back");
 }
 count += NavigationChecks.Run();
 count += InteractionChecks.Run();

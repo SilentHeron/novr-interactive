@@ -27,8 +27,12 @@ namespace UnityEngine
         public GameObject gameObject = null!;
         public Transform transform => gameObject.transform;
         public T? GetComponent<T>() where T : Component => gameObject.GetComponent<T>();
+        // How many times any hierarchy was walked, so checks can tell a frame
+        // that searched from one that only tested for change.
+        public static int HierarchyWalks;
         public void GetComponentsInChildren<T>(bool includeInactive, List<T> result) where T : Component
         {
+            HierarchyWalks++;
             void Visit(Transform root)
             {
                 if (!includeInactive && !root.gameObject.activeInHierarchy)
@@ -81,6 +85,22 @@ namespace UnityEngine
                     return true;
             return false;
         }
+        // Unity: the number of transforms in this transform's whole hierarchy.
+        public int hierarchyCount
+        {
+            get
+            {
+                var top = this;
+                while (top.parent != null)
+                    top = top.parent;
+                static int Count(Transform node) => 1 + node.Children.Sum(Count);
+                return Count(top);
+            }
+        }
+    }
+    public static class Time
+    {
+        public static float unscaledTime;
     }
     public enum RenderMode
     {

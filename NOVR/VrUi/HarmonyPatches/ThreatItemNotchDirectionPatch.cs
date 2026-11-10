@@ -1,7 +1,6 @@
 using HarmonyLib;
 using NOVR.VrUi.SpecialBehavior;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,12 +9,18 @@ namespace NOVR.VrUi.HarmonyPatches;
 internal static class ThreatItemNotchDirectionPatch
 {
     private const float NotchIndicatorDistance = 1000.0f;
-    private static readonly FieldInfo MissileField = AccessTools.Field(typeof(global::ThreatItem), "missile");
-    private static readonly FieldInfo NotchLineField = AccessTools.Field(typeof(global::ThreatItem), "notchLine");
-    private static readonly FieldInfo NotchIndicatorField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicator");
-    private static readonly FieldInfo NotchIndicatorBoxField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicatorBox");
-    private static readonly FieldInfo NotchIndicatorLabelField = AccessTools.Field(typeof(global::ThreatItem), "notchIndicatorLabel");
-    private static readonly FieldInfo PlayerAircraftIconTransformField = AccessTools.Field(typeof(global::ThreatItem), "playerAircraftIconTransform");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, global::Missile> ThreatMissile =
+        AccessTools.FieldRefAccess<global::ThreatItem, global::Missile>("missile");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, GameObject> NotchLine =
+        AccessTools.FieldRefAccess<global::ThreatItem, GameObject>("notchLine");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, GameObject> NotchIndicator =
+        AccessTools.FieldRefAccess<global::ThreatItem, GameObject>("notchIndicator");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, Image> NotchIndicatorBox =
+        AccessTools.FieldRefAccess<global::ThreatItem, Image>("notchIndicatorBox");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, Text> NotchIndicatorLabel =
+        AccessTools.FieldRefAccess<global::ThreatItem, Text>("notchIndicatorLabel");
+    private static readonly AccessTools.FieldRef<global::ThreatItem, Transform> PlayerAircraftIconTransform =
+        AccessTools.FieldRefAccess<global::ThreatItem, Transform>("playerAircraftIconTransform");
     private static readonly HashSet<GameObject> CompactHiddenIndicators = new();
 
     [HarmonyPatch(typeof(global::CombatHUD), nameof(global::CombatHUD.ShowNotchIndicator))]
@@ -45,8 +50,8 @@ internal static class ThreatItemNotchDirectionPatch
         [HarmonyPrefix]
         private static bool Prefix(global::ThreatItem __instance)
         {
-            var notchLine = (GameObject)NotchLineField.GetValue(__instance);
-            var playerAircraftIconTransform = (Transform)PlayerAircraftIconTransformField.GetValue(__instance);
+            var notchLine = NotchLine(__instance);
+            var playerAircraftIconTransform = PlayerAircraftIconTransform(__instance);
             if (notchLine == null || playerAircraftIconTransform == null || !TryGetNotchDirection(__instance, out var notchDirection))
                 return false;
 
@@ -71,7 +76,7 @@ internal static class ThreatItemNotchDirectionPatch
         [HarmonyPrefix]
         private static bool Prefix(global::ThreatItem __instance)
         {
-            var notchIndicator = (GameObject)NotchIndicatorField.GetValue(__instance);
+            var notchIndicator = NotchIndicator(__instance);
             if (notchIndicator == null)
                 return false;
             var compact = SpecialBehavior.CockpitAlerts.Active && !ModConfiguration.Instance.CockpitAlerts.WorldNotch.Value;
@@ -85,7 +90,7 @@ internal static class ThreatItemNotchDirectionPatch
             if (compact || !TryGetNotchDirection(__instance, out var notchDirection))
                 return false;
 
-            var missile = (global::Missile)MissileField.GetValue(__instance);
+            var missile = ThreatMissile(__instance);
             var aircraft = SceneSingleton<CombatHUD>.i.aircraft;
             var worldPosition = aircraft.GlobalPosition().ToLocalPosition() + notchDirection * NotchIndicatorDistance;
             var mainCamera = APIBus.MainCamera;
@@ -118,7 +123,7 @@ internal static class ThreatItemNotchDirectionPatch
             else if (missile.seekerMode == Missile.SeekerMode.activeSearch)
                 color = Color.Lerp(Color.green, Color.yellow, Mathf.Sin(Time.timeSinceLevelLoad * 10f) + 0.5f);
 
-            var notchIndicatorBox = (Image)NotchIndicatorBoxField.GetValue(__instance);
+            var notchIndicatorBox = NotchIndicatorBox(__instance);
             if (notchIndicatorBox != null)
             {
                 // Do not replace the native rectangle with full-height lines:
@@ -127,7 +132,7 @@ internal static class ThreatItemNotchDirectionPatch
                 notchIndicatorBox.raycastTarget = false;
             }
 
-            var notchIndicatorLabel = (Text)NotchIndicatorLabelField.GetValue(__instance);
+            var notchIndicatorLabel = NotchIndicatorLabel(__instance);
             if (notchIndicatorLabel != null)
             {
                 notchIndicatorLabel.text = $"[{missile.GetSeekerType()}] {UnitConverter.DistanceReading(distance)}";
@@ -143,7 +148,7 @@ internal static class ThreatItemNotchDirectionPatch
     {
         notchDirection = Vector3.zero;
 
-        var missile = (global::Missile)MissileField.GetValue(threatItem);
+        var missile = ThreatMissile(threatItem);
         var aircraft = SceneSingleton<CombatHUD>.i?.aircraft;
         var mainCamera = APIBus.MainCamera;
         if (missile == null || aircraft == null || mainCamera == null)
@@ -182,7 +187,7 @@ internal static class ThreatItemNotchDirectionPatch
         [HarmonyPrefix]
         private static void Prefix(global::ThreatItem __instance)
         {
-            var indicator = NotchIndicatorField.GetValue(__instance) as GameObject;
+            var indicator = NotchIndicator(__instance);
             if (indicator != null)
                 CompactHiddenIndicators.Remove(indicator);
         }

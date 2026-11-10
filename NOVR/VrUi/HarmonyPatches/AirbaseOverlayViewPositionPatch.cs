@@ -1,23 +1,36 @@
 using HarmonyLib;
+using NOVR.Compatibility;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine.UI;
-using System.Reflection;
 using UnityEngine;
 
 namespace NOVR.VrUi.HarmonyPatches;
 
 internal static class AirbaseOverlayViewPositionPatch
 {
-    private static readonly FieldInfo? AirbaseMarkerField = AccessTools.Field(typeof(global::AirbaseOverlay), "airbaseMarker");
-    private static readonly FieldInfo? AirbaseLabelField = AccessTools.Field(typeof(global::AirbaseOverlay), "airbaseLabel");
-    private static readonly FieldInfo? NearestAirbaseField = AccessTools.Field(typeof(global::AirbaseOverlay), "nearestAirbase");
-    private static readonly FieldInfo? RunwayUsageField = AccessTools.Field(typeof(global::AirbaseOverlay), "runwayUsage");
-    private static readonly FieldInfo? LandingField = AccessTools.Field(typeof(global::AirbaseOverlay), "landing");
-    private static readonly FieldInfo? TaxiingToRunwayField = AccessTools.Field(typeof(global::AirbaseOverlay), "taxiingToRunway");
-    private static readonly FieldInfo? ReachedRunwayField = AccessTools.Field(typeof(global::AirbaseOverlay), "reachedRunway");
-    private static readonly FieldInfo? RunwayBordersField = AccessTools.Field(typeof(global::AirbaseOverlay), "runwayBorders");
-    private static readonly FieldInfo? GlideslopeField = AccessTools.Field(typeof(global::AirbaseOverlay), "glideslope");
-    private static readonly FieldInfo? GlideslopeAimPointField = AccessTools.Field(typeof(global::AirbaseOverlay), "glideslopeAimPoint");
+    // Read on every frame through field references, not reflection (which
+    // boxed three flags and the runway struct each time). Each stays optional:
+    // a field this game build lacks only switches off the part that needs it.
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Graphic>? AirbaseMarker =
+        GameField.Optional<global::AirbaseOverlay, Graphic>("airbaseMarker");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Graphic>? AirbaseLabel =
+        GameField.Optional<global::AirbaseOverlay, Graphic>("airbaseLabel");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Airbase>? NearestAirbase =
+        GameField.Optional<global::AirbaseOverlay, Airbase>("nearestAirbase");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Airbase.Runway.RunwayUsage?>? RunwayUsage =
+        GameField.Optional<global::AirbaseOverlay, Airbase.Runway.RunwayUsage?>("runwayUsage");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, bool>? Landing =
+        GameField.Optional<global::AirbaseOverlay, bool>("landing");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, bool>? TaxiingToRunway =
+        GameField.Optional<global::AirbaseOverlay, bool>("taxiingToRunway");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, bool>? ReachedRunway =
+        GameField.Optional<global::AirbaseOverlay, bool>("reachedRunway");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Image[]>? RunwayBorders =
+        GameField.Optional<global::AirbaseOverlay, Image[]>("runwayBorders");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Graphic>? Glideslope =
+        GameField.Optional<global::AirbaseOverlay, Graphic>("glideslope");
+    private static readonly AccessTools.FieldRef<global::AirbaseOverlay, Graphic>? GlideslopeAimPoint =
+        GameField.Optional<global::AirbaseOverlay, Graphic>("glideslopeAimPoint");
 
     [HarmonyPatch(typeof(global::AirbaseOverlay), "LateUpdate")]
     private static class LateUpdatePatch
@@ -34,9 +47,9 @@ internal static class AirbaseOverlayViewPositionPatch
             if (aircraft == null || mainCamera == null || cockpitHudCamera == null)
                 return;
 
-            HudElementStyle.Add(AirbaseMarkerField?.GetValue(__instance) as Graphic, HudElementKind.Marker);
-            HudElementStyle.Add(AirbaseLabelField?.GetValue(__instance) as Graphic, HudElementKind.Label);
-            HudElementStyle.Add(GlideslopeAimPointField?.GetValue(__instance) as Graphic, HudElementKind.Reticle);
+            HudElementStyle.Add(AirbaseMarker != null ? AirbaseMarker(__instance) : null, HudElementKind.Marker);
+            HudElementStyle.Add(AirbaseLabel != null ? AirbaseLabel(__instance) : null, HudElementKind.Label);
+            HudElementStyle.Add(GlideslopeAimPoint != null ? GlideslopeAimPoint(__instance) : null, HudElementKind.Reticle);
             __instance.transform.rotation = cockpitHudCamera.transform.rotation;
 
             UpdateAirbaseMarker(__instance, aircraft);
@@ -47,13 +60,13 @@ internal static class AirbaseOverlayViewPositionPatch
 
     private static void UpdateAirbaseMarker(global::AirbaseOverlay overlay, Aircraft aircraft)
     {
-        var airbaseMarker = AirbaseMarkerField?.GetValue(overlay) as Behaviour;
-        var airbaseLabel = AirbaseLabelField?.GetValue(overlay) as Behaviour;
-        var nearestAirbase = NearestAirbaseField?.GetValue(overlay) as Airbase;
+        Behaviour? airbaseMarker = AirbaseMarker != null ? AirbaseMarker(overlay) : null;
+        Behaviour? airbaseLabel = AirbaseLabel != null ? AirbaseLabel(overlay) : null;
+        var nearestAirbase = NearestAirbase != null ? NearestAirbase(overlay) : null;
         var runwayUsage = GetRunwayUsage(overlay);
-        var landing = LandingField?.GetValue(overlay) is true;
-        var taxiingToRunway = TaxiingToRunwayField?.GetValue(overlay) is true;
-        var reachedRunway = ReachedRunwayField?.GetValue(overlay) is true;
+        var landing = Landing != null && Landing(overlay);
+        var taxiingToRunway = TaxiingToRunway != null && TaxiingToRunway(overlay);
+        var reachedRunway = ReachedRunway != null && ReachedRunway(overlay);
         var cockpitHudCamera = APIBus.CockpitHudCamera;
         if (airbaseMarker == null || airbaseLabel == null || nearestAirbase == null || cockpitHudCamera == null || !airbaseMarker.enabled)
             return;
@@ -106,8 +119,9 @@ internal static class AirbaseOverlayViewPositionPatch
     private static void UpdateRunwayBorders(global::AirbaseOverlay overlay)
     {
         var runwayUsage = GetRunwayUsage(overlay);
-        var landing = LandingField?.GetValue(overlay) is true;
-        var runwayBorders = GetBehaviours(RunwayBordersField?.GetValue(overlay));
+        var landing = Landing != null && Landing(overlay);
+        // Image[] is already covariant with Behaviour[]: borrow the native array.
+        Behaviour?[]? runwayBorders = RunwayBorders != null ? RunwayBorders(overlay) : null;
         var cockpitHudCamera = APIBus.CockpitHudCamera;
         if (!landing || !runwayUsage.HasValue || runwayBorders == null || runwayBorders.Length < 4 || cockpitHudCamera == null)
             return;
@@ -152,8 +166,8 @@ internal static class AirbaseOverlayViewPositionPatch
     private static void UpdateGlideslope(global::AirbaseOverlay overlay, Aircraft aircraft)
     {
         var runwayUsage = GetRunwayUsage(overlay);
-        var glideslope = GlideslopeField?.GetValue(overlay) as Behaviour;
-        var glideslopeAimPoint = GlideslopeAimPointField?.GetValue(overlay) as Behaviour;
+        Behaviour? glideslope = Glideslope != null ? Glideslope(overlay) : null;
+        Behaviour? glideslopeAimPoint = GlideslopeAimPoint != null ? GlideslopeAimPoint(overlay) : null;
         var cockpitHudCamera = APIBus.CockpitHudCamera;
         if (!runwayUsage.HasValue || runwayUsage.Value.Runway == null || glideslope == null || glideslopeAimPoint == null ||
             cockpitHudCamera == null || aircraft.rb == null || !glideslope.enabled)
@@ -188,11 +202,7 @@ internal static class AirbaseOverlayViewPositionPatch
     }
 
     private static Airbase.Runway.RunwayUsage? GetRunwayUsage(global::AirbaseOverlay overlay) =>
-        RunwayUsageField?.GetValue(overlay) as Airbase.Runway.RunwayUsage?;
-
-    // Image[] is already covariant with Behaviour[]. Borrow the native array;
-    // allocating a reflection copy every LateUpdate adds avoidable HUD garbage.
-    private static Behaviour?[]? GetBehaviours(object? value) => value as Behaviour?[];
+        RunwayUsage != null ? RunwayUsage(overlay) : null;
 
     private static void SetRunwayBordersEnabled(Behaviour?[] runwayBorders, bool enabled)
     {

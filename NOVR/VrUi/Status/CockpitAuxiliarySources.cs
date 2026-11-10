@@ -26,7 +26,7 @@ internal sealed class CockpitAuxiliarySources
 
     private readonly List<Borrowed> _sources = new();
     private readonly List<Borrowed> _pending = new();
-    private readonly List<HUDApp> _apps = new();
+    private readonly List<HUDApp> _apps = new(), _scratch = new();
     private readonly HashSet<HUDApp> _failed = new();
     private RectTransform? _content;
 
@@ -60,8 +60,7 @@ internal sealed class CockpitAuxiliarySources
             }
         if (discover)
         {
-            _apps.Clear();
-            hud.GetComponentsInChildren(true, _apps);
+            HudHierarchy.Collect(hud.transform, HudHierarchy.MarkerLayer, _apps, _scratch);
             foreach (var app in _apps)
             {
                 if (app == null || _failed.Contains(app) ||
@@ -129,6 +128,7 @@ internal sealed class CockpitAuxiliarySources
         _sources.Clear();
         _pending.Clear();
         _apps.Clear();
+        _scratch.Clear();
         _failed.Clear();
         _content = null;
         CockpitHudWidgets.SetHasContent("auxiliary", false);

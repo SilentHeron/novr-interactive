@@ -32,9 +32,8 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         private readonly RectTransform? _background;
         private readonly Vector2 _backgroundSize, _backgroundBorder;
         private readonly float _nativeHeight;
-        private readonly Dictionary<GameObject, int> _layers = new();
+        private readonly BorrowedLayers _layers = new();
         private readonly List<Transform> _nodes = new();
-        private readonly List<GameObject> _gone = new();
 
         internal Lease(DynamicMap map, RectTransform slot, Image terrain)
         {
@@ -138,25 +137,9 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         {
             if (!Valid)
                 return;
-            _gone.Clear();
-            foreach (var pair in _layers)
-                if (pair.Key == null)
-                    _gone.Add(pair.Key!);
-            foreach (var go in _gone)
-                _layers.Remove(go);
-            _gone.Clear();
             _nodes.Clear();
             Root.GetComponentsInChildren(true, _nodes);
-            foreach (var node in _nodes)
-            {
-                if (node == null)
-                    continue;
-                var go = node.gameObject;
-                if (!_layers.ContainsKey(go))
-                    _layers.Add(go, go.layer);
-                if (go.layer != Slot.gameObject.layer)
-                    go.layer = Slot.gameObject.layer;
-            }
+            _layers.Apply(_nodes, Slot.gameObject.layer);
             _nodes.Clear();
         }
 
@@ -164,12 +147,8 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         {
             Navigation?.Dispose();
             Navigation = null;
-            foreach (var pair in _layers)
-                if (pair.Key != null)
-                    pair.Key.layer = pair.Value;
-            _layers.Clear();
+            _layers.Restore();
             _nodes.Clear();
-            _gone.Clear();
             if (_terrain != null)
             {
                 _terrain.material = _material;

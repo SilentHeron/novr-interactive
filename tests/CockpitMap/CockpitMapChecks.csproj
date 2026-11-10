@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../NOVR/VrUi/Map/CockpitMapWidget.cs" Link="CockpitMapWidget.cs" />
+    <Compile Include="../../NOVR/VrUi/Shared/BorrowedLayers.cs" Link="BorrowedLayers.cs" />
     <Compile Include="../../NOVR/VrUi/Map/CockpitMapNavigation.cs" Link="CockpitMapNavigation.cs" />
     <Compile Include="../../NOVR/VrUi/Map/CockpitMapInteraction.cs" Link="CockpitMapInteraction.cs" />
     <Compile Include="../../NOVR/VrUi/Map/CockpitMapInputState.cs" Link="CockpitMapInputState.cs" />

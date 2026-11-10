@@ -7,21 +7,34 @@ namespace NOVR.VrCamera;
 
 internal static class HudTurretCrosshairPatch
 {
+    // Every crosshair refreshes each frame. Its fields are read through field
+    // references; Harmony's Traverse allocated objects and used reflection
+    // for each one.
+    private static readonly AccessTools.FieldRef<HUDTurretCrosshair, Turret> CrosshairTurret =
+        AccessTools.FieldRefAccess<HUDTurretCrosshair, Turret>("turret");
+    private static readonly AccessTools.FieldRef<HUDTurretCrosshair, Image> Circle =
+        AccessTools.FieldRefAccess<HUDTurretCrosshair, Image>("circle");
+    private static readonly AccessTools.FieldRef<HUDTurretCrosshair, Image> ReadinessCircle =
+        AccessTools.FieldRefAccess<HUDTurretCrosshair, Image>("readinessCircle");
+    private static readonly AccessTools.FieldRef<HUDTurretCrosshair, Image> Crosshair =
+        AccessTools.FieldRefAccess<HUDTurretCrosshair, Image>("crosshair");
+    private static readonly AccessTools.FieldRef<HUDTurretCrosshair, Gun> CrosshairGun =
+        AccessTools.FieldRefAccess<HUDTurretCrosshair, Gun>("gun");
+
     [HarmonyPatch(typeof(HUDTurretCrosshair), "Refresh")]
     private static class Refresh
     {
         [HarmonyPrefix]
         private static bool Prefix(HUDTurretCrosshair __instance, ref Camera mainCamera, out Vector3 crosshairPosition)
         {
-            Traverse traverse = Traverse.Create(__instance);
-            var turret = traverse.Field("turret").GetValue<Turret>();
-            var circle = traverse.Field("circle").GetValue<Image>();
-            var readinessCircle = traverse.Field("readinessCircle").GetValue<Image>();
-            var crosshair = traverse.Field("crosshair").GetValue<Image>();
+            var turret = CrosshairTurret(__instance);
+            var circle = Circle(__instance);
+            var readinessCircle = ReadinessCircle(__instance);
+            var crosshair = Crosshair(__instance);
             HudElementStyle.Add(circle, HudElementKind.Reticle);
             HudElementStyle.Add(readinessCircle, HudElementKind.Reticle);
             HudElementStyle.Add(crosshair, HudElementKind.Reticle);
-            var gun = traverse.Field("gun").GetValue<Gun>();
+            var gun = CrosshairGun(__instance);
 
 
             var direction = turret.GetDirection().normalized;
