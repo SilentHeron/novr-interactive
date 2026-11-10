@@ -34,12 +34,23 @@ public class UIBehaviorPatcher : NOVRBehaviour
     {
         internal readonly Type Behavior;
         internal readonly int Failures;
-        internal PendingAddition(Type behavior, int failures = 0)
+        // When this component was first seen without a native object behind
+        // it (still being loaded); zero while it is not waiting.
+        internal readonly float WaitingSince;
+        internal PendingAddition(Type behavior, int failures = 0, float waitingSince = 0)
         {
             Behavior = behavior;
             Failures = failures;
+            WaitingSince = waitingSince;
         }
     }
+
+    // A component constructed during an asynchronous load is attached to its
+    // native object some frames later. That is a wait, not a failure, and it
+    // is measured in time: a count of frames silently depended on how slow
+    // the frames were while loading (three fast frames were over before the
+    // load finished). The scene scan after loading remains the fallback.
+    internal const float AttachWaitSeconds = 30f;
 
     private sealed class ComponentReferenceComparer : IEqualityComparer<Component>
     {
@@ -110,8 +121,14 @@ public class UIBehaviorPatcher : NOVRBehaviour
     {
         lock (PendingLock)
         {
-            if (Pending.TryGetValue(component, out var existing) && existing.Failures > addition.Failures)
-                return;
+            if (Pending.TryGetValue(component, out var existing))
+            {
+                if (existing.Failures > addition.Failures)
+                    return;
+                // A repeated request must not restart an ongoing wait.
+                if (addition.WaitingSince <= 0 && existing.WaitingSince > 0)
+                    addition = new PendingAddition(addition.Behavior, addition.Failures, existing.WaitingSince);
+            }
             Pending[component] = addition;
         }
     }
@@ -182,17 +199,26 @@ public class UIBehaviorPatcher : NOVRBehaviour
             return;
         try
         {
+            GameObject? go = null;
             if (source == null)
             {
                 // A destroyed bound object is finished; a constructor whose
-                // native ID is still zero gets the same bounded readiness retry.
+                // native ID is still zero is waiting to be attached.
                 if (source!.GetInstanceID() != 0)
                     return;
-                throw new InvalidOperationException("UI component is not attached yet");
             }
-            var go = source.gameObject;
+            else
+                go = source.gameObject;
             if (go == null)
-                throw new InvalidOperationException("UI object is not attached yet");
+            {
+                var now = Mathf.Max(Time.realtimeSinceStartup, .001f);
+                var since = addition.WaitingSince > 0 ? addition.WaitingSince : now;
+                if (now - since < AttachWaitSeconds)
+                    Enqueue(source, new PendingAddition(addition.Behavior, addition.Failures, since));
+                else
+                    Debug.LogWarning($"[NOVR] Could not attach {addition.Behavior.Name}: its UI object was still not attached after {AttachWaitSeconds:0} s.");
+                return;
+            }
             if (!go.scene.IsValid() || !go.scene.isLoaded)
                 return;
             if (go.TryGetComponent(addition.Behavior, out Component _))

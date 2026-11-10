@@ -129,6 +129,11 @@ namespace UnityEngine
     public static class Time
     {
         public static float timeScale = 1;
+        public static float realtimeSinceStartup;
+    }
+    public static class Mathf
+    {
+        public static float Max(float a, float b) => Math.Max(a, b);
     }
     public static class Debug
     {

@@ -157,6 +157,47 @@ using (var world = new World())
 
 using (var world = new World())
 {
+    // Attachment during an asynchronous load is a wait measured in time, not
+    // a failure counted in frames: many fast frames can pass before it ends.
+    Time.realtimeSinceStartup = 100;
+    var loading = new StatusDisplay();
+    World.Queue(loading);
+    for (var frame = 0; frame < 500; frame++)
+    {
+        Time.realtimeSinceStartup += .002f;
+        world.Tick();
+    }
+    World.Queue(loading); // A repeated notification must not restart the wait.
+    Check(Debug.Warnings.Count == 0, "Waiting for a loading object is silent however many frames pass");
+    Time.realtimeSinceStartup = 100 + UIBehaviorPatcher.AttachWaitSeconds - 1;
+    world.Tick();
+    loading.gameObject = new GameObject("attached after a long load");
+    loading.Bind();
+    world.Tick();
+    Check(loading.gameObject.Get<NOVRStatusDisplayBehavior>() != null && Debug.Warnings.Count == 0,
+        "An object attached within the wait gets its behavior, with no warning");
+
+    var abandoned = new StatusDisplay();
+    World.Queue(abandoned);
+    world.Tick();
+    Time.realtimeSinceStartup += UIBehaviorPatcher.AttachWaitSeconds + 1;
+    world.Tick();
+    Check(Debug.Warnings.Count == 1 && Debug.Warnings[0].Contains("still not attached"), "An object that never attaches is dropped with one warning");
+    abandoned.gameObject = new GameObject("attached too late");
+    abandoned.gameObject.Components.Add(abandoned);
+    abandoned.Bind();
+    world.Tick();
+    world.Tick();
+    Check(abandoned.gameObject.Get<NOVRStatusDisplayBehavior>() == null && Debug.Warnings.Count == 1, "A dropped request is not retried forever");
+    SceneManager.Load();
+    world.Tick();
+    world.Tick();
+    Check(abandoned.gameObject.Count<NOVRStatusDisplayBehavior>() == 1, "The scan after a scene load still recovers it");
+    Time.realtimeSinceStartup = 0;
+}
+
+using (var world = new World())
+{
     var failing = world.Native<FlightHud>("temporary failure");
     var independent = world.Native<MessageUI>("independent");
     var attempts = 0;

@@ -21,7 +21,8 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
      once, and afterwards saved by
      [`DeferredConfigSave`](../NOVR/Compatibility/DeferredConfigSave.cs) a second
      after the last change and when the game closes. The default rewrote the whole
-     file for each of several hundred binds at every launch.
+     file for each of several hundred binds at every launch and on every step
+     of a dragged slider.
    - [`PatchInstaller`](../NOVR/Compatibility/PatchInstaller.cs) installs each
      Harmony patch class separately. A class is skipped, and reported, when
      Harmony cannot patch it or when

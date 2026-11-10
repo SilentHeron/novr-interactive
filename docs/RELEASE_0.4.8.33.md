@@ -9,10 +9,14 @@
 - A headset that is not ready at launch no longer needs a game restart. The
   desktop window says VR has not started, NOVR tries again three times over the
   first minute, and **F11** tries again after that.
-- Faster launch and smoother menus. Settings were rewritten to disk in full for
-  every one of several hundred settings at each launch (about two seconds
-  here) and on every step of a dragged slider; they are now written once at
-  launch and a second after the last change.
+- Fewer settings writes. The whole settings file was rewritten for every
+  setting bound at launch and on every step of a dragged slider; it is now
+  written once at launch, a second after the last change, and on exit. Three
+  test launches showed no measurable change in time to the main menu, so expect
+  smoother menu sliders rather than a faster start.
+- NOVR's interface is attached to game screens that are still loading by
+  waiting for them (up to 30 seconds) instead of trying on three consecutive
+  frames, which only worked while frames during loading were slow.
 - Less per-frame work. Unit markers are placed without reflection and read both
   camera poses once per frame instead of once per marker; styled HUD graphics
   share one update; cameras are no longer looked up by name every frame; and
