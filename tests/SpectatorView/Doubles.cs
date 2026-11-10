@@ -45,13 +45,15 @@ namespace NuclearOption.MissionEditorScripts { public static class InputFieldChe
 namespace NuclearOption.UI { public static class LeaderboardMenu { public static bool Open; public static bool IsOpen() => Open; } }
 namespace NOVR.MotionControls
 {
-    public struct ControllerSample { public bool Valid, HasAxis; public UnityEngine.Vector2 Axis; }
+    public struct ControllerSample { public bool Valid, HasAxis; public UnityEngine.Vector2 Axis; public float Grip; }
     public static class TrackedControllers
     {
-        public static bool Available = true;
+        public static bool Available = true, Frame;
         public static ControllerSample Left = new() { Valid = true, HasAxis = true }, Right = new() { Valid = true, HasAxis = true };
         public static ControllerSample Read(bool left) => left ? Left : Right;
+        public static bool NativeFrame(bool left) => Frame;
     }
+    internal static class ControllerActions { internal const ControllerButton CockpitReturnButton = ControllerButton.OutsideOrSecondary; }
     public static class NativeHandOptionWheel
     {
         public static bool IsOpen, LeftOwned, RightOwned;
@@ -60,6 +62,16 @@ namespace NOVR.MotionControls
     public static class CockpitLayout { public static bool Active; }
 }
 namespace NOVR.VrUi { public static class WristMenu { public static bool IsOpen; } }
+namespace NOVR
+{
+    public sealed class Setting<T>(T value) { public T Value = value; }
+    public sealed class MotionControlSettings { public readonly Setting<bool> Enabled = new(true), LeftHanded = new(false); }
+    public sealed class ModConfiguration
+    {
+        public static readonly ModConfiguration Instance = new();
+        public readonly MotionControlSettings MotionControls = new();
+    }
+}
 namespace NOVR.VrUi.SpecialBehavior { public static class CockpitHudWidgets { public static bool Editing; } }
 public static class DynamicMap { public static bool mapMaximized; }
 public sealed class ControlMapper { public bool isOpen; }
@@ -69,6 +81,32 @@ public static class GameManager
     public static bool flightControlsEnabled = true;
     public static ControlMapper? controlMapper;
     public static GameState gameState = GameState.SinglePlayer;
+    public static Aircraft? LocalAircraft;
+    public static bool GetLocalAircraft(out Aircraft aircraft) { aircraft = LocalAircraft!; return LocalAircraft != null; }
+}
+public sealed class GameplayUI
+{
+    public readonly List<string> Messages = new();
+    public void GameMessage(string message) => Messages.Add(message);
+}
+public sealed class PilotState { }
+public sealed class Pilot
+{
+    public bool dead;
+    public Aircraft? aircraft;
+    public readonly PilotState playerState = new();
+    public PilotState? currentState;
+    public Pilot() => currentState = playerState;
+}
+public sealed class UnitPart { public bool Detached; public bool IsDetached() => Detached; }
+public sealed class Aircraft : Unit
+{
+    public bool disabled, Ejected;
+    public UnitPart? cockpit = new();
+    public Pilot[]? pilots;
+    public UnityEngine.Transform? cockpitViewPoint = new();
+    public Aircraft() { pilots = new[] { new Pilot { aircraft = this } }; }
+    public bool HasEjected() => Ejected;
 }
 [Flags] public enum CursorFlags { None = 0, GameMenu = 1, Map = 2, SelectionMenu = 4, CameraControlUI = 8 }
 public static class CursorManager
@@ -86,7 +124,7 @@ public sealed class RadialMenuMain
     public static bool IsInUse() => Open;
 }
 public abstract class CameraBaseState { public abstract void UpdateState(CameraStateManager camera); }
-public sealed class Unit { }
+public class Unit { }
 public enum CameraMode { cockpit, orbit, free, chase, tv, selection, relative, encyclopedia }
 public sealed class CameraStateManager
 {
@@ -98,12 +136,21 @@ public sealed class CameraStateManager
     public UnityEngine.Transform? cameraPivot = new();
     public UnityEngine.Vector3 cameraVelocity;
     public readonly CameraOrbitState orbitState = new();
+    public readonly CameraCockpitState cockpitState = new();
+    public readonly CameraFreeState freeState = new();
     public CameraBaseState? currentState;
     public int Switches;
+    // Native: following nothing hands the camera to the free state.
+    public void SetFollowingUnit(Unit? unit)
+    {
+        followingUnit = unit;
+        SwitchState(unit != null ? orbitState : freeState);
+    }
     public void SwitchState(CameraBaseState state)
     {
         currentState = state;
         if (state == orbitState) cameraMode = CameraMode.orbit;
+        else if (state is CameraCockpitState) cameraMode = CameraMode.cockpit;
         else if (state is CameraFreeState) cameraMode = CameraMode.free;
         else if (state is CameraChaseState) cameraMode = CameraMode.chase;
         else if (state is CameraTVState) cameraMode = CameraMode.tv;
@@ -126,6 +173,7 @@ public sealed class CameraFreeState : CameraBaseState
     public override void UpdateState(CameraStateManager camera) { }
 }
 public sealed class CameraChaseState : CameraBaseState { public override void UpdateState(CameraStateManager camera) { } }
+public sealed class CameraCockpitState : CameraBaseState { public override void UpdateState(CameraStateManager camera) { } }
 public sealed class CameraTVState : CameraBaseState { public override void UpdateState(CameraStateManager camera) { } }
 public sealed class CameraSelectionState(UnityEngine.Transform? selectedTarget)
 {

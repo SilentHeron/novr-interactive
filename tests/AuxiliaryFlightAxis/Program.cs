@@ -133,4 +133,81 @@ foreach (var name in new[] { "Throttle", "Pitch", "Custom Axis 2", "custom axis 
 MotionFlightController.Instance = null;
 Check(Dispatch(GameManager.playerInput, "Custom Axis 1", -.4f) == -.4f, "Disabled/missing VR controller preserves native input.");
 
+// Outside view: the virtual handles are suspended and the thumbsticks fly.
+var axes = typeof(PilotMotionInputPatch).GetNestedType("Axes", BindingFlags.NonPublic)!
+    .GetMethod("Postfix", BindingFlags.Static | BindingFlags.NonPublic)!;
+var throttlePostfix = typeof(PilotMotionInputPatch).GetNestedType("Throttle", BindingFlags.NonPublic)!
+    .GetMethod("Postfix", BindingFlags.Static | BindingFlags.NonPublic)!;
+var pilot = new Pilot();
+ControlInputs Fly(float strength = 1)
+{
+    var inputs = new ControlInputs { pitch = .1f, roll = .1f, yaw = .1f };
+    axes.Invoke(null, new object[] { pilot, inputs, strength });
+    return inputs;
+}
+(float Command, float Simulated) Push(float command, bool collective = false, float strength = 1)
+{
+    var inputs = new ControlInputs { throttle = command };
+    object[] args = { pilot, inputs, collective, strength, -9f };
+    throttlePostfix.Invoke(null, args);
+    return (inputs.throttle, (float)args[4]);
+}
+bool Near(float a, float b) => Math.Abs(a - b) < .0001f;
+var suspended = new MotionFlightController { FlightActive = false, StickHeld = true, ThrottleHeld = true, Pitch = -1, Roll = -1, Throttle = 1 };
+MotionFlightController.Instance = suspended;
+ExternalFlightInput.Active = ExternalFlightInput.Flying = true;
+ExternalFlightInput.Pitch = .5f;
+ExternalFlightInput.Roll = -.25f;
+ExternalFlightInput.Yaw = .75f;
+var flown = Fly();
+Check(flown.pitch == .5f && flown.roll == -.25f && flown.yaw == .1f, "Outside view: thumbstick pitch and roll reach the game; rudder stays native until its grip is held.");
+ExternalFlightInput.Rudder = true;
+Check(Fly().yaw == .75f, "Outside view: the rudder thumbstick writes yaw while its grip is held.");
+ExternalFlightInput.Flying = false;
+flown = Fly();
+Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .75f, "An unarmed flight thumbstick leaves native pitch and roll alone.");
+ExternalFlightInput.Flying = true;
+flown = Fly(.1f);
+Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .1f, "A blacked-out pilot gets no outside-view input.");
+ExternalFlightInput.Active = false;
+flown = Fly();
+Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .1f, "Without outside-view flight the native axes are untouched.");
+ExternalFlightInput.Active = true;
+suspended.FlightActive = true;
+flown = Fly();
+Check(flown.pitch == -1 && flown.roll == -1, "A held virtual stick in the cockpit always outranks the thumbsticks.");
+suspended.FlightActive = false;
+
+ExternalFlightInput.Step = .1f;
+var pushed = Push(.4f);
+Check(Near(pushed.Command, .5f) && Near(pushed.Simulated, .5f), "Outside view: a throttle step moves the game's command and seeds its accumulator.");
+pushed = Push(.4f);
+Check(pushed.Command == .4f && pushed.Simulated == -9f, "A throttle step is applied once; without one the native throttle is untouched.");
+ExternalFlightInput.Step = .9f;
+Check(Near(Push(.4f).Command, 1f), "Throttle steps clamp at full power.");
+ExternalFlightInput.Step = -.9f;
+Check(Near(Push(.4f).Command, 0f), "Throttle steps clamp at idle.");
+PlayerSettings.throttleUseNegative = true;
+ExternalFlightInput.Step = .1f;
+Check(Near(Push(.4f).Simulated, 0f), "The seeded accumulator honours the negative-range throttle setting.");
+PlayerSettings.throttleUseNegative = false;
+PlayerSettings.invertCollective = true;
+ExternalFlightInput.Step = .1f;
+pushed = Push(.4f, collective: true);
+Check(Near(pushed.Command, .5f) && Near(pushed.Simulated, .5f), "The seeded accumulator honours an inverted collective.");
+ExternalFlightInput.Step = .25f;
+pushed = Push(.5f, collective: true);
+Check(Near(pushed.Command, .75f) && Near(pushed.Simulated, .25f), "An inverted collective stores the mirrored binding value.");
+PlayerSettings.invertCollective = false;
+ExternalFlightInput.Step = .1f;
+Check(Push(.4f, strength: .1f).Command == .4f, "A blacked-out pilot cannot move the throttle from outside.");
+ExternalFlightInput.Step = .1f;
+pushed = Push(float.NaN);
+Check(float.IsNaN(pushed.Command) && pushed.Simulated == -9f, "An invalid native throttle is never rewritten.");
+ExternalFlightInput.Active = false;
+ExternalFlightInput.Step = .1f;
+Check(Push(.4f).Command == .4f, "Throttle steps do nothing once outside-view flight ends.");
+ExternalFlightInput.Step = 0;
+MotionFlightController.Instance = null;
+
 Console.WriteLine($"PASS {passed} source-linked auxiliary-axis checks (controller/game boundaries doubled; no native physics/headset).");

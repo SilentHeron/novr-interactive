@@ -73,6 +73,12 @@ namespace NOVR.MotionControls
         internal static ControllerSample Left, Right;
         internal static ControllerSample Read(bool left) => left ? Left : Right;
     }
+    // Outside-view thumbstick flight; its own rules have their own suite.
+    internal static class ExternalFlightInput
+    {
+        internal static bool Active;
+        internal static bool Sample() => Active;
+    }
     internal static class HelmetNightVision
     {
         internal static bool Owns;
@@ -92,6 +98,20 @@ namespace NOVR.MotionControls
         internal bool raycastTarget;
         internal float Progress;
         internal void Show(Sprite? sprite) => gameObject.SetActive(true);
+    }
+}
+namespace NOVR.VrCamera
+{
+    // The camera rules themselves are covered by the spectator-input suite;
+    // the wheel only asks what to offer and reports what was chosen.
+    internal static class PilotView
+    {
+        internal static bool CanGoExternal, CanGoCockpit, CanReleaseTarget;
+        internal static readonly List<string> Calls = new();
+        internal static bool ToExternal() { Calls.Add("outside"); return CanGoExternal; }
+        internal static bool ToCockpit() { Calls.Add("cockpit"); return CanGoCockpit; }
+        internal static bool ReleaseTarget() { Calls.Add("free"); return CanReleaseTarget; }
+        internal static void Reset() { CanGoExternal = CanGoCockpit = CanReleaseTarget = false; Calls.Clear(); }
     }
 }
 namespace NOVR.VrUi.SpecialBehavior

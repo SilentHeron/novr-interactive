@@ -10,18 +10,25 @@ namespace NOVR.MotionControls;
 internal sealed class NativeWheelMenuEntries : IDisposable
 {
     private readonly List<(Transform transform, Vector3 position, Quaternion rotation, Image? sector, float fill)> _originals = new();
-    private readonly Image?[] _sectors = new Image?[2];
-    private readonly GameObject?[] _labels = new GameObject?[2];
-    private readonly Color[] _idle = new Color[2];
-    internal const int Count = 2;
+    private const int MaxCount = 3;
+    private readonly Image?[] _sectors = new Image?[MaxCount];
+    private readonly GameObject?[] _labels = new GameObject?[MaxCount];
+    private readonly Color[] _idle = new Color[MaxCount];
+    // Game menu and VR menu always; the outside view only while it can be used.
+    internal int Count
+    {
+        get;
+    }
     internal int Index
     {
         get;
     }
 
-    internal NativeWheelMenuEntries(Transform parent, List<GameObject> nativeObjects, int nativeCount, GameObject sectorTemplate)
+    internal NativeWheelMenuEntries(Transform parent, List<GameObject> nativeObjects, int nativeCount, GameObject sectorTemplate,
+        bool outsideView = false)
     {
         Index = nativeCount;
+        Count = outsideView ? MaxCount : MaxCount - 1;
         if (nativeObjects.Count != nativeCount * 2)
             throw new InvalidOperationException("Native wheel entry layout changed");
         // Native SetupMain stores an icon followed by its radial sector.
@@ -51,7 +58,7 @@ internal sealed class NativeWheelMenuEntries : IDisposable
             }
             for (var slot = 0; slot < Count; slot++)
             {
-                var label = slot == 0 ? "GAME" : "VR";
+                var label = slot == 0 ? "GAME" : slot == 1 ? "VR" : "OUTSIDE";
                 var sectorObject = UnityEngine.Object.Instantiate(source, parent);
                 var sector = _sectors[slot] = sectorObject.GetComponent<Image>();
                 sectorObject.name = "NOVR " + label + " Menu sector";
@@ -64,11 +71,11 @@ internal sealed class NativeWheelMenuEntries : IDisposable
                 var text = labelObject.GetComponent<Text>();
                 text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 text.fontSize = 14;
-                text.text = label + "\nMENU";
+                text.text = label + (slot == 2 ? "\nVIEW" : "\nMENU");
                 text.alignment = TextAnchor.MiddleCenter;
                 text.color = Color.white;
                 text.raycastTarget = false;
-                text.rectTransform.sizeDelta = new Vector2(64, 42);
+                text.rectTransform.sizeDelta = new Vector2(slot == 2 ? 84 : 64, 42);
             }
         }
         catch { Dispose(); throw; }
@@ -90,7 +97,8 @@ internal sealed class NativeWheelMenuEntries : IDisposable
     }
 
     internal NativeWheelMenuAction ActionAt(int index) => index == Index ? NativeWheelMenuAction.GameMenu :
-        index == Index + 1 ? NativeWheelMenuAction.VrMenu : NativeWheelMenuAction.None;
+        index == Index + 1 ? NativeWheelMenuAction.VrMenu :
+        index == Index + 2 && Count == MaxCount ? NativeWheelMenuAction.OutsideView : NativeWheelMenuAction.None;
 
     internal void Hover(NativeWheelMenuAction action)
     {
@@ -115,7 +123,7 @@ internal sealed class NativeWheelMenuEntries : IDisposable
                 original.sector.fillAmount = original.fill;
         }
         _originals.Clear();
-        for (var slot = 0; slot < Count; slot++)
+        for (var slot = 0; slot < MaxCount; slot++)
         {
             if (_sectors[slot] != null)
                 UnityEngine.Object.Destroy(_sectors[slot]!.gameObject);

@@ -73,6 +73,15 @@ changes and excludes the spawn map and aircraft selection. The outside-aircraft
 wheel owns its menu/map actions without borrowing the aircraft's native wheel.
 Native wheel blocking checks require an active/enabled owner: its child can
 remain activeSelf under the inactive spectator HUD before the first spawn.
+With nothing followed, the same input drives the game's free camera, still
+excluding the map and selection pages. [`PilotView`](../NOVR/VrCamera/PilotView.cs)
+switches a flying pilot between the cockpit and the native orbit camera with
+the same guarded `SwitchState` calls as the game's own camera buttons, and
+releases a spectator's followed unit into the free camera. While the pilot
+flies from outside, [`ExternalFlightInput`](../NOVR/FlightControls/ExternalFlightInput.cs)
+owns the thumbsticks: it writes pitch, roll, rudder and throttle in the same
+pilot-input postfixes as the virtual handles, and hands only the camera part
+to `SpectatorCameraInput`.
 Map access uses the native Maximize/Minimize lifecycle and does not require a
 cached local player or aircraft. Opening locks still belong to native UI; closing
 an existing map remains possible without changing the followed unit.

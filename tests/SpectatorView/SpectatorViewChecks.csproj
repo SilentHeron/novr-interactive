@@ -6,5 +6,9 @@
     <Compile Include="../../NOVR/VrCamera/CameraOrbitStatePatch.cs" Link="CameraOrbitStatePatch.cs" />
     <Compile Include="../../NOVR/VrCamera/CameraSelectionStatePatch.cs" Link="CameraSelectionStatePatch.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuState.cs" Link="NativeRadialMenuState.cs" />
+    <Compile Include="../../NOVR/VrCamera/PilotView.cs" Link="PilotView.cs" />
+    <Compile Include="../../NOVR/FlightControls/ExternalFlightSticks.cs" Link="ExternalFlightSticks.cs" />
+    <Compile Include="../../NOVR/FlightControls/ExternalFlightInput.cs" Link="ExternalFlightInput.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
   </ItemGroup>
 </Project>

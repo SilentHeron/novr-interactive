@@ -146,14 +146,15 @@ internal static class NativeInputChecks
             Check(camera.orbitState.Pan > 0 && camera.orbitState.Distance > 0,
                 "Stereo spectator input works in supported gameplay without any flat-presentation service: " + state);
         }
-        foreach (var excluded in new[] { "unspawned", "selection camera", "map cursor", "selection cursor", "maximized map" })
+        foreach (var excluded in new[] { "selection camera", "map cursor", "selection cursor", "maximized map" })
         {
             Fresh();
             var blockedFree = new CameraFreeState();
             camera.currentState = blockedFree;
             CameraStateManager.cameraMode = CameraMode.free;
+            // Nothing followed: the free camera a spawn map or selection page sits over.
+            camera.followingUnit = null;
             Axis(0, 0, 0, 0); freeHook.Invoke(null, new object[] { blockedFree, camera });
-            if (excluded == "unspawned") camera.followingUnit = null;
             if (excluded == "selection camera") CameraStateManager.cameraMode = CameraMode.selection;
             if (excluded == "map cursor") CursorManager.Flags = CursorFlags.Map;
             if (excluded == "selection cursor") CursorManager.Flags = CursorFlags.SelectionMenu;
@@ -171,6 +172,32 @@ internal static class NativeInputChecks
             CursorManager.Flags = CursorFlags.None;
             DynamicMap.mapMaximized = false;
         }
+        // A spectator who follows nothing (joined as spectator, or closed the
+        // spawn map) roams with the game's free camera.
+        Fresh();
+        var roam = new CameraFreeState();
+        camera.currentState = roam;
+        camera.followingUnit = null;
+        CameraStateManager.cameraMode = CameraMode.free;
+        Axis(0, 0, 0, 0); freeHook.Invoke(null, new object[] { roam, camera });
+        Axis(1, 1, 1, 1); freeHook.Invoke(null, new object[] { roam, camera });
+        Check(roam.Pan > 0 && roam.Tilt < 0 && !roam.Track && camera.cameraVelocity.x > 0 && camera.cameraVelocity.z > 0,
+            "Free camera with nothing followed looks with the right stick and moves with the left");
+        var walk = camera.cameraVelocity.z;
+        Fresh();
+        roam = new CameraFreeState();
+        camera.currentState = roam;
+        camera.followingUnit = null;
+        CameraStateManager.cameraMode = CameraMode.free;
+        Axis(0, 0, 0, 0); freeHook.Invoke(null, new object[] { roam, camera });
+        TrackedControllers.Left.Grip = 1;
+        Axis(1, 1, 1, 1); freeHook.Invoke(null, new object[] { roam, camera });
+        TrackedControllers.Left.Grip = 0;
+        Check(Math.Abs(camera.cameraVelocity.z - walk * 10) < .001f, "Holding a grip moves the free camera ten times faster, as Shift does natively");
+        Fresh();
+        camera.followingUnit = null;
+        Orbit(); Orbit(rx: 1);
+        Check(camera.orbitState.Pan == 0, "An orbit camera with no target still takes no stick input");
         Check(Debug.Warnings == 0, "Verified native input contract produces no fallback warnings");
         return checks;
     }

@@ -28,11 +28,16 @@ internal static class SpectatorCameraInput
     private static Unit? _target;
     private static int _sampleFrame = -1, _consumedFrame = -1;
     private static SpectatorStickMotion _motion;
-    private static bool _warned;
+    private static bool _warned, _piloted, _boost;
+    // The game's free camera moves ten times faster with Shift held.
+    private const float FreeAcceleration = 120f, FreeBoost = 10f, GripHeld = .55f;
 
     private static SpectatorStickMotion Sample(CameraStateManager cam)
     {
-        var changed = _camera != cam || _state != cam.currentState || _target != cam.followingUnit;
+        // Flying the local aircraft from outside: its thumbsticks belong to
+        // ExternalFlightInput, which hands over only the camera part.
+        var piloted = ExternalFlightInput.Sample();
+        var changed = _camera != cam || _state != cam.currentState || _target != cam.followingUnit || _piloted != piloted;
         if (_sampleFrame == Time.frameCount && !changed)
             return _motion;
         if (changed || _sampleFrame != Time.frameCount - 1)
@@ -40,13 +45,22 @@ internal static class SpectatorCameraInput
         _camera = cam;
         _state = cam.currentState;
         _target = cam.followingUnit;
+        _piloted = piloted;
         _sampleFrame = Time.frameCount;
+        if (piloted)
+        {
+            _boost = false;
+            return _motion = ExternalFlightInput.TakeCamera(cam, out var camera) ? camera : default;
+        }
         var spectatorMode = CameraStateManager.cameraMode == CameraMode.orbit ||
             CameraStateManager.cameraMode == CameraMode.free || CameraStateManager.cameraMode == CameraMode.chase ||
             CameraStateManager.cameraMode == CameraMode.tv;
-        // An unspawned/free camera or an aircraft preview is not active
-        // spectating. Map and selection pages keep their existing controls.
-        var available = XRSettings.enabled && spectatorMode && cam.followingUnit != null &&
+        // Following a unit, or roaming with the game's free camera when nothing
+        // is followed (a spectator who has not picked a unit, or a player who
+        // closed the spawn map). An aircraft preview is neither, and the map and
+        // selection pages below keep their own controls.
+        var following = cam.followingUnit != null || CameraStateManager.cameraMode == CameraMode.free;
+        var available = XRSettings.enabled && spectatorMode && following &&
             (GameManager.gameState == GameState.SinglePlayer || GameManager.gameState == GameState.Multiplayer) &&
             (CursorManager.GetFlags() & (CursorFlags.Map | CursorFlags.SelectionMenu)) == CursorFlags.None &&
             TrackedControllers.Available &&
@@ -59,6 +73,7 @@ internal static class SpectatorCameraInput
             !NativeRadialMenuState.IsBlockingInput;
         var left = available ? TrackedControllers.Read(true) : default;
         var right = available ? TrackedControllers.Read(false) : default;
+        _boost = left.Valid && left.Grip >= GripHeld || right.Valid && right.Grip >= GripHeld;
         return _motion = Input.Update(available, left.Valid && left.HasAxis, right.Valid && right.HasAxis,
             left.Axis.x, left.Axis.y, right.Axis.x, right.Axis.y, Time.unscaledDeltaTime);
     }
@@ -97,7 +112,8 @@ internal static class SpectatorCameraInput
             FreeTrack.SetValue(state, false);
             // Feed the existing velocity integrator, retaining native damping
             // and ground clearance, without synthesizing flight-control axes.
-            cam.cameraVelocity += (cam.transform.right * motion.PanX + cam.transform.forward * motion.PanForward) * 120f;
+            cam.cameraVelocity += (cam.transform.right * motion.PanX + cam.transform.forward * motion.PanForward) *
+                (_boost ? FreeAcceleration * FreeBoost : FreeAcceleration);
         }
         catch (Exception error) { Warn(error); }
     }

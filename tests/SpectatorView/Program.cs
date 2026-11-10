@@ -45,4 +45,5 @@ foreach (var dt in new[] { 1f / 60, 1f / 90, 1f / 144 })
 }
 checks += NativeInputChecks.Run();
 checks += SelectionViewChecks.Run();
+checks += OutsideFlightChecks.Run();
 Console.WriteLine($"{checks} spectator policy/input checks passed (native/Unity boundary doubles; no in-headset rendering claim).");

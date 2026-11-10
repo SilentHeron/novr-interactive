@@ -33,7 +33,7 @@ internal sealed partial class ControllerBindingPanel
         AddButton("Visual controller diagram", 1, 0, OpenDiagram);
         AddButton("Weapons & targets", 0, 1, () => ShowPage(weapons!));
         AddButton("Flight & defense", 1, 1, () => ShowPage(flight!));
-        AddButton("Menu & map", 0, 2, () => ShowPage(system!));
+        AddButton("Menu, map & view", 0, 2, () => ShowPage(system!));
         AddButton("Restore defaults…", 1, 2, () => { _editingProfile = Bindings.EffectiveProfile; ShowPage(_bindingResetPage!); });
         _bindingUndo = AddButton("Undo last change", 0, 3, () =>
         {
@@ -46,8 +46,8 @@ internal sealed partial class ControllerBindingPanel
             ControllerActionId.SelectTarget, ControllerActionId.UnlockTarget, ControllerActionId.NextWeapon, ControllerActionId.ClearTargets });
         flight = BindingGroup("FLIGHT & DEFENSE", new[] { ControllerActionId.Countermeasures, ControllerActionId.NextCountermeasure,
             ControllerActionId.Brake, ControllerActionId.Gear, ControllerActionId.Radar, ControllerActionId.FlightAssist,
-            ControllerActionId.HoverAssist });
-        system = BindingGroup("MENU & MAP", new[] { ControllerActionId.WristMenu, ControllerActionId.Map });
+            ControllerActionId.HoverAssist, ControllerActionId.NavLights });
+        system = BindingGroup("MENU, MAP & VIEW", new[] { ControllerActionId.WristMenu, ControllerActionId.Map, ControllerActionId.ChangeView });
 
         _bindingEditPage = Page("EDIT BINDING");
         AddLiveButton(() => "Hand: " + RoleName(_pendingBinding.Hand), 0, 0, () =>

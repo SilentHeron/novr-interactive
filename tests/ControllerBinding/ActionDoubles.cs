@@ -159,8 +159,57 @@ namespace NOVR.VrUi.SpecialBehavior
         public static bool ReservesButton(bool left, NOVR.MotionControls.ControllerButton button, bool frame) => Reserved;
     }
 }
+namespace NOVR.VrCamera
+{
+    // The camera rules are covered by the spectator-input suite. Here the
+    // dispatcher only asks what is possible and requests a change.
+    public static class PilotView
+    {
+        public static bool External, CanGoExternal, CanGoCockpit;
+        public static int CockpitRequests, ToggleRequests;
+        public static bool ToCockpit()
+        {
+            CockpitRequests++;
+            if (!CanGoCockpit)
+                return false;
+            External = CanGoCockpit = false;
+            CanGoExternal = true;
+            CameraStateManager.cameraMode = CameraMode.cockpit;
+            // The real sampler stops as soon as the camera is in the cockpit.
+            NOVR.MotionControls.ExternalFlightInput.Active = false;
+            return true;
+        }
+        public static bool Toggle()
+        {
+            ToggleRequests++;
+            if (CanGoCockpit)
+            {
+                var done = ToCockpit();
+                CockpitRequests--; // counted as a toggle, not as a B press
+                return done;
+            }
+            if (!CanGoExternal)
+                return false;
+            External = CanGoCockpit = true;
+            CanGoExternal = false;
+            CameraStateManager.cameraMode = CameraMode.external;
+            return true;
+        }
+        public static void Reset()
+        {
+            External = CanGoExternal = CanGoCockpit = false;
+            CockpitRequests = ToggleRequests = 0;
+        }
+    }
+}
 namespace NOVR.MotionControls
 {
+    // Outside-view thumbstick flight; its own gating has its own suite.
+    public static class ExternalFlightInput
+    {
+        public static bool Active;
+        public static bool Sample() => Active;
+    }
     public sealed class MotionFlightController
     {
         public static MotionFlightController Instance = new();

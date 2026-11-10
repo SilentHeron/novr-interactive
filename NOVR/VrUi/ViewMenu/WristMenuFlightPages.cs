@@ -38,6 +38,8 @@ internal sealed partial class WristMenu
         _hoverButton = hoverLabel.transform.parent.GetComponent<Button>();
         _liveLabels.Add((hoverLabel, () => !GameManager.GetLocalAircraft(out var a) || a.GetControlsFilter()?.HasAutoHover() != true
             ? "Hover: not fitted" : a.radarAlt < 1f ? "Hover: ground locked" : $"Hover assist: {(a.IsAutoHoverEnabled() ? "ON" : "OFF")}"));
+        var viewLabel = ActionButton(parent, "Outside view", 0, -72, () => ControllerActions.Instance?.RequestViewChange());
+        _liveLabels.Add((viewLabel, () => CameraStateManager.cameraMode == CameraMode.cockpit ? "Outside view" : "Cockpit view"));
         Section(parent, "Emergency", -158);
         ActionButton(parent, "Eject…", 0, -213, AskToEject, true);
     }

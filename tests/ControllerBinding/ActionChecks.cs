@@ -1,6 +1,7 @@
 using System.Reflection;
 using BepInEx.Configuration;
 using NOVR.MotionControls;
+using NOVR.VrCamera;
 using NOVR.VrUi;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
@@ -17,6 +18,7 @@ internal static class ActionChecks
         (ControllerActionId.Gear, NativeControllerAction.Gear, Delivery.Queued, false),
         (ControllerActionId.FlightAssist, NativeControllerAction.FlightAssist, Delivery.Queued, false),
         (ControllerActionId.HoverAssist, NativeControllerAction.AutoHover, Delivery.Queued, false),
+        (ControllerActionId.NavLights, NativeControllerAction.NavLights, Delivery.Queued, false),
         (ControllerActionId.Guns, NativeControllerAction.Guns, Delivery.Held, true),
         (ControllerActionId.WeaponRelease, NativeControllerAction.WeaponRelease, Delivery.Held, true),
         (ControllerActionId.Countermeasures, NativeControllerAction.Countermeasures, Delivery.Held, true),
@@ -239,6 +241,168 @@ internal static class ActionChecks
         staleGrip.TickMap(false);
         check(staleGrip.Hud.LastCleared == 0, "External camera never unselects a combat target on map-button release");
         GameManager.LocalPlayer = null;
+        DynamicMap.mapMaximized = false;
+
+        // ---- Outside view: flying the local aircraft from the orbit camera ----
+        // No handles exist there, so buttons work as if their handle were held.
+        void Outside(bool motion = true)
+        {
+            var handles = MotionFlightController.Instance;
+            handles.FlightActive = handles.StickHeld = handles.ThrottleHeld = false;
+            CameraStateManager.cameraMode = CameraMode.external;
+            ExternalFlightInput.Active = motion;
+            PilotView.External = PilotView.CanGoCockpit = true;
+            PilotView.CanGoExternal = false;
+        }
+        foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+            foreach (var leftHanded in new[] { false, true })
+            {
+                var label = $"{profile} left={leftHanded}: ";
+                var guns = Start(ControllerActionId.Guns, true, profile, leftHanded);
+                Outside();
+                guns.Tick(false); guns.Tick(true);
+                check(guns.Actions.Held(NativeControllerAction.Guns), label + "outside view fires without a handle to hold");
+                guns.Tick(false);
+                check(!guns.Actions.Held(NativeControllerAction.Guns), label + "releasing the button stops firing");
+                ExternalFlightInput.Active = false;
+                guns.Tick(false); guns.Tick(true);
+                check(!guns.Actions.Held(NativeControllerAction.Guns), label + "outside view without thumbstick flight keeps flight buttons off");
+
+                var gear = Start(ControllerActionId.Gear, false, profile, leftHanded);
+                Outside();
+                gear.Tick(false); gear.Tick(true); gear.Tick(false); gear.Tick(false);
+                check(gear.Actions.Queued(NativeControllerAction.Gear), label + "queued aircraft actions reach the game from the outside view");
+                gear = Start(ControllerActionId.Gear, false, profile, leftHanded);
+                Outside();
+                gear.Tick(false); gear.Tick(true); gear.Tick(false);
+                PilotView.External = false; // spectating someone else, same camera mode
+                gear.Tick(false);
+                check(!gear.Actions.Queued(NativeControllerAction.Gear), label + "a spectator camera never dispatches aircraft actions");
+
+                // Thumbstick click stays free for the quick wheel.
+                var click = Start(ControllerActionId.SelectTarget, true, profile, leftHanded);
+                click.Bindings.Set(ControllerActionId.SelectTarget, new(ControllerButton.StickClick, ControllerHandRole.Stick));
+                Outside();
+                click.TickStickClick(false); click.TickStickClick(true); click.TickStickClick(false);
+                check(!click.Actions.Released(NativeControllerAction.Select), label + "thumbstick click is never a flight button in the outside view");
+
+                // The stick hand's B returns to the cockpit and outranks its bindings.
+                var unlock = Start(ControllerActionId.UnlockTarget, true, profile, leftHanded);
+                unlock.Bindings.Set(ControllerActionId.UnlockTarget, new(ControllerActions.CockpitReturnButton, ControllerHandRole.Stick));
+                unlock.Bindings.Set(ControllerActionId.Map, new(ControllerActions.CockpitReturnButton, ControllerHandRole.Stick));
+                GameManager.LocalPlayer = new();
+                var map = SceneSingleton<DynamicMap>.i = new();
+                SceneSingleton<CameraStateManager>.i = new();
+                SceneSingleton<GameplayUI>.i = new();
+                SceneSingleton<MapOptions>.i = new();
+                Outside();
+                unlock.TickMap(false); unlock.TickMap(true);
+                check(PilotView.CockpitRequests == 1 && CameraStateManager.cameraMode == CameraMode.cockpit && !PilotView.External,
+                    label + "B on the stick hand returns from the outside view to the cockpit");
+                check(map.Opens == 0 && unlock.Hud.LastCleared == 0, label + "that press neither opens the map nor unselects a target");
+                unlock.TickMap(true); unlock.TickMap(true);
+                check(PilotView.CockpitRequests == 1 && map.Opens == 0, label + "holding B through the change does nothing more");
+                unlock.TickMap(false);
+                check(unlock.Hud.LastCleared == 0 && map.Opens == 0, label + "releasing B after the change is not a click in the cockpit");
+                unlock.TickMap(true);
+                check(map.Opens == 1, label + "back in the cockpit with a free hand, a fresh B press is the map button again");
+                DynamicMap.mapMaximized = false;
+
+                // The same button on the other hand keeps its binding.
+                var other = Start(ControllerActionId.Gear, false, profile, leftHanded);
+                other.Bindings.Set(ControllerActionId.Gear, new(ControllerActions.CockpitReturnButton, ControllerHandRole.Throttle));
+                Outside();
+                other.TickMap(false, throttleHand: true); other.TickMap(true, throttleHand: true);
+                other.TickMap(false, throttleHand: true); other.TickMap(false, throttleHand: true);
+                check(other.Actions.Queued(NativeControllerAction.Gear) && PilotView.CockpitRequests == 0,
+                    label + "only the stick hand's B is reserved; the other hand keeps its binding");
+
+                // A physical HOTAS (motion controls off) still gets the way back.
+                var hotas = Start(ControllerActionId.Guns, true, profile, leftHanded);
+                Outside(motion: false);
+                hotas.TickMap(false); hotas.TickMap(true);
+                check(PilotView.CockpitRequests == 1 && CameraStateManager.cameraMode == CameraMode.cockpit,
+                    label + "B returns to the cockpit even without thumbstick flight");
+                foreach (var blocked in new[] { "wrist menu", "layout", "wheel", "tracking" })
+                {
+                    var f = Start(ControllerActionId.Guns, true, profile, leftHanded);
+                    Outside();
+                    f.TickMap(false);
+                    if (blocked == "wrist menu") WristMenu.IsOpen = true;
+                    if (blocked == "layout") CockpitLayout.Active = true;
+                    if (blocked == "wheel") NativeHandOptionWheel.IsOpen = true;
+                    if (blocked == "tracking") TrackedControllers.Available = false;
+                    f.TickMap(true);
+                    check(PilotView.CockpitRequests == 0, label + "B does not change view under: " + blocked);
+                    WristMenu.IsOpen = CockpitLayout.Active = NativeHandOptionWheel.IsOpen = false;
+                    TrackedControllers.Available = true;
+                    f.TickMap(true);
+                    check(PilotView.CockpitRequests == 0, label + "a press held through a blocked moment is not replayed: " + blocked);
+                }
+
+                // Change view: an optional button that works both ways, no handle needed.
+                var view = Start(ControllerActionId.ChangeView, false, profile, leftHanded);
+                var handlesFree = MotionFlightController.Instance;
+                handlesFree.StickHeld = handlesFree.ThrottleHeld = false;
+                PilotView.CanGoExternal = true;
+                view.Tick(false); view.Tick(true);
+                check(PilotView.ToggleRequests == 1 && CameraStateManager.cameraMode == CameraMode.external,
+                    label + "the change-view button leaves the cockpit with free hands");
+                view.Tick(true); view.Tick(true);
+                check(PilotView.ToggleRequests == 1, label + "holding it does not flip the view back");
+                view.Tick(false); view.Tick(true);
+                check(PilotView.ToggleRequests == 2 && CameraStateManager.cameraMode == CameraMode.cockpit,
+                    label + "a second press returns to the cockpit");
+                view = Start(ControllerActionId.ChangeView, false, profile, leftHanded);
+                view.Tick(false); view.Tick(true);
+                check(PilotView.ToggleRequests == 0, label + "with no view to change to, the button does nothing");
+                view = Start(ControllerActionId.ChangeView, false, profile, leftHanded);
+                PilotView.CanGoExternal = true;
+                WristMenu.IsOpen = true;
+                view.Actions.RequestViewChange();
+                check(!WristMenu.IsOpen && PilotView.ToggleRequests == 0, label + "the wrist menu's view button closes the menu first");
+                view.Tick(false);
+                check(PilotView.ToggleRequests == 1 && CameraStateManager.cameraMode == CameraMode.external,
+                    label + "and the view changes on the next update");
+                view.Tick(false);
+                check(PilotView.ToggleRequests == 1, label + "a wrist-menu request is served once");
+                view.Actions.RequestViewChange();
+                Time.frameCount += 5; // updates missed, for example while editing the HUD layout
+                view.Tick(false);
+                check(PilotView.ToggleRequests == 1, label + "a stale wrist-menu request never changes the view later");
+            }
+        GameManager.LocalPlayer = null;
+        PilotView.Reset();
+        ExternalFlightInput.Active = false;
+        CameraStateManager.cameraMode = CameraMode.cockpit;
+
+        // Binding rules for the two new actions.
+        foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+        {
+            var frame = profile == ControllerBindingProfile.Frame;
+            check(ControllerBindingDefaults.Get(profile, ControllerActionId.ChangeView).Button == ControllerButton.None &&
+                  ControllerBindingDefaults.Get(profile, ControllerActionId.NavLights).Button == ControllerButton.None,
+                $"{profile}: change view and nav lights start unassigned, so no existing layout changes");
+            check(!ControllerBindingDefaults.RequiresGrip(ControllerActionId.ChangeView) && ControllerBindingDefaults.RequiresGrip(ControllerActionId.NavLights),
+                "Change view works with free hands; nav lights is a flight button");
+            check(!ControllerBindingDefaults.IsBindingAvailable(profile, false, ControllerActionId.ChangeView, ControllerButton.Trigger) &&
+                  !ControllerBindingDefaults.IsBindingAvailable(profile, false, ControllerActionId.ChangeView, ControllerButton.StickClick) &&
+                  ControllerBindingDefaults.IsBindingAvailable(profile, false, ControllerActionId.ChangeView, ControllerButton.Primary) &&
+                  ControllerBindingDefaults.IsBindingAvailable(profile, false, ControllerActionId.NavLights, ControllerButton.StickClick),
+                $"{profile}: change view cannot take the pointer trigger or the quick-wheel click");
+            var a = new ControllerActionBinding(ControllerButton.Primary, ControllerHandRole.Stick);
+            check(ControllerBindingDefaults.Conflict(ControllerActionId.ChangeView, a, ControllerActionId.WeaponRelease, a, false, frame) &&
+                  ControllerBindingDefaults.Conflict(ControllerActionId.ChangeView, a, ControllerActionId.Map, a, false, frame) &&
+                  ControllerBindingDefaults.Conflict(ControllerActionId.ChangeView, a, ControllerActionId.WristMenu, a, false, frame),
+                $"{profile}: change view needs a button of its own");
+            check(!ControllerBindingDefaults.Conflict(ControllerActionId.NavLights, a, ControllerActionId.Map, a, false, frame) &&
+                  ControllerBindingDefaults.Conflict(ControllerActionId.NavLights, a, ControllerActionId.Gear, a, false, frame),
+                $"{profile}: nav lights follows the rules of the other flight buttons");
+        }
+        check(ControllerBindingDefaults.ActionLabel(ControllerActionId.ChangeView) == "Change view" &&
+              ControllerBindingDefaults.ActionLabel(ControllerActionId.NavLights) == "Nav lights", "The new actions have plain labels");
+        check((int)ControllerActionId.ChangeView == 15 && (int)ControllerActionId.NavLights == 16 && (int)ControllerActionId.HoverAssist == 14,
+            "New actions are appended; existing action ids, and with them saved settings, do not move");
     }
 
     private sealed class Fixture
@@ -269,8 +433,17 @@ internal static class ActionChecks
             CockpitMapInteraction.Reserved = CockpitLayout.Active = DynamicMap.mapMaximized = false;
             CursorManager.Flags = CursorFlags.None;
             CameraStateManager.cameraMode = CameraMode.cockpit;
+            ExternalFlightInput.Active = false;
+            PilotView.Reset();
             SceneSingleton<CombatHUD>.i = Hud;
             Invoke("Awake");
+        }
+        internal void TickStickClick(bool pressed)
+        {
+            Time.frameCount++;
+            TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
+            TrackedControllers.Samples[_left ? 0 : 1].StickClick = pressed;
+            Invoke("Update");
         }
         internal void Tick(bool pressed)
         {
@@ -287,11 +460,11 @@ internal static class ActionChecks
             MotionFlightController.Instance!.ThrottleHeld = held;
             Invoke("Update");
         }
-        internal void TickMap(bool pressed)
+        internal void TickMap(bool pressed, bool throttleHand = false)
         {
             Time.frameCount++;
             TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
-            var hand = _left ? 0 : 1;
+            var hand = _left != throttleHand ? 0 : 1;
             if (_frame)
                 TrackedControllers.Samples[hand].Outside = pressed;
             else

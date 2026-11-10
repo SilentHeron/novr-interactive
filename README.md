@@ -42,6 +42,8 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | Wheel / air brake | Left trigger | Left trigger | Throttle held |
 | Nozzle tilt / wing sweep / pusher fans | Left thumbstick up/down | Left thumbstick up/down | Throttle or collective held |
 | Map / respawn | B | B | Stick hand free, or spectating; press again to close |
+| Outside view | Quick wheel → OUTSIDE VIEW | Quick wheel → OUTSIDE VIEW | In the cockpit, that hand free |
+| Back to the cockpit | B | B | Outside view |
 | VR View menu | Left View | Left Menu, or wheel → VR MENU | Either grip state for button; free hand for wheel |
 | Quick wheel | Either thumbstick click | Either thumbstick click | That hand free |
 | Reopen layout menu | Either thumbstick click | Either thumbstick click | Edit layout active |
@@ -54,7 +56,11 @@ For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled
 
 **Outside an aircraft:** thumbstick click opens a wheel with **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**, including while dead, waiting to spawn or spectating. After a crash that leaves your pilot alive in a detached cockpit or wrecked airframe, the same wheel adds **EJECT** (same centred 1.2-second hold); ejecting is what unlocks respawn in that case. **B** also toggles the map on Frame and Quest with the default right-handed layout (left-hand Y on Quest when mirrored). Closing the map returns to the same spectator target.
 
-**Spectating:** a full VR view follows the selected unit from the game’s normal external camera distance. Right stick orbits; left stick up/down moves closer/farther. Center the sticks after menus to resume camera control. The spawn map and aircraft-selection pages keep their normal presentation and controls.
+**Outside view:** pick **OUTSIDE VIEW** on the quick wheel (or **View → Flight actions**) to look at your aircraft from the game's orbit camera and keep flying. The virtual handles stay in the cockpit, so the thumbsticks take over: the right stick is the flight stick (pull back for nose up) and the left stick looks around the aircraft. Hold the left grip and the left stick becomes throttle (up/down) and rudder (left/right); hold the right grip and the left stick moves the camera closer or farther. Buttons act as bound without a handle to hold. **B** returns to the cockpit, as does **COCKPIT VIEW** on the wheel. Left-handed mode mirrors all of this. A stick that is already pushed when the view changes does nothing until it has been centred. With motion controls off, the sticks keep their spectator roles below.
+
+**Spectating:** a full VR view follows the selected unit from the game’s normal external camera distance. Right stick orbits; left stick up/down moves closer/farther. Center the sticks after menus to resume camera control. With nothing followed (you joined as a spectator, or closed the spawn map), the game's free camera takes over: right stick looks, left stick flies, and either grip held moves ten times faster. While following a unit, **FREE CAMERA** on the quick wheel lets go of it; pick a unit on the map to follow one again. The spawn map and aircraft-selection pages keep their normal presentation and controls.
+
+**Full-screen map:** point at the map, then move it with the left thumbstick and zoom with the right (swapped when left-handed). A small label above each thumbstick says which is which while the laser is on the map. Trigger selects.
 
 **Minimap:** touch its face with a free fingertip to select it. While holding the flight stick, use the **physical right thumbstick** to pan and click to select an eligible target at the crosshair. Touch the face again to disengage and recenter on your aircraft, keeping zoom. After disengaging, center the thumbstick and release its click before normal flight bindings resume. Touch **+ / −** to zoom. In layout editing, two opposite corners adjust width and height independently without stretching the map.
 

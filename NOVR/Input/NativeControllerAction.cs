@@ -18,7 +18,8 @@ internal enum NativeControllerAction
     ToggleEngine,
     FlightAssist,
     AutoHover,
-    Eject
+    Eject,
+    NavLights
 }
 
 internal static class NativeControllerActionNames
@@ -40,11 +41,13 @@ internal static class NativeControllerActionNames
         "Flight Assist" => NativeControllerAction.FlightAssist,
         "Auto Hover" => NativeControllerAction.AutoHover,
         "Eject" => NativeControllerAction.Eject,
+        "Nav Lights" => NativeControllerAction.NavLights,
         _ => NativeControllerAction.Unknown
     };
 
     internal static bool CanQueue(NativeControllerAction action) => action is
         NativeControllerAction.Gear or NativeControllerAction.Radar or NativeControllerAction.ToggleEngine or
         NativeControllerAction.FlightAssist or NativeControllerAction.NextWeapon or
-        NativeControllerAction.NextCountermeasure or NativeControllerAction.Eject or NativeControllerAction.AutoHover;
+        NativeControllerAction.NextCountermeasure or NativeControllerAction.Eject or NativeControllerAction.AutoHover or
+        NativeControllerAction.NavLights;
 }

@@ -21,6 +21,8 @@ Flight buttons require the assigned handle held or toggle-latched. Target select
 | Clear all targets | View → Flight actions | View → Flight actions |
 | Native option wheel, free hand | Thumbstick click | Thumbstick click |
 | Tactical map | B with stick released | B with stick released |
+| Outside view | Quick wheel → OUTSIDE VIEW | Quick wheel → OUTSIDE VIEW |
+| Back to the cockpit from outside | B | B |
 | View menu | Left View, or wheel → VR MENU | Physical left Menu, or wheel → VR MENU |
 | Reopen menu during Edit layout | Either thumbstick click | Either thumbstick click |
 
@@ -48,7 +50,7 @@ seat meshes are affected; glass and unsupported cockpit models remain unchanged.
 
 1. Open **View → Controller bindings** or **Settings → Controls → Visual VR Controller Bindings → OPEN**. Choose Left or Right, then select a callout beside the controller image to inspect its assignments, or use the action groups below.
 2. Leave **Preset: Auto** for detection, or select Frame / Touch explicitly. Each keeps its own saved bindings.
-3. Choose **Weapons & targets**, **Flight & defense**, or **Menu & map**.
+3. Choose **Weapons & targets**, **Flight & defense**, or **Menu, map & view**.
 4. Choose an action, select its hand and button, then **Save binding**. You can select the stick/throttle role or a fixed left/right hand. Unsupported buttons are disabled.
 5. If the button is already used, choose another or explicitly replace the listed assignments. Cancel leaves your saved binding intact.
 6. **Undo last change** on the bindings page restores the previous edit, including displaced assignments or a default reset. Each preset has its own one-step undo for the current game session.
@@ -57,9 +59,28 @@ Map may share a flight button because it yields to a held handle. View requires 
 
 Existing Frame custom bindings are retained. Switching between controller families does not overwrite either saved layout. Standard Touch and its Plus/Pro variants have input-profile support; new hardware still needs a real headset check. Trackpad-only Vive layouts and controller-free hand tracking are not covered by this preset.
 
+Nav lights may be assigned like gear and radar. **Change view** (under Menu, map & view) switches between the cockpit and the outside view; like View it works with free hands, needs a button of its own, and cannot use trigger or thumbstick click. Both start unassigned. On Steam Frame the right **Menu** button is free by default and can be chosen for any action.
+
+## Outside view
+
+Click a free thumbstick in the cockpit and choose **OUTSIDE VIEW**, or use **View → Flight actions → Outside view**. The camera becomes the game's orbit camera around your aircraft, in full VR, and you keep flying.
+
+| Control | Right-handed | Does |
+| --- | --- | --- |
+| Stick hand's thumbstick | Right stick | Flight stick: back for nose up, left/right to roll |
+| Other thumbstick | Left stick | Looks around the aircraft |
+| Throttle hand's grip held | Left grip + left stick | Throttle (up/down) and rudder (left/right) |
+| Stick hand's grip held | Right grip + left stick | Camera closer (up) or farther (down) |
+| Stick hand's B | B | Back to the cockpit |
+| Thumbstick click | Either | Quick wheel, with **COCKPIT VIEW** |
+
+Every other button acts as bound, without a handle to hold. Bindings on the stick hand's B and on thumbstick click are not used out there, because those two are the way back. The wheel opens only when the clicked thumbstick is centred, so pushing hard through a turn cannot pop it open. The throttle keeps its last setting when the grip is released. A thumbstick that is already pushed when the view changes, a grip is squeezed or a menu closes does nothing until it has been centred once, so the camera stick cannot become a throttle slam. The first three times, the game's message feed lists these controls.
+
+Thumbstick flight needs motion controls on. With them off, the outside view, **B** and the wheel work the same, and the thumbsticks keep their spectator roles (right orbits, left changes distance).
+
 ## Hand option wheel
 
-Outside a cockpit, the wheel offers **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**. The default **B** binding on Frame and Quest also opens/closes the map while spectating; closing keeps your current target. Map controls remain available when the controller pointer is disabled.
+Outside a cockpit, the wheel offers **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**. It adds **COCKPIT VIEW** while you fly from the outside view, and **FREE CAMERA** while you follow a unit as a spectator; with nothing followed, the right stick looks and the left stick flies the free camera, ten times faster with a grip held. On the full-screen map, the left thumbstick moves the map and the right zooms it (swapped when left-handed), and a label above each thumbstick says so while the laser is on the map. The default **B** binding on Frame and Quest also opens/closes the map while spectating; closing keeps your current target. Map controls remain available when the controller pointer is disabled.
 
 Release that hand’s flight handle, then click its thumbstick. The game wheel sits just above the thumbstick, tilted 25° toward the pilot for readability. It stays fixed to the controller as you move your hand. Deflect the stick to highlight an option and return it to center to select. Clicking again closes without selecting, including while an option is highlighted. Trigger switches between the native Options and Weapons pages; recenter before choosing on the new page. The opposite hand can keep flying. **GAME MENU** opens the game's menu; **VR MENU** opens NOVR settings without needing the physical Menu button, which Steam Link may consume on Quest.
 

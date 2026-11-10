@@ -27,7 +27,20 @@ internal static class PilotMotionInputPatch
         {
             var motion = MotionFlightController.Instance;
             if (motion == null || !motion.SampleFor(___pilot))
+            {
+                // Outside view: no virtual handles, so the thumbsticks fly.
+                // A blacked-out pilot gets no input, as in the cockpit.
+                if (___pilotStrength < 0.2f || !ExternalFlightInput.SampleFor(___pilot))
+                    return;
+                if (ExternalFlightInput.Flying)
+                {
+                    ___controlInputs.pitch = ExternalFlightInput.Pitch;
+                    ___controlInputs.roll = ExternalFlightInput.Roll;
+                }
+                if (ExternalFlightInput.Rudder)
+                    ___controlInputs.yaw = ExternalFlightInput.Yaw;
                 return;
+            }
             if (___pilotStrength < 0.2f)
             {
                 motion.ResetGrips();
@@ -52,7 +65,19 @@ internal static class PilotMotionInputPatch
             var motion = MotionFlightController.Instance;
             motion?.ObserveThrottle(___pilot, ___controlInputs.throttle);
             if (motion == null || !motion.SampleFor(___pilot))
+            {
+                // Outside view: nudge the game's own throttle command, then seed
+                // its accumulator the same way so the setting holds afterwards.
+                if (___pilotStrength < 0.2f || !ExternalFlightInput.SampleFor(___pilot) ||
+                    !ExternalFlightInput.TakeThrottleStep(out var step) || !FlightControlMath.IsFinite(___controlInputs.throttle))
+                    return;
+                var command = FlightControlMath.Clamp(___controlInputs.throttle + step, 0f, 1f);
+                ___controlInputs.throttle = command;
+                ___simulatedThrottle = FlightControlMath.ToSimulatedThrottle(command,
+                    PlayerSettings.throttleUseNegative, ___collective && PlayerSettings.invertCollective);
+                motion?.ObserveThrottle(___pilot, command);
                 return;
+            }
             if (___pilotStrength < 0.2f)
             {
                 motion.ResetGrips();

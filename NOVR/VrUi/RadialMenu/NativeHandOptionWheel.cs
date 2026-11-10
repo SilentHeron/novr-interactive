@@ -1,4 +1,5 @@
 using HarmonyLib;
+using NOVR.VrCamera;
 using NOVR.VrUi;
 using NOVR.VrUi.SpecialBehavior;
 using UnityEngine;
@@ -33,6 +34,7 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
     private bool _ejectHapticActive;
     private float _nextEjectHaptic;
     private bool _reportedFailure;
+    internal const float OutsideClickRadius = .3f;
     internal static bool IsOpen => _instance != null && _instance.Owner >= 0;
     internal static bool OwnsHand(bool left) => _instance?._ownership.Owns(left ? 0 : 1, Time.frameCount) == true;
     internal static bool OwnsNative(RadialMenuMain menu) => _instance?._lease?.Native == menu;
@@ -188,6 +190,14 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
                 hand.Axis.x, hand.Axis.y, 0);
             if (change != HandOptionWheelEvent.Open)
                 continue;
+            // Flying from the outside view, the thumbsticks are the flight
+            // controls, and a hard push can click one. Only a click on a centred
+            // stick opens the wheel there, so a turn cannot pop a menu open.
+            if (ExternalFlightInput.Sample() && hand.Axis.x * hand.Axis.x + hand.Axis.y * hand.Axis.y > OutsideClickRadius * OutsideClickRadius)
+            {
+                _gestures[side].Reset();
+                continue;
+            }
             try
             {
                 EnsureView();
@@ -200,6 +210,10 @@ internal sealed class NativeHandOptionWheel : MonoBehaviour
                 {
                     EnsureMenuOnlyView();
                     _menus!.SetEjectAvailable(wreckEject);
+                    // Decided once per opening: the choice is rechecked when it
+                    // is selected, so a sector never moves under the thumb.
+                    _menus!.SetViewEntry(PilotView.CanGoCockpit ? NativeWheelMenuAction.CockpitView :
+                        PilotView.CanReleaseTarget ? NativeWheelMenuAction.FreeCamera : NativeWheelMenuAction.None);
                     _menus!.RefreshMapState(DynamicMap.mapMaximized, DynamicMap.mapMaximized || DynamicMap.AllowedToOpen);
                     _menus!.Hover(-1);
                     _menus.gameObject.SetActive(true);

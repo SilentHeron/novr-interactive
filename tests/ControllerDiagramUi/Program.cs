@@ -164,7 +164,7 @@ try
     panel.Refresh();
     Check(Page("CONTROLLER DIAGRAM").activeInHierarchy, "Cockpit host uses the identical diagram/editor implementation");
     Click("Bindings");
-    Click("Menu & map");
+    Click("Menu, map & view");
     Click("View menu\nL · Menu");
     Check(Page("EDIT BINDING").activeInHierarchy, "Action-list entry still opens the same editor after refactoring");
     Click("Leave unassigned");

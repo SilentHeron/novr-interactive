@@ -256,6 +256,8 @@ internal static class WheelRuntimeChecks
         }
 
         WreckEjectChecks(check);
+        CameraChoiceChecks(check);
+        Reset();
 
         var graphicObject = new GameObject("Standalone sectors", typeof(HandMenuWheelGraphic));
         var graphic = graphicObject.GetComponent<HandMenuWheelGraphic>();
@@ -360,9 +362,185 @@ internal static class WheelRuntimeChecks
         }
     }
 
+    // The quick wheel is where the camera is changed: out of the cockpit from
+    // the flight wheel, back in or into the free camera from the menu wheel.
+    private static void CameraChoiceChecks(Action<bool, string> check)
+    {
+        string[] Labels(Wheel wheel) => wheel.Menus!.GetComponentsInChildren<Text>(true)
+            .Where(text => text.gameObject.activeSelf).Select(text => text.text.Replace('\n', ' ')).ToArray();
+        foreach (var left in new[] { true, false })
+        {
+            // Flying from outside: a healthy aircraft, so Eject and Cockpit view both show.
+            Reset();
+            GameManager.Aircraft = new();
+            CameraStateManager.cameraMode = CameraMode.orbit;
+            NOVR.VrCamera.PilotView.CanGoCockpit = true;
+            using (var wheel = new Wheel())
+            {
+                wheel.Open(left);
+                check(wheel.Lease == null && wheel.Menus!.Count == 5 && wheel.Menus.EjectAvailable &&
+                      wheel.Menus.MenuAt(HandMenuWheelGraphic.EjectIndex) == NativeWheelMenuAction.Eject &&
+                      wheel.Menus.ViewIndex == 4 && wheel.Menus.MenuAt(4) == NativeWheelMenuAction.CockpitView &&
+                      wheel.Menus.MenuAt(5) == NativeWheelMenuAction.None,
+                    "Flying from outside, the menu wheel adds Cockpit view after Eject, which keeps its index");
+                check(Labels(wheel).Order().SequenceEqual(new[] { "GAME MENU", "VR MENU", "OPEN MAP", "EJECT", "COCKPIT VIEW" }.Order()),
+                    "The cockpit choice is labelled in plain words");
+                foreach (var label in wheel.Menus!.GetComponentsInChildren<Text>(true).Where(text => text.gameObject.activeSelf))
+                {
+                    var rect = label.rectTransform;
+                    var index = HandOptionWheelGesture.Sector(rect.anchoredPosition.x, rect.anchoredPosition.y, wheel.Menus.Count);
+                    var expected = label.text.StartsWith("GAME") ? 0 : label.text.StartsWith("VR") ? 1 : label.text.Contains("MAP") ? 2 :
+                        label.text == "EJECT" ? 3 : 4;
+                    check(index == expected, "Every label of the five-way wheel sits on its own selectable sector");
+                }
+                wheel.Select(left, 4);
+                check(!NativeHandOptionWheel.IsOpen && NOVR.VrCamera.PilotView.Calls.SequenceEqual(new[] { "cockpit" }) &&
+                      GameManager.Aircraft!.EjectionRequests == 0 && !GameplayUI.GameIsPaused,
+                    "Selecting Cockpit view closes the wheel and asks only for the cockpit camera");
+            }
+
+            // Spectating someone else's unit: no aircraft of our own.
+            Reset();
+            CameraStateManager.cameraMode = CameraMode.orbit;
+            NOVR.VrCamera.PilotView.CanReleaseTarget = true;
+            using (var wheel = new Wheel())
+            {
+                wheel.Open(left);
+                check(wheel.Menus!.Count == 4 && !wheel.Menus.EjectAvailable && wheel.Menus.ViewIndex == 3 &&
+                      wheel.Menus.MenuAt(3) == NativeWheelMenuAction.FreeCamera && wheel.Menus.MenuAt(4) == NativeWheelMenuAction.None &&
+                      Labels(wheel).Contains("FREE CAMERA") && !Labels(wheel).Contains("EJECT"),
+                    "Following a unit as a spectator, the fourth sector is Free camera, never Eject");
+                var mesh = new VertexHelper();
+                wheel.Menus.Populate(mesh);
+                check(mesh.Vertices.Count == 4 * 66 && mesh.Vertices[3 * 66].color == mesh.Vertices[0].color,
+                    "A camera sector in the fourth place is drawn like the other menu sectors, not in Eject red");
+                wheel.Select(left, 3);
+                check(!NativeHandOptionWheel.IsOpen && NOVR.VrCamera.PilotView.Calls.SequenceEqual(new[] { "free" }),
+                    "Selecting Free camera releases the followed unit and nothing else");
+                // The same wheel, reopened where no camera choice applies.
+                NOVR.VrCamera.PilotView.CanReleaseTarget = false;
+                wheel.Tick();
+                wheel.Open(left);
+                check(wheel.Menus.Count == 3 && wheel.Menus.ViewIndex == -1 && wheel.Menus.MenuAt(3) == NativeWheelMenuAction.None &&
+                      !Labels(wheel).Contains("FREE CAMERA"),
+                    "The camera sector disappears again when there is nothing to offer");
+            }
+
+            // In the cockpit: the flight wheel gains Outside view beside the two menus.
+            Reset();
+            GameManager.Aircraft = new();
+            var fixture = new LeaseChecks.Fixture();
+            SceneSingleton<RadialMenuMain>.i = fixture.Native;
+            NOVR.VrCamera.PilotView.CanGoExternal = true;
+            using (var wheel = new Wheel())
+            {
+                wheel.Open(left);
+                var lease = wheel.Lease;
+                check(lease != null && wheel.Menus == null && lease.Count == 4 &&
+                      lease.MenuAt(1) == NativeWheelMenuAction.GameMenu && lease.MenuAt(2) == NativeWheelMenuAction.VrMenu &&
+                      lease.MenuAt(3) == NativeWheelMenuAction.OutsideView && lease.ActionAt(3) == null && lease.MenuAt(4) == NativeWheelMenuAction.None,
+                    "In the cockpit the flight wheel offers Outside view after the game's own actions and the two menus");
+                check(lease!.Hover(3) && fixture.Caption.text == "OUTSIDE VIEW" && fixture.Native.selectedAction == null,
+                    "Hovering Outside view shows its caption and selects no aircraft action");
+                // Fourth of four sectors: straight left on the thumbstick.
+                wheel.Axis(left, new Vector2(-1, 0));
+                wheel.Axis(left, Vector2.zero);
+                check(!NativeHandOptionWheel.IsOpen && NOVR.VrCamera.PilotView.Calls.SequenceEqual(new[] { "outside" }) &&
+                      fixture.MainAction.Activations == 0 && fixture.Main.transform.Children.Count == 2,
+                    "Selecting Outside view asks only for the camera change and returns the borrowed wheel untouched");
+            }
+            SceneSingleton<RadialMenuMain>.i = null;
+        }
+
+        // Flying with the thumbsticks: a hard push can click the stick.
+        foreach (var left in new[] { true, false })
+        {
+            Reset();
+            GameManager.Aircraft = new();
+            CameraStateManager.cameraMode = CameraMode.orbit;
+            ExternalFlightInput.Active = true;
+            using var wheel = new Wheel();
+            var sample = TrackedControllers.Read(left);
+            sample.StickClick = false; sample.Axis = new Vector2(.8f, -.5f);
+            Set(left, sample); wheel.Tick();
+            sample.StickClick = true;
+            Set(left, sample); wheel.Tick();
+            check(!NativeHandOptionWheel.IsOpen && !NativeHandOptionWheel.OwnsHand(left),
+                "Flying from outside, clicking a pushed thumbstick does not open the wheel or take the hand");
+            sample.StickClick = false; sample.Axis = Vector2.zero;
+            Set(left, sample); wheel.Tick();
+            sample.StickClick = true;
+            Set(left, sample); wheel.Tick();
+            check(NativeHandOptionWheel.IsOpen && NativeHandOptionWheel.OwnsHand(left),
+                "A click on a centred thumbstick still opens the wheel while flying from outside");
+            wheel.Axis(left, Vector2.zero);
+            NativeHandOptionWheel.Cancel();
+            ExternalFlightInput.Active = false;
+            sample.StickClick = false; sample.Axis = new Vector2(.8f, -.5f);
+            Set(left, sample); wheel.Tick();
+            sample.StickClick = true;
+            Set(left, sample); wheel.Tick();
+            check(NativeHandOptionWheel.IsOpen, "Everywhere else a click opens the wheel whatever the stick is doing, as before");
+        }
+
+        // The choices recheck themselves: a stale sector does nothing.
+        Reset();
+        foreach (var action in new[] { NativeWheelMenuAction.OutsideView, NativeWheelMenuAction.CockpitView, NativeWheelMenuAction.FreeCamera })
+        {
+            NOVR.VrCamera.PilotView.Reset();
+            check(!NativeWheelMenuActions.Open(action, () => { }) && NOVR.VrCamera.PilotView.Calls.Count == 1,
+                "A camera choice that no longer applies reports failure: " + action);
+            NOVR.VrCamera.PilotView.Reset();
+            GameplayUI.GameIsPaused = true;
+            check(!NativeWheelMenuActions.Open(action, () => { }) && NOVR.VrCamera.PilotView.Calls.Count == 0,
+                "A paused game never reaches the camera: " + action);
+            GameplayUI.GameIsPaused = false;
+            CursorManager.Flags = CursorFlags.Chat;
+            check(!NativeWheelMenuActions.Open(action, () => { }) && NOVR.VrCamera.PilotView.Calls.Count == 0,
+                "A blocking cursor context never reaches the camera: " + action);
+            CursorManager.Flags = CursorFlags.None;
+        }
+
+        // Entry geometry with and without the third sector.
+        foreach (var count in new[] { 0, 3, 8 })
+        {
+            var parent = new GameObject("Main page");
+            var template = new GameObject("Sector template");
+            template.AddComponent<Image>();
+            var objects = new List<GameObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var icon = new GameObject("Icon " + i);
+                var sector = new GameObject("Sector " + i);
+                icon.transform.SetParent(parent.transform, false);
+                sector.transform.SetParent(parent.transform, false);
+                sector.AddComponent<Image>().fillAmount = .25f;
+                objects.Add(icon);
+                objects.Add(sector);
+            }
+            using (var entry = new NativeWheelMenuEntries(parent.transform, objects, count, template, true))
+            {
+                check(entry.Count == 3 && parent.transform.Children.Count == count * 2 + 6 &&
+                      entry.ActionAt(count + 2) == NativeWheelMenuAction.OutsideView && entry.ActionAt(count + 3) == NativeWheelMenuAction.None,
+                    "With the outside view available exactly three sectors and labels are added");
+                var label = parent.GetComponent<RectTransform>().Children[count * 2 + 5].localPosition;
+                check(HandOptionWheelGesture.Sector(label.x, label.y, count + 3) == count + 2, "The Outside view label sits on its own sector");
+                for (var i = 0; i < count; i++)
+                    check(Math.Abs(objects[i * 2 + 1].GetComponent<Image>().fillAmount - 1f / (count + 3)) < .00001f,
+                        "Borrowed sectors shrink to share the wheel with three additions");
+            }
+            check(parent.transform.Children.Count == objects.Count, "All three additions are removed on release");
+            using (var entry = new NativeWheelMenuEntries(parent.transform, objects, count, template))
+                check(entry.Count == 2 && entry.ActionAt(count + 2) == NativeWheelMenuAction.None,
+                    "Without the outside view the wheel is exactly as before");
+        }
+    }
+
     private static void Reset()
     {
         NativeHandOptionWheel.Cancel();
+        NOVR.VrCamera.PilotView.Reset();
+        ExternalFlightInput.Active = false;
         Warnings.Clear();
         GameMenuChecks.Events.Clear();
         SceneSingleton<RadialMenuMain>.i = null;

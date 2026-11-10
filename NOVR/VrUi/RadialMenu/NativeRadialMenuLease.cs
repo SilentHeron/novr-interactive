@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using NOVR.VrCamera;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -40,7 +41,7 @@ internal sealed class NativeRadialMenuLease : IDisposable
     {
         get; private set;
     }
-    internal int Count => Actions.Count + (!WeaponsPage && _menuEntries != null ? NativeWheelMenuEntries.Count : 0);
+    internal int Count => Actions.Count + (!WeaponsPage && _menuEntries != null ? _menuEntries.Count : 0);
     private List<RadialMenuAction> Actions => WeaponsPage ? _weaponActions : _mainActions;
     internal bool Valid => Native != null && Native.isActiveAndEnabled && _rect != null && _parent != null;
 
@@ -80,7 +81,7 @@ internal sealed class NativeRadialMenuLease : IDisposable
             native.OpenMenu(); // Native aircraft filtering, station creation and ammo readouts.
             var objects = MainObjects.GetValue(native) as List<GameObject> ?? throw new InvalidOperationException("Missing native main entry objects");
             var template = Require(Sector.GetValue(native) as GameObject, "sector template");
-            _menuEntries = new NativeWheelMenuEntries(_main.transform, objects, _mainActions.Count, template);
+            _menuEntries = new NativeWheelMenuEntries(_main.transform, objects, _mainActions.Count, template, PilotView.CanGoExternal);
             foreach (var node in _rect.GetComponentsInChildren<Transform>(true))
             {
                 _layers[node.gameObject] = node.gameObject.layer;
@@ -135,7 +136,8 @@ internal sealed class NativeRadialMenuLease : IDisposable
         _menuEntries?.Hover(menu);
         Selected.SetValue(Native, next);
         _caption.text = menu == NativeWheelMenuAction.GameMenu ? "GAME MENU" :
-            menu == NativeWheelMenuAction.VrMenu ? "VR MENU" : next != null ? next.DisplayName : "";
+            menu == NativeWheelMenuAction.VrMenu ? "VR MENU" :
+            menu == NativeWheelMenuAction.OutsideView ? "OUTSIDE VIEW" : next != null ? next.DisplayName : "";
         if (next != null)
             next.Hover();
         return next != null || menu != NativeWheelMenuAction.None;

@@ -7,14 +7,21 @@ namespace NOVR.MotionControls;
 // needs no native wheel prefab, action assets, aircraft or weapons page. A
 // fourth EJECT sector appears while the local pilot can still eject from a
 // wreck whose flight wheel is unavailable (detached cockpit, destroyed airframe).
+// A last camera sector appears when there is a camera choice to offer: back to
+// the cockpit while flying from outside, or the free camera while spectating.
 internal sealed class HandMenuWheelGraphic : MaskableGraphic
 {
     internal const int BaseCount = 3, EjectIndex = 3;
-    private readonly Text?[] _labels = new Text?[BaseCount + 1];
+    private const int ViewLabel = BaseCount + 1;
+    private readonly Text?[] _labels = new Text?[BaseCount + 2];
     private int _hovered = -1;
     private bool _mapAvailable = true, _ejectAvailable;
-    internal int Count => _ejectAvailable ? BaseCount + 1 : BaseCount;
+    private NativeWheelMenuAction _view;
+    internal int Count => BaseCount + (_ejectAvailable ? 1 : 0) + (_view != NativeWheelMenuAction.None ? 1 : 0);
     internal bool EjectAvailable => _ejectAvailable;
+    internal NativeWheelMenuAction View => _view;
+    // The camera sector always follows EJECT, so EJECT keeps its index.
+    internal int ViewIndex => _view == NativeWheelMenuAction.None ? -1 : BaseCount + (_ejectAvailable ? 1 : 0);
 
     internal void Initialize()
     {
@@ -43,14 +50,19 @@ internal sealed class HandMenuWheelGraphic : MaskableGraphic
 
     private void Layout()
     {
-        for (var index = 0; index < _labels.Length; index++)
+        for (var label = 0; label < _labels.Length; label++)
         {
-            var text = _labels[index];
+            var text = _labels[label];
             if (text == null)
                 continue;
-            var shown = index < Count;
+            // Labels are stored by kind; the wheel position depends on which
+            // optional sectors are present.
+            var index = label < BaseCount ? label : label == EjectIndex ? (_ejectAvailable ? EjectIndex : -1) : ViewIndex;
+            var shown = index >= 0;
             if (text.gameObject.activeSelf != shown)
                 text.gameObject.SetActive(shown);
+            if (!shown)
+                continue;
             var angle = index * 360f / Count * Mathf.Deg2Rad;
             text.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle)) * 90f;
         }
@@ -58,7 +70,26 @@ internal sealed class HandMenuWheelGraphic : MaskableGraphic
 
     internal NativeWheelMenuAction MenuAt(int index) => index == 0 ? NativeWheelMenuAction.GameMenu :
         index == 1 ? NativeWheelMenuAction.VrMenu : index == 2 ? NativeWheelMenuAction.Map :
-        index == EjectIndex && _ejectAvailable ? NativeWheelMenuAction.Eject : NativeWheelMenuAction.None;
+        index == EjectIndex && _ejectAvailable ? NativeWheelMenuAction.Eject :
+        index >= BaseCount && index == ViewIndex ? _view : NativeWheelMenuAction.None;
+
+    internal void SetViewEntry(NativeWheelMenuAction action)
+    {
+        if (action != NativeWheelMenuAction.CockpitView && action != NativeWheelMenuAction.FreeCamera)
+            action = NativeWheelMenuAction.None;
+        if (_view == action)
+            return;
+        _view = action;
+        if (action != NativeWheelMenuAction.None)
+        {
+            var label = _labels[ViewLabel] ??= CreateLabel("CAMERA");
+            label.text = action == NativeWheelMenuAction.CockpitView ? "COCKPIT\nVIEW" : "FREE\nCAMERA";
+        }
+        if (_hovered >= Count)
+            _hovered = -1;
+        Layout();
+        SetVerticesDirty();
+    }
 
     internal void SetEjectAvailable(bool available)
     {
@@ -110,7 +141,7 @@ internal sealed class HandMenuWheelGraphic : MaskableGraphic
         var count = Count;
         for (var sector = 0; sector < count; sector++)
         {
-            var eject = sector == EjectIndex;
+            var eject = sector == EjectIndex && _ejectAvailable;
             var tint = sector == 2 && !_mapAvailable ? new Color(.04f, .06f, .08f, .94f) :
                 sector == _hovered ? eject ? new Color(.55f, .16f, .12f, .97f) : new Color(.10f, .48f, .52f, .97f) :
                 eject ? new Color(.20f, .07f, .06f, .94f) : new Color(.06f, .10f, .13f, .94f);

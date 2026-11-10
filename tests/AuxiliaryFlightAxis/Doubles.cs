@@ -115,6 +115,20 @@ namespace NOVR.MotionControls
         internal bool Valid, HasAxis;
         internal UnityEngine.Vector2 Axis;
     }
+    // Outside-view thumbstick flight, as the pilot input hooks see it. Its own
+    // mapping and gating are covered by the spectator-input suite.
+    internal static class ExternalFlightInput
+    {
+        internal static bool Active, Flying, Rudder;
+        internal static float Pitch, Roll, Yaw, Step;
+        internal static bool SampleFor(Pilot pilot) => Active;
+        internal static bool TakeThrottleStep(out float step)
+        {
+            step = Step;
+            Step = 0;
+            return step != 0;
+        }
+    }
     // Rest-of-coordinator state supplied to the source-linked auxiliary partial.
     // Physical tracking/handle latch behavior has its own source-linked suites.
     public sealed partial class MotionFlightController

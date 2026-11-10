@@ -1,11 +1,15 @@
 using System;
+using NOVR.VrCamera;
 using NOVR.VrUi;
 
 namespace NOVR.MotionControls;
 
 internal enum NativeWheelMenuAction
 {
-    None, GameMenu, VrMenu, Map, Eject
+    None, GameMenu, VrMenu, Map, Eject,
+    // Camera choices: leave the cockpit for the outside view, return to it, or
+    // let go of a spectated unit and roam with the free camera.
+    OutsideView, CockpitView, FreeCamera
 }
 
 internal static class NativeWheelMenuActions
@@ -24,6 +28,14 @@ internal static class NativeWheelMenuActions
             return false;
         if (action == NativeWheelMenuAction.VrMenu)
             return WristMenu.OpenFromHandWheel();
+        // Each camera choice rechecks its own native state after the wheel is
+        // released; a stale sector simply does nothing.
+        if (action == NativeWheelMenuAction.OutsideView)
+            return PilotView.ToExternal();
+        if (action == NativeWheelMenuAction.CockpitView)
+            return PilotView.ToCockpit();
+        if (action == NativeWheelMenuAction.FreeCamera)
+            return PilotView.ReleaseTarget();
         if (action == NativeWheelMenuAction.Map)
         {
             // The open wheel itself blocks ordinary map input. Recheck after

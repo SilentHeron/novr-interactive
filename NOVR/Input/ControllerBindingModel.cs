@@ -14,7 +14,9 @@ internal enum ControllerActionId
 {
     Guns, WeaponRelease, SelectTarget, UnlockTarget, ClearTargets, NextWeapon,
     Countermeasures, NextCountermeasure, Brake, Map, WristMenu,
-    Gear, Radar, FlightAssist, HoverAssist
+    Gear, Radar, FlightAssist, HoverAssist,
+    // Appended so saved config keys of the actions above never move.
+    ChangeView, NavLights
 }
 
 internal readonly struct ControllerActionBinding
@@ -69,7 +71,11 @@ internal static class ControllerBindingDefaults
         _ => !leftHanded
     };
     internal static bool RequiresGrip(ControllerActionId action) => action != ControllerActionId.Map &&
-        action != ControllerActionId.WristMenu;
+        action != ControllerActionId.WristMenu && action != ControllerActionId.ChangeView;
+    // Menu, map and view buttons work with free hands, where trigger is the
+    // pointer click and thumbstick click opens the quick wheel.
+    private static bool FreeHandAction(ControllerActionId action) => action == ControllerActionId.Map ||
+        action == ControllerActionId.WristMenu || action == ControllerActionId.ChangeView;
     internal static bool ShareContext(ControllerActionId first, ControllerActionId second) =>
         !(first == ControllerActionId.Map && RequiresGrip(second) || second == ControllerActionId.Map && RequiresGrip(first));
     internal static bool Conflict(ControllerActionId first, ControllerActionBinding a, ControllerActionId second,
@@ -85,7 +91,7 @@ internal static class ControllerBindingDefaults
         return Array.IndexOf(buttons, resolved) >= 0;
     }
     internal static bool IsBindingAvailable(ControllerBindingProfile profile, bool left, ControllerActionId action, ControllerButton button) =>
-        IsButtonAvailable(profile, left, button) && !((action == ControllerActionId.Map || action == ControllerActionId.WristMenu) &&
+        IsButtonAvailable(profile, left, button) && !(FreeHandAction(action) &&
             ControllerButtonNames.Resolve(button, profile == ControllerBindingProfile.Frame) is ControllerButton.Trigger or ControllerButton.StickClick);
     internal static string ActionLabel(ControllerActionId action) => action switch
     {
@@ -104,12 +110,15 @@ internal static class ControllerBindingDefaults
         ControllerActionId.Radar => "Radar",
         ControllerActionId.FlightAssist => "Flight assist",
         ControllerActionId.HoverAssist => "Hover assist",
+        ControllerActionId.ChangeView => "Change view",
+        ControllerActionId.NavLights => "Nav lights",
         _ => action.ToString()
     };
     internal static string ContextLabel(ControllerActionId action) => action switch
     {
         ControllerActionId.Map => "Free hand, map or spectator view",
         ControllerActionId.WristMenu => "Either grip state",
+        ControllerActionId.ChangeView => "Cockpit or outside view, either grip state",
         ControllerActionId.Guns or ControllerActionId.WeaponRelease or ControllerActionId.Countermeasures or ControllerActionId.Brake => "Hold while gripping the assigned handle",
         _ => "Release while gripping the assigned handle"
     };

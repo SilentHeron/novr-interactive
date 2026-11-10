@@ -15,12 +15,12 @@ internal static class NativeControllerActionChecks
                 ("Next Countermeasure", NativeControllerAction.NextCountermeasure), ("Gear", NativeControllerAction.Gear),
                 ("Radar", NativeControllerAction.Radar), ("Toggle Engine", NativeControllerAction.ToggleEngine),
                 ("Flight Assist", NativeControllerAction.FlightAssist), ("Auto Hover", NativeControllerAction.AutoHover),
-                ("Eject", NativeControllerAction.Eject)
+                ("Eject", NativeControllerAction.Eject), ("Nav Lights", NativeControllerAction.NavLights)
             };
             foreach (var (name, action) in names)
                 truth(NativeControllerActionNames.Parse(name) == action);
             foreach (var unknown in new[] { null, "", "gear", "NextWeapon", "Weapon Release ", "Unrelated game action",
-                         "Previous Weapon", "Nav Lights", "Link Guns" })
+                         "Previous Weapon", "Nav lights", "Link Guns", "Switch View" })
                 truth(NativeControllerActionNames.Parse(unknown) == NativeControllerAction.Unknown);
         });
         check("Only maintained one-shot native intents can enter the queue", () =>
@@ -29,7 +29,8 @@ internal static class NativeControllerActionChecks
             {
                 NativeControllerAction.Gear, NativeControllerAction.Radar, NativeControllerAction.ToggleEngine,
                 NativeControllerAction.FlightAssist, NativeControllerAction.NextWeapon,
-                NativeControllerAction.NextCountermeasure, NativeControllerAction.Eject, NativeControllerAction.AutoHover
+                NativeControllerAction.NextCountermeasure, NativeControllerAction.Eject, NativeControllerAction.AutoHover,
+                NativeControllerAction.NavLights
             };
             foreach (var action in Enum.GetValues<NativeControllerAction>())
                 truth(NativeControllerActionNames.CanQueue(action) == allowed.Contains(action));

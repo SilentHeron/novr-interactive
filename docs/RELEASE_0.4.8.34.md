@@ -1,4 +1,45 @@
-# 0.4.8.34 — sturdier startup, VR start recovery, less per-frame work
+# 0.4.8.34 — outside view, free camera, sturdier startup, less per-frame work
+
+- New **outside view** while flying. In the cockpit, click a free thumbstick
+  and pick **OUTSIDE VIEW** on the quick wheel (also **View → Flight actions →
+  Outside view**). The camera moves to the game's own orbit camera around your
+  aircraft and you keep flying, with thumbsticks instead of the virtual
+  handles:
+  - The stick hand's thumbstick is the flight stick: pull back for nose up,
+    left and right to roll.
+  - The other thumbstick looks around the aircraft.
+  - Hold the throttle hand's grip and its thumbstick becomes throttle (up and
+    down) and rudder (left and right). The throttle keeps its setting when you
+    let go.
+  - Hold the stick hand's grip and the other thumbstick moves the camera
+    closer or farther.
+  - Buttons work without a handle to hold: guns, weapon release,
+    countermeasures, brake and the rest act as bound.
+  - **B** on the stick hand returns to the cockpit (Frame and Quest; the
+    mirrored button when left-handed). The quick wheel offers **COCKPIT VIEW**
+    too. Thumbstick click still opens the wheel, so those two buttons are not
+    flight buttons out there. The wheel opens only when the clicked stick is
+    centred, so pushing hard through a turn cannot pop it open.
+
+  A thumbstick that is already pushed when the view or its role changes does
+  nothing until it has been centred once. The first three times, the game's
+  message feed names the controls. With motion controls off (a physical
+  HOTAS), the view and **B** work the same and the thumbsticks keep their
+  spectator roles.
+- **Free camera for spectators.** With nothing followed (you joined as a
+  spectator, or closed the spawn map) the right stick looks and the left stick
+  flies the game's free camera; hold either grip to move ten times faster.
+  Before, the sticks did nothing until a unit was picked on the map. While
+  following a unit, the quick wheel adds **FREE CAMERA** to let go of it.
+- The full-screen map shows what the thumbsticks do. The left stick has always
+  moved the map and the right stick zoomed it, but nothing said so. While the
+  laser is on the map, a small label above each thumbstick now names its job.
+- Two more actions can be bound under **View → Controller bindings**:
+  **Change view** (Menu, map & view; works with free hands, cockpit to outside
+  and back) and **Nav lights** (Flight & defense). Both start unassigned, so
+  no existing layout changes. Landing gear, radar, flight assist and hover
+  assist were already there, and on Steam Frame the right **Menu** button can
+  be chosen for any of them.
 
 - Starting up no longer depends on everything matching. Each VR adjustment is
   installed on its own, so a game update that renames one target disables that
@@ -78,4 +119,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera and the map labels: their rules are covered by the source checks and they compile against the game, but how they fly, read and feel is not yet known. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

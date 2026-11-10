@@ -39,7 +39,8 @@ internal sealed class SpectatorStickInput
             -leftY * 1.5f * dt, leftX * dt, leftY * dt);
     }
 
-    private static void Filter(bool valid, float x, float y, ref bool armed, out float filteredX, out float filteredY)
+    // Shared with the outside-view flight thumbsticks, which need the same gate.
+    internal static void Filter(bool valid, float x, float y, ref bool armed, out float filteredX, out float filteredY)
     {
         filteredX = filteredY = 0;
         if (!valid || !Finite(x) || !Finite(y))
