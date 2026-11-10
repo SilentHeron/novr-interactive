@@ -111,6 +111,10 @@ public class VrUiCursor : NOVRBehaviour
 
     private int ScreenWidth => Screen.width;
     private int ScreenHeight => Screen.height;
+    // The mod's own VR menus (main menu, mission select, lobby and the rest).
+    internal bool NativeMenuVisible => _nativeMenu?.IsVisible == true;
+    // The hand whose laser drives the menus; the other hand is free.
+    internal bool PointerHandLeft => _controllerPointer.LeftHand;
     public Camera? UiCamera
     {
         get

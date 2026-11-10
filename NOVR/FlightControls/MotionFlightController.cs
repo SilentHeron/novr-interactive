@@ -20,6 +20,7 @@ public sealed partial class MotionFlightController : MonoBehaviour
     private readonly StickLimitFeedback _stickLimitFeedback = new();
     private readonly StickMotionFeedback _stickMotionFeedback = new();
     private readonly HandleReachFeedback _stickReachFeedback = new(), _throttleReachFeedback = new();
+    private readonly ThrottleSlideFeedback _throttleSlideFeedback = new();
     private MotionControlVisuals? _visuals;
     private bool _visualsFailed;
     private Aircraft? _aircraft;
@@ -374,6 +375,13 @@ public sealed partial class MotionFlightController : MonoBehaviour
             }
             _throttleZone = zone;
         }
+        // After the detent and end-stop cues above, so a tick in the same frame
+        // gives way to them.
+        var slide = _throttleSlideFeedback.Update(_throttleGrip.Held && _throttleHand.Valid, Throttle, Time.unscaledTime);
+        if (slide.Priority)
+            InteractionHaptics.PulseOnly(_throttleHand.Device, slide.Strength, slide.Seconds);
+        else if (slide.Strength > 0f)
+            InteractionHaptics.PulseMotion(_throttleHand.Device, slide.Strength, slide.Seconds);
         if (!_stickHand.Valid || !_throttleHand.Valid)
             ReportStatus(!_stickHand.Valid && !_throttleHand.Valid ? "Both controllers need tracking" :
                 ((!_stickHand.Valid ? Settings.LeftHanded.Value : !Settings.LeftHanded.Value) ? "Left controller needs tracking" : "Right controller needs tracking"));
@@ -490,6 +498,7 @@ public sealed partial class MotionFlightController : MonoBehaviour
         _stickMotionFeedback.Reset();
         _stickReachFeedback.Reset();
         _throttleReachFeedback.Reset();
+        _throttleSlideFeedback.Reset();
         Pitch = Roll = Yaw = 0f;
     }
 

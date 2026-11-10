@@ -50,8 +50,8 @@ public class NativeMainMenuShell : MonoBehaviour
         CreateText("Game Title", container, "NUCLEAR OPTION", new Vector2(760f, 470f), new Vector2(440f, 60f), 40, TextAnchor.MiddleRight, Color.white);
 
         var rail = CreatePanel("Main Menu Rail", container, PanelColor, new Vector2(-850f, -15f), new Vector2(250f, 950f));
-        CreateLogo("Menu Header Logo", rail, new Vector2(0f, 405f), new Vector2(118f, 118f));
-        CreateText("Menu Header", rail, "NOVR", new Vector2(0f, 325f), new Vector2(210f, 30f), 20, TextAnchor.MiddleCenter, Color.white);
+        // The rail's heading is the mod's name as plain text; there is no logo image.
+        CreateText("Menu Header", rail, "NOVR Interactive", new Vector2(0f, 380f), new Vector2(230f, 60f), 24, TextAnchor.MiddleCenter, Color.white);
 
         var primaryButtons = new[]
         {
@@ -346,26 +346,6 @@ public class NativeMainMenuShell : MonoBehaviour
         var image = gameObject.AddComponent<Image>();
         image.color = color;
         return rectTransform;
-    }
-
-    private void CreateLogo(string name, RectTransform parent, Vector2 anchoredPosition, Vector2 size)
-    {
-        var texture = NativeMainMenuLogo.GetTexture();
-        if (texture == null)
-            return;
-
-        var gameObject = new GameObject(name);
-        gameObject.transform.SetParent(parent, false);
-        LayerHelper.SetLayerRecursive(gameObject.transform, LayerHelper.GetVrUiLayer());
-
-        var rectTransform = gameObject.AddComponent<RectTransform>();
-        rectTransform.sizeDelta = size;
-        rectTransform.anchoredPosition = anchoredPosition;
-
-        var image = gameObject.AddComponent<RawImage>();
-        image.texture = texture;
-        image.color = Color.white;
-        image.raycastTarget = false;
     }
 
     private void CreateText(string name, RectTransform parent, string text, Vector2 anchoredPosition, Vector2 size, int fontSize, TextAnchor alignment, Color color)

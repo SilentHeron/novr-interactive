@@ -21,6 +21,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> NativeMenuDistance;
     public readonly ConfigEntry<float> NativeMenuHeightOffset;
     public readonly ConfigEntry<float> HmdFollowResponse;
+    internal readonly ConfigEntry<bool> MenuControllerModels, MenuControllerTooltips, SelectionTeleport;
     public readonly MotionControls.ControllerBindings ControllerBindings;
     internal readonly VrUi.SpecialBehavior.CockpitAlertSettings CockpitAlerts;
     internal readonly ConfigEntry<MotionControls.TargetCueMode> TargetCue;
@@ -81,6 +82,12 @@ public class ModConfiguration
             new ConfigDescription("Status panel depth in meters. Angular size stays constant as depth changes.", new AcceptableValueRange<float>(2f, 10f)));
         HudContrast = config.Bind("VR HUD", "Status Panel Backplates", true, "Dark backplates behind status panels for readability over bright terrain.");
         HudDeclutter = config.Bind("VR HUD", "Declutter Status Panels", false, "Fade the secondary lower-left status panel. Weapon, countermeasure and aiming information remain visible.");
+        MenuControllerModels = config.Bind("VR Menus", "Controller Models", true,
+            "Show your controllers in the VR menus and at aircraft selection, using the model SteamVR installs for them (Steam Frame, Quest 2, Quest 3, Quest Pro). Nothing is shown if SteamVR's models are not found.");
+        MenuControllerTooltips = config.Bind("VR Menus", "Controller Tooltips", true,
+            "Label the buttons on the shown controllers with what they do, from your own bindings. Labels appear while a controller is raised toward your face.");
+        SelectionTeleport = config.Bind("VR Menus", "Walk Around Aircraft", true,
+            "At aircraft selection, push the free hand's thumbstick forward to aim and release to teleport around the aircraft. The menu stays where it is.");
         HmdFollowResponse = config.Bind("VR HUD", "Head Follow Response", 10f,
             new ConfigDescription("Response of head-following status text. Higher values follow faster; 0 locks directly to the head. World target markers stay aligned independently.",
                 new AcceptableValueRange<float>(0f, 30f)));

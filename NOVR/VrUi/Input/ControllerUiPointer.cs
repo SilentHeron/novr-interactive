@@ -31,6 +31,7 @@ internal sealed class ControllerUiPointer
     internal bool Held => Trigger.Held;
     internal bool Pressed => Trigger.Pressed;
     internal bool InputPressed => _hands.InputPressed;
+    internal bool LeftHand => _hands.Left;
     internal bool Capturing => Trigger.Held || Trigger.Released;
     internal Vector2 Scroll
     {

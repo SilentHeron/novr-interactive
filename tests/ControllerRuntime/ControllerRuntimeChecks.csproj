@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../NOVR/Input/TrackedControllers.cs" Link="TrackedControllers.cs" />
     <Compile Include="../../NOVR/Input/ControllerHardwareProfile.cs" Link="ControllerHardwareProfile.cs" />
+    <Compile Include="../../NOVR/VrUi/Controllers/ControllerModelFamily.cs" Link="ControllerModelFamily.cs" />
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />
     <Compile Include="../../NOVR/Compatibility/PcVrCapabilities.cs" Link="PcVrCapabilities.cs" />
     <Compile Include="../../NOVR/Compatibility/StartupDiagnostics.cs" Link="StartupDiagnostics.cs" />

@@ -41,6 +41,8 @@ public class Core : MonoBehaviour
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitMapWidget>();
         gameObject.AddComponent<VrUi.SpecialBehavior.CockpitMapInteraction>();
         gameObject.AddComponent<VrUi.SpecialBehavior.MapStickHints>();
+        gameObject.AddComponent<VrCamera.AircraftWalkaround>();
+        gameObject.AddComponent<VrUi.Controllers.MenuControllerModels>();
         gameObject.AddComponent<MotionControls.CockpitLayout>();
         gameObject.AddComponent<MotionControls.MotionFlightController>();
         gameObject.AddComponent<MotionControls.HelmetNightVision>();

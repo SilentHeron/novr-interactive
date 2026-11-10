@@ -41,6 +41,12 @@ foreach (var controller in new XRController[] { new DerivedTouch(), new MetaQues
         var sample = TrackedControllers.Read(left);
         yes(sample.Valid && sample.Profile == ControllerHardwareProfile.Touch && !sample.NativeFrame);
         yes(TrackedControllers.Profile(left) == ControllerHardwareProfile.Touch && !TrackedControllers.NativeFrame(left));
+        // Each Meta layout picks its own SteamVR model; a plain Touch layout is shown as Quest 2.
+        yes(TrackedControllers.ModelFamily(left) == (controller is MetaQuestTouchPlusControllerProfile.QuestTouchPlusController
+            ? NOVR.VrUi.Controllers.ControllerModelFamily.QuestPlus
+            : controller is MetaQuestTouchProControllerProfile.QuestProTouchController
+                ? NOVR.VrUi.Controllers.ControllerModelFamily.QuestPro
+                : NOVR.VrUi.Controllers.ControllerModelFamily.Quest2));
         yes(sample.Primary && sample.Secondary && sample.StickClick && sample.HasAxis);
         yes(sample.Menu == left && !sample.Shoulder && !sample.Top && !sample.Outside);
         near(sample.Grip, .72f);
@@ -89,6 +95,8 @@ var frameState = tracking().Set(CommonUsages.primaryButton, false).Set(CommonUsa
 install(false, frame, frameState);
 var frameSample = TrackedControllers.Read(false);
 yes(frameSample.NativeFrame && frameSample.Profile == ControllerHardwareProfile.SteamFrame);
+yes(TrackedControllers.ModelFamily(true) == NOVR.VrUi.Controllers.ControllerModelFamily.SteamFrame ||
+    TrackedControllers.ModelFamily(false) == NOVR.VrUi.Controllers.ControllerModelFamily.SteamFrame);
 yes(frameSample.Primary && frameSample.Secondary && frameSample.Top && frameSample.Outside && frameSample.Shoulder && frameSample.Menu && frameSample.StickClick);
 near(frameSample.Grip, 1);
 yes(frameSample.PrimaryTouched && frameSample.SecondaryTouched && frameSample.TopTouched && frameSample.OutsideTouched && frameSample.ButtonTouched);
@@ -134,6 +142,7 @@ Time.frameCount++;
 yes(!TrackedControllers.Read(true).Valid);
 XRController.leftHand = new XRController();
 yes(TrackedControllers.Profile(true) == ControllerHardwareProfile.Other);
+yes(TrackedControllers.ModelFamily(true) == NOVR.VrUi.Controllers.ControllerModelFamily.None);
 XRController.leftHand = null;
 yes(TrackedControllers.Profile(true) == ControllerHardwareProfile.Unknown);
 

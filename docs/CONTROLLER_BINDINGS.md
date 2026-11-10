@@ -80,6 +80,25 @@ Buttons act as bound, without a handle to hold: with the default layout the righ
 
 Thumbstick flight needs motion controls on. With them off, the outside view, **B** and the wheel work the same, and the thumbsticks keep their spectator roles (right orbits, left changes distance).
 
+## Controllers and labels in the menus
+
+The VR menus (main menu, mission select, multiplayer, settings) and the aircraft selection screen show your controllers. The model is the one SteamVR installs for that controller, read from your PC and placed on the tracked hand: Steam Frame, Quest 2, Quest 3 (Touch Plus) or Quest Pro. A plain Touch layout is shown as Quest 2. NOVR ships no controller model, so nothing appears if SteamVR's files are missing.
+
+Raise a controller toward your face to see its labels. Each bound button gets one, pointing at that button on that controller: the button's name and the actions on it from your current bindings, plus "Menu click" on the trigger and "Scroll · click: wheel" on the thumbstick. Unbound buttons and the system button have no label. Labels follow your bindings as you change them. **VR Menus → Controller Models** and **Controller Tooltips** in the BepInEx config turn the models and the labels off.
+
+## Walking around the aircraft
+
+At aircraft selection the hand that is not holding the menu pointer can walk you around the aircraft, and its thumbstick label says so.
+
+| Thumbstick, free hand | Does |
+| --- | --- |
+| Push forward and hold | Shows an aiming arc from that controller |
+| Let go | Teleports to where the arc lands |
+| Pull back, then let go | Returns to where the menu is |
+| Swing to the opposite side | Cancels |
+
+The menu and the aircraft stay in place, so changing a loadout means walking back to the menu or pulling the thumbstick back. The arc turns red where you cannot stand: nothing under it, or a surface too steep. A spot beyond the boundary circle around the aircraft is pulled back onto the circle. Your eyes are 1.7 m above the surface you land on. Pressing a button on the walking hand makes it the pointer hand, and the other hand then walks. Leaving the selection screen undoes the walk. **VR Menus → Walk Around Aircraft** turns it off.
+
 ## Hand option wheel
 
 Outside a cockpit, the wheel offers **VR MENU**, **GAME MENU** and **OPEN MAP / CLOSE MAP**. It adds **COCKPIT VIEW** while you fly from the outside view, and **FREE CAMERA** while you follow a unit as a spectator; with nothing followed, the right stick looks and the left stick flies the free camera, ten times faster with a grip held. On the full-screen map, the left thumbstick moves the map and the right zooms it (swapped when left-handed), and a label above each thumbstick says so while the laser is on the map. The default **B** binding on Frame and Quest also opens/closes the map while spectating; closing keeps your current target. Map controls remain available when the controller pointer is disabled.
@@ -111,6 +130,8 @@ Native target filters, paint selection and tactical-map selection are unchanged.
 A white outline and brief pulse mark entry into the stick or throttle grab range; the stronger grab cue confirms attachment and the outline disappears. Default grab reach is 15 cm (formerly 12 cm); custom distances are retained. MIL detent holds just below the native afterburner boundary.
 
 MIL detection covers the game's turbojet and turbofan engines, including mods based on those engine types. Engines without an afterburner have no MIL notch. Helicopter collective travel stays continuous: lift to increase the command and lower to decrease it. The complete lever pivots beneath and behind its grip; the saved grip position and configured lift distance remain unchanged.
+
+Sliding the throttle or collective gives a light tick for every 5% of travel and, at idle, a second pulse right after the end-stop pulse; full power keeps its single pulse. A lever grabbed while already at idle does not pulse until it has been raised and brought back.
 
 Stick-limit feedback briefly grows stronger near full pitch, roll or twist input, then stops completely within 0.45 seconds. Holding a tight turn stays silent. Release the grip or ease below 70% travel for a moment to rearm the cue. It uses the normal haptic-strength setting.
 

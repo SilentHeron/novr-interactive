@@ -21,6 +21,13 @@ included unchanged and cropped into left/right views by the UI. No third-party
 license was supplied with this image; it is not covered by the code's GPL license
 or the former WebXR assets' MIT license.
 
+## Controller models
+
+NOVR does not include or redistribute any 3D controller model. The controllers
+shown in the VR menus are read at run time from the SteamVR installation on the
+player's own PC (`SteamVR/resources/rendermodels` and
+`SteamVR/drivers/*/resources/rendermodels`) and are never copied or modified.
+
 ## Valve OpenXR controller profile
 
 `NOVR.XR.OpenXR/Features/Valve/SteamFrameControllerProfile.cs` is from

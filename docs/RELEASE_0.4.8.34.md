@@ -31,6 +31,35 @@
   flies the game's free camera; hold either grip to move ten times faster.
   Before, the sticks did nothing until a unit was picked on the map. While
   following a unit, the quick wheel adds **FREE CAMERA** to let go of it.
+- **Your controllers in the menus.** The VR menus (main menu, mission select,
+  multiplayer, settings) and the aircraft selection screen show the controller
+  you are holding: Steam Frame, Quest 2, Quest 3 or Quest Pro. NOVR ships no
+  model of its own. It reads the one SteamVR already installed for that
+  controller and places it on your tracked hand; if SteamVR's files are not
+  found, nothing is shown and the menus work as before.
+  - Raise a controller toward your face and its buttons are labelled with what
+    they do, from your own bindings: "A: Weapon", "B: Unlock · Map",
+    "Trigger: Menu click · Guns". Each label points at the real button of that
+    controller, so Frame and Quest layouts differ where the hardware does.
+    Lower the controller and only the model remains.
+  - Both can be turned off in the BepInEx config, section **VR Menus**:
+    **Controller Models** and **Controller Tooltips**.
+- **Walk around the aircraft at aircraft selection.** With the hand that is not
+  holding the menu pointer, push the thumbstick forward to throw an aiming
+  arc, and let go to teleport to where it lands. The menu and the aircraft
+  stay where they are, so you walk back to the menu, or pull the same
+  thumbstick back and let go to return to it at once. You can stand on any
+  surface the arc lands on that is flat enough, and a circle around the
+  aircraft is as far as you can go. Leaving the screen puts you back. That
+  hand's thumbstick label calls the teleport out. Turn it off with **VR Menus
+  → Walk Around Aircraft** in the BepInEx config.
+- **Throttle feedback.** Sliding the virtual throttle now gives a light tick
+  for every 5% of travel, like a notched slider, and reaching idle adds a
+  second pulse right after the existing end-stop pulse, so 0% feels different
+  from full power and from everywhere in between. Both follow the haptic
+  strength setting.
+- The main menu's rail is headed by the words **NOVR Interactive** instead of
+  the red logo image, which is no longer in the package.
 - The full-screen map shows what the thumbsticks do. The left stick has always
   moved the map and the right stick zoomed it, but nothing said so. While the
   laser is on the map, a small label above each thumbstick now names its job.
@@ -119,4 +148,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera and the map labels: their rules are covered by the source checks and they compile against the game, but how they fly, read and feel is not yet known. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

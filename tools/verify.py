@@ -52,6 +52,7 @@ PORTABLE = (
     ("texture-preparation", "tests/TexturePreparation/TexturePreparationChecks.csproj"),
     ("feedback-preview", "tests/FeedbackPreview/FeedbackPreviewChecks.csproj"),
     ("hand-option-wheel", "tests/HandOptionWheel/HandOptionWheel.csproj"),
+    ("controller-models", "tests/ControllerModels/ControllerModels.csproj"),
     ("hud-widgets", "tests/HudWidgets/NOVR.HudWidgets.Tests.csproj"),
     ("wrist-widgets", "tests/WristWidgets/WristWidgets.csproj"),
     ("hud-widget-session", "tests/HudWidgetSession/HudWidgetSession.csproj"),

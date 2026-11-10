@@ -82,6 +82,15 @@ flies from outside, [`ExternalFlightInput`](../NOVR/FlightControls/ExternalFligh
 owns the thumbsticks: it writes pitch, roll, rudder and throttle in the same
 pilot-input postfixes as the virtual handles, and hands only the camera part
 to `SpectatorCameraInput`.
+[`AircraftWalkaround`](../NOVR/VrCamera/AircraftWalkaround.cs) teleports the
+player at aircraft selection by moving `NOVRHeadsetData`'s translation anchor,
+the player's own offset inside the tracking space. The game camera (the
+tracking origin) does not move, so the world and the interface space, which
+share that local pose, keep the menu where it was.
+[`MenuControllerModels`](../NOVR/VrUi/Controllers/MenuControllerModels.cs)
+draws SteamVR's own render model for the detected controller on the grip pose
+and labels its parts from the bindings; models are parsed off the main thread
+and released when a mission starts.
 Map access uses the native Maximize/Minimize lifecycle and does not require a
 cached local player or aircraft. Opening locks still belong to native UI; closing
 an existing map remains possible without changing the followed unit.

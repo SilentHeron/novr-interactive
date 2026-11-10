@@ -68,6 +68,16 @@ internal static class TrackedControllers
         _ => ControllerHardwareProfile.Other
     };
     internal static bool NativeFrame(bool left) => Profile(left) == ControllerHardwareProfile.SteamFrame;
+    // Which controller this is, as far as its OpenXR layout tells: enough to
+    // pick the matching SteamVR model. A plain Touch layout is shown as Quest 2.
+    internal static VrUi.Controllers.ControllerModelFamily ModelFamily(bool left) => (left ? XRController.leftHand : XRController.rightHand) switch
+    {
+        Valve.OpenXR.Utils.SteamFrameControllerProfile.SteamFrameController => VrUi.Controllers.ControllerModelFamily.SteamFrame,
+        MetaQuestTouchPlusControllerProfile.QuestTouchPlusController => VrUi.Controllers.ControllerModelFamily.QuestPlus,
+        MetaQuestTouchProControllerProfile.QuestProTouchController => VrUi.Controllers.ControllerModelFamily.QuestPro,
+        OculusTouchControllerProfile.OculusTouchController => VrUi.Controllers.ControllerModelFamily.Quest2,
+        _ => VrUi.Controllers.ControllerModelFamily.None
+    };
     internal static bool IsApplicationMenuAvailable(ControllerHardwareProfile profile, bool left) =>
         profile != ControllerHardwareProfile.Touch || left;
 
