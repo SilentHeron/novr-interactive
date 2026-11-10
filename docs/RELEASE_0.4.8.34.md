@@ -3,29 +3,35 @@
 - New **outside view** while flying. In the cockpit, click a free thumbstick
   and pick **OUTSIDE VIEW** on the quick wheel (also **View → Flight actions →
   Outside view**). The camera moves to the game's own orbit camera around your
-  aircraft and you keep flying, with thumbsticks instead of the virtual
-  handles:
-  - The stick hand's thumbstick is the flight stick: pull back for nose up,
-    left and right to roll.
-  - The other thumbstick looks around the aircraft.
-  - Hold the throttle hand's grip and its thumbstick becomes throttle (up and
-    down) and rudder (left and right). The throttle keeps its setting when you
-    let go.
-  - Hold the stick hand's grip and the other thumbstick moves the camera
-    closer or farther.
-  - Buttons work without a handle to hold: guns, weapon release,
-    countermeasures, brake and the rest act as bound.
+  aircraft and you keep flying. The virtual handles stay in the cockpit, so the
+  controllers follow the game's own gamepad layout, the same for either
+  handedness:
+  - Left thumbstick is the flight stick: pull back for nose up, left and right
+    to roll.
+  - Right thumbstick looks around the aircraft.
+  - Triggers are the rudder: left trigger left, right trigger right.
+  - Grips are the throttle, where a gamepad has its bumpers: left grip down,
+    right grip up. The throttle keeps its setting when you let go.
+  - Both grips held: the right thumbstick moves the camera closer or farther,
+    and the throttle does not move.
+  - Buttons work without a handle to hold: weapon release, countermeasures,
+    next weapon and the rest act as bound. Anything bound to a trigger (guns
+    and the brake by default) does not act out there, because the triggers
+    steer. To make up for it, the weapon-release button fires the selected
+    weapon whatever it is, guns included, as the game's gamepad Fire button
+    does. There is no brake in the outside view unless you bind one to a
+    button other than a trigger.
   - **B** on the stick hand returns to the cockpit (Frame and Quest; the
     mirrored button when left-handed). The quick wheel offers **COCKPIT VIEW**
     too. Thumbstick click still opens the wheel, so those two buttons are not
     flight buttons out there. The wheel opens only when the clicked stick is
     centred, so pushing hard through a turn cannot pop it open.
 
-  A thumbstick that is already pushed when the view or its role changes does
-  nothing until it has been centred once. The first three times, the game's
-  message feed names the controls. With motion controls off (a physical
-  HOTAS), the view and **B** work the same and the thumbsticks keep their
-  spectator roles.
+  A thumbstick already pushed, or a trigger or grip already squeezed, when the
+  view starts or a menu closes does nothing until it has been let go once. The
+  first three times, the game's message feed names the controls. With motion
+  controls off (a physical HOTAS), the view and **B** work the same and the
+  thumbsticks keep their spectator roles.
 - **Free camera for spectators.** With nothing followed (you joined as a
   spectator, or closed the spawn map) the right stick looks and the left stick
   flies the game's free camera; hold either grip to move ten times faster.

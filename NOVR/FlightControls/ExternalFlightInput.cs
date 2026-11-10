@@ -10,11 +10,10 @@ namespace NOVR.MotionControls;
 // Runtime side of ExternalFlightSticks: one sample per frame, shared by the
 // native pilot input hooks, the orbit camera hook and the button dispatcher.
 // The virtual stick and throttle only exist in the cockpit, so the outside view
-// flies with thumbsticks instead. It needs motion controls enabled; with them
+// flies like a gamepad instead. It needs motion controls enabled; with them
 // off (a physical HOTAS) the sticks keep their spectator camera roles.
 internal static class ExternalFlightInput
 {
-    private const float GripHeld = .55f;
     private static readonly ExternalFlightSticks Sticks = new();
     private static int _frame = -1, _cameraFrame = -1;
     private static Aircraft? _aircraft;
@@ -57,19 +56,19 @@ internal static class ExternalFlightInput
             _motion = default;
             return false;
         }
-        var leftHanded = ModConfiguration.Instance.MotionControls.LeftHanded.Value;
         if (!_announced)
         {
             _announced = true;
-            Announce(leftHanded);
+            Announce(ModConfiguration.Instance.MotionControls.LeftHanded.Value);
         }
-        var stick = TrackedControllers.Read(leftHanded);
-        var other = TrackedControllers.Read(!leftHanded);
-        // A hand that owns the quick wheel is choosing a sector, not flying.
-        var stickValid = stick.Valid && stick.HasAxis && !NativeHandOptionWheel.OwnsHand(leftHanded);
-        var otherValid = other.Valid && other.HasAxis && !NativeHandOptionWheel.OwnsHand(!leftHanded);
-        _motion = Sticks.Update(true, stickValid, otherValid, stick.Axis.x, stick.Axis.y, other.Axis.x, other.Axis.y,
-            other.Valid && other.Grip >= GripHeld, stick.Valid && stick.Grip >= GripHeld, Time.unscaledDeltaTime);
+        var left = TrackedControllers.Read(true);
+        var right = TrackedControllers.Read(false);
+        // A hand that owns the quick wheel is choosing a sector, not flying:
+        // its thumbstick, trigger and grip all belong to the wheel.
+        var leftValid = left.Valid && left.HasAxis && !NativeHandOptionWheel.OwnsHand(true);
+        var rightValid = right.Valid && right.HasAxis && !NativeHandOptionWheel.OwnsHand(false);
+        _motion = Sticks.Update(true, leftValid, rightValid, left.Axis.x, left.Axis.y, right.Axis.x, right.Axis.y,
+            left.Trigger, right.Trigger, left.Grip, right.Grip, Time.unscaledDeltaTime);
         // The pilot hooks may run in physics steps: none or several per frame.
         _throttleStep += _motion.ThrottleStep;
         return true;
@@ -99,17 +98,12 @@ internal static class ExternalFlightInput
 
     // The game's own message feed, which NOVR already shows in outside views.
     // Feed rows are one line each, so every control gets a short line.
-    internal static string[] HintLines(bool leftHanded, string cockpitButton)
+    internal static string[] HintLines(string cockpitButton) => new[]
     {
-        var stick = leftHanded ? "Left" : "Right";
-        var other = leftHanded ? "Right" : "Left";
-        return new[]
-        {
-            $"{stick} stick flies, {other.ToLowerInvariant()} stick looks",
-            $"{other} grip + stick: throttle, rudder",
-            $"{stick} grip + {other.ToLowerInvariant()} stick: zoom. {cockpitButton}: cockpit"
-        };
-    }
+        "Left stick flies, right stick looks",
+        "Triggers: rudder. Grips: throttle down, up",
+        $"Both grips + right stick: zoom. {cockpitButton}: cockpit"
+    };
 
     private static void Announce(bool leftHanded)
     {
@@ -118,7 +112,7 @@ internal static class ExternalFlightInput
             return;
         _hints++;
         var button = ControllerButtonNames.Describe(ControllerActions.CockpitReturnButton, leftHanded, TrackedControllers.NativeFrame(leftHanded));
-        foreach (var line in HintLines(leftHanded, button))
+        foreach (var line in HintLines(button))
             ui.GameMessage(line);
     }
 

@@ -14,71 +14,115 @@ internal static class OutsideFlightChecks
         void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
         bool Near(float a, float b) => Math.Abs(a - b) < .0001f;
 
-        // ---- Stick mapping (no game state) ----
+        // ---- Mapping (no game state): the game's gamepad layout ----
         var sticks = new ExternalFlightSticks();
-        ExternalFlightMotion Read(float sx = 0, float sy = 0, float ox = 0, float oy = 0, bool throttle = false, bool distance = false,
-            float dt = .02f, bool stick = true, bool other = true, bool available = true) =>
-            sticks.Update(available, stick, other, sx, sy, ox, oy, throttle, distance, dt);
-        Check(!Read(sx: 1, sy: -1).Flying, "A thumbstick held while entering the outside view does not fly the aircraft");
-        Check(!Read(sx: 1, sy: -1).Flying, "A held thumbstick cannot arm itself over time");
+        ExternalFlightMotion Read(float lx = 0, float ly = 0, float rx = 0, float ry = 0, float lt = 0, float rt = 0,
+            float lg = 0, float rg = 0, float dt = .02f, bool left = true, bool right = true, bool available = true) =>
+            sticks.Update(available, left, right, lx, ly, rx, ry, lt, rt, lg, rg, dt);
+        void Hold(int frames, float lg = 0, float rg = 0) { for (var i = 0; i < frames; i++) Read(lg: lg, rg: rg); }
+        Check(!Read(lx: 1, ly: -1).Flying, "A thumbstick held while entering the outside view does not fly the aircraft");
+        Check(!Read(lx: 1, ly: -1).Flying, "A held thumbstick cannot arm itself over time");
         Check(Read().Flying && Read().Pitch == 0 && Read().Roll == 0, "A centred stick arms flight with neutral input");
-        var pull = Read(sy: -1);
-        var push = Read(sy: 1);
-        Check(Near(pull.Pitch, -1) && Near(push.Pitch, 1), "Pulling the thumbstick back commands nose-up (the game's negative pitch)");
-        Check(Near(Read(sx: 1).Roll, 1) && Near(Read(sx: -1).Roll, -1), "Thumbstick right rolls right");
-        var half = Read(sx: .6f).Roll;
+        Check(Near(Read(ly: -1).Pitch, -1) && Near(Read(ly: 1).Pitch, 1), "Pulling the left thumbstick back commands nose-up (the game's negative pitch)");
+        Check(Near(Read(lx: 1).Roll, 1) && Near(Read(lx: -1).Roll, -1), "Left thumbstick right rolls right");
+        var half = Read(lx: .6f).Roll;
         Check(half > 0 && half < .5f, "Small deflections are finer than linear, full deflection still reaches the stop");
-        Check(Read(sx: .1f, sy: -.1f).Pitch == 0 && Read(sx: .1f).Roll == 0, "Thumbstick drift does not move the aircraft");
-        Check(float.IsFinite(Read(sx: float.MaxValue, sy: float.MaxValue).Roll), "Malformed finite values cannot overflow");
+        Check(Read(lx: .1f, ly: -.1f).Pitch == 0 && Read(lx: .1f).Roll == 0, "Thumbstick drift does not move the aircraft");
+        Check(float.IsFinite(Read(lx: float.MaxValue, ly: float.MaxValue).Roll), "Malformed finite values cannot overflow");
+        var flown = Read(lx: 1, ly: 1);
+        Check(!flown.Camera.HasOrbitMotion && flown.Yaw == 0 && flown.ThrottleStep == 0, "The left thumbstick only flies: no camera, rudder or throttle");
         sticks.Reset();
-        Check(!Read(ox: 1, oy: 1).Camera.HasOrbitMotion, "The camera stick also needs a fresh centre");
+        Check(!Read(rx: 1, ry: 1).Camera.HasOrbitMotion, "The camera stick also needs a fresh centre");
         Read();
-        var look = Read(ox: 1);
+        var look = Read(rx: 1);
         Check(Near(look.Camera.YawDegrees, 1.5f) && look.Camera.PitchDegrees == 0 && look.Camera.Distance == 0 &&
-              !look.Rudder && look.ThrottleStep == 0, "The other thumbstick orbits the camera and commands nothing");
-        Check(Read(oy: 1).Camera.PitchDegrees < 0 && Read(oy: -1).Camera.PitchDegrees > 0,
+              look.Roll == 0 && look.Pitch == 0 && !look.Rudder && look.ThrottleStep == 0,
+            "The right thumbstick orbits the camera and commands nothing");
+        Check(Read(ry: 1).Camera.PitchDegrees < 0 && Read(ry: -1).Camera.PitchDegrees > 0,
             "Camera stick up raises the vantage, matching the spectator orbit");
-        var slam = Read(oy: 1, throttle: true);
-        Check(slam.ThrottleStep == 0 && !slam.Rudder && !slam.Camera.HasOrbitMotion,
-            "Squeezing the throttle grip with the stick deflected cannot slam the throttle");
-        Read(throttle: true);
-        var power = Read(oy: 1, throttle: true);
-        Check(Near(power.ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .02f) && power.Rudder && power.Yaw == 0 &&
-              !power.Camera.HasOrbitMotion, "With the throttle grip held the thumbstick is throttle and rudder, not camera");
-        Check(Read(ox: 1, throttle: true).Yaw > 0, "Throttle-hand stick right is right rudder");
-        Check(Read(oy: -1, throttle: true).ThrottleStep < 0 && Read(ox: -1, throttle: true).Yaw < 0, "Throttle down and left rudder follow the stick");
-        Check(!Read(ox: 1).Camera.HasOrbitMotion, "Releasing the throttle grip with the stick deflected cannot swing the camera");
+
+        // Triggers are the rudder, left and right as on the gamepad layout.
+        Check(Near(Read(rt: 1).Yaw, 1) && Read(rt: 1).Rudder, "Right trigger is full right rudder");
         Read();
-        Read(distance: true);
-        var zoom = Read(ox: 1, oy: 1, distance: true);
-        Check(zoom.Camera.Distance < 0 && zoom.Camera.YawDegrees > 0 && zoom.Camera.PitchDegrees == 0 && zoom.ThrottleStep == 0,
-            "With the stick-hand grip held the camera stick moves closer or farther and still orbits");
-        Read(throttle: true, distance: true);
-        var both = Read(oy: 1, throttle: true, distance: true);
-        Check(both.ThrottleStep > 0 && both.Camera.Distance == 0, "Both grips held: flying wins over framing");
+        Check(Near(Read(lt: 1).Yaw, -1), "Left trigger is full left rudder");
+        var part = Read(lt: 0, rt: .5f).Yaw;
+        Check(part > 0 && part < .5f, "Rudder is proportional and fine near the start of the pull");
+        Check(!Read(rt: .05f).Rudder, "A resting finger on a trigger is not rudder");
+        Read();
+        Check(Near(Read(lt: 1, rt: 1).Yaw, 0), "Both triggers cancel");
+        sticks.Reset();
+        Check(!Read(rt: 1).Rudder && !Read(rt: 1).Rudder, "A trigger already pulled when the outside view starts is not rudder");
+        Check(!Read().Rudder && Read(rt: 1).Yaw > 0, "After one release the trigger is rudder");
+        Check(!Read(rt: 1, right: false).Rudder && !Read(rt: 1).Rudder, "A trigger held through lost tracking needs a release too");
+
+        // Grips stand in for the gamepad's bumpers: throttle down and up.
         sticks.Reset(); Read();
-        Check(!Read(sx: 1, stick: false).Flying && !Read(sx: 1).Flying, "Losing the flight hand's tracking requires a fresh centre");
+        Check(Read(rg: 1).ThrottleStep == 0, "A squeeze does not move the throttle on its first frames");
+        Hold(8, rg: 1);
+        Check(Near(Read(rg: 1).ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .02f), "Right grip held raises the throttle at the full rate");
+        Read(); Hold(8, lg: 1);
+        Check(Near(Read(lg: 1).ThrottleStep, -ExternalFlightSticks.ThrottlePerSecond * .02f), "Left grip held lowers the throttle");
+        Read(); Hold(8, rg: .45f);
+        Check(Read(rg: .45f).ThrottleStep == 0, "A light hold on the controller is not a throttle command");
+        Read(); Hold(8, rg: .75f);
+        var gentle = Read(rg: .75f).ThrottleStep;
+        Check(gentle > 0 && gentle < ExternalFlightSticks.ThrottlePerSecond * .02f, "A partial squeeze moves the throttle more slowly");
+        sticks.Reset();
+        Hold(20, rg: 1);
+        Check(Read(rg: 1).ThrottleStep == 0, "A grip still squeezed from holding a virtual handle does not move the throttle");
+        Read(); Hold(8, rg: 1);
+        Check(Read(rg: 1).ThrottleStep > 0, "After one release the grip is throttle");
+        foreach (var dt in new[] { 1f / 60, 1f / 90, 1f / 144 })
+        {
+            sticks.Reset(); Read();
+            var total = 0f;
+            for (var i = 0; i < (int)MathF.Round(1 / dt); i++) total += Read(rg: 1, dt: dt).ThrottleStep;
+            var expected = ExternalFlightSticks.ThrottlePerSecond * (1 - ExternalFlightSticks.GripDelay);
+            Check(Math.Abs(total - expected) < ExternalFlightSticks.ThrottlePerSecond * dt * 1.5f, "Throttle rate is independent of headset refresh rate");
+        }
+        sticks.Reset(); Read(); Hold(8, rg: 1);
+        Check(Near(Read(rg: 1, dt: 10).ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .05f), "A stalled frame cannot jump the throttle");
+
+        // Both grips: no throttle change, and the camera stick moves closer or farther.
+        sticks.Reset(); Read();
+        var both = Read(lg: 1, rg: 1, rx: 1, ry: 1);
+        Check(both.ThrottleStep == 0 && !both.Camera.HasOrbitMotion, "Squeezing both grips with the camera stick deflected neither zooms nor moves the throttle");
+        Read(lg: 1, rg: 1);
+        var zoom = Read(lg: 1, rg: 1, rx: 1, ry: 1);
+        Check(zoom.Camera.Distance < 0 && zoom.Camera.YawDegrees > 0 && zoom.Camera.PitchDegrees == 0 && zoom.ThrottleStep == 0,
+            "With both grips held the camera stick moves closer or farther and still orbits");
+        sticks.Reset(); Read();
+        Read(rg: 1); Read(rg: 1); // the second hand arrives a moment later
+        var total2 = 0f;
+        for (var i = 0; i < 30; i++) total2 += Read(lg: 1, rg: 1).ThrottleStep;
+        Check(total2 == 0, "Closing both grips a moment apart does not nudge the throttle");
+        var release = 0f;
+        for (var i = 0; i < 30; i++) release += Read(rg: 1, ry: 1).ThrottleStep;
+        Check(release == 0, "Letting go of one grip first does not move the throttle either");
+        Check(!Read(rg: 1, ry: 1).Camera.HasOrbitMotion, "And a stick held through that change does not swing the camera");
+        Read(); Hold(8, rg: 1);
+        Check(Read(rg: 1).ThrottleStep > 0, "Once both grips were released, one grip is throttle again");
+
+        sticks.Reset(); Read();
+        Check(!Read(lx: 1, left: false).Flying && !Read(lx: 1).Flying, "Losing the flight hand's tracking requires a fresh centre");
         Read();
-        Check(Read(ox: 1, stick: false).Camera.YawDegrees > 0, "The camera hand keeps working while the flight hand is untracked");
+        Check(Read(rx: 1, left: false).Camera.YawDegrees > 0, "The camera hand keeps working while the flight hand is untracked");
         Read();
-        Check(Read(sx: 1, other: false).Roll > 0, "The flight hand keeps working while the camera hand is untracked");
+        Check(Read(lx: 1, right: false).Roll > 0, "The flight hand keeps working while the camera hand is untracked");
         foreach (var bad in new[] { float.NaN, float.PositiveInfinity, 0f, -1f })
         {
             sticks.Reset(); Read();
-            Check(!Read(sx: 1, dt: bad).Flying && !Read(sx: 1).Flying, "An invalid frame time resets every gate");
+            Check(!Read(lx: 1, dt: bad).Flying && !Read(lx: 1).Flying, "An invalid frame time resets every gate");
+        }
+        foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+        {
+            sticks.Reset(); Read();
+            var broken = Read(rt: bad, rg: bad);
+            Check(!broken.Rudder && broken.ThrottleStep == 0 && !Read(rt: 1).Rudder, "A malformed trigger or grip value is ignored and needs a release");
         }
         sticks.Reset(); Read();
-        Check(!Read(sx: 1, available: false).Flying && !Read(sx: 1).Flying, "A menu or map resets every gate");
-        foreach (var dt in new[] { 1f / 60, 1f / 90, 1f / 144 })
-        {
-            sticks.Reset(); Read(throttle: true);
-            var total = 0f;
-            for (var i = 0; i < (int)MathF.Round(1 / dt); i++) total += Read(oy: 1, throttle: true, dt: dt).ThrottleStep;
-            Check(Math.Abs(total - ExternalFlightSticks.ThrottlePerSecond) < .002f, "Throttle rate is independent of headset refresh rate");
-        }
-        sticks.Reset(); Read(throttle: true);
-        Check(Near(Read(oy: 1, throttle: true, dt: 10).ThrottleStep, ExternalFlightSticks.ThrottlePerSecond * .05f),
-            "A stalled frame cannot jump the throttle");
+        Check(!Read(lx: 1, rt: 1, available: false).Flying && !Read(lx: 1, rt: 1).Flying && !Read(lx: 1, rt: 1).Rudder,
+            "A menu or map resets every gate");
 
         // ---- View switching against native camera doubles ----
         CameraStateManager camera = null!;
@@ -189,53 +233,71 @@ internal static class OutsideFlightChecks
 
         // ---- Runtime: flight sticks, camera hand-off, hint ----
         void Orbit() => SpectatorCameraInput.ApplyOrbit(camera.orbitState, camera);
+        void Step(float lx = 0, float ly = 0, float rx = 0, float ry = 0) { Frame(lx, ly, rx, ry); ExternalFlightInput.Sample(); Orbit(); }
         Fresh(); ui.Messages.Clear();
         Frame(); Check(ExternalFlightInput.Sample() && ExternalFlightInput.Active, "Outside-view flight starts with motion controls on");
-        Check(ui.Messages.Count == 3 && ui.Messages[0].StartsWith("Right stick flies") && ui.Messages[2].Contains("B: cockpit"),
+        Check(ui.Messages.Count == 3 && ui.Messages[0] == "Left stick flies, right stick looks" && ui.Messages[2].Contains("B: cockpit"),
             "Entering the outside view names the controls once in the game's feed");
         Orbit();
-        Frame(rx: 1, ry: -1); Orbit();
-        Check(ExternalFlightInput.Flying && Near(ExternalFlightInput.Roll, 0) is false && ExternalFlightInput.Pitch < 0 &&
+        Step(lx: 1, ly: -1);
+        Check(ExternalFlightInput.Flying && ExternalFlightInput.Roll > 0 && ExternalFlightInput.Pitch < 0 &&
               camera.orbitState.Pan == 0 && camera.orbitState.Tilt == 20,
-            "While flying from outside the right stick flies and never moves the camera");
-        Frame(lx: 1, ly: 1); Orbit();
+            "While flying from outside the left stick flies and never moves the camera");
+        Step(rx: 1, ry: 1);
         var pan = camera.orbitState.Pan;
-        Check(pan > 0 && camera.orbitState.Tilt > 20 && camera.orbitState.Distance == 0 && ExternalFlightInput.Pitch == 0,
-            "The left stick orbits the camera around the aircraft");
+        Check(pan > 0 && camera.orbitState.Tilt > 20 && camera.orbitState.Distance == 0 && ExternalFlightInput.Pitch == 0 && ExternalFlightInput.Roll == 0,
+            "The right stick orbits the camera around the aircraft and does not fly it");
         Orbit();
         Check(camera.orbitState.Pan == pan, "Several native camera callbacks in one frame move the camera once");
         Check(ui.Messages.Count == 3, "The hint is not repeated every frame");
-        Frame(); Orbit();
-        TrackedControllers.Left.Grip = 1;
-        Frame(); Orbit(); Frame(lx: .9f, ly: 1); Orbit();
-        var took = ExternalFlightInput.TakeThrottleStep(out var step);
-        Check(camera.orbitState.Pan == pan && ExternalFlightInput.Rudder && ExternalFlightInput.Yaw > 0 &&
-              took && step > 0 && !ExternalFlightInput.TakeThrottleStep(out _),
-            "Left grip held: the left stick is throttle and rudder, handed out once");
-        // Two rendered frames pass before the next physics step asks.
-        Frame(lx: .9f, ly: 1); ExternalFlightInput.Sample();
-        Frame(lx: .9f, ly: 1); ExternalFlightInput.Sample();
-        Check(ExternalFlightInput.TakeThrottleStep(out var two) && Near(two, step * 2), "Throttle steps accumulate across frames without a physics step");
-        TrackedControllers.Left.Grip = 0;
+        Step();
+        TrackedControllers.Right.Trigger = 1;
+        Step();
+        Check(ExternalFlightInput.Rudder && ExternalFlightInput.Yaw > 0 && camera.orbitState.Pan == pan, "Right trigger is right rudder");
+        TrackedControllers.Right.Trigger = 0; TrackedControllers.Left.Trigger = 1;
+        Step();
+        Check(ExternalFlightInput.Rudder && ExternalFlightInput.Yaw < 0, "Left trigger is left rudder");
+        TrackedControllers.Left.Trigger = 0;
+        Step();
+        Check(!ExternalFlightInput.Rudder, "Released triggers leave the game's own yaw alone");
         TrackedControllers.Right.Grip = 1;
-        Frame(); Orbit(); Frame(ly: 1); Orbit();
+        for (var i = 0; i < 12; i++) Step();
+        var took = ExternalFlightInput.TakeThrottleStep(out var step);
+        Check(took && step > 0 && !ExternalFlightInput.TakeThrottleStep(out _), "Right grip raises the throttle, handed out once");
+        // Two rendered frames pass before the next physics step asks.
+        Step(); Step();
+        Check(ExternalFlightInput.TakeThrottleStep(out var two) && Near(two, ExternalFlightSticks.ThrottlePerSecond * .04f),
+            "Throttle steps accumulate across frames without a physics step");
+        TrackedControllers.Right.Grip = 0; TrackedControllers.Left.Grip = 1;
+        Step();
+        for (var i = 0; i < 12; i++) Step();
+        Check(ExternalFlightInput.TakeThrottleStep(out var down) && down < 0, "Left grip lowers the throttle");
+        TrackedControllers.Left.Grip = 0;
+        Step();
+        TrackedControllers.Left.Grip = TrackedControllers.Right.Grip = 1;
+        Step(); Step(ry: 1);
         Check(camera.orbitState.Distance == 0 && camera.orbitState.Pan == pan, "Zoom cannot go below the native minimum distance");
-        Frame(ly: -1); Orbit();
-        Check(camera.orbitState.Distance > 0, "Right grip held: the left stick changes camera distance");
-        TrackedControllers.Right.Grip = 0;
+        Step(ry: -1);
+        Check(camera.orbitState.Distance > 0 && !ExternalFlightInput.TakeThrottleStep(out _),
+            "Both grips held: the right stick changes camera distance and the throttle stays put");
+        TrackedControllers.Left.Grip = TrackedControllers.Right.Grip = 0;
 
+        // A gamepad does not mirror: cockpit handedness only moves the way back.
         Fresh(); ModConfiguration.Instance.MotionControls.LeftHanded.Value = true;
-        Frame(); ExternalFlightInput.Sample(); Orbit();
-        Frame(lx: 1, rx: 1); Orbit();
-        Check(ExternalFlightInput.Roll > 0 && camera.orbitState.Pan > 0, "Left-handed: the left stick flies and the right stick looks");
-        Check(ui.Messages.Any(m => m.StartsWith("Left stick flies")), "Left-handed hints name the mirrored hands");
+        Step(); Step(lx: 1, rx: 1);
+        Check(ExternalFlightInput.Roll > 0 && camera.orbitState.Pan > 0, "Left-handed cockpit: the left stick still flies and the right stick still looks");
+        Check(ui.Messages.Any(m => m.EndsWith("Y: cockpit")), "Left-handed hints name the mirrored cockpit button");
 
-        Fresh(); NativeHandOptionWheel.RightOwned = true;
-        Frame(); ExternalFlightInput.Sample(); Frame(rx: 1);
-        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, "A hand that owns the quick wheel does not fly");
-        NativeHandOptionWheel.RightOwned = false;
-        Frame(rx: 1);
-        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, "Closing the wheel with the stick deflected needs a fresh centre");
+        Fresh(); NativeHandOptionWheel.LeftOwned = true;
+        Step(); Frame(lx: 1);
+        TrackedControllers.Left.Trigger = 1;
+        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
+            "A hand that owns the quick wheel neither flies nor steers: its trigger pages the wheel");
+        NativeHandOptionWheel.LeftOwned = false;
+        Frame(lx: 1);
+        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
+            "Closing the wheel with stick and trigger held needs a fresh centre and release");
+        TrackedControllers.Left.Trigger = 0;
 
         var gates = new (string Name, Action Block, Action Unblock)[]
         {
@@ -252,29 +314,31 @@ internal static class OutsideFlightChecks
         foreach (var gate in gates)
         {
             Fresh(); Frame(); ExternalFlightInput.Sample();
-            gate.Block(); Frame(rx: 1);
+            gate.Block(); Frame(lx: 1);
             Check(!ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
                 "No thumbstick flight while: " + gate.Name);
-            gate.Unblock(); Frame(rx: 1);
+            gate.Unblock(); Frame(lx: 1);
             Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, gate.Name + " ends with the stick held: a fresh centre is required");
-            Frame(); ExternalFlightInput.Sample(); Frame(rx: 1);
+            Frame(); ExternalFlightInput.Sample(); Frame(lx: 1);
             Check(ExternalFlightInput.Sample() && ExternalFlightInput.Flying && ExternalFlightInput.Roll > 0, gate.Name + " recovery flies again");
         }
 
         // Motion controls off (a physical HOTAS): the sticks keep their spectator roles.
         Fresh(); ModConfiguration.Instance.MotionControls.Enabled.Value = false;
-        Frame(); Orbit(); Frame(rx: 1); Orbit();
-        Check(!ExternalFlightInput.Active && camera.orbitState.Pan > 0, "With motion controls off the right stick still orbits the outside view");
+        Frame(); Orbit(); Frame(rx: 1, ly: -1); Orbit();
+        Check(!ExternalFlightInput.Active && camera.orbitState.Pan > 0 && camera.orbitState.Distance > 0,
+            "With motion controls off the right stick orbits and the left stick changes distance, as for a spectator");
         ModConfiguration.Instance.MotionControls.Enabled.Value = true;
 
         // Losing the aircraft mid-flight hands the sticks back to the spectator camera.
-        Fresh(); Frame(); ExternalFlightInput.Sample(); Orbit();
-        Frame(rx: 1); Orbit();
+        Fresh(); Step(); Step(rx: 1, lx: 1);
+        pan = camera.orbitState.Pan;
         aircraft.disabled = true;
-        Frame(rx: 1); Orbit();
-        Check(!ExternalFlightInput.Active && camera.orbitState.Pan == 0, "A flight deflection held through a crash does not swing the spectator camera");
-        Frame(); Orbit(); Frame(rx: 1); Orbit();
-        Check(camera.orbitState.Pan > 0, "After centring, the right stick orbits the wreck as a spectator");
+        Step(rx: 1, lx: 1);
+        Check(!ExternalFlightInput.Active && camera.orbitState.Pan == pan && camera.orbitState.Distance == 0,
+            "Sticks held through a crash do not swing or zoom the spectator camera");
+        Step(); Step(rx: 1);
+        Check(camera.orbitState.Pan > pan, "After centring, the right stick orbits the wreck as a spectator");
 
         // The hint is limited per session and tied to visits, not frames.
         Fresh(); ui.Messages.Clear();
@@ -284,9 +348,7 @@ internal static class OutsideFlightChecks
             CameraStateManager.cameraMode = CameraMode.orbit; Frame(); ExternalFlightInput.Sample();
         }
         Check(ui.Messages.Count <= 9, "The control hint appears on at most three visits per session");
-        DynamicMap.mapMaximized = true; Frame(); ExternalFlightInput.Sample();
-        DynamicMap.mapMaximized = false; Frame(); ExternalFlightInput.Sample();
-        var lines = ExternalFlightInput.HintLines(false, "B");
+        var lines = ExternalFlightInput.HintLines("B");
         Check(lines.Length == 3 && lines.All(l => l.Length <= 44), "Hint lines stay short enough for one feed row each");
 
         SceneSingleton<CameraStateManager>.i = null;

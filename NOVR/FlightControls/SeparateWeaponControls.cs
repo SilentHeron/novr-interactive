@@ -18,8 +18,11 @@ internal static class SeparateWeaponControls
             return true;
 
         var selectedGun = __instance.currentWeaponStation != null && __instance.currentWeaponStation.WeaponInfo.gun;
+        // In the cockpit A never fires guns. In the outside view the triggers
+        // are the rudder, so there the weapon-release button fires the selected
+        // weapon whatever it is, as the game's own gamepad Fire button does.
         if (selectedGun)
-            return actions.GunsHeld;
+            return actions.GunsHeld || ExternalFlightInput.Active && actions.WeaponReleaseHeld;
 
         if (actions.GunsHeld && !aircraft.remoteSim)
         {

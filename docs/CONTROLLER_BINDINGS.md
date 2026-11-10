@@ -65,16 +65,19 @@ Nav lights may be assigned like gear and radar. **Change view** (under Menu, map
 
 Click a free thumbstick in the cockpit and choose **OUTSIDE VIEW**, or use **View → Flight actions → Outside view**. The camera becomes the game's orbit camera around your aircraft, in full VR, and you keep flying.
 
-| Control | Right-handed | Does |
-| --- | --- | --- |
-| Stick hand's thumbstick | Right stick | Flight stick: back for nose up, left/right to roll |
-| Other thumbstick | Left stick | Looks around the aircraft |
-| Throttle hand's grip held | Left grip + left stick | Throttle (up/down) and rudder (left/right) |
-| Stick hand's grip held | Right grip + left stick | Camera closer (up) or farther (down) |
-| Stick hand's B | B | Back to the cockpit |
-| Thumbstick click | Either | Quick wheel, with **COCKPIT VIEW** |
+The layout is the game's own gamepad layout, with the grips where a gamepad has its bumpers. It is the same for either handedness.
 
-Every other button acts as bound, without a handle to hold. Bindings on the stick hand's B and on thumbstick click are not used out there, because those two are the way back. The wheel opens only when the clicked thumbstick is centred, so pushing hard through a turn cannot pop it open. The throttle keeps its last setting when the grip is released. A thumbstick that is already pushed when the view changes, a grip is squeezed or a menu closes does nothing until it has been centred once, so the camera stick cannot become a throttle slam. The first three times, the game's message feed lists these controls.
+| Control | Does |
+| --- | --- |
+| Left thumbstick | Flight stick: back for nose up, left/right to roll |
+| Right thumbstick | Looks around the aircraft |
+| Left / right trigger | Rudder left / right |
+| Left / right grip | Throttle down / up |
+| Both grips held + right thumbstick | Camera closer (up) or farther (down); throttle does not move |
+| B on the stick hand | Back to the cockpit |
+| Thumbstick click | Quick wheel, with **COCKPIT VIEW** |
+
+Every other button acts as bound, without a handle to hold. Three inputs are spoken for out there: the triggers (rudder), thumbstick click and the stick hand's B (the way back), so bindings on them do not act. By default that means guns and the brake, which sit on the triggers. The weapon-release button therefore fires the selected weapon whatever it is, guns included, as the game's gamepad Fire button does; for a brake in the outside view, bind Brake to a button other than a trigger. The wheel opens only when the clicked thumbstick is centred, so pushing hard through a turn cannot pop it open. The throttle keeps its last setting when a grip is released. A thumbstick already pushed, or a trigger or grip already squeezed, when the view starts or a menu closes does nothing until it has been let go once, so the hand that was holding a virtual handle cannot move the throttle. One grip has to be held for a moment before the throttle moves, so closing both for the camera does not nudge it. The first three times, the game's message feed lists these controls.
 
 Thumbstick flight needs motion controls on. With them off, the outside view, **B** and the wheel work the same, and the thumbsticks keep their spectator roles (right orbits, left changes distance).
 

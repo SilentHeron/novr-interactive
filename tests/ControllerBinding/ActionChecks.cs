@@ -279,6 +279,16 @@ internal static class ActionChecks
                 gear.Tick(false);
                 check(!gear.Actions.Queued(NativeControllerAction.Gear), label + "a spectator camera never dispatches aircraft actions");
 
+                // Triggers are the rudder out there, as on the game's gamepad layout.
+                var trigger = Start(ControllerActionId.Guns, true, profile, leftHanded);
+                trigger.Bindings.Set(ControllerActionId.Guns, new(ControllerButton.Trigger, ControllerHandRole.Stick));
+                trigger.TickTrigger(false); trigger.TickTrigger(true);
+                check(trigger.Actions.Held(NativeControllerAction.Guns), label + "in the cockpit a trigger binding fires with its handle held");
+                trigger.TickTrigger(false);
+                Outside();
+                trigger.TickTrigger(false); trigger.TickTrigger(true);
+                check(!trigger.Actions.Held(NativeControllerAction.Guns), label + "in the outside view a trigger binding does not act: the triggers steer");
+
                 // Thumbstick click stays free for the quick wheel.
                 var click = Start(ControllerActionId.SelectTarget, true, profile, leftHanded);
                 click.Bindings.Set(ControllerActionId.SelectTarget, new(ControllerButton.StickClick, ControllerHandRole.Stick));
@@ -437,6 +447,13 @@ internal static class ActionChecks
             PilotView.Reset();
             SceneSingleton<CombatHUD>.i = Hud;
             Invoke("Awake");
+        }
+        internal void TickTrigger(bool pressed)
+        {
+            Time.frameCount++;
+            TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
+            TrackedControllers.Samples[_left ? 0 : 1].Trigger = pressed ? 1 : 0;
+            Invoke("Update");
         }
         internal void TickStickClick(bool pressed)
         {

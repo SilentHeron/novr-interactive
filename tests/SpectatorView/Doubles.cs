@@ -45,7 +45,7 @@ namespace NuclearOption.MissionEditorScripts { public static class InputFieldChe
 namespace NuclearOption.UI { public static class LeaderboardMenu { public static bool Open; public static bool IsOpen() => Open; } }
 namespace NOVR.MotionControls
 {
-    public struct ControllerSample { public bool Valid, HasAxis; public UnityEngine.Vector2 Axis; public float Grip; }
+    public struct ControllerSample { public bool Valid, HasAxis; public UnityEngine.Vector2 Axis; public float Grip, Trigger; }
     public static class TrackedControllers
     {
         public static bool Available = true, Frame;
