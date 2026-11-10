@@ -16,9 +16,9 @@ internal static class OutsideFlightChecks
 
         // ---- Mapping (no game state): the game's gamepad layout ----
         var sticks = new ExternalFlightSticks();
-        ExternalFlightMotion Read(float lx = 0, float ly = 0, float rx = 0, float ry = 0, float lt = 0, float rt = 0,
+        ExternalFlightMotion Read(float lx = 0, float ly = 0, float rx = 0, float ry = 0,
             float lg = 0, float rg = 0, float dt = .02f, bool left = true, bool right = true, bool available = true) =>
-            sticks.Update(available, left, right, lx, ly, rx, ry, lt, rt, lg, rg, dt);
+            sticks.Update(available, left, right, lx, ly, rx, ry, lg, rg, dt);
         Check(!Read(lx: 1, ly: -1).Flying, "A thumbstick held while entering the outside view does not fly the aircraft");
         Check(!Read(lx: 1, ly: -1).Flying, "A held thumbstick cannot arm itself over time");
         Check(Read().Flying && Read().Pitch == 0 && Read().Roll == 0, "A centred stick arms flight with neutral input");
@@ -29,30 +29,16 @@ internal static class OutsideFlightChecks
         Check(Read(lx: .1f, ly: -.1f).Pitch == 0 && Read(lx: .1f).Roll == 0, "Thumbstick drift does not move the aircraft");
         Check(float.IsFinite(Read(lx: float.MaxValue, ly: float.MaxValue).Roll), "Malformed finite values cannot overflow");
         var flown = Read(lx: 1, ly: 1);
-        Check(!flown.Camera.HasOrbitMotion && flown.Yaw == 0, "The left thumbstick only flies: no camera and no rudder");
+        Check(!flown.Camera.HasOrbitMotion, "The left thumbstick only flies: it never moves the camera");
         sticks.Reset();
         Check(!Read(rx: 1, ry: 1).Camera.HasOrbitMotion, "The camera stick also needs a fresh centre");
         Read();
         var look = Read(rx: 1);
         Check(Near(look.Camera.YawDegrees, 1.5f) && look.Camera.PitchDegrees == 0 && look.Camera.Distance == 0 &&
-              look.Roll == 0 && look.Pitch == 0 && !look.Rudder,
+              look.Roll == 0 && look.Pitch == 0,
             "The right thumbstick orbits the camera and commands nothing");
         Check(Read(ry: 1).Camera.PitchDegrees < 0 && Read(ry: -1).Camera.PitchDegrees > 0,
             "Camera stick up raises the vantage, matching the spectator orbit");
-
-        // Triggers are the rudder, left and right as on the gamepad layout.
-        Check(Near(Read(rt: 1).Yaw, 1) && Read(rt: 1).Rudder, "Right trigger is full right rudder");
-        Read();
-        Check(Near(Read(lt: 1).Yaw, -1), "Left trigger is full left rudder");
-        var part = Read(lt: 0, rt: .5f).Yaw;
-        Check(part > 0 && part < .5f, "Rudder is proportional and fine near the start of the pull");
-        Check(!Read(rt: .05f).Rudder, "A resting finger on a trigger is not rudder");
-        Read();
-        Check(Near(Read(lt: 1, rt: 1).Yaw, 0), "Both triggers cancel");
-        sticks.Reset();
-        Check(!Read(rt: 1).Rudder && !Read(rt: 1).Rudder, "A trigger already pulled when the outside view starts is not rudder");
-        Check(!Read().Rudder && Read(rt: 1).Yaw > 0, "After one release the trigger is rudder");
-        Check(!Read(rt: 1, right: false).Rudder && !Read(rt: 1).Rudder, "A trigger held through lost tracking needs a release too");
 
         // A grip held turns the camera stick's up and down into distance.
         foreach (var hand in new[] { "left", "right" })
@@ -79,7 +65,7 @@ internal static class OutsideFlightChecks
         }
         sticks.Reset(); Read();
         var gripOnly = Read(lg: 1, rg: 1, lx: 1, ly: -1);
-        Check(gripOnly.Flying && gripOnly.Roll > 0 && gripOnly.Pitch < 0 && !gripOnly.Rudder, "Grips never change what the flight stick or the rudder do");
+        Check(gripOnly.Flying && gripOnly.Roll > 0 && gripOnly.Pitch < 0, "Grips never change what the flight stick does");
 
         sticks.Reset(); Read();
         Check(!Read(lx: 1, left: false).Flying && !Read(lx: 1).Flying, "Losing the flight hand's tracking requires a fresh centre");
@@ -95,12 +81,11 @@ internal static class OutsideFlightChecks
         foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
         {
             sticks.Reset(); Read();
-            var broken = Read(rt: bad, rg: bad, ry: 1);
-            Check(!broken.Rudder && broken.Camera.Distance == 0 && !Read(rt: 1).Rudder, "A malformed trigger or grip value is ignored and needs a release");
+            var broken = Read(rg: bad, ry: 1);
+            Check(broken.Camera.Distance == 0 && Read(rg: 1, ry: 1).Camera.Distance == 0, "A malformed grip value is ignored and needs a release");
         }
         sticks.Reset(); Read();
-        Check(!Read(lx: 1, rt: 1, available: false).Flying && !Read(lx: 1, rt: 1).Flying && !Read(lx: 1, rt: 1).Rudder,
-            "A menu or map resets every gate");
+        Check(!Read(lx: 1, available: false).Flying && !Read(lx: 1).Flying, "A menu or map resets every gate");
 
         // ---- View switching against native camera doubles ----
         CameraStateManager camera = null!;
@@ -229,15 +214,6 @@ internal static class OutsideFlightChecks
         Check(camera.orbitState.Pan == pan, "Several native camera callbacks in one frame move the camera once");
         Check(ui.Messages.Count == 3, "The hint is not repeated every frame");
         Step();
-        TrackedControllers.Right.Trigger = 1;
-        Step();
-        Check(ExternalFlightInput.Rudder && ExternalFlightInput.Yaw > 0 && camera.orbitState.Pan == pan, "Right trigger is right rudder");
-        TrackedControllers.Right.Trigger = 0; TrackedControllers.Left.Trigger = 1;
-        Step();
-        Check(ExternalFlightInput.Rudder && ExternalFlightInput.Yaw < 0, "Left trigger is left rudder");
-        TrackedControllers.Left.Trigger = 0;
-        Step();
-        Check(!ExternalFlightInput.Rudder, "Released triggers leave the game's own yaw alone");
         TrackedControllers.Right.Grip = 1;
         Step(); Step(ry: 1);
         Check(camera.orbitState.Distance == 0 && camera.orbitState.Pan == pan, "Zoom cannot go below the native minimum distance");
@@ -253,14 +229,10 @@ internal static class OutsideFlightChecks
 
         Fresh(); NativeHandOptionWheel.LeftOwned = true;
         Step(); Frame(lx: 1);
-        TrackedControllers.Left.Trigger = 1;
-        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
-            "A hand that owns the quick wheel neither flies nor steers: its trigger pages the wheel");
+        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, "A hand that owns the quick wheel does not fly");
         NativeHandOptionWheel.LeftOwned = false;
         Frame(lx: 1);
-        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
-            "Closing the wheel with stick and trigger held needs a fresh centre and release");
-        TrackedControllers.Left.Trigger = 0;
+        Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, "Closing the wheel with the stick held needs a fresh centre");
 
         var gates = new (string Name, Action Block, Action Unblock)[]
         {
@@ -278,8 +250,7 @@ internal static class OutsideFlightChecks
         {
             Fresh(); Frame(); ExternalFlightInput.Sample();
             gate.Block(); Frame(lx: 1);
-            Check(!ExternalFlightInput.Sample() && !ExternalFlightInput.Flying && !ExternalFlightInput.Rudder,
-                "No thumbstick flight while: " + gate.Name);
+            Check(!ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, "No thumbstick flight while: " + gate.Name);
             gate.Unblock(); Frame(lx: 1);
             Check(ExternalFlightInput.Sample() && !ExternalFlightInput.Flying, gate.Name + " ends with the stick held: a fresh centre is required");
             Frame(); ExternalFlightInput.Sample(); Frame(lx: 1);

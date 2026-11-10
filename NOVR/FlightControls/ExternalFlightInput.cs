@@ -30,8 +30,6 @@ internal static class ExternalFlightInput
     internal static bool Flying => Active && _motion.Flying;
     internal static float Pitch => _motion.Pitch;
     internal static float Roll => _motion.Roll;
-    internal static bool Rudder => Active && _motion.Rudder;
-    internal static float Yaw => _motion.Yaw;
 
     internal static bool Sample()
     {
@@ -59,12 +57,11 @@ internal static class ExternalFlightInput
         }
         var left = TrackedControllers.Read(true);
         var right = TrackedControllers.Read(false);
-        // A hand that owns the quick wheel is choosing a sector, not flying:
-        // its thumbstick, trigger and grip all belong to the wheel.
+        // A hand that owns the quick wheel is choosing a sector, not flying.
         var leftValid = left.Valid && left.HasAxis && !NativeHandOptionWheel.OwnsHand(true);
         var rightValid = right.Valid && right.HasAxis && !NativeHandOptionWheel.OwnsHand(false);
         _motion = Sticks.Update(true, leftValid, rightValid, left.Axis.x, left.Axis.y, right.Axis.x, right.Axis.y,
-            left.Trigger, right.Trigger, left.Grip, right.Grip, Time.unscaledDeltaTime);
+            left.Grip, right.Grip, Time.unscaledDeltaTime);
         return true;
     }
 
@@ -88,7 +85,7 @@ internal static class ExternalFlightInput
     internal static string[] HintLines(string cockpitButton) => new[]
     {
         "Left stick flies, right stick looks",
-        "Triggers: rudder. Grip + right stick: zoom",
+        "Hold a grip: right stick zooms",
         $"{cockpitButton} returns to the cockpit"
     };
 

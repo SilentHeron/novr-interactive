@@ -102,16 +102,13 @@ internal sealed class ControllerActions : MonoBehaviour
         var flightControls = controls != null && controls.FlightActive && CameraStateManager.cameraMode == CameraMode.cockpit &&
             !Cursor.visible && !WristMenu.IsOpen;
         // The outside view has no handles to hold, so there every flight button
-        // works as if its handle were held. Three inputs are spoken for: the
-        // triggers (rudder, as on the game's gamepad layout), thumbstick click
-        // (the quick wheel) and the stick hand's B (cockpit).
+        // works as if its handle were held: triggers and face buttons fire and
+        // release exactly as bound. Two buttons stay free on purpose:
+        // thumbstick click (the quick wheel) and the stick hand's B (cockpit).
         var outside = ExternalFlightInput.Sample() && !Cursor.visible;
-        bool OutsideReserved(bool left, ControllerButton button, bool frame)
-        {
-            var resolved = ControllerButtonNames.Resolve(button, frame);
-            return resolved == ControllerButton.Trigger || resolved == ControllerButton.StickClick ||
-                left == leftHanded && ControllerButtonNames.SamePhysicalButton(button, CockpitReturnButton, frame);
-        }
+        bool OutsideReserved(bool left, ControllerButton button, bool frame) =>
+            ControllerButtonNames.Resolve(button, frame) == ControllerButton.StickClick ||
+            left == leftHanded && ControllerButtonNames.SamePhysicalButton(button, CockpitReturnButton, frame);
         bool HandleHeld(bool left) => controls != null && (left == leftHanded ? controls.StickHeld : controls.ThrottleHeld);
         void UpdateFlightButton(ControllerActionId action, ControllerButtonGate gate, bool combat = true)
         {

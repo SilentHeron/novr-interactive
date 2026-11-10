@@ -29,17 +29,13 @@ internal static class PilotMotionInputPatch
             if (motion == null || !motion.SampleFor(___pilot))
             {
                 // Outside view: no virtual handles, so the left thumbstick
-                // flies and the triggers steer. Throttle is left alone.
+                // flies. Rudder and throttle are left to the game.
                 // A blacked-out pilot gets no input, as in the cockpit.
-                if (___pilotStrength < 0.2f || !ExternalFlightInput.SampleFor(___pilot))
-                    return;
-                if (ExternalFlightInput.Flying)
+                if (___pilotStrength >= 0.2f && ExternalFlightInput.SampleFor(___pilot) && ExternalFlightInput.Flying)
                 {
                     ___controlInputs.pitch = ExternalFlightInput.Pitch;
                     ___controlInputs.roll = ExternalFlightInput.Roll;
                 }
-                if (ExternalFlightInput.Rudder)
-                    ___controlInputs.yaw = ExternalFlightInput.Yaw;
                 return;
             }
             if (___pilotStrength < 0.2f)

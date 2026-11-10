@@ -279,15 +279,20 @@ internal static class ActionChecks
                 gear.Tick(false);
                 check(!gear.Actions.Queued(NativeControllerAction.Gear), label + "a spectator camera never dispatches aircraft actions");
 
-                // Triggers are the rudder out there, as on the game's gamepad layout.
+                // The default fire buttons work out there exactly as in the cockpit:
+                // guns on the trigger, missiles and bombs on the release button.
                 var trigger = Start(ControllerActionId.Guns, true, profile, leftHanded);
                 trigger.Bindings.Set(ControllerActionId.Guns, new(ControllerButton.Trigger, ControllerHandRole.Stick));
-                trigger.TickTrigger(false); trigger.TickTrigger(true);
-                check(trigger.Actions.Held(NativeControllerAction.Guns), label + "in the cockpit a trigger binding fires with its handle held");
-                trigger.TickTrigger(false);
+                trigger.Bindings.Set(ControllerActionId.WeaponRelease, new(ControllerButton.Primary, ControllerHandRole.Stick));
                 Outside();
                 trigger.TickTrigger(false); trigger.TickTrigger(true);
-                check(!trigger.Actions.Held(NativeControllerAction.Guns), label + "in the outside view a trigger binding does not act: the triggers steer");
+                check(trigger.Actions.Held(NativeControllerAction.Guns) && trigger.Actions.GunsHeld && !trigger.Actions.WeaponReleaseHeld,
+                    label + "in the outside view the trigger fires guns as bound, and only guns");
+                trigger.TickTrigger(false);
+                check(!trigger.Actions.GunsHeld, label + "releasing the trigger stops the guns");
+                trigger.Tick(false); trigger.Tick(true);
+                check(trigger.Actions.Held(NativeControllerAction.WeaponRelease) && trigger.Actions.WeaponReleaseHeld && !trigger.Actions.GunsHeld,
+                    label + "in the outside view the release button launches the selected weapon as bound, and never guns");
 
                 // Thumbstick click stays free for the quick wheel.
                 var click = Start(ControllerActionId.SelectTarget, true, profile, leftHanded);

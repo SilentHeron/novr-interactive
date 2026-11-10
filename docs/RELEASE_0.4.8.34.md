@@ -4,28 +4,25 @@
   and pick **OUTSIDE VIEW** on the quick wheel (also **View → Flight actions →
   Outside view**). The camera moves to the game's own orbit camera around your
   aircraft and you keep it under control. It is for looking at the aircraft,
-  not a second cockpit: the throttle stays where you left it and there is no
-  brake. The virtual handles stay in the cockpit, so steering follows the
-  game's own gamepad layout, the same for either handedness:
+  not a second cockpit: there is no rudder and the throttle stays where you
+  left it. The virtual handles stay in the cockpit, so the thumbsticks sit as
+  on the game's own gamepad layout, the same for either handedness:
   - Left thumbstick is the flight stick: pull back for nose up, left and right
     to roll.
   - Right thumbstick looks around the aircraft. Hold either grip and its up
     and down move the camera closer or farther.
-  - Triggers are the rudder: left trigger left, right trigger right.
-  - Buttons work without a handle to hold: weapon release, countermeasures,
-    next weapon and the rest act as bound. Anything bound to a trigger (guns
-    and the brake by default) does not act out there, because the triggers
-    steer. To make up for it, the weapon-release button fires the selected
-    weapon whatever it is, guns included, as the game's gamepad Fire button
-    does.
+  - Buttons work as bound, without a handle to hold. With the default layout
+    the right trigger fires guns and A releases the selected missile or bomb,
+    exactly as in the cockpit; countermeasures, next weapon and the rest work
+    too.
   - **B** on the stick hand returns to the cockpit (Frame and Quest; the
     mirrored button when left-handed). The quick wheel offers **COCKPIT VIEW**
     too. Thumbstick click still opens the wheel, so those two buttons are not
     flight buttons out there. The wheel opens only when the clicked stick is
     centred, so pushing hard through a turn cannot pop it open.
 
-  A thumbstick already pushed, or a trigger or grip already squeezed, when the
-  view starts or a menu closes does nothing until it has been let go once. The
+  A thumbstick already pushed, or a grip already squeezed, when the view
+  starts or a menu closes does nothing until it has been let go once. The
   first three times, the game's message feed names the controls. With motion
   controls off (a physical HOTAS), the view and **B** work the same and the
   thumbsticks keep their spectator roles.

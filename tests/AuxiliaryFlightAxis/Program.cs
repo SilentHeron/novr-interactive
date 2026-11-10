@@ -158,14 +158,11 @@ MotionFlightController.Instance = suspended;
 ExternalFlightInput.Active = ExternalFlightInput.Flying = true;
 ExternalFlightInput.Pitch = .5f;
 ExternalFlightInput.Roll = -.25f;
-ExternalFlightInput.Yaw = .75f;
 var flown = Fly();
-Check(flown.pitch == .5f && flown.roll == -.25f && flown.yaw == .1f, "Outside view: thumbstick pitch and roll reach the game; rudder stays native until its grip is held.");
-ExternalFlightInput.Rudder = true;
-Check(Fly().yaw == .75f, "Outside view: the rudder thumbstick writes yaw while its grip is held.");
+Check(flown.pitch == .5f && flown.roll == -.25f && flown.yaw == .1f, "Outside view: thumbstick pitch and roll reach the game; the game's own yaw is never written.");
 ExternalFlightInput.Flying = false;
 flown = Fly();
-Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .75f, "An unarmed flight thumbstick leaves native pitch and roll alone.");
+Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .1f, "An unarmed flight thumbstick leaves the native axes alone.");
 ExternalFlightInput.Flying = true;
 flown = Fly(.1f);
 Check(flown.pitch == .1f && flown.roll == .1f && flown.yaw == .1f, "A blacked-out pilot gets no outside-view input.");
@@ -179,7 +176,7 @@ Check(flown.pitch == -1 && flown.roll == -1, "A held virtual stick in the cockpi
 suspended.FlightActive = false;
 
 // The outside view is not a second cockpit: it never writes the throttle.
-ExternalFlightInput.Active = ExternalFlightInput.Flying = ExternalFlightInput.Rudder = true;
+ExternalFlightInput.Active = ExternalFlightInput.Flying = true;
 foreach (var collective in new[] { false, true })
 {
     var pushed = Push(.4f, collective);
@@ -190,7 +187,7 @@ suspended.Throttle = .8f;
 var held = Push(.4f);
 Check(Near(held.Command, .8f) && Near(held.Simulated, .8f), "Back in the cockpit a held virtual throttle commands as before.");
 suspended.FlightActive = false;
-ExternalFlightInput.Active = ExternalFlightInput.Flying = ExternalFlightInput.Rudder = false;
+ExternalFlightInput.Active = ExternalFlightInput.Flying = false;
 MotionFlightController.Instance = null;
 
 Console.WriteLine($"PASS {passed} source-linked auxiliary-axis checks (controller/game boundaries doubled; no native physics/headset).");

@@ -119,8 +119,8 @@ namespace NOVR.MotionControls
     // mapping and gating are covered by the spectator-input suite.
     internal static class ExternalFlightInput
     {
-        internal static bool Active, Flying, Rudder;
-        internal static float Pitch, Roll, Yaw;
+        internal static bool Active, Flying;
+        internal static float Pitch, Roll;
         internal static bool SampleFor(Pilot pilot) => Active;
     }
     // Rest-of-coordinator state supplied to the source-linked auxiliary partial.
