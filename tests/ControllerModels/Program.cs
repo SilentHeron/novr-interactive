@@ -107,8 +107,12 @@ Check(listed.Length == 3 && listed[0] == Path.Combine("root", "resources", "rend
       listed[1] == Path.Combine("root", "drivers", "frame_controller", "resources", "rendermodels", "frame_controller_left"),
     "A model is looked for in the shared folder first, then in each driver's folder");
 Check(SteamVrRenderModels.ModelDirectories("root", "x", _ => throw new IOException()).Count() == 1, "An unreadable drivers folder still leaves the shared folder");
+// Only names that are refused before the disk is touched: a real name may be
+// found on a machine that has SteamVR installed, which is not a failure.
 Check(SteamVrRenderModels.Find("../escape", "/nowhere/Game_Data") == null && SteamVrRenderModels.Find("", "/nowhere/Game_Data") == null &&
-      SteamVrRenderModels.Find("frame_controller_left", "/nowhere/Game_Data") == null, "Nothing is found, and nothing thrown, when SteamVR is not there");
+      SteamVrRenderModels.Find("a/b", "/nowhere/Game_Data") == null, "A model name that is not a plain folder name is refused");
+var found = SteamVrRenderModels.Find("frame_controller_left", "/nowhere/Game_Data");
+Check(found == null || File.Exists(Path.Combine(found, "frame_controller_left.obj")), "A real name is either not found or points at a folder that holds the model");
 
 // ---- Labels: which button is which, and what it does ----
 ControllerActionBinding Defaults(ControllerBindingProfile profile, ControllerActionId action) => ControllerBindingDefaults.Get(profile, action);
