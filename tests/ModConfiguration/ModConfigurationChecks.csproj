@@ -5,6 +5,7 @@
     <Compile Include="../../NOVR/VrCamera/VrFarClipPolicy.cs" Link="VrFarClipPolicy.cs" />
     <Compile Include="../../NOVR/ModConfiguration.cs" Link="ModConfiguration.cs" />
     <Compile Include="../../NOVR/Rendering/FixedFoveationSettings.cs" Link="FixedFoveationSettings.cs" />
+    <Compile Include="../../NOVR/Rendering/ImageQualitySettings.cs" Link="ImageQualitySettings.cs" />
     <Compile Include="../../NOVR/Rendering/FixedFoveationPolicy.cs" Link="FixedFoveationPolicy.cs" />
     <Compile Include="../../NOVR/FlightControls/MotionControlSettings.cs" Link="MotionControlSettings.cs" />
     <Compile Include="../../NOVR/FlightControls/MotionControlMigrations.cs" Link="MotionControlMigrations.cs" />

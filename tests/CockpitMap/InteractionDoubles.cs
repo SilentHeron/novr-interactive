@@ -23,6 +23,24 @@ public sealed class RadialMenuMain
 }
 namespace NOVR
 {
+    internal sealed class ModConfiguration
+    {
+        internal static readonly ModConfiguration Instance = new();
+        internal readonly Settings MotionControls = new();
+        internal readonly ImageSettings ImageQuality = new();
+        internal sealed class Settings
+        {
+            internal readonly BooleanSetting LeftHanded = new();
+        }
+        internal sealed class ImageSettings
+        {
+            internal readonly BooleanSetting SmoothCockpitMap = new() { Value = true };
+        }
+        internal sealed class BooleanSetting
+        {
+            internal bool Value;
+        }
+    }
     internal static class LayerHelper
     {
         internal static int GetVrUiLayer() => 30;
@@ -86,19 +104,6 @@ namespace NOVR.MotionControls
     {
         internal static Vector3 TouchPoint(bool left, ControllerSample sample, Transform tracking, bool fingertip = false) => tracking.TransformPoint(sample.Position);
     }
-    internal sealed class ModConfiguration
-    {
-        internal static readonly ModConfiguration Instance = new();
-        internal readonly Settings MotionControls = new();
-        internal sealed class Settings
-        {
-            internal readonly BooleanSetting LeftHanded = new();
-        }
-        internal sealed class BooleanSetting
-        {
-            internal bool Value;
-        }
-    }
     internal enum InteractionCue
     {
         Touch, Click
@@ -109,5 +114,25 @@ namespace NOVR.MotionControls
         internal static readonly List<Event> Events = new();
         internal static void Pulse(int device, float strength, float seconds, InteractionCue cue) => Events.Add(new(device, strength, seconds, cue));
         internal static void PulseOnly(int device, float strength, float seconds) => Events.Add(new(device, strength, seconds, null));
+    }
+}
+
+namespace NOVR.VrUi.SpecialBehavior
+{
+    // The GPU copy and the camera measurement have their own suite
+    // (image-quality). Here they are stand-ins the checks can steer.
+    internal sealed partial class TerrainDetail
+    {
+        internal static float Density = float.NaN;
+        internal static readonly List<SpriteCopy> Copies = new();
+        internal static readonly List<UnityEngine.Sprite> Destroyed = new();
+        private static partial SpriteCopy? MakeCopy(UnityEngine.Sprite source)
+        {
+            var stand = new UnityEngine.Sprite();
+            var copy = new SpriteCopy(source, stand, () => Destroyed.Add(stand));
+            Copies.Add(copy);
+            return copy;
+        }
+        private static partial float PixelsPerTexel(UnityEngine.UI.Image image, UnityEngine.Transform widget) => Density;
     }
 }

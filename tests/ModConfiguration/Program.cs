@@ -45,6 +45,11 @@ Check(first.FixedFoveation.RequestedLevel == FixedFoveationLevel.Off,
 Check(!first.FixedFoveation.UseEyeTracking.Value,
     "Optional eye-tracked foveation is disabled for new configurations.");
 
+Check(first.ImageQuality.DitherGradients.Value && first.ImageQuality.RemoveRestingVignette.Value &&
+      first.ImageQuality.FilterCockpitScreens.Value && first.ImageQuality.SmoothCockpitMap.Value,
+    "The four low-cost image options are on for new configurations.");
+Check(firstFile.BoundKeys.Count(key => key is "Dither Gradients" or "Remove Resting Vignette" or "Filter Cockpit Screens" or "Smooth Cockpit Map") == 4,
+    "Each image option is its own setting.");
 Check(first.SeatClearanceEnabled.Value, "Head clearance is enabled by default for new settings.");
 Check(first.SeatClearanceRadius.Value == .25f, "Head clearance starts at a 25 cm radius.");
 var clearanceRange = firstFile.Descriptions[("Comfort", "Head Clearance Radius")].AcceptableValues as AcceptableValueRange<float>;
@@ -69,11 +74,16 @@ nextFile.Seed("Comfort", "Head Clearance", false);
 nextFile.Seed("Comfort", "Head Clearance Radius", .16f);
 nextFile.Seed("VR Performance", "Fixed Foveated Rendering", FixedFoveationLevel.Balanced);
 nextFile.Seed("VR Performance", "Eye Tracked Foveation", true);
+nextFile.Seed("VR Image", "Remove Resting Vignette", false);
+nextFile.Seed("VR Image", "Smooth Cockpit Map", false);
 nextFile.BeforeBind = _ => Check(ReferenceEquals(first, ModConfiguration.Current), "Successful replacement publishes only after its last bind.");
 var next = new ModConfiguration(nextFile);
 Check(ReferenceEquals(next, ModConfiguration.Instance), "A successful replacement becomes current.");
 Check(!next.SeatClearanceEnabled.Value && next.SeatClearanceRadius.Value == .16f,
     "Saved head-clearance opt-out and custom radius survive configuration initialization.");
+Check(!next.ImageQuality.RemoveRestingVignette.Value && !next.ImageQuality.SmoothCockpitMap.Value &&
+      next.ImageQuality.DitherGradients.Value && next.ImageQuality.FilterCockpitScreens.Value,
+    "Image options a player switched off stay off; the others keep their defaults.");
 Check(next.FixedFoveation.RequestedLevel == FixedFoveationLevel.Balanced,
     "An explicit saved fixed-foveation preference survives configuration initialization.");
 Check(next.FixedFoveation.UseEyeTracking.Value && !first.FixedFoveation.UseEyeTracking.Value,

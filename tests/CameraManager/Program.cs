@@ -77,6 +77,18 @@ update();
 Check(trackedData.antialiasing == AntialiasingMode.None, "Opting out removes post-process anti-aliasing live");
 originalData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
 update();
+// Dithering is the stack base camera's setting too. The game asks for none.
+Check(!originalData.dithering && trackedData.dithering, "The tracked view dithers by default although the native camera does not");
+NOVR.ModConfiguration.Instance.ImageQuality.DitherGradients.Value = false;
+update();
+Check(!trackedData.dithering && !originalData.dithering, "Switching dithering off applies live and never touches the native camera");
+originalData.dithering = true;
+update();
+Check(trackedData.dithering, "A native camera that asks for dithering itself is followed even with the option off");
+originalData.dithering = false;
+NOVR.ModConfiguration.Instance.ImageQuality.DitherGradients.Value = true;
+update();
+Check(trackedData.dithering && trackedData.antialiasing == AntialiasingMode.None, "Dithering returns with the option and is independent of anti-aliasing");
 Check(!listener.enabled && tracked.GetComponent<AudioListener>()!.enabled, "Audio listener moves to tracked view");
 Check(ReferenceEquals(cockpit.transform.parent, tracked.transform), "Tracked cockpit subtree is reparented");
 Check(cockpit.gameObject.Count<StereoCamera>() == 1, "Existing cockpit stereo wrapper is not duplicated by setup");

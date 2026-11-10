@@ -49,6 +49,27 @@
   (about 2% with 1,000 units). Expect steadier frame times in large battles
   rather than a higher frame rate. Method and all figures:
   [HUD and map scans](benchmarks/HUD_SCANS_0.4.8.34.md).
+- New **View → VR performance → Image quality**: four image fixes that cost next
+  to nothing to draw. All are on by default and each has its own switch.
+  - **Dither gradients.** The headset image has 8 bits per colour channel and
+    the game dithers none of its cameras, so sky, haze and night gradients
+    show bands. The VR camera now asks the render pipeline for its dithering.
+  - **No edge darkening.** The game keeps a vignette at 40% at all times and
+    raises it as G-force builds. In VR it now starts from none; G effects
+    still close the view in completely, and night vision keeps its goggle edge.
+  - **Filter cockpit screens.** The tactical screen is drawn into a texture
+    with no mipmaps and with anisotropic filtering switched off, so its text
+    and lines crawl as your head moves. In VR it gets both. A multisampled
+    texture cannot have mipmaps, so the screen gives up its 2x multisampling
+    for them. The target window gains anisotropic filtering only.
+  - **Smooth cockpit map.** The map's terrain is one 4096 or 8192 pixel image
+    with no mipmaps, on a panel a few hundred pixels across. While the map is
+    zoomed out far enough to sparkle, it is drawn from a half-size copy that
+    has them. The copy is made once per map on the GPU and uses about 21 MB of
+    video memory (43 MB for the largest map). The grid and unit icons are not
+    changed.
+
+  **Hide distant cloud banks** moved to the same page.
 - New experimental **Share shadows (test)** (View → VR performance, off by
   default): the sun's shadow map is drawn once per frame and reused for the
   second eye. Not yet checked in a headset.
@@ -57,4 +78,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

@@ -34,6 +34,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
         private readonly float _nativeHeight;
         private readonly BorrowedLayers _layers = new();
         private readonly List<Transform> _nodes = new();
+        private readonly TerrainDetail _detail;
 
         internal Lease(DynamicMap map, RectTransform slot, Image terrain)
         {
@@ -50,6 +51,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             _scale = Root.localScale;
             _rotation = Root.localRotation;
             _terrain = terrain;
+            _detail = new TerrainDetail(terrain, slot);
             _lastTerrainSprite = terrain.sprite;
             _material = terrain.material;
             _nativeColor = terrain.color;
@@ -131,6 +133,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             if (_terrain.color != _appliedColor)
                 _terrain.color = _appliedColor;
             _applied = true;
+            _detail.Update(ModConfiguration.Instance.ImageQuality.SmoothCockpitMap.Value, Time.unscaledTime);
         }
 
         internal void RefreshLayers()
@@ -149,6 +152,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
             Navigation = null;
             _layers.Restore();
             _nodes.Clear();
+            _detail.Release();
             if (_terrain != null)
             {
                 _terrain.material = _material;
@@ -269,6 +273,7 @@ internal sealed class CockpitMapWidget : MonoBehaviour
     private void OnDestroy()
     {
         Release();
+        TerrainDetail.DropCache();
         if (_instance == this)
             _instance = null;
     }

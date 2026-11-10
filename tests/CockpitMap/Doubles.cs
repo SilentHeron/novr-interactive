@@ -346,6 +346,14 @@ namespace UnityEngine.UI
     public sealed class Image : Graphic
     {
         public UnityEngine.Material material = null!; public UnityEngine.Color color; public UnityEngine.Sprite? sprite; public UnityEngine.RectTransform rectTransform => (UnityEngine.RectTransform)transform;
+        // As in uGUI: reading gives the sprite in use, writing sets only the override.
+        private UnityEngine.Sprite? _override;
+        public UnityEngine.Sprite? overrideSprite
+        {
+            get => _override ?? sprite;
+            set => _override = value;
+        }
+        public UnityEngine.Sprite? Override => _override;
     }
     public sealed class Text : Graphic
     {

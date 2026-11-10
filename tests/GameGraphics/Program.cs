@@ -86,4 +86,5 @@ Check(GameGraphicsSettings.IsAvailable && menu.Scalars.Values.All(s => s.Slider.
       menu.Scalars["Tree distance"].Read() == 1.37f && menu.Choices["Shadow quality"].Read() == 3 && NativeCalls.Events.Count == 0,
     "Settings initialized or replaced after page creation are read live without overwriting them.");
 FoveationMenuChecks.Run(Check);
-Console.WriteLine($"PASS {checks} source-linked graphics/foveation menu checks (settings, page placement and uGUI boundaries).");
+ImageQualityMenuChecks.Run(Check);
+Console.WriteLine($"PASS {checks} source-linked graphics, foveation and image-quality menu checks (settings, page placement and uGUI boundaries).");

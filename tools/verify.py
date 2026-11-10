@@ -24,6 +24,7 @@ PORTABLE = (
     ("fixed-foveation-runtime", "tests/FixedFoveationRuntime/FixedFoveationRuntimeChecks.csproj"),
     ("eye-gaze", "tests/EyeGaze/EyeGazeChecks.csproj"),
     ("game-graphics", "tests/GameGraphics/GameGraphicsChecks.csproj"),
+    ("image-quality", "tests/ImageQuality/ImageQualityChecks.csproj"),
     ("ui-lifecycle", "tests/UiLifecycle/NOVR.UiLifecycle.Tests.csproj"),
     ("ui-patching", "tests/UiBehaviorPatcher/UiBehaviorPatcherChecks.csproj"),
     ("api-lifecycle", "tests/ApiBus/ApiBusChecks.csproj"),

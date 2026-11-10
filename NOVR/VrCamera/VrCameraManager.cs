@@ -81,7 +81,7 @@ public class VrCameraManager : MonoBehaviour
                 // anti-aliasing in step from the enabled tracked child instead.
                 var root = camera.transform.parent != null ? camera.transform.parent.GetComponent<Camera>() : null;
                 if (root != null)
-                    SyncAntialiasing(root, camera);
+                    SyncBaseCameraSettings(root, camera);
                 continue;
             }
             if (role == CameraRole.GameMain)
@@ -142,7 +142,7 @@ public class VrCameraManager : MonoBehaviour
 
         if (universalAdditionalCameraData != null && rootUniversalAdditionalCameraData != null)
             universalAdditionalCameraData.cameraStack.AddRange(rootUniversalAdditionalCameraData.cameraStack);
-        SyncAntialiasing(rootCamera, trackedCamera);
+        SyncBaseCameraSettings(rootCamera, trackedCamera);
 
 
         var rootAudioListener = rootCamera.GetComponent<AudioListener>();
@@ -195,7 +195,7 @@ public class VrCameraManager : MonoBehaviour
             trackedCamera.gameObject.AddComponent<VrCockpitNearClip>();
         if (trackedCamera.GetComponent<VrFarClip>() == null)
             trackedCamera.gameObject.AddComponent<VrFarClip>();
-        SyncAntialiasing(rootCamera, trackedCamera);
+        SyncBaseCameraSettings(rootCamera, trackedCamera);
 
         IgnoredCameras.Add(rootCamera);
         IgnoredCameras.Add(trackedCamera);
@@ -204,9 +204,9 @@ public class VrCameraManager : MonoBehaviour
     // Camera.CopyFrom copies no URP data. The stock flight scene's base camera
     // asks for SMAA (Medium), which URP applies for the whole camera stack on
     // top of the pipeline's MSAA; a fresh tracked camera would default to none.
-    // The stack's base camera owns this setting, so mirror it every update
-    // (cheap assignments) and honour the VR preference live.
-    internal static void SyncAntialiasing(Camera rootCamera, Camera trackedCamera)
+    // The stack's base camera owns these settings, so mirror them every update
+    // (cheap assignments) and honour the VR preferences live.
+    internal static void SyncBaseCameraSettings(Camera rootCamera, Camera trackedCamera)
     {
         var root = rootCamera.GetComponent<UniversalAdditionalCameraData>();
         var tracked = trackedCamera.GetComponent<UniversalAdditionalCameraData>();
@@ -217,6 +217,13 @@ public class VrCameraManager : MonoBehaviour
             tracked.antialiasing = mode;
         if (tracked.antialiasingQuality != root.antialiasingQuality)
             tracked.antialiasingQuality = root.antialiasingQuality;
+        // Dithering is also the base camera's to decide: URP applies it in
+        // the stack's post-processing pass (the game's post-processing overlay
+        // camera here). No stock camera asks for it, and the headset image is
+        // 8 bits per channel, so smooth sky and haze gradients show bands.
+        var dithering = root.dithering || ModConfiguration.Instance.ImageQuality.DitherGradients.Value;
+        if (tracked.dithering != dithering)
+            tracked.dithering = dithering;
     }
 
     private void HandleChildCameras(Camera parentCamera)

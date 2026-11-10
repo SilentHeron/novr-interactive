@@ -26,6 +26,9 @@ internal static class TargetCamStereoFix
     {
         if (camera == null)
             return;
+        // The window these cameras draw is a cockpit screen too, showing the
+        // outside world.
+        Rendering.CockpitScreenFilter.Track(camera.targetTexture, interfaceOnly: false);
         camera.stereoTargetEye = StereoTargetEyeMask.None;
         var data = camera.GetComponent<UniversalAdditionalCameraData>();
         if (data != null)

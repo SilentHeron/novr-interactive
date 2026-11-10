@@ -74,6 +74,8 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **If VR does not start:** when the headset or its runtime is not ready at launch, the desktop window says so. NOVR tries again three times over the first minute; after that, press **F11** to try again without restarting the game. Use `-novr-flat` to play on the desktop on purpose. When the game is a different version from the one this build targets, the wrist menu's VR performance page lists what could not be applied and the rest of the mod keeps working.
 
+**Image quality:** View → VR performance → Image quality has four fixes that cost next to nothing to draw, all on by default: dithering for banded sky and haze gradients, no resting edge darkening (G-force effects still close the view in), mipmaps and anisotropic filtering for the cockpit's tactical screen, and a mipmapped copy of the cockpit map's terrain for when it is zoomed out. Switch one off if it looks wrong in your headset. **Hide distant cloud banks** is on the same page.
+
 **Shadows shared between eyes (experimental):** View → VR performance → **Share shadows (test)** draws the sun's shadow map once per frame and reuses it for the second eye. It is off by default and has not been checked in a headset; turn it off if shadows flicker, shift or vanish in one eye.
 
 **HUD symbol size:** target and location symbols, marker labels and reticles follow **Flight HUD Scale** (relative to its 38% default) when **Symbols Follow Flight HUD Scale** is on, in addition to their own sliders under View → HUD & markers → Symbols. The game's HMD icon size setting and its distance-based marker shrink still apply underneath.

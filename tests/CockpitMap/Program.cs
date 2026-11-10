@@ -228,6 +228,43 @@ using (var f = new Fixture())
     CockpitMapWidget.ReleaseAll();
     Check(icon.layer == 5 && other.layer == 5 && f.Terrain.gameObject.layer == 3, "Every object still gets its first native layer back");
 }
+// The terrain is drawn from its mipmapped copy only while the map is shrunk,
+// and the game's image always comes back with the lease.
+using (var f = new Fixture())
+{
+    TerrainDetail.DropCache();
+    TerrainDetail.Copies.Clear();
+    TerrainDetail.Destroyed.Clear();
+    TerrainDetail.Density = .9f;
+    f.Tick();
+    var native = f.Terrain.sprite;
+    Check(TerrainDetail.Copies.Count == 1 && ReferenceEquals(TerrainDetail.Copies[0].Source, native) && f.Terrain.Override == null,
+        "Borrowing the map prepares one copy of its terrain and still shows the game's image");
+    TerrainDetail.Density = .3f;
+    f.Tick(.1f);
+    Check(f.Terrain.Override == null, "The measurement interval has not passed");
+    f.Tick(TerrainDetail.MeasureSeconds);
+    Check(ReferenceEquals(f.Terrain.Override, TerrainDetail.Copies[0].Copy) && ReferenceEquals(f.Terrain.sprite, native),
+        "A zoomed-out map draws from the copy; the game's own sprite reference never changes");
+    NOVR.ModConfiguration.Instance.ImageQuality.SmoothCockpitMap.Value = false;
+    f.Tick(1);
+    Check(f.Terrain.Override == null && TerrainDetail.Destroyed.Count == 1, "Switching the option off returns to the game's image and frees the copy");
+    NOVR.ModConfiguration.Instance.ImageQuality.SmoothCockpitMap.Value = true;
+    f.Tick(2);
+    Check(TerrainDetail.Copies.Count == 2 && ReferenceEquals(f.Terrain.Override, TerrainDetail.Copies[1].Copy), "Switching it on makes a new copy");
+    var replacement = new Sprite();
+    f.Terrain.sprite = replacement;
+    f.Tick(3);
+    Check(TerrainDetail.Destroyed.Count == 2 && TerrainDetail.Copies.Count == 3 && ReferenceEquals(TerrainDetail.Copies[2].Source, replacement) &&
+          ReferenceEquals(f.Terrain.Override, TerrainDetail.Copies[2].Copy), "A new terrain drops the old copy and gets its own");
+    CockpitMapWidget.ReleaseAll();
+    Check(f.Terrain.Override == null && ReferenceEquals(f.Terrain.sprite, replacement) && TerrainDetail.Destroyed.Count == 2,
+        "Returning the map puts the game's image back and keeps the copy for the next time");
+    f.Tick(4);
+    Check(TerrainDetail.Copies.Count == 3, "Borrowing the same terrain again makes no new copy");
+    TerrainDetail.Density = float.NaN;
+}
+TerrainDetail.DropCache();
 count += NavigationChecks.Run();
 count += InteractionChecks.Run();
 Console.WriteLine($"{count} source-linked map widget lifecycle, navigation and touch checks passed.");

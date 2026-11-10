@@ -336,6 +336,39 @@ either hierarchy costs time in proportion to the size of the mission.
   Its prefix must decide the common case (not under manual control) from one
   field read and allocate nothing.
 
+## Image quality
+
+[`ImageQualitySettings`](../NOVR/Rendering/ImageQualitySettings.cs) holds four
+options that cost next to nothing to draw. Each undoes itself when VR stops or
+its option is switched off.
+
+- **Dithering** belongs to the base camera of a URP camera stack
+  (`VrCameraManager.SyncBaseCameraSettings`); the game's post-processing
+  overlay camera applies it in its uber pass.
+- [`RestingVignette`](../NOVR/Rendering/RestingVignette.cs) rescales the
+  flight profile's vignette so the game's resting 0.4 becomes zero and full
+  blackout stays full. It reads the value back each frame instead of patching
+  `GLOC`, and follows whichever profile the volume is using without making
+  the volume instantiate one.
+- [`CockpitScreenFilter`](../NOVR/Rendering/CockpitScreenFilter.cs) gives the
+  tactical screen's render texture mipmaps. Two engine facts shape it, both
+  measured in the running game: a multisampled render texture gets no mipmap
+  levels, and automatic mipmap generation averages 8-bit sRGB values as plain
+  numbers. So the screen becomes single-sampled half-float (linear) colour.
+  The target window, which shows the outside world, only gains anisotropic
+  filtering: a float target would pass highlights the 8-bit one clamps.
+- [`TerrainDetail`](../NOVR/VrUi/Map/TerrainDetail.cs) draws the cockpit map's
+  terrain from a half-size mipmapped copy while the original is being shrunk
+  (`MinificationSwitch`, measured as eye pixels per texel through the headset
+  camera). `Image.overrideSprite` does the swap, so the game's own sprite
+  reference never changes. The copy's levels are built by repeated bilinear
+  halving on the GPU, not by the device's mipmap generation, for the same
+  sRGB reason.
+
+A change to any of these needs the engine, not only the doubles: the unit
+suites record what each engine call was asked to do, and cannot tell whether
+a mipmap level holds the right pixels.
+
 ## Optional foveated rendering
 
 `Rendering/FixedFoveationRuntime` probes native Windows/NVIDIA/D3D11 eligibility

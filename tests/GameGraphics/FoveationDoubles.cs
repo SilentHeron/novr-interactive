@@ -4,6 +4,7 @@ namespace NOVR
     {
         internal static ModConfiguration Instance = new();
         internal readonly Rendering.FixedFoveationSettings FixedFoveation = new();
+        internal readonly Rendering.ImageQualitySettings ImageQuality = new();
     }
 }
 
@@ -18,6 +19,12 @@ namespace NOVR.Rendering
             get => _value;
             set { Writes++; _value = value; }
         }
+    }
+
+    internal sealed class ImageQualitySettings
+    {
+        internal readonly SettingValue<bool> DitherGradients = new(true), RemoveRestingVignette = new(true),
+            FilterCockpitScreens = new(true), SmoothCockpitMap = new(true);
     }
 
     internal sealed class FixedFoveationSettings
@@ -61,6 +68,21 @@ namespace NOVR.Rendering
             Status = available ? "Off. Compatible NVIDIA hardware detected." : "Unavailable on Linux/Proton.";
             EyeTrackingStatus = "Centre: fixed.";
             Calls.Clear();
+        }
+    }
+}
+
+namespace NOVR.GameplayPatches
+{
+    // The cloud option applies through its own patch; the page only calls it.
+    internal static class DistantCloudBanks
+    {
+        internal static bool HideInVr = true;
+        internal static readonly List<bool> Calls = new();
+        internal static void SetHideInVr(bool hide)
+        {
+            Calls.Add(hide);
+            HideInVr = hide;
         }
     }
 }

@@ -4,6 +4,7 @@
     <Compile Include="../../NOVR/VrUi/ViewMenu/GameGraphicsSettings.cs" Link="GameGraphicsSettings.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuGameGraphicsPage.cs" Link="WristMenuGameGraphicsPage.cs" />
     <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuFoveationPage.cs" Link="WristMenuFoveationPage.cs" />
+    <Compile Include="../../NOVR/VrUi/ViewMenu/WristMenuImageQualityPage.cs" Link="WristMenuImageQualityPage.cs" />
     <Compile Include="../../NOVR/Rendering/FixedFoveationPolicy.cs" Link="FixedFoveationPolicy.cs" />
   </ItemGroup>
 </Project>

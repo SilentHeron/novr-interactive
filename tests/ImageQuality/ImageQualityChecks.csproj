@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../NOVR/Rendering/RestingVignette.cs" Link="RestingVignette.cs" />
+    <Compile Include="../../NOVR/Rendering/CockpitScreenFilter.cs" Link="CockpitScreenFilter.cs" />
+    <Compile Include="../../NOVR/Rendering/VrImageQuality.cs" Link="VrImageQuality.cs" />
+    <Compile Include="../../NOVR/VrUi/Map/TerrainDetail.cs" Link="TerrainDetail.cs" />
+    <Compile Include="../../NOVR/VrUi/Map/TerrainDetail.Gpu.cs" Link="TerrainDetail.Gpu.cs" />
+  </ItemGroup>
+</Project>

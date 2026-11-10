@@ -67,13 +67,19 @@ namespace UnityEngine
     {
         internal static void Save() => NativeCalls.Events.Add("save");
     }
-    internal sealed class GameObject(string name)
+    internal sealed class GameObject
     {
-        internal readonly string Name = name;
+        internal readonly string Name;
         internal readonly Transform transform = new();
+        internal GameObject(string name)
+        {
+            Name = name;
+            transform.gameObject = this;
+        }
     }
     internal sealed class Transform
     {
+        internal GameObject gameObject = null!;
         internal readonly List<UiBounds> Widgets = new();
         internal readonly Dictionary<string, NOVR.VrUi.ViewMenuControls.Check> Checks = new();
     }
@@ -155,6 +161,7 @@ namespace NOVR.VrUi
         internal readonly List<string> Notes = new();
         internal UnityEngine.GameObject Build() => BuildGameGraphicsPage();
         internal UnityEngine.GameObject BuildFoveation() => BuildFixedFoveationPage();
+        internal UnityEngine.GameObject BuildImageQuality() => BuildImageQualityPage();
         internal void Refresh()
         {
             foreach (var (_, refresh) in _settingRefresh)
@@ -181,6 +188,13 @@ namespace NOVR.VrUi
             Scalars.Add(title, scalar);
             parent.Widgets.Add(new(title, 0, y, 620, 62));
             return scalar;
+        }
+        private void Setting(UnityEngine.Transform parent, string title, NOVR.Rendering.SettingValue<bool> entry, int column, float y) =>
+            Setting(parent, title, () => entry.Value, value => entry.Value = value, column, y);
+        private void Setting(UnityEngine.Transform parent, string title, Func<bool> read, Action<bool> write, int column, float y)
+        {
+            var control = ViewMenuControls.Checkbox(parent, _font, title, new UnityEngine.Vector2(column == 0 ? -160 : 160, y), 300, read, write);
+            _settingRefresh.Add((parent.gameObject, control.Refresh));
         }
         private void Choice(UnityEngine.Transform parent, string title, string[] options, Func<int> read,
             Action<int> write, float y, Func<int, bool>? canSelect = null) =>

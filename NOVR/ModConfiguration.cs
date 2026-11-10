@@ -13,6 +13,7 @@ public class ModConfiguration
     public readonly ConfigFile Config;
     internal readonly ConfigEntry<bool> DisableProtonXInput;
     internal readonly Rendering.FixedFoveationSettings FixedFoveation;
+    internal readonly Rendering.ImageQualitySettings ImageQuality;
     public readonly MotionControls.MotionControlSettings MotionControls;
     public readonly ConfigEntry<float> TargetDesignatorOvershoot;
     public readonly ConfigEntry<bool> EnableNativeMenuUi;
@@ -41,6 +42,7 @@ public class ModConfiguration
         DisableProtonXInput = config.Bind("Compatibility", "Disable Legacy XInput on Proton", true,
             "Avoid a Proton XInput controller-polling deadlock. Applies only under Wine/Proton and requires a restart. OpenXR motion controls are unaffected. Xbox-style gamepads may need alternate bindings; disable this option if legacy XInput is required.");
         FixedFoveation = new Rendering.FixedFoveationSettings(config);
+        ImageQuality = new Rendering.ImageQualitySettings(config);
         MotionControls = new MotionControls.MotionControlSettings(config);
         ControllerBindings = new MotionControls.ControllerBindings(config);
         CockpitAlerts = new VrUi.SpecialBehavior.CockpitAlertSettings(config);

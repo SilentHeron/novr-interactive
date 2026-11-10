@@ -178,6 +178,11 @@ namespace NOVR
         internal static ModConfiguration Instance = new();
         internal readonly BepInEx.Configuration.ConfigEntry<float> VrFarClipDistance = new(VrCamera.VrFarClipPolicy.Default);
         internal readonly BepInEx.Configuration.ConfigEntry<bool> VrGameAntialiasing = new(false);
+        internal readonly ImageSettings ImageQuality = new();
+        internal sealed class ImageSettings
+        {
+            internal readonly BepInEx.Configuration.ConfigEntry<bool> DitherGradients = new(true);
+        }
     }
 }
 namespace UnityEngine.Rendering.Universal
@@ -200,6 +205,7 @@ namespace UnityEngine.Rendering.Universal
         public bool allowXRRendering;
         public AntialiasingMode antialiasing;
         public AntialiasingQuality antialiasingQuality = AntialiasingQuality.High;
+        public bool dithering;
         public readonly List<UnityEngine.Camera> cameraStack = new();
     }
 }
