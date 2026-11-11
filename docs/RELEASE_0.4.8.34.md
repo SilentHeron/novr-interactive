@@ -42,6 +42,17 @@
     trigger (**Select** on the hand holding the pointer, **Take the pointer**
     on the other) and the pointer hand's thumbstick (**Up / down: scroll**).
     Aircraft selection adds walking, turning and the quick wheel, below.
+  - Each label's line is real geometry that runs to the button itself and
+    ends with a small bead on its surface, so it stays on the button from any
+    angle. NOVR reads the separate mesh SteamVR ships for every button to
+    find that surface. A button the line cannot reach straight (a trigger,
+    seen from above) is reached round the side of the controller: the line
+    drops beside it to the trigger's depth and then runs in, instead of
+    seeming to end on the top face. The label panels now stand clear of the
+    whole controller instead of partly covering its head.
+  - A button turns white on the model while you press it: trigger, grip,
+    thumbstick click, face buttons, bumpers, Menu and View, and the Frame's
+    D-pad. Turn it off with **VR Menus → Controller Press Highlight**.
   - On the full-screen map the labels are the map's: **Move map** on one
     thumbstick and **Up / down: zoom map** on the other (swapped when
     left-handed), **Click: quick wheel** on both, and **Close map** on the
@@ -189,4 +200,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport, snap turn and calling the menu, the controllers on the map, the stick and throttle hiding widgets, the jammed map icon fix and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport, snap turn and calling the menu, the controllers on the map, their 3D label lines and pressed-button highlights, the stick and throttle hiding widgets, the jammed map icon fix and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

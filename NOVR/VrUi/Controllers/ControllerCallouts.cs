@@ -11,6 +11,13 @@ internal enum ControllerHintContext
     None, Menus, AircraftSelection, Map
 }
 
+// What a hand is pressing right now, as plain flags: enough to light up the
+// matching part of the shown controller.
+internal struct ControllerPresses
+{
+    internal bool Trigger, Grip, StickClick, Primary, Secondary, Top, Outside, Menu, Shoulder;
+}
+
 internal readonly struct ControllerCallout
 {
     internal readonly string Part, Title, Detail;
@@ -60,6 +67,36 @@ internal static class ControllerCallouts
             _ => ControllerButton.None
         };
         return button != ControllerButton.None;
+    }
+
+    // Parts of the shown controller that can be pressed and read: the grip,
+    // the Frame's D-pad and every bindable button. The body, the status light
+    // and the system button are not.
+    internal static bool Pressable(string part, bool frame, bool left) =>
+        part == "button_grip" || part == "dpad" && frame && left || TryGetButton(part, frame, left, out _);
+
+    // Whether that part is being pressed.
+    internal static bool Pressed(string part, bool frame, bool left, in ControllerPresses presses)
+    {
+        if (part == "button_grip")
+            return presses.Grip;
+        // The D-pad is one part on the model and four buttons to the game.
+        if (part == "dpad" && frame && left)
+            return presses.Top || presses.Secondary || presses.Primary || presses.Outside;
+        if (!TryGetButton(part, frame, left, out var button))
+            return false;
+        return button switch
+        {
+            ControllerButton.Trigger => presses.Trigger,
+            ControllerButton.StickClick => presses.StickClick,
+            ControllerButton.Primary => presses.Primary,
+            ControllerButton.Secondary => presses.Secondary,
+            ControllerButton.Top => presses.Top,
+            ControllerButton.Outside => presses.Outside,
+            ControllerButton.Menu => presses.Menu,
+            ControllerButton.Shoulder => presses.Shoulder,
+            _ => false
+        };
     }
 
     // pointerHand: this hand's laser is the one driving the menu. Pressing the
@@ -148,7 +185,12 @@ internal static class ControllerCallouts
     // Labels go in two columns beside the controller, each in the order of the
     // buttons it points at, so leader lines never cross within a column and no
     // two labels overlap. Anchors are (across, along) on the label plane.
-    internal static (float x, float y)[] Layout(IReadOnlyList<(float x, float y)> anchors, float columnX, float rowHeight)
+    internal static (float x, float y)[] Layout(IReadOnlyList<(float x, float y)> anchors, float columnX, float rowHeight) =>
+        Layout(anchors, -columnX, columnX, rowHeight);
+
+    // The same with each column placed on its own: a controller is rarely
+    // centred under its thumbstick, and each column has to clear its side.
+    internal static (float x, float y)[] Layout(IReadOnlyList<(float x, float y)> anchors, float leftX, float rightX, float rowHeight)
     {
         var result = new (float x, float y)[anchors.Count];
         if (anchors.Count == 0)
@@ -171,7 +213,7 @@ internal static class ControllerCallouts
                 centre += anchors[index].y;
             centre /= column.Count;
             for (var row = 0; row < column.Count; row++)
-                result[column[row]] = (side == 0 ? -columnX : columnX, centre + ((column.Count - 1) * .5f - row) * rowHeight);
+                result[column[row]] = (side == 0 ? leftX : rightX, centre + ((column.Count - 1) * .5f - row) * rowHeight);
         }
         return result;
     }

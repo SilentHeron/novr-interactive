@@ -95,7 +95,10 @@ anchor, heading and menu placement, unless the player recentred in between.
 draws SteamVR's own render model for the detected controller on the grip pose
 and labels its trigger and thumbstick with what they do on the current screen
 (`ControllerCallouts`, by `ControllerHintContext`: menus, aircraft selection,
-full-screen map; never flight bindings); models are parsed off the main thread
+full-screen map; never flight bindings). Each button's own mesh
+(`ControllerPartShape`, from the per-part files beside the model) gives the
+label's line a real surface to end on and a route that does not cut through
+the controller, and is drawn white while that button is pressed. Models are parsed off the main thread
 and stay loaded while the feature is on. On the map in a cockpit they replace
 the gloves (`PilotHandVisuals` hides while `MenuControllerModels.Active`).
 [`FlightControlUiDepth`](../NOVR/FlightControls/FlightControlUiDepth.cs) gives

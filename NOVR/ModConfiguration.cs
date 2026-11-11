@@ -24,6 +24,7 @@ public class ModConfiguration
     internal readonly ConfigEntry<bool> MenuControllerModels, MenuControllerTooltips, SelectionTeleport;
     internal readonly ConfigEntry<float> SnapTurnDegrees;
     internal readonly ConfigEntry<bool> ControlsHideWidgets;
+    internal readonly ConfigEntry<bool> MenuControllerPresses;
     public readonly MotionControls.ControllerBindings ControllerBindings;
     internal readonly VrUi.SpecialBehavior.CockpitAlertSettings CockpitAlerts;
     internal readonly ConfigEntry<MotionControls.TargetCueMode> TargetCue;
@@ -90,6 +91,8 @@ public class ModConfiguration
             "Show your controllers in the VR menus and at aircraft selection, using the model SteamVR installs for them (Steam Frame, Quest 2, Quest 3, Quest Pro). Nothing is shown if SteamVR's models are not found.");
         MenuControllerTooltips = config.Bind("VR Menus", "Controller Tooltips", true,
             "Label the buttons on the shown controllers with what they do on the current screen. Labels appear while a controller is raised toward your face.");
+        MenuControllerPresses = config.Bind("VR Menus", "Controller Press Highlight", true,
+            "On the shown controllers, a button turns white while you press it.");
         SelectionTeleport = config.Bind("VR Menus", "Walk Around Aircraft", true,
             "At aircraft selection, push the free hand's thumbstick forward to aim and release to teleport around the aircraft; pull it back to bring the menu to you. The left thumbstick snap-turns.");
         SnapTurnDegrees = config.Bind("VR Menus", "Snap Turn Degrees", 45f,

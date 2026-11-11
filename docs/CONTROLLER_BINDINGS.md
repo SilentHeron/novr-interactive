@@ -84,7 +84,7 @@ Thumbstick flight needs motion controls on. With them off, the outside view, **B
 
 The VR menus (main menu, mission select, multiplayer, settings), the aircraft selection screen and the full-screen map show your controllers. The model is the one SteamVR installs for that controller, read from your PC and placed on the tracked hand: Steam Frame, Quest 2, Quest 3 (Touch Plus) or Quest Pro. A plain Touch layout is shown as Quest 2. NOVR ships no controller model, so nothing appears if SteamVR's files are missing.
 
-Raise a controller toward your face to see its labels. They say what the controller does on the screen you are on, and nothing about flying:
+Raise a controller toward your face to see its labels. Each has a line that runs to the button itself and ends with a bead on its surface; a trigger under the controller is reached round the side, not through the top. A button turns white on the model while you press it (**VR Menus → Controller Press Highlight**). The labels say what the controller does on the screen you are on, and nothing about flying:
 
 | Screen | Trigger | Thumbstick |
 | --- | --- | --- |

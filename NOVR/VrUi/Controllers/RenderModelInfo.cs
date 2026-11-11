@@ -13,11 +13,13 @@ internal sealed class RenderModelInfo
 {
     internal readonly struct Part
     {
-        internal readonly string Name;
+        // File: the part's own mesh, a file beside the whole model.
+        internal readonly string Name, File;
         internal readonly float X, Y, Z;
-        internal Part(string name, float x, float y, float z)
+        internal Part(string name, string file, float x, float y, float z)
         {
             Name = name;
+            File = file;
             X = x;
             Y = y;
             Z = z;
@@ -29,7 +31,7 @@ internal sealed class RenderModelInfo
     // their origin in grip space.
     internal readonly IReadOnlyList<Part> Parts;
 
-    private RenderModelInfo(float gripX, float gripY, float gripZ, float pitchDegrees, List<(string name, float x, float y, float z)> parts)
+    private RenderModelInfo(float gripX, float gripY, float gripZ, float pitchDegrees, List<(string name, string file, float x, float y, float z)> parts)
     {
         _gripX = gripX;
         _gripY = gripY;
@@ -41,7 +43,7 @@ internal sealed class RenderModelInfo
         foreach (var part in parts)
         {
             ToGrip(part.x, part.y, part.z, out var x, out var y, out var z);
-            list.Add(new Part(part.name, x, y, z));
+            list.Add(new Part(part.name, part.file, x, y, z));
         }
         Parts = list;
     }
@@ -69,13 +71,13 @@ internal sealed class RenderModelInfo
         // else would need a full rotation here, so refuse rather than misplace.
         if (Math.Abs(rotation[1]) > .01f || Math.Abs(rotation[2]) > .01f)
             throw new FormatException("Render model grip pose is rotated on more than one axis.");
-        var parts = new List<(string, float, float, float)>();
+        var parts = new List<(string, string, float, float, float)>();
         foreach (var pair in components)
         {
             if (pair.Value is not Dictionary<string, object?> component || !component.TryGetValue("filename", out var file) ||
-                file is not string || !Local(component, out var at, out _))
+                file is not string name || !Local(component, out var at, out _))
                 continue;
-            parts.Add((pair.Key, at[0], at[1], at[2]));
+            parts.Add((pair.Key, name, at[0], at[1], at[2]));
         }
         return new RenderModelInfo(origin[0], origin[1], origin[2], rotation[0], parts);
     }

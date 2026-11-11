@@ -17,7 +17,14 @@ namespace NOVR.VrUi.Controllers;
 // pose; without it nothing is drawn and the menus behave as before.
 internal sealed class MenuControllerModels : MonoBehaviour
 {
-    private const float CanvasScale = .0005f, LabelWidth = 200f, LineHeight = 16f, LabelPadding = 10f;
+    private const float CanvasScale = .0005f, LabelWidth = 200f, LineHeight = 16f, LabelPadding = 10f, LabelGap = 24f;
+    // Metres: the line's thickness and the bead at its end.
+    private const float LeaderWidth = .0012f, LeaderDot = .0045f;
+    // A pressed button's white copy stands this far proud of the button, so
+    // it covers it cleanly: a share of its size plus a fixed sliver.
+    private const float PressedGrow = .03f, PressedLift = .0004f, PressThreshold = .5f;
+    // Plain white, for the lines, their beads and pressed buttons.
+    private Material? _white;
     private const long MaxFileBytes = 24L * 1024 * 1024;
 
     internal sealed class LoadedModel
@@ -26,6 +33,9 @@ internal sealed class MenuControllerModels : MonoBehaviour
         internal ObjMesh Mesh = null!;
         internal RenderModelInfo Info = null!;
         internal byte[]? Texture;
+        internal Dictionary<string, ControllerPartShape> Shapes = new();
+        // The whole controller as one shape: what a label's line must not cut through.
+        internal ControllerPartShape? Whole;
     }
 
     private sealed class Hand
@@ -39,6 +49,13 @@ internal sealed class MenuControllerModels : MonoBehaviour
         internal RenderModelInfo? Info;
         internal (ControllerHintContext context, bool pointer, int bindings, bool frame, bool stickLeft) LabelKey;
         internal bool Shown, LabelsShown;
+        // The buttons' own meshes, and the lines from the labels to them.
+        internal Dictionary<string, ControllerPartShape>? Shapes;
+        internal ControllerPartShape? Whole;
+        internal GameObject? Leaders;
+        // A white copy of each button, shown while that button is pressed.
+        internal readonly List<(string part, MeshRenderer renderer)> Pressed = new();
+        internal readonly List<Mesh> PressedMeshes = new();
         internal Canvas? LabelCanvas;
     }
 
@@ -120,7 +137,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
             var task = hand.Loading;
             hand.Loading = null;
             if (task.Status == TaskStatus.RanToCompletion && task.Result != null)
-                Create(hand, task.Result, left);
+                Create(hand, task.Result, left, sample.NativeFrame);
             else
                 Debug.Log($"[NOVR] No SteamVR model for '{hand.Name}'; menus show no controller for that hand." +
                     (task.Exception != null ? " " + task.Exception.GetBaseException().Message : ""));
@@ -136,6 +153,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
         if (!hand.Root.activeSelf)
             hand.Root.SetActive(true);
         hand.Shown = true;
+        UpdatePressed(hand, left, sample);
         UpdateLabels(hand, left, sample.NativeFrame, context, camera, cursor);
     }
 
@@ -172,7 +190,11 @@ internal sealed class MenuControllerModels : MonoBehaviour
                     texture = File.ReadAllBytes(image);
                 break;
             }
-        return new LoadedModel { Name = name, Mesh = mesh, Info = info, Texture = texture };
+        return new LoadedModel
+        {
+            Name = name, Mesh = mesh, Info = info, Texture = texture,
+            Shapes = ControllerPartShape.LoadAll(directory, info), Whole = ControllerPartShape.From(mesh, info)
+        };
     }
 
     private static string ReadText(string path)
@@ -243,9 +265,68 @@ internal sealed class MenuControllerModels : MonoBehaviour
         return null;
     }
 
-    private void Create(Hand hand, LoadedModel model, bool left)
+    private Material White()
+    {
+        if (_white != null)
+            return _white;
+        _white = CockpitMaterials.Opaque("NOVR controller white", Color.white);
+        if (_white.HasProperty("_Cull"))
+            _white.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+        return _white;
+    }
+
+    // Lights up what the hand is pressing, on the model in that hand.
+    private static void UpdatePressed(Hand hand, bool left, in ControllerSample sample)
+    {
+        if (hand.Pressed.Count == 0)
+            return;
+        var show = ModConfiguration.Instance.MenuControllerPresses.Value;
+        var presses = new ControllerPresses
+        {
+            Trigger = sample.Trigger > PressThreshold, Grip = sample.Grip > PressThreshold, StickClick = sample.StickClick,
+            Primary = sample.Primary, Secondary = sample.Secondary, Top = sample.Top, Outside = sample.Outside,
+            Menu = sample.Menu, Shoulder = sample.Shoulder
+        };
+        foreach (var (part, renderer) in hand.Pressed)
+        {
+            var on = show && ControllerCallouts.Pressed(part, sample.NativeFrame, left, presses);
+            if (renderer != null && renderer.enabled != on)
+                renderer.enabled = on;
+        }
+    }
+
+    // The button's own mesh, grown a little about its middle.
+    internal static Mesh BuildPressedMesh(ControllerPartShape shape, string name)
+    {
+        var positions = shape.Positions;
+        var count = positions.Length / 3;
+        var vertices = new Vector3[count];
+        var centre = new Vector3(shape.CentreX, shape.CentreY, shape.CentreZ);
+        for (var i = 0; i < count; i++)
+        {
+            var offset = new Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]) - centre;
+            var length = offset.magnitude;
+            vertices[i] = centre + offset * (1f + PressedGrow) + (length > 1e-6f ? offset / length * PressedLift : Vector3.zero);
+        }
+        var triangles = (int[])shape.Triangles.Clone();
+        for (var i = 0; i + 2 < triangles.Length; i += 3)
+            (triangles[i + 1], triangles[i + 2]) = (triangles[i + 2], triangles[i + 1]);
+        var mesh = new Mesh
+        {
+            name = "NOVR pressed " + name,
+            indexFormat = count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16
+        };
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private void Create(Hand hand, LoadedModel model, bool left, bool frame)
     {
         hand.Info = model.Info;
+        hand.Shapes = model.Shapes;
+        hand.Whole = model.Whole;
         hand.Mesh = BuildMesh(model);
         hand.Texture = BuildTexture(model);
         hand.Material = BuildMaterial(hand.Texture);
@@ -256,10 +337,27 @@ internal sealed class MenuControllerModels : MonoBehaviour
         renderer.sharedMaterial = hand.Material;
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = false;
+        foreach (var pair in model.Shapes)
+        {
+            if (!ControllerCallouts.Pressable(pair.Key, frame, left))
+                continue;
+            var mesh = BuildPressedMesh(pair.Value, pair.Key);
+            hand.PressedMeshes.Add(mesh);
+            var pressed = new GameObject("Pressed " + pair.Key, typeof(MeshFilter), typeof(MeshRenderer));
+            pressed.transform.SetParent(root.transform, false);
+            pressed.layer = root.layer;
+            pressed.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var highlight = pressed.GetComponent<MeshRenderer>();
+            highlight.sharedMaterial = White();
+            highlight.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            highlight.receiveShadows = false;
+            highlight.enabled = false;
+            hand.Pressed.Add((pair.Key, highlight));
+        }
         root.SetActive(false);
         hand.Root = root;
         hand.LabelKey = default;
-        Debug.Log($"[NOVR] Menu controller model '{model.Name}': {hand.Mesh.vertexCount} vertices, texture {(hand.Texture != null ? hand.Texture.width + "x" + hand.Texture.height : "none")}.");
+        Debug.Log($"[NOVR] Menu controller model '{model.Name}': {hand.Mesh.vertexCount} vertices, texture {(hand.Texture != null ? hand.Texture.width + "x" + hand.Texture.height : "none")}, {model.Shapes.Count} button shapes.");
     }
 
     private void UpdateLabels(Hand hand, bool left, bool frame, ControllerHintContext context, Camera camera, VrUiCursor? cursor)
@@ -269,6 +367,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         {
             if (hand.Labels != null && hand.Labels.activeSelf)
                 hand.Labels.SetActive(false);
+            if (hand.Leaders != null && hand.Leaders.activeSelf)
+                hand.Leaders.SetActive(false);
             return;
         }
         HandOptionWheelPose.Get(left, frame, out var offset, out var normal, out var forward);
@@ -284,6 +384,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         {
             if (hand.Labels != null)
                 Destroy(hand.Labels);
+            if (hand.Leaders != null)
+                Destroy(hand.Leaders);
             hand.LabelKey = key;
             hand.Labels = BuildLabels(hand, left, context, pointerHand, frame, stickLeft, bindings.Get, position, rotation);
             hand.LabelCanvas = hand.Labels.GetComponent<Canvas>();
@@ -293,6 +395,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         var show = ControllerCallouts.LookedAt(Vector3.Dot(-labels.forward, toHead.normalized), toHead.magnitude);
         if (hand.Labels.activeSelf != show)
             hand.Labels.SetActive(show);
+        if (hand.Leaders != null && hand.Leaders.activeSelf != show)
+            hand.Leaders.SetActive(show);
         hand.LabelsShown = show;
         if (show && hand.LabelCanvas != null)
             hand.LabelCanvas.worldCamera = camera;
@@ -333,35 +437,98 @@ internal sealed class MenuControllerModels : MonoBehaviour
                 break;
             }
         }
-        var spots = ControllerCallouts.Layout(anchors, reach + 24f + LabelWidth * .5f, tallest * LineHeight + LabelPadding + 4f);
+        // The columns stand clear of the whole controller as seen on the
+        // label plane, not just of the labelled buttons: with two labels a
+        // hand, those sit near the middle and the panels covered the head.
+        float leftReach = reach, rightReach = reach;
+        if (hand.Whole != null)
+        {
+            var across = rotation * Vector3.right;
+            var points = hand.Whole.Positions;
+            for (var i = 0; i + 2 < points.Length; i += 3)
+            {
+                var x = Vector3.Dot(new Vector3(points[i], points[i + 1], points[i + 2]) - position, across) / CanvasScale;
+                leftReach = Mathf.Max(leftReach, -x);
+                rightReach = Mathf.Max(rightReach, x);
+            }
+        }
+        var spots = ControllerCallouts.Layout(anchors, -(leftReach + LabelGap + LabelWidth * .5f), rightReach + LabelGap + LabelWidth * .5f,
+            tallest * LineHeight + LabelPadding + 4f);
+        // The lines are real geometry in the controller's own space, not part
+        // of the flat label panel: each runs from its label to the button
+        // itself, so it stays on the button from any angle.
+        var leaders = new GameObject("NOVR Controller Leaders");
+        leaders.transform.SetParent(hand.Root.transform, false);
+        leaders.layer = hand.Root.layer;
+        hand.Leaders = leaders;
         for (var i = 0; i < callouts.Count && i < spots.Length; i++)
-            AddLabel(view.transform, callouts[i], new Vector2(anchors[i].x, anchors[i].y), new Vector2(spots[i].x, spots[i].y));
+        {
+            var edge = AddLabel(view.transform, callouts[i], new Vector2(spots[i].x, spots[i].y));
+            var from = position + rotation * (new Vector3(edge.x, edge.y, 0f) * CanvasScale);
+            AddLeader(leaders.transform, LeaderPath(hand, callouts[i].Part, from, rotation * Vector3.back));
+        }
         return view;
     }
 
-    private void AddLabel(Transform parent, ControllerCallout callout, Vector2 anchor, Vector2 spot)
+    // The line from a label to its button: it ends on the surface of the
+    // button's own mesh and goes round the controller rather than through
+    // it. Without a mesh for the button (SteamVR's files gave none) it runs
+    // straight to the button's origin.
+    private static Vector3[] LeaderPath(Hand hand, string name, Vector3 from, Vector3 towardLabels)
+    {
+        if (hand.Shapes != null && hand.Shapes.TryGetValue(name, out var shape))
+        {
+            var path = ControllerPartShape.Leader(shape, hand.Whole, from.x, from.y, from.z, towardLabels.x, towardLabels.y, towardLabels.z);
+            var points = new Vector3[path.Length / 3];
+            for (var i = 0; i < points.Length; i++)
+                points[i] = new Vector3(path[i * 3], path[i * 3 + 1], path[i * 3 + 2]);
+            return points;
+        }
+        foreach (var part in hand.Info!.Parts)
+            if (part.Name == name)
+                return new[] { from, new Vector3(part.X, part.Y, part.Z) };
+        return new[] { from, from };
+    }
+
+    private void AddLeader(Transform parent, Vector3[] path)
+    {
+        var to = path[path.Length - 1];
+        var white = White();
+        var layer = parent.gameObject.layer;
+        var line = new GameObject("Leader", typeof(LineRenderer)).GetComponent<LineRenderer>();
+        line.transform.SetParent(parent, false);
+        line.gameObject.layer = layer;
+        line.useWorldSpace = false;
+        line.positionCount = path.Length;
+        line.SetPositions(path);
+        line.startWidth = line.endWidth = LeaderWidth;
+        line.numCapVertices = 2;
+        line.numCornerVertices = 2;
+        line.sharedMaterial = white;
+        line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        line.receiveShadows = false;
+        // A bead where the line meets the button.
+        var dot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        var collider = dot.GetComponent<Collider>();
+        if (collider != null)
+            Destroy(collider);
+        dot.name = "Button";
+        dot.transform.SetParent(parent, false);
+        dot.layer = layer;
+        dot.transform.localPosition = to;
+        dot.transform.localScale = Vector3.one * LeaderDot;
+        var renderer = dot.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = white;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+    }
+
+    // Returns the middle of the label's edge that faces the controller.
+    private Vector2 AddLabel(Transform parent, ControllerCallout callout, Vector2 spot)
     {
         var layer = parent.gameObject.layer;
         var rightSide = spot.x > 0;
-        // Leader from the button to the label's inner edge.
         var edge = new Vector2(spot.x + (rightSide ? -LabelWidth * .5f : LabelWidth * .5f), spot.y);
-        var line = new GameObject("Leader", typeof(RectTransform), typeof(Image));
-        line.transform.SetParent(parent, false);
-        line.layer = layer;
-        var lineRect = (RectTransform)line.transform;
-        var delta = edge - anchor;
-        lineRect.sizeDelta = new Vector2(delta.magnitude, 2f);
-        lineRect.anchoredPosition = (edge + anchor) * .5f;
-        lineRect.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-        var lineImage = line.GetComponent<Image>();
-        lineImage.color = new Color(1f, 1f, 1f, .75f);
-        lineImage.raycastTarget = false;
-        var dot = new GameObject("Button", typeof(RectTransform), typeof(Image));
-        dot.transform.SetParent(parent, false);
-        dot.layer = layer;
-        ((RectTransform)dot.transform).sizeDelta = new Vector2(7f, 7f);
-        ((RectTransform)dot.transform).anchoredPosition = anchor;
-        dot.GetComponent<Image>().raycastTarget = false;
         var box = new GameObject("Label", typeof(RectTransform), typeof(Image));
         box.transform.SetParent(parent, false);
         box.layer = layer;
@@ -386,6 +553,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         text.rectTransform.sizeDelta = new Vector2(LabelWidth - 12f, height - 4f);
+        return edge;
     }
 
     private static void Release(Hand hand)
@@ -410,6 +578,17 @@ internal sealed class MenuControllerModels : MonoBehaviour
         hand.LabelKey = default;
         hand.LabelCanvas = null;
         hand.Shown = hand.LabelsShown = false;
+        if (hand.Leaders != null)
+            Destroy(hand.Leaders);
+        hand.Leaders = null;
+        hand.Shapes = null;
+        hand.Whole = null;
+        // The white copies are children of the root and went with it.
+        hand.Pressed.Clear();
+        foreach (var mesh in hand.PressedMeshes)
+            if (mesh != null)
+                Destroy(mesh);
+        hand.PressedMeshes.Clear();
     }
 
     private void OnDisable()
@@ -426,6 +605,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
     {
         foreach (var hand in _hands)
             Release(hand);
+        if (_white != null)
+            Destroy(_white);
         if (_instance == this)
             _instance = null;
     }
