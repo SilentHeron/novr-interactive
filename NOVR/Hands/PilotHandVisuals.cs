@@ -68,9 +68,12 @@ internal sealed class PilotHandVisuals : MonoBehaviour
 
         var settings = ModConfiguration.Instance.MotionControls;
         var camera = APIBus.MainCamera;
+        // With the full-screen map open the hands are pointers, and the
+        // controller models with their labels stand in for the gloves.
         var show = settings.RiggedGloves.Value && settings.Enabled.Value &&
             CameraStateManager.cameraMode == CameraMode.cockpit && camera != null &&
-            camera.transform.parent != null && TrackedControllers.Available;
+            camera.transform.parent != null && TrackedControllers.Available &&
+            !VrUi.Controllers.MenuControllerModels.Active;
         if (!show)
         {
             ResetHandStabilizers();

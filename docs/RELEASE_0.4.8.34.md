@@ -31,9 +31,9 @@
   flies the game's free camera; hold either grip to move ten times faster.
   Before, the sticks did nothing until a unit was picked on the map. While
   following a unit, the quick wheel adds **FREE CAMERA** to let go of it.
-- **Your controllers in the menus.** The VR menus (main menu, mission select,
-  multiplayer, settings) and the aircraft selection screen show the controller
-  you are holding: Steam Frame, Quest 2, Quest 3 or Quest Pro. NOVR ships no
+- **Your controllers in the menus and on the map.** The VR menus (main menu,
+  mission select, multiplayer, settings), the aircraft selection screen and
+  the full-screen map show the controller you are holding: Steam Frame, Quest 2, Quest 3 or Quest Pro. NOVR ships no
   model of its own. It reads the one SteamVR already installed for that
   controller and places it on your tracked hand; if SteamVR's files are not
   found, nothing is shown and the menus work as before.
@@ -42,6 +42,16 @@
     trigger (**Select** on the hand holding the pointer, **Take the pointer**
     on the other) and the pointer hand's thumbstick (**Up / down: scroll**).
     Aircraft selection adds walking, turning and the quick wheel, below.
+  - On the full-screen map the labels are the map's: **Move map** on one
+    thumbstick and **Up / down: zoom map** on the other (swapped when
+    left-handed), **Click: quick wheel** on both, and **Close map** on the
+    button you have bound to Map (B by default). In a cockpit the controllers
+    take the place of the pilot's gloves while the map is open, and the gloves
+    return when it closes. The small hint above each thumbstick steps aside
+    for a raised controller's own labels.
+  - The models now stay loaded through a mission (about 45 MB of texture
+    memory for the pair) instead of being released when it starts, so opening
+    the map does not load them again.
     Flight bindings are not shown: there is nothing to fly there. Each label
     points at the real trigger and thumbstick of that controller. Lower the
     controller and only the model remains.
@@ -74,6 +84,16 @@
 - The full-screen map shows what the thumbsticks do. The left stick has always
   moved the map and the right stick zoomed it, but nothing said so. While the
   laser is on the map, a small label above each thumbstick now names its job.
+- **The stick and throttle hide the widgets behind them.** The cockpit map and
+  the other widgets are drawn by a second camera that knows nothing about the
+  cockpit, so a widget behind the virtual stick or throttle was painted over
+  them. The gloves already had an answer to this (an invisible copy that
+  writes depth for that camera); the solid parts of the stick, the throttle,
+  its rail and marks now have the same, so a widget is cut out where a
+  control is in front of it. The see-through shaft end and the captions hide
+  nothing. HUD symbols that pass behind a control are cut the same way, as
+  they already were behind a glove. Turn it off with **VR HUD → Stick And
+  Throttle Hide Widgets Behind Them** in the BepInEx config.
 - **Fixed: large red and blue shapes flickering in front of you while your
   radar is jammed.** When an enemy jams you, the game shakes every unit icon
   on the map by adding a random step of up to 2.5 to its world position each
@@ -169,4 +189,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport, snap turn and calling the menu, the jammed map icon fix and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport, snap turn and calling the menu, the controllers on the map, the stick and throttle hiding widgets, the jammed map icon fix and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

@@ -23,6 +23,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> HmdFollowResponse;
     internal readonly ConfigEntry<bool> MenuControllerModels, MenuControllerTooltips, SelectionTeleport;
     internal readonly ConfigEntry<float> SnapTurnDegrees;
+    internal readonly ConfigEntry<bool> ControlsHideWidgets;
     public readonly MotionControls.ControllerBindings ControllerBindings;
     internal readonly VrUi.SpecialBehavior.CockpitAlertSettings CockpitAlerts;
     internal readonly ConfigEntry<MotionControls.TargetCueMode> TargetCue;
@@ -82,6 +83,8 @@ public class ModConfiguration
         HudPanelDistance = config.Bind("VR HUD", "Status Panel Distance", 4f,
             new ConfigDescription("Status panel depth in meters. Angular size stays constant as depth changes.", new AcceptableValueRange<float>(2f, 10f)));
         HudContrast = config.Bind("VR HUD", "Status Panel Backplates", true, "Dark backplates behind status panels for readability over bright terrain.");
+        ControlsHideWidgets = config.Bind("VR HUD", "Stick And Throttle Hide Widgets Behind Them", true,
+            "The cockpit map and other widgets are hidden where the virtual stick or throttle is in front of them, as they already are behind your gloves. Off: widgets draw over the controls.");
         HudDeclutter = config.Bind("VR HUD", "Declutter Status Panels", false, "Fade the secondary lower-left status panel. Weapon, countermeasure and aiming information remain visible.");
         MenuControllerModels = config.Bind("VR Menus", "Controller Models", true,
             "Show your controllers in the VR menus and at aircraft selection, using the model SteamVR installs for them (Steam Frame, Quest 2, Quest 3, Quest Pro). Nothing is shown if SteamVR's models are not found.");

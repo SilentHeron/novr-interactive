@@ -31,6 +31,20 @@ namespace UnityEngine
     public class Component : Object
     {
         public GameObject gameObject = null!; public Transform transform => gameObject.transform;
+        public T? GetComponent<T>() where T : Component => gameObject.Components.OfType<T>().FirstOrDefault(c => !c.Dead);
+        public void GetComponentsInChildren<T>(bool includeInactive, List<T> results) where T : Component
+        {
+            results.Clear();
+            void Walk(Transform t)
+            {
+                if (t.gameObject.Dead || !includeInactive && !t.gameObject.activeSelf)
+                    return;
+                results.AddRange(t.gameObject.Components.OfType<T>().Where(c => !c.Dead));
+                foreach (var child in t.Children)
+                    Walk(child);
+            }
+            Walk(transform);
+        }
     }
     public class MonoBehaviour : Component
     {
@@ -69,6 +83,18 @@ namespace UnityEngine
         public Quaternion rotation
         {
             get => parent == null ? localRotation : parent.rotation * localRotation; set => localRotation = parent == null ? value : Quaternion.Inverse(parent.rotation) * value;
+        }
+        // Unity counts the whole hierarchy the transform belongs to.
+        public int hierarchyCount
+        {
+            get
+            {
+                var root = this;
+                while (root.parent != null)
+                    root = root.parent;
+                static int Count(Transform t) => 1 + t.Children.Sum(Count);
+                return Count(root);
+            }
         }
         public Vector3 lossyScale => new(TransformVector(Vector3.right).magnitude, TransformVector(Vector3.up).magnitude, TransformVector(Vector3.forward).magnitude);
         public void SetParent(Transform? next, bool worldPositionStays)
@@ -181,9 +207,31 @@ namespace UnityEngine
         public Rendering.LightProbeUsage lightProbeUsage;
         public Rendering.ReflectionProbeUsage reflectionProbeUsage;
     }
+    public sealed class MeshFilter : Component
+    {
+        public Mesh? sharedMesh;
+    }
+    public sealed class MeshRenderer : Component
+    {
+        public bool enabled = true, forceRenderingOff, receiveShadows = true, allowOcclusionWhenDynamic = true;
+        public Material[] sharedMaterials = Array.Empty<Material>();
+        public void GetSharedMaterials(List<Material> results)
+        {
+            results.Clear();
+            results.AddRange(sharedMaterials);
+        }
+        public Rendering.ShadowCastingMode shadowCastingMode = Rendering.ShadowCastingMode.On;
+        public Rendering.LightProbeUsage lightProbeUsage = Rendering.LightProbeUsage.BlendProbes;
+        public Rendering.ReflectionProbeUsage reflectionProbeUsage = Rendering.ReflectionProbeUsage.BlendProbes;
+    }
+    public static class Time
+    {
+        public static float unscaledTime;
+    }
     public static class Mathf
     {
         public static float Abs(float value) => MathF.Abs(value);
+        public static int Max(int a, int b) => Math.Max(a, b);
     }
     public static class Debug
     {
@@ -211,7 +259,7 @@ namespace UnityEngine.Rendering
     }
     public enum RenderQueue
     {
-        Geometry = 2000, Transparent = 3000
+        Geometry = 2000, AlphaTest = 2450, Transparent = 3000
     }
     public enum BlendMode
     {
@@ -251,8 +299,24 @@ namespace NOVR.VrUi.SpecialBehavior
         internal static CockpitHudWidgets? Instance = new(); internal bool Available = true;
     }
 }
+namespace NOVR
+{
+    internal sealed class Setting<T>(T value)
+    {
+        internal T Value = value;
+    }
+    internal sealed class ModConfiguration
+    {
+        internal static readonly ModConfiguration Instance = new();
+        internal readonly Setting<bool> ControlsHideWidgets = new(true);
+    }
+}
 namespace NOVR.MotionControls
 {
+    internal static class MotionControlVisuals
+    {
+        internal static UnityEngine.Transform? ActiveRoot;
+    }
     internal static class PilotHandVisuals
     {
         internal static readonly UnityEngine.SkinnedMeshRenderer?[] Renderers = new UnityEngine.SkinnedMeshRenderer?[4];

@@ -182,7 +182,137 @@ foreach (var failure in new[] { "shader", "ForwardLit", "_SrcBlendAlpha", "_DstB
     Check(Debug.Warnings == warnings + 1, "Unavailable depth support reports once, without retry churn");
     Check(!Object.Created.OfType<Material>().Any(m => !m.Dead && m.name == "NOVR hand UI depth only"), "Unsupported material candidate is cleaned up");
 }
-Console.WriteLine($"{count} source-linked hand/UI depth checks passed; GPU rendering requires in-headset confirmation.");
+// ---- Flight controls: the stick and throttle hide the widgets behind them ----
+using (var f = new Fixture())
+{
+    var controls = new GameObject("NOVR Motion Flight Controls").transform;
+    controls.SetParent(f.Game, false);
+    controls.localPosition = new(.2f, -.3f, .4f);
+    controls.localRotation = Quaternion.Euler(4, -9, 2);
+    MotionControlVisuals.ActiveRoot = controls;
+    NOVR.ModConfiguration.Instance.ControlsHideWidgets.Value = true;
+    Time.unscaledTime = 100;
+    MeshRenderer Part(string name, Transform parent, int queue, float surface = 0, int subMeshes = 1, bool filter = true)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        if (filter)
+            go.AddComponent<MeshFilter>().sharedMesh = new Mesh { subMeshCount = subMeshes };
+        var renderer = go.AddComponent<MeshRenderer>();
+        var material = new Material(new Shader()) { renderQueue = queue };
+        material.SetFloat("_Surface", surface);
+        renderer.sharedMaterials = Enumerable.Repeat(material, subMeshes).ToArray();
+        return renderer;
+    }
+    var stick = Part("stick grip", controls, 2000, subMeshes: 2);
+    stick.transform.localPosition = new(.05f, .12f, -.02f);
+    stick.transform.localRotation = Quaternion.Euler(15, 30, -8);
+    stick.transform.localScale = Vector3.one * .68f;
+    var shaft = Part("shaft fade", stick.transform, 3000, 1);
+    var outline = Part("hover outline", controls, 2990);
+    Part("caption", controls, 3000, filter: false);
+    var component = new GameObject("control depth").AddComponent<FlightControlUiDepth>();
+    void Tick() => typeof(FlightControlUiDepth).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(component, null);
+    MeshRenderer[] Copies() => Object.Created.OfType<MeshRenderer>().Where(r => !r.Dead && r.gameObject.name == "NOVR control UI depth").ToArray();
+    bool Drawn(MeshRenderer r) => r.enabled && r.gameObject.activeInHierarchy;
+    MeshRenderer CopyOf(MeshRenderer source) => Copies().Single(c => c.GetComponent<MeshFilter>()!.sharedMesh == source.GetComponent<MeshFilter>()!.sharedMesh);
+    Tick();
+    Check(Copies().Length == 3, "Every control mesh gets one copy; a caption without a mesh gets none");
+    var copy = CopyOf(stick);
+    Check(Drawn(copy) && Copies().Count(Drawn) == 1, "Only the solid grip writes depth; the fading shaft end and the hover outline stay see-through");
+    Check(copy.gameObject.layer == 30 && copy.transform.parent!.parent == f.Ui, "The copy lives on the UI camera's layer, in the UI tracking space");
+    Check(copy.sharedMaterials.Length == 2 && copy.sharedMaterials.All(m => m == copy.sharedMaterials[0]) && copy.sharedMaterials[0].name == "NOVR control UI depth only" &&
+          copy.sharedMaterials[0].GetFloat("_ZWrite") == 1 && copy.sharedMaterials[0].GetFloat("_SrcBlend") == (float)BlendMode.Zero &&
+          copy.sharedMaterials[0].GetFloat("_DstBlend") == (float)BlendMode.One && copy.sharedMaterials[0].renderQueue == (int)RenderQueue.Geometry,
+        "Each submesh uses the depth-only recipe the gloves use: writes depth before the UI, leaves every colour pixel alone");
+    Check(!copy.receiveShadows && copy.shadowCastingMode == ShadowCastingMode.Off && copy.lightProbeUsage == LightProbeUsage.Off &&
+          copy.reflectionProbeUsage == ReflectionProbeUsage.Off && !copy.allowOcclusionWhenDynamic, "The copy takes no part in lighting or shadows");
+    void Aligned(string why)
+    {
+        foreach (var vertex in new[] { Vector3.zero, new Vector3(.02f, .05f, -.01f), new Vector3(-.03f, .11f, .02f) })
+            Near(copy.transform.TransformPoint(vertex), f.Ui.TransformPoint(f.Game.InverseTransformPoint(stick.transform.TransformPoint(vertex))), why);
+    }
+    Aligned("The copy sits where the stick is, mapped from the cockpit's tracking space to the UI's");
+    stick.transform.localRotation = Quaternion.Euler(-20, 12, 14);
+    stick.transform.localPosition = new(.07f, .1f, .03f);
+    Tick();
+    Aligned("It follows the stick as it moves");
+    f.Game.localPosition = new(-500, 80, 7000);
+    f.Game.localRotation = Quaternion.Euler(30, -140, 55);
+    Tick();
+    Aligned("The aircraft flying through the world does not move it");
+    stick.forceRenderingOff = true; Tick(); Check(!Drawn(copy), "A control the game is not drawing hides nothing");
+    stick.forceRenderingOff = false; stick.enabled = false; Tick(); Check(!Drawn(copy), "A disabled control hides nothing");
+    stick.enabled = true; stick.gameObject.SetActive(false); Tick(); Check(!Drawn(copy), "An inactive control hides nothing");
+    stick.gameObject.SetActive(true); Tick(); Check(Drawn(copy), "It comes back with the control");
+    var swapped = new Mesh { subMeshCount = 3 };
+    stick.GetComponent<MeshFilter>()!.sharedMesh = swapped;
+    Tick();
+    Check(copy.GetComponent<MeshFilter>()!.sharedMesh == swapped && copy.sharedMaterials.Length == 3, "A mirrored or replaced mesh is picked up on the same frame");
+    stick.sharedMaterials[0].renderQueue = 3000;
+    Tick();
+    Check(Drawn(copy), "A material change on an existing part waits for the periodic pass");
+    Time.unscaledTime += FlightControlUiDepth.RescanSeconds + .01f;
+    Tick();
+    Check(!Drawn(copy), "A part that turned see-through stops hiding widgets");
+    stick.sharedMaterials[0].renderQueue = 2000;
+    stick.sharedMaterials[0].SetFloat("_Surface", 1);
+    Time.unscaledTime += FlightControlUiDepth.RescanSeconds + .01f;
+    Tick();
+    Check(!Drawn(copy), "So does one marked transparent");
+    stick.sharedMaterials[0].SetFloat("_Surface", 0);
+    Time.unscaledTime += FlightControlUiDepth.RescanSeconds + .01f;
+    Tick();
+    Check(Drawn(copy), "And a solid one hides them again");
+    var rail = Part("throttle rail", controls, 2450);
+    Tick();
+    Check(Copies().Length == 4 && Drawn(CopyOf(rail)), "A part added to the controls is copied on the same frame, alpha-tested materials included");
+    var railCopy = CopyOf(rail);
+    Object.Destroy(rail.gameObject);
+    Tick();
+    Check(railCopy.Dead && Copies().Length == 3, "A removed part takes its copy with it");
+    foreach (var (off, on, why) in new (Action, Action, string)[]
+    {
+        (() => NOVR.ModConfiguration.Instance.ControlsHideWidgets.Value = false, () => NOVR.ModConfiguration.Instance.ControlsHideWidgets.Value = true, "the setting is off"),
+        (() => CameraStateManager.cameraMode = CameraMode.external, () => CameraStateManager.cameraMode = CameraMode.cockpit, "the view is outside the cockpit"),
+        (() => CockpitHudWidgets.Instance!.Available = false, () => CockpitHudWidgets.Instance!.Available = true, "the widgets are not up"),
+        (() => UnityEngine.XR.XRSettings.enabled = false, () => UnityEngine.XR.XRSettings.enabled = true, "VR is off"),
+        (() => MotionControlVisuals.ActiveRoot = null, () => MotionControlVisuals.ActiveRoot = controls, "the controls are hidden"),
+    })
+    {
+        off(); Tick();
+        Check(!Drawn(copy), "Nothing writes depth while " + why);
+        on(); Tick();
+        Check(Drawn(copy), "It resumes after " + why);
+    }
+    f.ReplaceUi();
+    Tick();
+    Check(copy.transform.parent!.parent == f.Ui && Drawn(copy), "A replaced UI rig takes the copies over");
+    Aligned("And they still line up");
+    typeof(FlightControlUiDepth).GetMethod("OnDestroy", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(component, null);
+    Check(Copies().Length == 0, "Teardown removes every copy");
+    MotionControlVisuals.ActiveRoot = null;
+}
+using (var f = new Fixture())
+{
+    var controls = new GameObject("NOVR Motion Flight Controls").transform;
+    controls.SetParent(f.Game, false);
+    var go = new GameObject("grip");
+    go.transform.SetParent(controls, false);
+    go.AddComponent<MeshFilter>().sharedMesh = new Mesh();
+    go.AddComponent<MeshRenderer>().sharedMaterials = new[] { new Material(new Shader()) { renderQueue = 2000 } };
+    MotionControlVisuals.ActiveRoot = controls;
+    Shader.MissingProperties.Add("_ZWrite");
+    var warnings = Debug.Warnings;
+    var component = new GameObject("control depth").AddComponent<FlightControlUiDepth>();
+    for (var i = 0; i < 3; i++)
+        typeof(FlightControlUiDepth).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(component, null);
+    Check(Debug.Warnings == warnings + 1 && !Object.Created.OfType<MeshRenderer>().Any(r => !r.Dead && r.gameObject.name == "NOVR control UI depth"),
+        "A shader without the needed properties is reported once and nothing is drawn differently");
+    Shader.MissingProperties.Clear();
+    MotionControlVisuals.ActiveRoot = null;
+}
+Console.WriteLine($"{count} source-linked hand/UI and control/UI depth checks passed; GPU rendering requires in-headset confirmation.");
 
 sealed class Fixture : IDisposable
 {

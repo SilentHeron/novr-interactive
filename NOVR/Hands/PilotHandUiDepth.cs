@@ -124,10 +124,23 @@ internal sealed class PilotHandUiDepth : MonoBehaviour
             return true;
         if (_unavailable)
             return false;
+        _depth = CreateDepthMaterial("NOVR hand UI depth only");
+        if (_depth != null)
+            return true;
+        _unavailable = true;
+        Debug.LogWarning("[NOVR] Hand/UI depth unavailable: required opaque blend properties missing; original rendering retained.");
+        return false;
+    }
+
+    // A material that writes depth and leaves every colour pixel as it was.
+    // Also used for the flight controls' copies (FlightControlUiDepth). Null
+    // when the installed shader lacks what the recipe needs.
+    internal static Material? CreateDepthMaterial(string name)
+    {
         var shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader != null)
         {
-            var material = new Material(shader) { name = "NOVR hand UI depth only", renderQueue = (int)RenderQueue.Geometry };
+            var material = new Material(shader) { name = name, renderQueue = (int)RenderQueue.Geometry };
             // The installed Lit DepthOnly pass writes the red channel. Use its
             // normal opaque pass with colour/alpha blending that keeps the
             // destination exactly intact, and write only the hand depth.
@@ -154,14 +167,11 @@ internal sealed class PilotHandUiDepth : MonoBehaviour
                 material.EnableKeyword("_RECEIVE_SHADOWS_OFF");
                 material.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
                 material.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
-                _depth = material;
-                return true;
+                return material;
             }
             Object.Destroy(material);
         }
-        _unavailable = true;
-        Debug.LogWarning("[NOVR] Hand/UI depth unavailable: required opaque blend properties missing; original rendering retained.");
-        return false;
+        return null;
     }
 
     private void LateUpdate()

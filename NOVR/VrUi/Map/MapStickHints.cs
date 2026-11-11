@@ -31,7 +31,8 @@ internal sealed class MapStickHints : MonoBehaviour
         {
             var left = side == 0;
             var hand = show ? TrackedControllers.Read(left) : default;
-            if (!show || !hand.Valid || !hand.HasAxis || NativeHandOptionWheel.OwnsHand(left))
+            // A raised controller shows its own labels, the thumbstick's among them.
+            if (!show || !hand.Valid || !hand.HasAxis || NativeHandOptionWheel.OwnsHand(left) || Controllers.MenuControllerModels.LabelsVisible(left))
             {
                 if (_views[side] != null && _views[side]!.activeSelf)
                     _views[side]!.SetActive(false);

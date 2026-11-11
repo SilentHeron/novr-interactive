@@ -13,6 +13,8 @@ internal sealed class MotionControlVisuals : IDisposable
     private static MotionControlVisuals? _active;
     internal static bool HasFittedHandle(bool stick) => _active != null && _active.Root != null &&
         _active.Root.gameObject.activeInHierarchy && (stick ? _active._nativeStick : _active._nativeThrottle)?.UsesFittedPose == true;
+    // The shown stick and throttle (models, rail, marks), or null while hidden.
+    internal static Transform? ActiveRoot => _active != null && _active.Root != null && _active.Root.gameObject.activeInHierarchy ? _active.Root : null;
     internal static bool HasFittedCollective => _active != null && _active.Root != null &&
         _active.Root.gameObject.activeInHierarchy && _active._nativeThrottle?.UsesCollectivePose == true;
     public Transform Root

@@ -82,7 +82,7 @@ Thumbstick flight needs motion controls on. With them off, the outside view, **B
 
 ## Controllers and labels in the menus
 
-The VR menus (main menu, mission select, multiplayer, settings) and the aircraft selection screen show your controllers. The model is the one SteamVR installs for that controller, read from your PC and placed on the tracked hand: Steam Frame, Quest 2, Quest 3 (Touch Plus) or Quest Pro. A plain Touch layout is shown as Quest 2. NOVR ships no controller model, so nothing appears if SteamVR's files are missing.
+The VR menus (main menu, mission select, multiplayer, settings), the aircraft selection screen and the full-screen map show your controllers. The model is the one SteamVR installs for that controller, read from your PC and placed on the tracked hand: Steam Frame, Quest 2, Quest 3 (Touch Plus) or Quest Pro. A plain Touch layout is shown as Quest 2. NOVR ships no controller model, so nothing appears if SteamVR's files are missing.
 
 Raise a controller toward your face to see its labels. They say what the controller does on the screen you are on, and nothing about flying:
 
@@ -92,8 +92,9 @@ Raise a controller toward your face to see its labels. They say what the control
 | VR menus, other hand | Take the pointer | no label |
 | Aircraft selection, hand with the pointer | Select | Up / down: scroll; Click: quick wheel |
 | Aircraft selection, other hand | Take the pointer | Push, release: TELEPORT; Pull back: bring menu here; Click: quick wheel |
+| Full-screen map | Select, or Take the pointer | Move map on one, Up / down: zoom map on the other (swapped when left-handed); Click: quick wheel |
 
-At aircraft selection the left thumbstick also carries "Left / right: snap turn", whichever hand holds the pointer. Face buttons, grips and bumpers have no label on these screens. **VR Menus → Controller Models** and **Controller Tooltips** in the BepInEx config turn the models and the labels off.
+At aircraft selection the left thumbstick also carries "Left / right: snap turn", whichever hand holds the pointer. On the map the button you have bound to Map (B by default) is labelled "Close map". No other face button, grip or bumper has a label on these screens. In a cockpit, the controllers replace the pilot's gloves while the full-screen map is open. **VR Menus → Controller Models** and **Controller Tooltips** in the BepInEx config turn the models and the labels off.
 
 ## Walking around the aircraft
 

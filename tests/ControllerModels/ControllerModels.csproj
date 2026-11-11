@@ -8,5 +8,8 @@
     <Compile Include="../../NOVR/VrUi/Controllers/ControllerModelFamily.cs" Link="ControllerModelFamily.cs" />
     <Compile Include="../../NOVR/VrUi/Controllers/ControllerCallouts.cs" Link="ControllerCallouts.cs" />
     <Compile Include="../../NOVR/VrCamera/TeleportGesture.cs" Link="TeleportGesture.cs" />
+    <Compile Include="../../NOVR/Input/ControllerDiagramModel.cs" Link="ControllerDiagramModel.cs" />
+    <Compile Include="../../NOVR/Input/ControllerBindingModel.cs" Link="ControllerBindingModel.cs" />
+    <Compile Include="../../NOVR/Input/ControllerButtonNames.cs" Link="ControllerButtonNames.cs" />
   </ItemGroup>
 </Project>

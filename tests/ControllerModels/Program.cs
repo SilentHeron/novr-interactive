@@ -1,3 +1,4 @@
+using NOVR.MotionControls;
 using NOVR.VrCamera;
 using NOVR.VrUi.Controllers;
 
@@ -141,6 +142,47 @@ foreach (var parts in new[] { touchParts, frameParts })
             Check(list.All(c => c.Part is "trigger" or "thumbstick") && list.All(c => c.Title is "Trigger" or "Thumbstick"),
                 "Face buttons, grips and bumpers get no label on these screens: there is nothing to fly");
     }
+// ---- The full-screen map: its thumbsticks and the button that closes it ----
+ControllerActionBinding Defaults(ControllerBindingProfile profile, ControllerActionId action) => ControllerBindingDefaults.Get(profile, action);
+foreach (var isFrame in new[] { false, true })
+{
+    var mapParts = isFrame ? frameParts : touchParts;
+    var mapProfile = isFrame ? ControllerBindingProfile.Frame : ControllerBindingProfile.Touch;
+    var mapRight = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, false, true, isFrame, false, a => Defaults(mapProfile, a));
+    var mapLeft = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, true, false, isFrame, false, a => Defaults(mapProfile, a));
+    Check(Detail(mapRight, "trigger") == "Select" && Detail(mapLeft, "trigger") == "Take the pointer", "Map: the trigger selects, the other hand's takes the pointer");
+    Check(Detail(mapLeft, "thumbstick") == "Move map\nClick: quick wheel" && Detail(mapRight, "thumbstick") == "Up / down: zoom map\nClick: quick wheel",
+        "Map: the left thumbstick moves it and the right one zooms, as the game's map patch has it");
+    // The default layout puts Map on B of the stick hand.
+    var close = mapRight.Single(c => c.Detail == "Close map");
+    Check(close.Part == "button_b" && close.Title == "B" && mapLeft.All(c => c.Detail != "Close map") && mapRight.Count == 3 && mapLeft.Count == 2,
+        "Map: the button bound to Map is labelled Close map, on the hand it is bound to, and nothing else is labelled");
+    var mirroredRight = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, false, true, isFrame, true, a => Defaults(mapProfile, a));
+    var mirroredLeft = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, true, false, isFrame, true, a => Defaults(mapProfile, a));
+    Check(Detail(mirroredLeft, "thumbstick").StartsWith("Up / down: zoom map") && Detail(mirroredRight, "thumbstick").StartsWith("Move map"),
+        "Map: a left-handed cockpit swaps which thumbstick zooms");
+    Check(mirroredRight.All(c => c.Detail != "Close map") && mirroredLeft.Count(c => c.Detail == "Close map") == 1,
+        "Map: and the close button moves to the left controller with the stick hand");
+    var rebound = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, false, true, isFrame, false, a =>
+        a == ControllerActionId.Map ? new ControllerActionBinding(ControllerButton.Primary, ControllerHandRole.Right) :
+        new ControllerActionBinding(ControllerButton.None, ControllerHandRole.Stick));
+    Check(rebound.Single(c => c.Detail == "Close map").Part == "button_a", "Map: the label follows a rebound Map button");
+    var unbound = ControllerCallouts.Build(mapParts, ControllerHintContext.Map, false, true, isFrame, false,
+        _ => new ControllerActionBinding(ControllerButton.None, ControllerHandRole.Stick));
+    Check(unbound.Count == 2 && unbound.All(c => c.Part is "trigger" or "thumbstick"), "Map: with Map unbound only the trigger and thumbstick are labelled");
+    Check(ControllerCallouts.Build(mapParts, ControllerHintContext.Map, false, true).Count == 2, "Map: without bindings to read, the close button is simply not labelled");
+    // The other screens never read the bindings.
+    Check(ControllerCallouts.Build(mapParts, ControllerHintContext.Menus, false, true, isFrame, false, _ => throw new InvalidOperationException()).Count == 2 &&
+          ControllerCallouts.Build(mapParts, ControllerHintContext.AircraftSelection, false, false, isFrame, false, _ => throw new InvalidOperationException()).Count == 2,
+        "Menus and aircraft selection do not look at the bindings at all");
+}
+var dpad = ControllerCallouts.Build(frameParts, ControllerHintContext.Map, true, false, true, false, a =>
+    a == ControllerActionId.Map ? new ControllerActionBinding(ControllerButton.Primary, ControllerHandRole.Left) :
+    new ControllerActionBinding(ControllerButton.None, ControllerHandRole.Stick));
+Check(dpad.Single(c => c.Detail == "Close map").Part == "dpad" && dpad.Single(c => c.Detail == "Close map").Title == "D-pad ↓",
+    "Map: on the Frame's left controller a D-pad direction bound to Map is named with its arrow");
+foreach (var part in new[] { "body", "status", "button_system", "nonsense", "" })
+    Check(!ControllerCallouts.TryGetButton(part, true, true, out _) && !ControllerCallouts.TryGetButton(part, false, false, out _), "Not a bindable button: " + part);
 Check(ControllerCallouts.Lines(new ControllerCallout("trigger", "Trigger", "Select")) == 2 &&
       ControllerCallouts.Lines(ControllerCallouts.Build(touchParts, ControllerHintContext.AircraftSelection, true, false).Single(c => c.Part == "thumbstick")) == 5,
     "A label is as tall as its title and lines");

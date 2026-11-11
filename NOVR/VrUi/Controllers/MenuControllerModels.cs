@@ -10,8 +10,9 @@ using UnityEngine.XR;
 
 namespace NOVR.VrUi.Controllers;
 
-// Shows the player's own controllers in the VR menus and at aircraft selection,
-// with labels saying what their buttons do on that screen. The geometry is the model SteamVR installs for
+// Shows the player's own controllers in the VR menus, at aircraft selection
+// and on the full-screen map, with labels saying what their buttons do on
+// that screen. The geometry is the model SteamVR installs for
 // that controller, read from the player's disk and placed on the tracked grip
 // pose; without it nothing is drawn and the menus behave as before.
 internal sealed class MenuControllerModels : MonoBehaviour
@@ -36,20 +37,34 @@ internal sealed class MenuControllerModels : MonoBehaviour
         internal Texture2D? Texture;
         internal Material? Material;
         internal RenderModelInfo? Info;
-        internal (ControllerHintContext context, bool pointer) LabelKey;
+        internal (ControllerHintContext context, bool pointer, int bindings, bool frame, bool stickLeft) LabelKey;
+        internal bool Shown, LabelsShown;
         internal Canvas? LabelCanvas;
     }
 
     private readonly Hand[] _hands = { new(), new() };
     private string _gameDataPath = "";
+    private static MenuControllerModels? _instance;
 
-    private void Awake() => _gameDataPath = Application.dataPath;
+    // True while a controller model is drawn on a hand. On the map, in a
+    // cockpit, the models stand in for the pilot's gloves.
+    internal static bool Active => _instance != null && (_instance._hands[0].Shown || _instance._hands[1].Shown);
+    // True while that hand's labels are up; the map's own thumbstick hint
+    // steps aside for them.
+    internal static bool LabelsVisible(bool left) => _instance != null && _instance._hands[left ? 0 : 1].LabelsShown;
+
+    private void Awake()
+    {
+        _gameDataPath = Application.dataPath;
+        _instance = this;
+    }
 
     // Which screen is asking for controllers, if any.
     internal static ControllerHintContext Context(VrUiCursor? cursor) =>
         cursor == null ? ControllerHintContext.None :
         cursor.NativeMenuVisible ? ControllerHintContext.Menus :
-        AircraftWalkaround.Offered ? ControllerHintContext.AircraftSelection : ControllerHintContext.None;
+        AircraftWalkaround.Offered ? ControllerHintContext.AircraftSelection :
+        InMission && DynamicMap.mapMaximized && !GameplayUI.GameIsPaused && !WristMenu.IsOpen ? ControllerHintContext.Map : ControllerHintContext.None;
 
     private void LateUpdate()
     {
@@ -77,12 +92,15 @@ internal sealed class MenuControllerModels : MonoBehaviour
     private void UpdateHand(Hand hand, bool left, ControllerHintContext context, Camera? camera, VrUiCursor? cursor)
     {
         var sample = context != ControllerHintContext.None ? TrackedControllers.Read(left) : default;
+        hand.Shown = hand.LabelsShown = false;
         if (context == ControllerHintContext.None || !sample.Valid)
         {
             if (hand.Root != null && hand.Root.activeSelf)
                 hand.Root.SetActive(false);
-            // The textures are large; give them back once a mission is running.
-            if (context == ControllerHintContext.None && hand.Root != null && InMission && !AircraftWalkaround.Offered)
+            // The models stay loaded through a mission: the map brings them
+            // back at any time, and loading one again costs a visible hitch.
+            // Switching the feature off gives the textures back.
+            if (hand.Root != null && !ModConfiguration.Instance.MenuControllerModels.Value)
                 Release(hand);
             return;
         }
@@ -117,6 +135,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
         hand.Root.transform.localScale = Vector3.one;
         if (!hand.Root.activeSelf)
             hand.Root.SetActive(true);
+        hand.Shown = true;
         UpdateLabels(hand, left, sample.NativeFrame, context, camera, cursor);
     }
 
@@ -256,13 +275,17 @@ internal sealed class MenuControllerModels : MonoBehaviour
         var position = offset - normal * .03f;
         var rotation = Quaternion.LookRotation(-normal, forward);
         var pointerHand = cursor != null && cursor.PointerHandLeft == left;
-        var key = (context, pointerHand);
+        var bindings = settings.ControllerBindings;
+        var stickLeft = settings.MotionControls.LeftHanded.Value;
+        // Only the map's labels depend on the bindings and the handedness.
+        var map = context == ControllerHintContext.Map;
+        var key = (context, pointerHand, map ? bindings.ChangeVersion : 0, frame, map && stickLeft);
         if (hand.Labels == null || hand.LabelKey != key)
         {
             if (hand.Labels != null)
                 Destroy(hand.Labels);
             hand.LabelKey = key;
-            hand.Labels = BuildLabels(hand, left, context, pointerHand, position, rotation);
+            hand.Labels = BuildLabels(hand, left, context, pointerHand, frame, stickLeft, bindings.Get, position, rotation);
             hand.LabelCanvas = hand.Labels.GetComponent<Canvas>();
         }
         var labels = hand.Labels.transform;
@@ -270,11 +293,13 @@ internal sealed class MenuControllerModels : MonoBehaviour
         var show = ControllerCallouts.LookedAt(Vector3.Dot(-labels.forward, toHead.normalized), toHead.magnitude);
         if (hand.Labels.activeSelf != show)
             hand.Labels.SetActive(show);
+        hand.LabelsShown = show;
         if (show && hand.LabelCanvas != null)
             hand.LabelCanvas.worldCamera = camera;
     }
 
-    private GameObject BuildLabels(Hand hand, bool left, ControllerHintContext context, bool pointerHand, Vector3 position, Quaternion rotation)
+    private GameObject BuildLabels(Hand hand, bool left, ControllerHintContext context, bool pointerHand, bool frame, bool stickLeft,
+        Func<ControllerActionId, ControllerActionBinding> get, Vector3 position, Quaternion rotation)
     {
         var view = new GameObject("NOVR Controller Labels", typeof(RectTransform), typeof(Canvas));
         view.transform.SetParent(hand.Root!.transform, false);
@@ -289,7 +314,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
         var names = new List<string>();
         foreach (var part in hand.Info!.Parts)
             names.Add(part.Name);
-        var callouts = ControllerCallouts.Build(names, context, left, pointerHand);
+        var callouts = ControllerCallouts.Build(names, context, left, pointerHand, frame, stickLeft, get);
         var tallest = 0;
         foreach (var callout in callouts)
             tallest = Mathf.Max(tallest, ControllerCallouts.Lines(callout));
@@ -384,18 +409,24 @@ internal sealed class MenuControllerModels : MonoBehaviour
         hand.Name = null;
         hand.LabelKey = default;
         hand.LabelCanvas = null;
+        hand.Shown = hand.LabelsShown = false;
     }
 
     private void OnDisable()
     {
         foreach (var hand in _hands)
+        {
+            hand.Shown = hand.LabelsShown = false;
             if (hand.Root != null)
                 hand.Root.SetActive(false);
+        }
     }
 
     private void OnDestroy()
     {
         foreach (var hand in _hands)
             Release(hand);
+        if (_instance == this)
+            _instance = null;
     }
 }

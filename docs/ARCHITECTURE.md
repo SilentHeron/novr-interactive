@@ -94,8 +94,13 @@ anchor, heading and menu placement, unless the player recentred in between.
 [`MenuControllerModels`](../NOVR/VrUi/Controllers/MenuControllerModels.cs)
 draws SteamVR's own render model for the detected controller on the grip pose
 and labels its trigger and thumbstick with what they do on the current screen
-(`ControllerCallouts`, by `ControllerHintContext`; never flight bindings);
-models are parsed off the main thread and released when a mission starts.
+(`ControllerCallouts`, by `ControllerHintContext`: menus, aircraft selection,
+full-screen map; never flight bindings); models are parsed off the main thread
+and stay loaded while the feature is on. On the map in a cockpit they replace
+the gloves (`PilotHandVisuals` hides while `MenuControllerModels.Active`).
+[`FlightControlUiDepth`](../NOVR/FlightControls/FlightControlUiDepth.cs) gives
+the HUD camera colourless depth copies of the solid stick and throttle meshes,
+as `PilotHandUiDepth` does for the gloves, so widgets are cut out behind them.
 Map access uses the native Maximize/Minimize lifecycle and does not require a
 cached local player or aircraft. Opening locks still belong to native UI; closing
 an existing map remains possible without changing the followed unit.
