@@ -7,7 +7,9 @@
     <IsPackable>false</IsPackable>
     <EnableDefaultItems>false</EnableDefaultItems>
     <ReleasePackageDistDir>$(MSBuildThisFileDirectory)../dist</ReleasePackageDistDir>
-    <ReleasePackagePath>$(ReleasePackageDistDir)/NOVR.zip</ReleasePackagePath>
+    <!-- ReleasePackagePath is normally left unset: the package is then named after the
+         validated release, NOVR-steam-frame-<version>.zip, which is the name the
+         installer's online update looks for on a release. -->
     <ReleasePackageSourceDir>$(GameLayoutOutputDir)/BepInEx</ReleasePackageSourceDir>
     <ReleasePackageStagingDir>$(MSBuildThisFileDirectory)obj/release-package</ReleasePackageStagingDir>
     <PackageValidationBuildDir Condition="'$(PackageValidationBuildDir)' == ''">$(MSBuildThisFileDirectory)obj/package-validation</PackageValidationBuildDir>
@@ -50,6 +52,10 @@
                             RequestedVersion="$(NovrReleaseVersion)">
       <Output TaskParameter="ReleaseVersion" PropertyName="_ValidatedReleaseVersion" />
     </ValidatePackageVersion>
+    <PropertyGroup>
+      <_ReleasePackagePath>$(ReleasePackagePath)</_ReleasePackagePath>
+      <_ReleasePackagePath Condition="'$(_ReleasePackagePath)' == ''">$(ReleasePackageDistDir)/NOVR-steam-frame-$(_ValidatedReleaseVersion).zip</_ReleasePackagePath>
+    </PropertyGroup>
     <MakeDir Directories="$(ReleasePackageDistDir)" />
     <WriteLinesToFile File="$(ReleasePackageSourceDir)/plugins/NOVR/version.txt"
                       Lines="$(_ValidatedReleaseVersion)" Overwrite="true" />
@@ -64,13 +70,18 @@
           DestinationFiles="@(ReleasePatcherFiles->'$(ReleasePackageStagingDir)/patchers/NOVR/%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)../README.md;$(MSBuildThisFileDirectory)../LICENSE;$(MSBuildThisFileDirectory)../docs/THIRD_PARTY_NOTICES.md"
           DestinationFolder="$(ReleasePackageStagingDir)" />
-    <Delete Files="$(ReleasePackagePath)" />
-    <ZipDirectory SourceDirectory="$(ReleasePackageStagingDir)" DestinationFile="$(ReleasePackagePath)" Overwrite="true" />
-    <GetFileHash Files="$(ReleasePackagePath)" Algorithm="SHA256">
+    <Delete Files="$(_ReleasePackagePath);$(_ReleasePackagePath).sha256" />
+    <!-- Earlier builds wrote NOVR.zip here. A leftover one is from an older build and
+         is easy to upload by mistake, so it goes when the versioned package is written. -->
+    <Delete Condition="'$(ReleasePackagePath)' == ''"
+            Files="$(ReleasePackageDistDir)/NOVR.zip;$(ReleasePackageDistDir)/NOVR.zip.sha256" />
+    <ZipDirectory SourceDirectory="$(ReleasePackageStagingDir)" DestinationFile="$(_ReleasePackagePath)" Overwrite="true" />
+    <GetFileHash Files="$(_ReleasePackagePath)" Algorithm="SHA256">
       <Output TaskParameter="Items" ItemName="ReleasePackageHash" />
     </GetFileHash>
-    <WriteLinesToFile File="$(ReleasePackagePath).sha256"
+    <WriteLinesToFile File="$(_ReleasePackagePath).sha256"
                       Lines="@(ReleasePackageHash->'%(FileHash)  %(Filename)%(Extension)')"
                       Overwrite="true" />
+    <Message Importance="high" Text="NOVR package: $(_ReleasePackagePath)" />
   </Target>
 </Project>

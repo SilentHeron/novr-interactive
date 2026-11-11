@@ -42,7 +42,7 @@ The installer project targets .NET 10. To compile without also generating both d
 dotnet build NOVR.Installer/NOVR.Installer.csproj -c Release -p:IsPublishingInstaller=true
 ```
 
-The release build project emits `NOVR.zip.sha256` beside `NOVR.zip`. It reads the compiled plugin's release version, checks it against `NOVR/NOVRPlugin.cs`, and writes fresh metadata for local installation. An optional `-p:NovrReleaseVersion=<release version>` must match; stale binaries, missing payloads and conflicting versions are rejected before packaging. Upload the ZIP and its checksum together to this fork's release. Runtime compilation still requires the game's private reference assemblies.
+The release build project emits `NOVR-steam-frame-<version>.zip` and `NOVR-steam-frame-<version>.zip.sha256` in `dist/`, named after the compiled plugin's release version; this is the name the online update prefers, so upload the files without renaming them and tag the release with the same version. It reads the compiled plugin's release version, checks it against `NOVR/NOVRPlugin.cs`, and writes fresh metadata for local installation. An optional `-p:NovrReleaseVersion=<release version>` must match; stale binaries, missing payloads and conflicting versions are rejected before packaging. Upload the ZIP and its checksum together to this fork's release. Runtime compilation still requires the game's private reference assemblies.
 
 The installer pins `Tmds.DBus.Protocol` to the compatible 0.21.3 backport for [the upstream D-Bus advisory](https://github.com/advisories/GHSA-xrw6-gwf8-vvr9); the runtime game plugin does not use this dependency.
 

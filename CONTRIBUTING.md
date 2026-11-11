@@ -56,7 +56,10 @@ This writes `dist/NOVR.Installer-Linux` and `dist/NOVR.Installer-Win.exe` and do
 not require the game. For a full release build, add `-p:PublishInstallers=true` to
 the solution command. An ordinary Release build does not republish installers.
 
-Output is staged in `build-output/game/BepInEx`; the package is `dist/NOVR.zip`.
+Output is staged in `build-output/game/BepInEx`; the package is
+`dist/NOVR-steam-frame-<version>.zip`, with its checksum in a `.sha256` file beside it.
+The installer's online update finds a release's package by that name, so upload both
+files as they are, to a release tagged with the same version (`v<version>`).
 Staging includes the current build's resolved assemblies and declared content;
 removed dependencies or assets left in `build-output` are excluded automatically.
 Its version comes from the compiled plugin and must match `NOVR/NOVRPlugin.cs`.

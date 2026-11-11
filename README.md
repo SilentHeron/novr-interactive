@@ -14,11 +14,11 @@ Experimental version **0.4.8.34**. Targets Nuclear Option **0.34.6** and PC VR t
 
 ## Install
 
-Download the experimental package from [Releases](https://github.com/SilentHeron/novr-interactive/releases). The Windows and Linux installers also accept a downloaded `NOVR.zip` through **Install a downloaded NOVR package…**.
+Download the experimental package from [Releases](https://github.com/SilentHeron/novr-interactive/releases). The package is the release's `NOVR-steam-frame-<version>.zip` (`NOVR.zip` on older releases). The Windows and Linux installers also accept a downloaded package through **Install a downloaded NOVR package…**.
 
 1. Close the game. In Steam, right-click Nuclear Option → **Manage → Browse local files** to open the folder containing `NuclearOption.exe`.
 2. Download **BepInEx 5 for Windows x64** (`BepInEx_win_x64_5…zip`) from [BepInEx releases](https://github.com/BepInEx/BepInEx/releases). Copy the archive's contents directly into that game folder, so `winhttp.dll`, `doorstop_config.ini` and `BepInEx` sit beside `NuclearOption.exe`.
-3. Extract the contents of `NOVR.zip` into that **BepInEx** folder. You should now have `BepInEx/plugins/NOVR/NOVR.dll` and `BepInEx/patchers/NOVR/NOVR.Patcher.dll`.
+3. Extract the contents of the downloaded package into that **BepInEx** folder. You should now have `BepInEx/plugins/NOVR/NOVR.dll` and `BepInEx/patchers/NOVR/NOVR.Patcher.dll`.
 4. **Linux/Proton only:** add `WINEDLLOVERRIDES="winhttp=n,b" %command%` to the game's Steam launch options. Keep other options; merge an existing `WINEDLLOVERRIDES` value and use `%command%` only once.
 5. Connect your headset to its PC VR runtime, then press **Play in Steam**. NOVR uses DirectX 11; a launch on another renderer restarts once automatically.
 

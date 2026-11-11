@@ -289,18 +289,21 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
     subprocess.run([dotnet, "build", str(prerequisite / "Check.csproj"), "-v:q"], check=True)
     print("PASS early actionable game reference errors; installed BepInEx and source-only game references not required")
 
-    package = root / "dist/NOVR.zip"
+    # No ReleasePackagePath: the build names the package itself, with the name the
+    # installer's online update looks for (NOVR-steam-frame-<version>.zip).
+    package = root / f"dist/NOVR-steam-frame-{declared}.zip"
     args = [dotnet, "msbuild", str(repo / "NOVR.Build/NOVR.Build.csproj"), "-t:CreateReleaseZip",
             "-p:Configuration=Release", f"-p:ReleasePackageSourceDir={package_source}",
-            f"-p:ReleasePackageDistDir={package.parent}", f"-p:ReleasePackagePath={package}",
+            f"-p:ReleasePackageDistDir={package.parent}",
             f"-p:ReleasePackageStagingDir={root / 'staging'}",
             f"-p:PackageValidationBuildDir={root / 'validation-build'}", "-v:q"]
 
     def package_ok(version=None, native=False):
         options = ([] if version is None else [f"-p:NovrReleaseVersion={version}"]) + ([native_flag] if native else [])
         subprocess.run(args + options, check=True)
-        checksum = package.with_name(package.name + ".sha256").read_text().strip().split()[0]
+        checksum, named = package.with_name(package.name + ".sha256").read_text().split()
         assert checksum.lower() == hashlib.sha256(package.read_bytes()).hexdigest()
+        assert named == package.name, named
         with zipfile.ZipFile(package) as archive:
             assert archive.read("plugins/NOVR/version.txt").decode("utf-8-sig").strip() == declared
             assert archive.read("plugins/NOVR/NOVR.dll") == plugin.read_bytes()
@@ -330,6 +333,27 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
     print("PASS clean staging gets version metadata and matching ZIP checksum")
     package_ok(declared)
     print("PASS matching explicit version")
+    assert sorted(path.name for path in package.parent.iterdir()) == [package.name, package.name + ".sha256"]
+    leftovers = [package.with_name("NOVR.zip"), package.with_name("NOVR.zip.sha256")]
+    for leftover in leftovers:
+        leftover.write_text("package from an older build")
+    package_rejected("different explicit release keeps an older NOVR.zip", "0.0.1")
+    assert all(leftover.exists() for leftover in leftovers)
+    package_ok()
+    assert not any(leftover.exists() for leftover in leftovers)
+    print("PASS package is named for the installer; an older NOVR.zip is removed only by a successful build")
+    custom = root / "custom/elsewhere.zip"
+    custom.parent.mkdir()
+    for leftover in leftovers:
+        leftover.write_text("package from an older build")
+    before = package.read_bytes()
+    subprocess.run(args + [f"-p:ReleasePackagePath={custom}"], check=True)
+    checksum, named = custom.with_name(custom.name + ".sha256").read_text().split()
+    assert checksum.lower() == hashlib.sha256(custom.read_bytes()).hexdigest() and named == custom.name
+    assert package.read_bytes() == before and all(leftover.exists() for leftover in leftovers)
+    for leftover in leftovers:
+        leftover.unlink()
+    print("PASS an explicit package path is honoured and leaves the default outputs alone")
     package_rejected("native opt-in without staged backend", options=[native_flag])
     package_native = plugin.parent / "Native"
     package_native.mkdir()
