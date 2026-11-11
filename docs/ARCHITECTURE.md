@@ -86,11 +86,16 @@ to `SpectatorCameraInput`.
 player at aircraft selection by moving `NOVRHeadsetData`'s translation anchor,
 the player's own offset inside the tracking space. The game camera (the
 tracking origin) does not move, so the world and the interface space, which
-share that local pose, keep the menu where it was.
+share that local pose, keep the menu where it was. A snap turn is
+`NOVRHeadsetData.TurnAbout`: heading offset and anchor change together so the
+head stays put. Pulling the thumbstick back calls the game's menus to the
+player through `NOVRGameplayUIBehaviour.Place`; leaving the screen restores
+anchor, heading and menu placement, unless the player recentred in between.
 [`MenuControllerModels`](../NOVR/VrUi/Controllers/MenuControllerModels.cs)
 draws SteamVR's own render model for the detected controller on the grip pose
-and labels its parts from the bindings; models are parsed off the main thread
-and released when a mission starts.
+and labels its trigger and thumbstick with what they do on the current screen
+(`ControllerCallouts`, by `ControllerHintContext`; never flight bindings);
+models are parsed off the main thread and released when a mission starts.
 Map access uses the native Maximize/Minimize lifecycle and does not require a
 cached local player or aircraft. Opening locks still belong to native UI; closing
 an existing map remains possible without changing the followed unit.

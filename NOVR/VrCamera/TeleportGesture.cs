@@ -4,19 +4,21 @@ namespace NOVR.VrCamera;
 
 internal enum TeleportEvent
 {
-    None, Aim, Teleport, Return, Cancel
+    None, Aim, Teleport, Summon, Cancel
 }
 
 // Thumbstick gesture for walking around the aircraft at selection: push
-// forward to aim, let go to teleport; pull back and let go to return to where
-// the menu is. No Unity input here; the caller owns tracking and menus.
+// forward to aim, let go to teleport; pull back and let go to call the menu to
+// where you are. No Unity input here; the caller owns tracking and menus.
 internal sealed class TeleportGesture
 {
     internal const float Engage = .7f, Release = .3f;
     private bool _armed;
-    private int _state; // 0 idle, 1 aiming, 2 returning
+    private int _state; // 0 idle, 1 aiming, 2 calling the menu
 
     internal bool Aiming => _state == 1;
+    // Neither aiming nor calling the menu.
+    internal bool Idle => _state == 0;
 
     internal TeleportEvent Update(bool available, float x, float y)
     {
@@ -47,7 +49,7 @@ internal sealed class TeleportGesture
         }
         if (magnitude <= Release)
         {
-            var result = _state == 1 ? TeleportEvent.Teleport : TeleportEvent.Return;
+            var result = _state == 1 ? TeleportEvent.Teleport : TeleportEvent.Summon;
             _state = 0;
             return result;
         }
@@ -66,6 +68,36 @@ internal sealed class TeleportGesture
         _armed = false;
         _state = 0;
     }
+}
+
+// Snap turn: one flick of the thumbstick to the side is one turn. The stick has
+// to come back toward the centre before the next, and a stick that is already
+// held over when the screen opens does nothing until then.
+internal sealed class SnapTurnGesture
+{
+    private bool _armed;
+
+    // -1 for a turn to the left, 1 to the right, 0 otherwise.
+    internal int Update(bool available, float x, float y)
+    {
+        if (!available || float.IsNaN(x) || float.IsNaN(y) || float.IsInfinity(x) || float.IsInfinity(y))
+        {
+            _armed = false;
+            return 0;
+        }
+        if (!_armed)
+        {
+            _armed = Math.Abs(x) <= TeleportGesture.Release;
+            return 0;
+        }
+        // Mostly sideways: a forward push is the teleport's, a pull back the menu's.
+        if (Math.Abs(x) < TeleportGesture.Engage || Math.Abs(x) <= Math.Abs(y))
+            return 0;
+        _armed = false;
+        return x > 0 ? 1 : -1;
+    }
+
+    internal void Reset() => _armed = false;
 }
 
 // The aiming arc and the boundary, as plain numbers.

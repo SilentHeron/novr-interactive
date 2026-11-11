@@ -22,6 +22,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> NativeMenuHeightOffset;
     public readonly ConfigEntry<float> HmdFollowResponse;
     internal readonly ConfigEntry<bool> MenuControllerModels, MenuControllerTooltips, SelectionTeleport;
+    internal readonly ConfigEntry<float> SnapTurnDegrees;
     public readonly MotionControls.ControllerBindings ControllerBindings;
     internal readonly VrUi.SpecialBehavior.CockpitAlertSettings CockpitAlerts;
     internal readonly ConfigEntry<MotionControls.TargetCueMode> TargetCue;
@@ -85,9 +86,11 @@ public class ModConfiguration
         MenuControllerModels = config.Bind("VR Menus", "Controller Models", true,
             "Show your controllers in the VR menus and at aircraft selection, using the model SteamVR installs for them (Steam Frame, Quest 2, Quest 3, Quest Pro). Nothing is shown if SteamVR's models are not found.");
         MenuControllerTooltips = config.Bind("VR Menus", "Controller Tooltips", true,
-            "Label the buttons on the shown controllers with what they do, from your own bindings. Labels appear while a controller is raised toward your face.");
+            "Label the buttons on the shown controllers with what they do on the current screen. Labels appear while a controller is raised toward your face.");
         SelectionTeleport = config.Bind("VR Menus", "Walk Around Aircraft", true,
-            "At aircraft selection, push the free hand's thumbstick forward to aim and release to teleport around the aircraft. The menu stays where it is.");
+            "At aircraft selection, push the free hand's thumbstick forward to aim and release to teleport around the aircraft; pull it back to bring the menu to you. The left thumbstick snap-turns.");
+        SnapTurnDegrees = config.Bind("VR Menus", "Snap Turn Degrees", 45f,
+            new ConfigDescription("How far one flick of the left thumbstick turns you at aircraft selection.", new AcceptableValueRange<float>(15f, 90f)));
         HmdFollowResponse = config.Bind("VR HUD", "Head Follow Response", 10f,
             new ConfigDescription("Response of head-following status text. Higher values follow faster; 0 locks directly to the head. World target markers stay aligned independently.",
                 new AcceptableValueRange<float>(0f, 30f)));

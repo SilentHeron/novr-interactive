@@ -37,22 +37,33 @@
   model of its own. It reads the one SteamVR already installed for that
   controller and places it on your tracked hand; if SteamVR's files are not
   found, nothing is shown and the menus work as before.
-  - Raise a controller toward your face and its buttons are labelled with what
-    they do, from your own bindings: "A: Weapon", "B: Unlock · Map",
-    "Trigger: Menu click · Guns". Each label points at the real button of that
-    controller, so Frame and Quest layouts differ where the hardware does.
-    Lower the controller and only the model remains.
+  - Raise a controller toward your face and it is labelled with what its
+    buttons do on that screen, and nothing else. In the menus that is the
+    trigger (**Select** on the hand holding the pointer, **Take the pointer**
+    on the other) and the pointer hand's thumbstick (**Up / down: scroll**).
+    Aircraft selection adds walking, turning and the quick wheel, below.
+    Flight bindings are not shown: there is nothing to fly there. Each label
+    points at the real trigger and thumbstick of that controller. Lower the
+    controller and only the model remains.
   - Both can be turned off in the BepInEx config, section **VR Menus**:
     **Controller Models** and **Controller Tooltips**.
 - **Walk around the aircraft at aircraft selection.** With the hand that is not
   holding the menu pointer, push the thumbstick forward to throw an aiming
-  arc, and let go to teleport to where it lands. The menu and the aircraft
-  stay where they are, so you walk back to the menu, or pull the same
-  thumbstick back and let go to return to it at once. You can stand on any
-  surface the arc lands on that is flat enough, and a circle around the
-  aircraft is as far as you can go. Leaving the screen puts you back. That
-  hand's thumbstick label calls the teleport out. Turn it off with **VR Menus
-  → Walk Around Aircraft** in the BepInEx config.
+  arc, and let go to teleport to where it lands. The aircraft and the menu
+  stay where they are while you walk, so the menu is never in the way. To
+  change something, pull the same thumbstick back and let go: the menu comes
+  to you, three metres ahead of where you are looking, and stays there until
+  you call it again. You can stand on any surface the arc lands on that is
+  flat enough, and a circle around the aircraft is as far as you can go.
+  - **Snap turn:** flick the left thumbstick left or right to turn in place,
+    45 degrees a flick (**VR Menus → Snap Turn Degrees**, 15 to 90). The view
+    turns about your head, so you stay on the spot you teleported to.
+  - The thumbstick labels call all of this out: **Push, release: TELEPORT**
+    and **Pull back: bring menu here** on the walking hand, **Left / right:
+    snap turn** on the left one, **Click: quick wheel** on both.
+  - Leaving the screen puts you, your heading and the menu back. Turn the
+    whole thing off with **VR Menus → Walk Around Aircraft** in the BepInEx
+    config.
 - **Throttle feedback.** Sliding the virtual throttle now gives a light tick
   for every 5% of travel, like a notched slider, and reaching idle adds a
   second pulse right after the existing end-stop pulse, so 0% feels different
@@ -63,6 +74,16 @@
 - The full-screen map shows what the thumbsticks do. The left stick has always
   moved the map and the right stick zoomed it, but nothing said so. While the
   laser is on the map, a small label above each thumbstick now names its job.
+- **Fixed: large red and blue shapes flickering in front of you while your
+  radar is jammed.** When an enemy jams you, the game shakes every unit icon
+  on the map by adding a random step of up to 2.5 to its world position each
+  frame. On a flat screen that is a few pixels. In VR the map is a panel in
+  the cockpit and the same number is metres, so the icons left the map and
+  flew around the cockpit and through your view for as long as the jamming
+  lasted; the more units on the map, the more of them. The shake now stays in
+  the map's plane and in the map's own units, at most 1.5 cm a frame. This is
+  the cause found in the game's code for the flicker reported during busy
+  matches; it has not been seen in a headset, before or after.
 - Two more actions can be bound under **View → Controller bindings**:
   **Change view** (Menu, map & view; works with free hands, cockpit to outside
   and back) and **Nav lights** (Flight & defense). Both start unassigned, so
@@ -148,4 +169,4 @@
 - The foveation page now says outright when its settings do nothing on the
   current system, as on Linux/Proton.
 
-Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.
+Nothing in this version has been checked in a headset yet. That includes the outside view, the free camera, the map labels, the controller models and their labels, the walkaround teleport, snap turn and calling the menu, the jammed map icon fix and the throttle ticks: their rules are covered by the source checks and they compile against the game, but how they fly, read, line up with your hands and feel is not yet known. The controller models were loaded in the running game on Linux/Proton without a headset: all eight Frame and Quest models were found in SteamVR's folders, built into controller-sized meshes with their textures and drawn by a game camera, and their thumbstick positions agree with the offsets the quick wheel already uses. Startup, patch installation and the no-headset retry were checked in the running game on Linux/Proton, and the scan costs were timed there at the main menu. The image options were exercised there too, against the real engine without a headset: the filtered screen and the map copy sample as correct mipmaps, the vignette code runs against the game's real flight profile, and dithering changes the final image. How any of them looks in a headset is not yet known. One package for Windows and Linux/Proton. Saved layouts, bindings and settings are preserved.

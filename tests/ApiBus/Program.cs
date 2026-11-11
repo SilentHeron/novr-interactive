@@ -300,6 +300,29 @@ foreach (var type in new[] { typeof(NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBeha
     Invoke(behavior, "Update");
     Check(ReferenceEquals(nativeCanvas.worldCamera, manager.CockpitHudCamera), "Derived position update preserves camera rebinding: " + type.Name);
 }
+// The aircraft walkaround can call the game's menus to where the player stands.
+{
+    var go = new GameObject("called menu");
+    go.AddComponent<Canvas>();
+    var menu = new NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour { gameObject = go };
+    menu.Awake();
+    go.transform.rotation = Quaternion.identity;
+    Invoke(menu, "Update");
+    Check(!NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour.Placed && go.transform.position == new Vector3(0, 0, 3) && go.transform.rotation == Quaternion.identity,
+        "Until called, the menus hang three metres ahead of the recentred head");
+    var facing = Quaternion.Euler(0, 90, 0);
+    NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour.Place(new Vector3(10, 1.5f, -4), facing);
+    Invoke(menu, "Update");
+    var at = go.transform.position;
+    Check(NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour.Placed && MathF.Abs(at.x - 13) < .0001f && MathF.Abs(at.y - 1.5f) < .0001f && MathF.Abs(at.z + 4) < .0001f &&
+          go.transform.rotation == facing, "A called menu sits three metres ahead of the player, level with their eyes and facing them");
+    Invoke(menu, "Update");
+    Check(go.transform.position == at, "It stays there while the player walks on");
+    NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour.ResetPlacement();
+    Invoke(menu, "Update");
+    Check(!NOVR.VrUi.SpecialBehavior.NOVRGameplayUIBehaviour.Placed && go.transform.position == new Vector3(0, 0, 3) && go.transform.rotation == Quaternion.identity,
+        "Leaving aircraft selection puts the menus back where the game expects them");
+}
 DestroyUi(manager);
 Reset();
 Console.WriteLine($"{checks} source-linked camera bus and UI lifecycle checks passed.");

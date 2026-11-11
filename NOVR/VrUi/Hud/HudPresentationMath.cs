@@ -25,6 +25,28 @@ internal static class HudPresentationMath
     internal static float SymbolFollowFactor(bool follow, bool focusedHud, float flightHudScale) =>
         !follow || !focusedHud || float.IsNaN(flightHudScale) || float.IsInfinity(flightHudScale) || flightHudScale <= 0
             ? 1f : flightHudScale / DefaultFlightHudScale;
+    // The game's jamming shake for a map icon, turned from the game's world
+    // units (pixels on a flat screen) into a step inside the VR map: the two
+    // in-plane parts of the game's random offset times the world size of one
+    // map unit. The part toward the viewer has no meaning on a flat screen and
+    // is dropped. A step is never longer than MapJamMaxMetres, whatever scale
+    // the map reports, so an icon cannot leave the map for the pilot's face.
+    internal const float MapJamMaxMetres = .015f;
+    internal static void MapJamOffset(float noiseX, float noiseY, float worldPerMapUnit, out float x, out float y)
+    {
+        x = y = 0f;
+        if (float.IsNaN(noiseX) || float.IsInfinity(noiseX) || float.IsNaN(noiseY) || float.IsInfinity(noiseY) ||
+            float.IsNaN(worldPerMapUnit) || float.IsInfinity(worldPerMapUnit))
+            return;
+        var unit = Math.Abs(worldPerMapUnit);
+        x = noiseX * unit;
+        y = noiseY * unit;
+        var length = (float)Math.Sqrt((double)x * x + (double)y * y);
+        if (length <= MapJamMaxMetres)
+            return;
+        x *= MapJamMaxMetres / length;
+        y *= MapJamMaxMetres / length;
+    }
     internal static float WidgetFit(float width, float height, float userScale) =>
         Math.Min(180 * userScale / .5f / Math.Max(1, width), 350 * userScale / .5f / Math.Max(1, height));
 }

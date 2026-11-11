@@ -107,6 +107,35 @@ internal static class HeadsetChecks
         Rotation(NOVRHeadsetData.RotationCalibrationOffset, Quaternion.Euler(-20, -35, 0), "Partial rotation retains existing yaw when requested");
         NOVRHeadsetData.CalibrateRotation();
         Rotation(NOVRHeadsetData.RotationCalibrationOffset, Quaternion.Euler(0, -10, 0), "Default rotation calibration clears pitch and roll as before");
+        // Snap turn at aircraft selection: the view turns, the head stays where it is.
+        InputTracking.Position = new(.3f, 1.6f, -.2f);
+        InputTracking.Rotation = Quaternion.Euler(0, 25, 0);
+        update();
+        var headBefore = NOVRHeadsetData.Translation;
+        var viewBefore = NOVRHeadsetData.Rotation;
+        var anchorBefore = NOVRHeadsetData.TranslationAnchor;
+        var offsetBefore = NOVRHeadsetData.RotationCalibrationOffset;
+        NOVRHeadsetData.TurnAbout(headBefore, 45);
+        update();
+        Check((NOVRHeadsetData.Translation - headBefore).magnitude < .0001f, "A snap turn leaves the head where it was");
+        Rotation(NOVRHeadsetData.Rotation, Quaternion.Euler(0, 45, 0) * viewBefore, "A snap turn turns the view by the asked angle");
+        Check((NOVRHeadsetData.TranslationAnchor - anchorBefore).magnitude > .1f, "The anchor swings around the head to keep it in place");
+        InputTracking.Position = new(.3f, 1.6f, .8f);
+        update();
+        Check((NOVRHeadsetData.Translation - headBefore - Quaternion.Euler(0, 45, 0) * offsetBefore * new Vector3(0, 0, 1)).magnitude < .0001f,
+            "A step in the room after the turn follows the turned heading");
+        InputTracking.Position = new(.3f, 1.6f, -.2f);
+        update();
+        NOVRHeadsetData.TurnAbout(NOVRHeadsetData.Translation, -45);
+        update();
+        Check((NOVRHeadsetData.TranslationAnchor - anchorBefore).magnitude < .0001f && (NOVRHeadsetData.Translation - headBefore).magnitude < .0001f,
+            "Turning back from the same spot restores the anchor");
+        Rotation(NOVRHeadsetData.RotationCalibrationOffset, offsetBefore, "Turning back restores the heading");
+        NOVRHeadsetData.TurnAbout(new(9, 0, -4), 90);
+        NOVRHeadsetData.RestoreRotation(offsetBefore);
+        NOVRHeadsetData.SetAnchor(anchorBefore);
+        update();
+        Check((NOVRHeadsetData.Translation - headBefore).magnitude < .0001f, "Leaving the screen can put heading and anchor back exactly");
         for (var i = 0; i < 1000; i++)
         {
             update();

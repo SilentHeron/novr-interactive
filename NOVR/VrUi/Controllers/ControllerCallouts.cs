@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
-using NOVR.MotionControls;
 
 namespace NOVR.VrUi.Controllers;
+
+// Which screen the controllers are shown on. The labels say what the buttons
+// do there, and nothing else.
+internal enum ControllerHintContext
+{
+    None, Menus, AircraftSelection
+}
 
 internal readonly struct ControllerCallout
 {
@@ -15,97 +21,59 @@ internal readonly struct ControllerCallout
     }
 }
 
-// What each physical button on the shown controller does, taken from the
-// player's own bindings, and where its label goes. Part names are the ones in
-// SteamVR's model descriptions, so a label always points at the real button of
-// the controller in the player's hand.
+// What the buttons of the shown controller do on the current screen. In the
+// menus that is pointing, selecting and scrolling; aircraft selection adds
+// walking around the aircraft, turning and the quick wheel. Flight bindings
+// are not listed: there is nothing to fly on these screens. Part names are the
+// ones in SteamVR's model descriptions, so a label always points at the real
+// button of the controller in the player's hand.
 internal static class ControllerCallouts
 {
-    private static readonly (string arrow, ControllerButton button)[] DpadDirections =
+    // pointerHand: this hand's laser is the one driving the menu. Pressing the
+    // other hand's trigger takes the pointer over; at aircraft selection the
+    // hand without the pointer walks.
+    internal static List<ControllerCallout> Build(IEnumerable<string> parts, ControllerHintContext context, bool left, bool pointerHand)
     {
-        ("↑", ControllerButton.Top), ("→", ControllerButton.Secondary),
-        ("↓", ControllerButton.Primary), ("←", ControllerButton.Outside)
-    };
-
-    // The mod's name for a model part, or false for parts that are not a
-    // bindable button on this controller (the body, the system button).
-    internal static bool TryGetButton(string part, bool frame, bool left, out ControllerButton button)
-    {
-        button = part switch
-        {
-            "trigger" => ControllerButton.Trigger,
-            "thumbstick" => ControllerButton.StickClick,
-            "bumper" when frame => ControllerButton.Shoulder,
-            "button_view" when frame && left => ControllerButton.Menu,
-            "button_menu" when frame && !left => ControllerButton.Menu,
-            "button_a" when !left => ControllerButton.Primary,
-            "button_x" when frame && !left => ControllerButton.Secondary,
-            "button_y" when frame && !left => ControllerButton.Top,
-            "button_b" when frame && !left => ControllerButton.Outside,
-            "button_b" when !frame && !left => ControllerButton.Secondary,
-            "button_x" when !frame && left => ControllerButton.Primary,
-            "button_y" when !frame && left => ControllerButton.Secondary,
-            // Touch: the left menu button is the application's; the right one is the system's.
-            "button_enter" when !frame && left => ControllerButton.Menu,
-            _ => ControllerButton.None
-        };
-        return button != ControllerButton.None;
-    }
-
-    // teleportHand: at aircraft selection, the hand that is not holding the
-    // menu pointer walks the player around the aircraft with its thumbstick.
-    internal static List<ControllerCallout> Build(IEnumerable<string> parts, bool frame, bool left, bool stickLeft,
-        Func<ControllerActionId, ControllerActionBinding> get, bool teleportHand = false)
-    {
-        var profile = frame ? ControllerBindingProfile.Frame : ControllerBindingProfile.Touch;
-        string Actions(ControllerButton button)
-        {
-            var names = new List<string>();
-            foreach (var action in ControllerDiagramModel.Assigned(left, button, profile, stickLeft, get))
-                names.Add(ControllerDiagramModel.ShortAction(action));
-            return string.Join(" · ", names);
-        }
         var result = new List<ControllerCallout>();
+        if (context == ControllerHintContext.None)
+            return result;
+        var selection = context == ControllerHintContext.AircraftSelection;
         foreach (var part in parts)
         {
-            if (part == "button_grip")
+            if (part == "trigger")
+                result.Add(new ControllerCallout(part, "Trigger", pointerHand ? "Select" : "Take the pointer"));
+            if (part != "thumbstick")
+                continue;
+            var lines = new List<string>();
+            if (pointerHand)
+                lines.Add("Up / down: scroll");
+            else if (selection)
             {
-                result.Add(new ControllerCallout(part, "Grip", "Hold stick / throttle"));
-                continue;
+                lines.Add("Push, release: TELEPORT");
+                lines.Add("Pull back: bring menu here");
             }
-            if (part == "dpad" && frame && left)
+            if (selection)
             {
-                var bound = new List<string>();
-                foreach (var (arrow, direction) in DpadDirections)
-                {
-                    var actions = Actions(direction);
-                    if (actions.Length > 0)
-                        bound.Add(arrow + " " + actions);
-                }
-                if (bound.Count > 0)
-                    result.Add(new ControllerCallout(part, "D-pad", string.Join("  ", bound)));
-                continue;
+                // Snap turn is always the left thumbstick.
+                if (left)
+                    lines.Add("Left / right: snap turn");
+                // The quick wheel exists in a mission, not in the main menus.
+                lines.Add("Click: quick wheel");
             }
-            if (!TryGetButton(part, frame, left, out var button))
-                continue;
-            var detail = Actions(button);
-            // In the menus the trigger clicks and the thumbstick scrolls,
-            // whatever they are bound to in the cockpit.
-            if (button == ControllerButton.Trigger)
-                detail = detail.Length > 0 ? "Menu click · " + detail : "Menu click";
-            else if (button == ControllerButton.StickClick)
-            {
-                // The walking hand's label is about walking; the rest is on the other hand.
-                detail = teleportHand ? "Push, release: TELEPORT\nPull back: return to menu"
-                    : detail.Length > 0 ? "Scroll · click: wheel · " + detail : "Scroll · click: wheel";
-            }
-            if (detail.Length == 0)
-                continue;
-            var title = button == ControllerButton.Trigger ? "Trigger" : button == ControllerButton.StickClick ? "Thumbstick"
-                : ControllerButtonNames.Describe(button, left, frame);
-            result.Add(new ControllerCallout(part, title, string.Equals(title, detail, StringComparison.OrdinalIgnoreCase) ? "VR menu" : detail));
+            if (lines.Count > 0)
+                result.Add(new ControllerCallout(part, "Thumbstick", string.Join("\n", lines)));
         }
         return result;
+    }
+
+    // Lines of text in a label, title included.
+    internal static int Lines(ControllerCallout callout)
+    {
+        var lines = 2;
+        foreach (var c in callout.Detail)
+            if (c == '\n')
+                lines++;
+        return lines;
     }
 
     // Labels go in two columns beside the controller, each in the order of the

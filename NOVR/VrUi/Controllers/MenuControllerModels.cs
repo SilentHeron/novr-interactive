@@ -10,18 +10,13 @@ using UnityEngine.XR;
 
 namespace NOVR.VrUi.Controllers;
 
-internal enum ControllerHintContext
-{
-    None, Menus, AircraftSelection
-}
-
 // Shows the player's own controllers in the VR menus and at aircraft selection,
-// with labels on their buttons. The geometry is the model SteamVR installs for
+// with labels saying what their buttons do on that screen. The geometry is the model SteamVR installs for
 // that controller, read from the player's disk and placed on the tracked grip
 // pose; without it nothing is drawn and the menus behave as before.
 internal sealed class MenuControllerModels : MonoBehaviour
 {
-    private const float CanvasScale = .0005f, LabelWidth = 150f, LabelHeight = 54f, RowHeight = 58f;
+    private const float CanvasScale = .0005f, LabelWidth = 200f, LineHeight = 16f, LabelPadding = 10f;
     private const long MaxFileBytes = 24L * 1024 * 1024;
 
     internal sealed class LoadedModel
@@ -41,7 +36,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         internal Texture2D? Texture;
         internal Material? Material;
         internal RenderModelInfo? Info;
-        internal string LabelKey = "";
+        internal (ControllerHintContext context, bool pointer) LabelKey;
+        internal Canvas? LabelCanvas;
     }
 
     private readonly Hand[] _hands = { new(), new() };
@@ -243,7 +239,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
         renderer.receiveShadows = false;
         root.SetActive(false);
         hand.Root = root;
-        hand.LabelKey = "";
+        hand.LabelKey = default;
         Debug.Log($"[NOVR] Menu controller model '{model.Name}': {hand.Mesh.vertexCount} vertices, texture {(hand.Texture != null ? hand.Texture.width + "x" + hand.Texture.height : "none")}.");
     }
 
@@ -259,28 +255,26 @@ internal sealed class MenuControllerModels : MonoBehaviour
         HandOptionWheelPose.Get(left, frame, out var offset, out var normal, out var forward);
         var position = offset - normal * .03f;
         var rotation = Quaternion.LookRotation(-normal, forward);
-        var bindings = settings.ControllerBindings;
-        var stickLeft = settings.MotionControls.LeftHanded.Value;
-        var teleportHand = context == ControllerHintContext.AircraftSelection && cursor != null && cursor.PointerHandLeft != left;
-        var key = $"{context}|{bindings.ChangeVersion}|{frame}|{stickLeft}|{teleportHand}";
+        var pointerHand = cursor != null && cursor.PointerHandLeft == left;
+        var key = (context, pointerHand);
         if (hand.Labels == null || hand.LabelKey != key)
         {
             if (hand.Labels != null)
                 Destroy(hand.Labels);
             hand.LabelKey = key;
-            hand.Labels = BuildLabels(hand, left, frame, stickLeft, teleportHand, position, rotation, bindings.Get);
+            hand.Labels = BuildLabels(hand, left, context, pointerHand, position, rotation);
+            hand.LabelCanvas = hand.Labels.GetComponent<Canvas>();
         }
         var labels = hand.Labels.transform;
         var toHead = camera.transform.position - labels.position;
         var show = ControllerCallouts.LookedAt(Vector3.Dot(-labels.forward, toHead.normalized), toHead.magnitude);
         if (hand.Labels.activeSelf != show)
             hand.Labels.SetActive(show);
-        if (show)
-            hand.Labels.GetComponent<Canvas>().worldCamera = camera;
+        if (show && hand.LabelCanvas != null)
+            hand.LabelCanvas.worldCamera = camera;
     }
 
-    private GameObject BuildLabels(Hand hand, bool left, bool frame, bool stickLeft, bool teleportHand, Vector3 position, Quaternion rotation,
-        Func<ControllerActionId, ControllerActionBinding> get)
+    private GameObject BuildLabels(Hand hand, bool left, ControllerHintContext context, bool pointerHand, Vector3 position, Quaternion rotation)
     {
         var view = new GameObject("NOVR Controller Labels", typeof(RectTransform), typeof(Canvas));
         view.transform.SetParent(hand.Root!.transform, false);
@@ -295,7 +289,10 @@ internal sealed class MenuControllerModels : MonoBehaviour
         var names = new List<string>();
         foreach (var part in hand.Info!.Parts)
             names.Add(part.Name);
-        var callouts = ControllerCallouts.Build(names, frame, left, stickLeft, get, teleportHand);
+        var callouts = ControllerCallouts.Build(names, context, left, pointerHand);
+        var tallest = 0;
+        foreach (var callout in callouts)
+            tallest = Mathf.Max(tallest, ControllerCallouts.Lines(callout));
         var anchors = new List<(float x, float y)>();
         var inverse = Quaternion.Inverse(rotation);
         var reach = 0f;
@@ -311,7 +308,7 @@ internal sealed class MenuControllerModels : MonoBehaviour
                 break;
             }
         }
-        var spots = ControllerCallouts.Layout(anchors, reach + 24f + LabelWidth * .5f, RowHeight);
+        var spots = ControllerCallouts.Layout(anchors, reach + 24f + LabelWidth * .5f, tallest * LineHeight + LabelPadding + 4f);
         for (var i = 0; i < callouts.Count && i < spots.Length; i++)
             AddLabel(view.transform, callouts[i], new Vector2(anchors[i].x, anchors[i].y), new Vector2(spots[i].x, spots[i].y));
         return view;
@@ -344,7 +341,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         box.transform.SetParent(parent, false);
         box.layer = layer;
         var boxRect = (RectTransform)box.transform;
-        boxRect.sizeDelta = new Vector2(LabelWidth, LabelHeight);
+        var height = ControllerCallouts.Lines(callout) * LineHeight + LabelPadding;
+        boxRect.sizeDelta = new Vector2(LabelWidth, height);
         boxRect.anchoredPosition = spot;
         var backing = box.GetComponent<Image>();
         backing.color = new Color(.03f, .05f, .07f, .88f);
@@ -357,12 +355,12 @@ internal sealed class MenuControllerModels : MonoBehaviour
         text.fontSize = 13;
         text.supportRichText = true;
         text.text = "<b>" + callout.Title + "</b>\n" + callout.Detail;
-        text.alignment = TextAnchor.MiddleCenter;
+        text.alignment = TextAnchor.MiddleLeft;
         text.color = Color.white;
         text.raycastTarget = false;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
-        text.verticalOverflow = VerticalWrapMode.Truncate;
-        text.rectTransform.sizeDelta = new Vector2(LabelWidth - 8f, LabelHeight - 4f);
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.rectTransform.sizeDelta = new Vector2(LabelWidth - 12f, height - 4f);
     }
 
     private static void Release(Hand hand)
@@ -384,7 +382,8 @@ internal sealed class MenuControllerModels : MonoBehaviour
         hand.Info = null;
         hand.Loading = null;
         hand.Name = null;
-        hand.LabelKey = "";
+        hand.LabelKey = default;
+        hand.LabelCanvas = null;
     }
 
     private void OnDisable()

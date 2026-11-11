@@ -1,4 +1,3 @@
-using NOVR.MotionControls;
 using NOVR.VrCamera;
 using NOVR.VrUi.Controllers;
 
@@ -114,48 +113,37 @@ Check(SteamVrRenderModels.Find("../escape", "/nowhere/Game_Data") == null && Ste
 var found = SteamVrRenderModels.Find("frame_controller_left", "/nowhere/Game_Data");
 Check(found == null || File.Exists(Path.Combine(found, "frame_controller_left.obj")), "A real name is either not found or points at a folder that holds the model");
 
-// ---- Labels: which button is which, and what it does ----
-ControllerActionBinding Defaults(ControllerBindingProfile profile, ControllerActionId action) => ControllerBindingDefaults.Get(profile, action);
+// ---- Labels: what the buttons do on this screen, and nothing about flying ----
 string Detail(List<ControllerCallout> list, string part) => list.Single(c => c.Part == part).Detail;
-var touchRightParts = new[] { "body", "trigger", "button_a", "button_b", "thumbstick", "button_grip", "button_enter" };
-var touchRight = ControllerCallouts.Build(touchRightParts, false, false, false, a => Defaults(ControllerBindingProfile.Touch, a));
-Check(Detail(touchRight, "trigger") == "Menu click · Guns" && Detail(touchRight, "button_a") == "Weapon" &&
-      Detail(touchRight, "button_b") == "Unlock · Map" && Detail(touchRight, "thumbstick") == "Scroll · click: wheel · Lock" &&
-      Detail(touchRight, "button_grip") == "Hold stick / throttle", "Quest right hand: default bindings on the right buttons");
-Check(touchRight.All(c => c.Part != "button_enter" && c.Part != "body"), "The right Meta button belongs to the system and gets no label");
-Check(touchRight.Single(c => c.Part == "button_a").Title == "A" && touchRight.Single(c => c.Part == "button_b").Title == "B", "Quest right face buttons are named A and B");
-var touchLeft = ControllerCallouts.Build(new[] { "trigger", "button_x", "button_y", "thumbstick", "button_grip", "button_enter" }, false, true, false,
-    a => Defaults(ControllerBindingProfile.Touch, a));
-Check(Detail(touchLeft, "trigger") == "Menu click · Brake" && Detail(touchLeft, "button_x") == "CM" && Detail(touchLeft, "button_y") == "Next W" &&
-      Detail(touchLeft, "thumbstick") == "Scroll · click: wheel · Next CM" && Detail(touchLeft, "button_enter") == "View" &&
-      touchLeft.Single(c => c.Part == "button_enter").Title == "Menu", "Quest left hand: default bindings on the left buttons");
-var frameRight = ControllerCallouts.Build(new[] { "thumbstick", "button_a", "button_b", "button_x", "button_y", "button_grip", "trigger", "button_menu", "button_system", "bumper" },
-    true, false, false, a => Defaults(ControllerBindingProfile.Frame, a));
-Check(Detail(frameRight, "button_a") == "Weapon" && Detail(frameRight, "button_b") == "Unlock · Map" && Detail(frameRight, "button_y") == "Next W" &&
-      frameRight.Single(c => c.Part == "button_y").Title == "Y", "Frame right hand: A, B and Y carry the Frame defaults");
-Check(frameRight.All(c => c.Part is not ("button_x" or "bumper" or "button_menu" or "button_system")), "Unbound Frame buttons and the Steam button get no label");
-var frameLeftHand = ControllerCallouts.Build(new[] { "thumbstick", "dpad", "button_grip", "trigger", "button_view", "button_system", "bumper" }, true, true, false,
-    a => Defaults(ControllerBindingProfile.Frame, a));
-Check(Detail(frameLeftHand, "dpad") == "→ Next CM  ↓ CM" && frameLeftHand.Single(c => c.Part == "dpad").Title == "D-pad",
-    "Frame left hand: one D-pad label lists each bound direction");
-Check(frameLeftHand.Single(c => c.Part == "button_view").Title == "View" && Detail(frameLeftHand, "button_view") == "VR menu",
-    "A button whose only action has its own name says what it opens");
-// A custom layout shows on the model.
-var custom = ControllerCallouts.Build(new[] { "button_x", "bumper" }, true, false, false, a =>
-    a == ControllerActionId.Gear ? new ControllerActionBinding(ControllerButton.Secondary, ControllerHandRole.Right) :
-    a == ControllerActionId.ChangeView ? new ControllerActionBinding(ControllerButton.Shoulder, ControllerHandRole.Right) :
-    new ControllerActionBinding(ControllerButton.None, ControllerHandRole.Stick));
-Check(Detail(custom, "button_x") == "Gear" && Detail(custom, "bumper") == "Camera", "Labels follow the player's own bindings");
-// Left-handed cockpit: stick-hand actions move to the left controller.
-var mirrored = ControllerCallouts.Build(new[] { "trigger", "button_x" }, false, true, true, a => Defaults(ControllerBindingProfile.Touch, a));
-Check(Detail(mirrored, "trigger") == "Menu click · Guns" && Detail(mirrored, "button_x") == "Weapon", "A left-handed cockpit moves stick-hand actions to the left controller");
-// Aircraft selection: the walking hand's thumbstick says so.
-var walking = ControllerCallouts.Build(touchRightParts, false, false, false, a => Defaults(ControllerBindingProfile.Touch, a), true);
-Check(Detail(walking, "thumbstick").Contains("TELEPORT") && Detail(walking, "thumbstick").Contains("return to menu") &&
-      !Detail(touchRight, "thumbstick").Contains("TELEPORT") && Detail(walking, "trigger") == Detail(touchRight, "trigger"),
-    "At aircraft selection the walking hand's thumbstick label calls out teleport and the way back; nothing else changes");
-foreach (var part in new[] { "body", "status", "button_system", "nonsense", "" })
-    Check(!ControllerCallouts.TryGetButton(part, true, true, out _) && !ControllerCallouts.TryGetButton(part, false, false, out _), "Not a bindable button: " + part);
+var touchParts = new[] { "body", "trigger", "button_a", "button_b", "button_x", "button_y", "thumbstick", "button_grip", "button_enter" };
+var frameParts = new[] { "thumbstick", "dpad", "button_a", "button_b", "button_x", "button_y", "button_grip", "trigger", "button_menu", "button_view", "button_system", "bumper" };
+foreach (var parts in new[] { touchParts, frameParts })
+    foreach (var left in new[] { false, true })
+    {
+        Check(ControllerCallouts.Build(parts, ControllerHintContext.None, left, true).Count == 0 &&
+              ControllerCallouts.Build(parts, ControllerHintContext.None, left, false).Count == 0, "No screen, no labels");
+        var menuPointer = ControllerCallouts.Build(parts, ControllerHintContext.Menus, left, true);
+        var menuOther = ControllerCallouts.Build(parts, ControllerHintContext.Menus, left, false);
+        Check(menuPointer.Count == 2 && Detail(menuPointer, "trigger") == "Select" && Detail(menuPointer, "thumbstick") == "Up / down: scroll",
+            "Menus: the pointer hand selects and scrolls, and that is all");
+        Check(menuOther.Count == 1 && Detail(menuOther, "trigger") == "Take the pointer", "Menus: the other hand's trigger takes the pointer, and that is all");
+        var walk = ControllerCallouts.Build(parts, ControllerHintContext.AircraftSelection, left, false);
+        var point = ControllerCallouts.Build(parts, ControllerHintContext.AircraftSelection, left, true);
+        Check(walk.Count == 2 && Detail(walk, "trigger") == "Take the pointer" &&
+              Detail(walk, "thumbstick").StartsWith("Push, release: TELEPORT\nPull back: bring menu here\n") && Detail(walk, "thumbstick").EndsWith("Click: quick wheel"),
+            "Aircraft selection: the walking hand's thumbstick calls out teleport, bringing the menu and the wheel");
+        Check(point.Count == 2 && Detail(point, "trigger") == "Select" && Detail(point, "thumbstick").StartsWith("Up / down: scroll\n") &&
+              !Detail(point, "thumbstick").Contains("TELEPORT") && Detail(point, "thumbstick").EndsWith("Click: quick wheel"),
+            "Aircraft selection: the pointer hand scrolls and opens the wheel; it does not walk");
+        Check(Detail(walk, "thumbstick").Contains("Left / right: snap turn") == left && Detail(point, "thumbstick").Contains("Left / right: snap turn") == left,
+            "Snap turn is called out on the left thumbstick only, whichever hand holds the pointer");
+        foreach (var list in new[] { menuPointer, menuOther, walk, point })
+            Check(list.All(c => c.Part is "trigger" or "thumbstick") && list.All(c => c.Title is "Trigger" or "Thumbstick"),
+                "Face buttons, grips and bumpers get no label on these screens: there is nothing to fly");
+    }
+Check(ControllerCallouts.Lines(new ControllerCallout("trigger", "Trigger", "Select")) == 2 &&
+      ControllerCallouts.Lines(ControllerCallouts.Build(touchParts, ControllerHintContext.AircraftSelection, true, false).Single(c => c.Part == "thumbstick")) == 5,
+    "A label is as tall as its title and lines");
 
 // ---- Label layout ----
 var anchors = new (float x, float y)[] { (-20, 40), (-18, 10), (5, 30), (25, 35), (22, -40), (0, 0), (-30, -60) };
@@ -193,19 +181,40 @@ Check(gesture.Update(true, .1f, .9f) == TeleportEvent.Aim && gesture.Aiming && g
 Check(gesture.Update(true, 0, .5f) == TeleportEvent.Aim && gesture.Aiming, "Easing off without letting go keeps the arc");
 Check(gesture.Update(true, 0, .1f) == TeleportEvent.Teleport && !gesture.Aiming, "Letting go teleports");
 Check(gesture.Update(true, 0, 0) == TeleportEvent.None, "Once");
-Check(gesture.Update(true, 0, -.9f) == TeleportEvent.None && !gesture.Aiming && gesture.Update(true, 0, 0) == TeleportEvent.Return, "Pull back and let go returns to the menu");
+Check(gesture.Idle && gesture.Update(true, 0, -.9f) == TeleportEvent.None && !gesture.Aiming && !gesture.Idle &&
+      gesture.Update(true, 0, 0) == TeleportEvent.Summon && gesture.Idle, "Pull back and let go calls the menu");
 Check(gesture.Update(true, .9f, .2f) == TeleportEvent.None && gesture.Update(true, -.9f, 0) == TeleportEvent.None && gesture.Update(true, 0, 0) == TeleportEvent.None,
     "Sideways pushes do nothing");
 gesture.Update(true, 0, .9f);
 Check(gesture.Update(true, 0, -.9f) == TeleportEvent.Cancel && !gesture.Aiming && gesture.Update(true, 0, 0) == TeleportEvent.None,
     "Swinging to the opposite side cancels, and that release is not a return");
 gesture.Update(true, 0, -.9f);
-Check(gesture.Update(true, 0, .9f) == TeleportEvent.Cancel && gesture.Update(true, 0, 0) == TeleportEvent.None, "The same for a return");
+Check(gesture.Update(true, 0, .9f) == TeleportEvent.Cancel && gesture.Update(true, 0, 0) == TeleportEvent.None, "The same for calling the menu");
 gesture.Update(true, 0, .9f);
 Check(gesture.Update(false, 0, .9f) == TeleportEvent.Cancel && gesture.Update(true, 0, .9f) == TeleportEvent.None && !gesture.Aiming,
     "A menu, the wheel or lost tracking cancels, and the held stick needs a fresh centre");
 gesture.Update(true, 0, 0); gesture.Update(true, 0, .9f);
 Check(gesture.Update(true, float.NaN, 0) == TeleportEvent.Cancel && gesture.Update(false, 0, 0) == TeleportEvent.None, "Bad stick values cancel safely");
+
+// ---- Snap turn ----
+var turn = new SnapTurnGesture();
+Check(turn.Update(true, .9f, 0) == 0 && turn.Update(true, .9f, 0) == 0, "A stick already held over when the screen opens does not turn");
+Check(turn.Update(true, 0, 0) == 0, "Centring arms it");
+Check(turn.Update(true, .5f, 0) == 0, "A half push does not turn");
+Check(turn.Update(true, .9f, .1f) == 1 && turn.Update(true, .9f, 0) == 0 && turn.Update(true, 1f, 0) == 0, "One flick right is one turn right, however long it is held");
+Check(turn.Update(true, .5f, 0) == 0 && turn.Update(true, .9f, 0) == 0, "The stick has to come back toward the centre before the next turn");
+Check(turn.Update(true, .2f, 0) == 0 && turn.Update(true, -.8f, 0) == -1 && turn.Update(true, -.8f, 0) == 0, "Then a flick left is one turn left");
+turn.Update(true, 0, 0);
+Check(turn.Update(true, .6f, .9f) == 0 && turn.Update(true, .75f, -.9f) == 0 && turn.Update(true, -.75f, .8f) == 0,
+    "A forward push or a pull back with some sideways drift is not a turn");
+Check(turn.Update(true, .8f, -.3f) == 1, "A mostly sideways flick still is");
+turn.Update(true, 0, 0);
+Check(turn.Update(false, .9f, 0) == 0 && turn.Update(true, .9f, 0) == 0, "A menu, the wheel, an aimed teleport or lost tracking blocks it, and the held stick needs a fresh centre");
+turn.Update(true, 0, 0);
+Check(turn.Update(true, float.NaN, 0) == 0 && turn.Update(true, .9f, 0) == 0 && turn.Update(true, 0, float.PositiveInfinity) == 0, "Bad stick values are ignored safely");
+turn.Update(true, 0, 0);
+turn.Reset();
+Check(turn.Update(true, .9f, 0) == 0, "Leaving the screen disarms it");
 
 // ---- Arc and boundary ----
 TeleportArc.Point(1, 2, 3, 0, 0, 1, 0, out var ax, out var ay, out var az);

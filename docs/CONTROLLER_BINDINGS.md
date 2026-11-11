@@ -84,7 +84,16 @@ Thumbstick flight needs motion controls on. With them off, the outside view, **B
 
 The VR menus (main menu, mission select, multiplayer, settings) and the aircraft selection screen show your controllers. The model is the one SteamVR installs for that controller, read from your PC and placed on the tracked hand: Steam Frame, Quest 2, Quest 3 (Touch Plus) or Quest Pro. A plain Touch layout is shown as Quest 2. NOVR ships no controller model, so nothing appears if SteamVR's files are missing.
 
-Raise a controller toward your face to see its labels. Each bound button gets one, pointing at that button on that controller: the button's name and the actions on it from your current bindings, plus "Menu click" on the trigger and "Scroll · click: wheel" on the thumbstick. Unbound buttons and the system button have no label. Labels follow your bindings as you change them. **VR Menus → Controller Models** and **Controller Tooltips** in the BepInEx config turn the models and the labels off.
+Raise a controller toward your face to see its labels. They say what the controller does on the screen you are on, and nothing about flying:
+
+| Screen | Trigger | Thumbstick |
+| --- | --- | --- |
+| VR menus, hand with the pointer | Select | Up / down: scroll |
+| VR menus, other hand | Take the pointer | no label |
+| Aircraft selection, hand with the pointer | Select | Up / down: scroll; Click: quick wheel |
+| Aircraft selection, other hand | Take the pointer | Push, release: TELEPORT; Pull back: bring menu here; Click: quick wheel |
+
+At aircraft selection the left thumbstick also carries "Left / right: snap turn", whichever hand holds the pointer. Face buttons, grips and bumpers have no label on these screens. **VR Menus → Controller Models** and **Controller Tooltips** in the BepInEx config turn the models and the labels off.
 
 ## Walking around the aircraft
 
@@ -94,10 +103,11 @@ At aircraft selection the hand that is not holding the menu pointer can walk you
 | --- | --- |
 | Push forward and hold | Shows an aiming arc from that controller |
 | Let go | Teleports to where the arc lands |
-| Pull back, then let go | Returns to where the menu is |
+| Pull back, then let go | Brings the menu to you, three metres ahead of where you are looking |
 | Swing to the opposite side | Cancels |
+| Left thumbstick: flick left or right | Snap turn, 45 degrees a flick (**VR Menus → Snap Turn Degrees**, 15 to 90) |
 
-The menu and the aircraft stay in place, so changing a loadout means walking back to the menu or pulling the thumbstick back. The arc turns red where you cannot stand: nothing under it, or a surface too steep. A spot beyond the boundary circle around the aircraft is pulled back onto the circle. Your eyes are 1.7 m above the surface you land on. Pressing a button on the walking hand makes it the pointer hand, and the other hand then walks. Leaving the selection screen undoes the walk. **VR Menus → Walk Around Aircraft** turns it off.
+The menu and the aircraft stay in place while you walk, so the menu is never in the way; it moves only when you call it, and stays where you called it. A snap turn turns the view about your head, so you stay on your spot; when the left hand is the walking hand, a turn waits until it is not aiming. The arc turns red where you cannot stand: nothing under it, or a surface too steep. A spot beyond the boundary circle around the aircraft is pulled back onto the circle. Your eyes are 1.7 m above the surface you land on. Pressing a button on the walking hand makes it the pointer hand, and the other hand then walks. Leaving the selection screen undoes the walk and the turns and puts the menu back. **VR Menus → Walk Around Aircraft** turns it off.
 
 ## Hand option wheel
 

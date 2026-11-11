@@ -41,6 +41,19 @@ public class NOVRHeadsetData : NOVRBehaviour
         TranslationAnchor = anchor;
     }
 
+    // Snap turn: yaw the whole mapped tracking space about a point in it,
+    // normally the head. Rotation and anchor change together, so that point
+    // stays where it is and the head, grips and aim poses turn around it.
+    internal static void TurnAbout(Vector3 pivot, float yawDegrees)
+    {
+        var turn = Quaternion.Euler(0f, yawDegrees, 0f);
+        RotationCalibrationOffset = turn * RotationCalibrationOffset;
+        TranslationAnchor = pivot + turn * (TranslationAnchor - pivot);
+    }
+
+    // Hands back a rotation that was changed by TurnAbout.
+    internal static void RestoreRotation(Quaternion rotation) => RotationCalibrationOffset = rotation;
+
     public static void CalibrateTranslation(CalibrationAxes calibrationAxes = CalibrationAxes.All, bool overrideExistingInNonCalibratedAxes = false)
     {
         if (_trackingPosition == null)
