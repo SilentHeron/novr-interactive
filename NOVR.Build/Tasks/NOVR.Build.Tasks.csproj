@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- This task references the running MSBuild's own assemblies and is loaded
+         by that same MSBuild, so it must target the .NET version of the SDK in
+         use. A fixed net10.0 stopped compiling (CS1705) once SDK 11 became the
+         default on a machine that also has SDK 10. -->
+    <TargetFramework>net$(BundledNETCoreAppTargetFrameworkVersion)</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
