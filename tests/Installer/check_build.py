@@ -2,6 +2,7 @@
 """Optional SDK 10 build-safety checks; all outputs stay in a temporary fixture."""
 from pathlib import Path
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -13,6 +14,13 @@ from xml.sax.saxutils import escape
 
 repo = Path(__file__).resolve().parents[2]
 dotnet = str(sys.argv[1]) if len(sys.argv) > 1 else "dotnet"
+# A reused MSBuild node or build server outlives the command that started it.
+# On Windows it keeps the task assembly it loaded open, and the fixture below
+# then cannot be deleted (seen once SDK 11 became the runner's default). Keep
+# every build in this check short-lived.
+os.environ["MSBUILDDISABLENODEREUSE"] = "1"
+os.environ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0"
+os.environ["MSBUILDUSESERVER"] = "0"
 declared = re.search(r'\[BepInPlugin\(\s*"deltawing\.novr"\s*,\s*"[^"]*"\s*,\s*"([^"]+)"',
                      (repo / "NOVR/NOVRPlugin.cs").read_text()).group(1)
 
@@ -388,3 +396,5 @@ with tempfile.TemporaryDirectory(prefix="novr-build-check-") as directory:
     package_rejected("stale compiled plugin despite current version.txt")
     package_rejected("stale compiled plugin even with matching stale override", "0.0.1")
     print("PASS release build safety; all writes stayed in", root)
+    # For an SDK that keeps a server alive regardless of the settings above.
+    subprocess.run([dotnet, "build-server", "shutdown"], capture_output=True, check=False)
