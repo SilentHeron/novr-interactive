@@ -3,6 +3,7 @@
   <ItemGroup>
     <Compile Include="../../NOVR/Compatibility/GraphicsStartupProtocol.cs" Link="GraphicsStartupProtocol.cs" />
     <Compile Include="../../NOVR/Compatibility/D3D11Startup.cs" Link="D3D11Startup.cs" />
+    <Compile Include="../../NOVR/Compatibility/VrModeRestart.cs" Link="VrModeRestart.cs" />
     <Compile Include="../../NOVR.Patcher/StartupHandoff.cs" Link="StartupHandoff.cs" />
   </ItemGroup>
 </Project>

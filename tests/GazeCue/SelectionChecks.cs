@@ -46,6 +46,38 @@ internal static class SelectionChecks
         hud = Fresh(out marker);
         check(GazeTargetSelectionPatch.Prefix(hud, true) && hud.SelectedCalls.Count == 0, "paint selection retains native multi-target behavior");
 
+        // 0.4.8.35: the default priority asks the game's own score, with the
+        // designator already on this frame's cue ray.
+        foreach (var pitch in new[] { 0f, 2f, -6f })
+        {
+            hud = Fresh(out marker);
+            ModConfiguration.Instance.LookCue.LockPriority.Value = NOVR.MotionControls.GazeLockPriority.Game;
+            ModConfiguration.Instance.LookCue.VerticalDegrees.Value = pitch;
+            var view = APIBus.CockpitHudCamera!.transform;
+            view.position = new Vector3(40, -15, 300);
+            view.rotation = Quaternion.Euler(8, -35, 4);
+            var ray = NOVR.MotionControls.GazeCueRay.Direction(view);
+            var near = CandidateChecks.Marker(view.position + ray * 1000);
+            var threat = CandidateChecks.Marker(view.position + (ray + view.rotation * new Vector3(.05f, 0, 0)).normalized * 1000);
+            threat.Priority = 9;
+            hud = CandidateChecks.Hud(near, threat);
+            hud.targetDesignator.transform.position = new Vector3(-9000, 500, 20); // stale: its own LateUpdate has not run yet
+            check(!GazeTargetSelectionPatch.Prefix(hud, false) && hud.SelectedCalls.SequenceEqual(new[] { threat.unit }),
+                "a tap selects what the game ranks highest inside the cue, not the marker nearest its centre");
+            var expected = view.position + ray * 1000;
+            check((threat.Assessed.Single().designator - expected).sqrMagnitude < .001f && (near.Assessed.Single().designator - expected).sqrMagnitude < .001f,
+                "the game scores against the designator on this frame's cue ray, never a stale one");
+            check(!GazeTargetSelectionPatch.Prefix(hud, false) && hud.SelectedCalls.SequenceEqual(new[] { threat.unit, near.unit }),
+                "the next tap takes the next unit; a selected target is never scored or selected twice");
+            check(!GazeTargetSelectionPatch.Prefix(hud, false) && hud.SelectedCalls.Count == 2, "an exhausted cue selects nothing and still keeps native selection out");
+        }
+        hud = Fresh(out marker);
+        ModConfiguration.Instance.LookCue.LockPriority.Value = NOVR.MotionControls.GazeLockPriority.Game;
+        hud.targetDesignator.transform.position = new Vector3(-9000, 500, 20);
+        check(GazeTargetSelectionPatch.Prefix(hud, true) &&
+            (hud.targetDesignator.transform.position - new Vector3(0, 0, 1000)).sqrMagnitude < 400f && marker.Assessed.Count == 0,
+            "a hold still hands group selection to the game with the designator on the cue ray, and scores nothing itself");
+
         foreach (var invalidate in new Action<CombatHUD, HUDUnitMarker>[]
         {
             (h, _) => h.aircraft = null,

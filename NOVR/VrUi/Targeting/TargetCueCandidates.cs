@@ -12,15 +12,23 @@ internal static class TargetCueCandidates
     private static readonly AccessTools.FieldRef<CombatHUD, List<HUDUnitMarker>> Markers =
         AccessTools.FieldRefAccess<CombatHUD, List<HUDUnitMarker>>("markers");
 
-    internal static bool Nearby(CombatHUD? hud) => Nearest(hud) != null;
+    // Whether anything can be selected does not depend on how it is ranked,
+    // so the per-frame cue never runs the game's scoring.
+    internal static bool Nearby(CombatHUD? hud) => Pick(hud, false) != null;
+
+    // The marker a target-select tap takes.
+    internal static HUDUnitMarker? Pick(CombatHUD? hud) => Pick(hud, true);
 
     // Both the cue and single-target selection read the current adjusted cue ray.
-    // Native threat/range priority must not override an explicit gaze choice.
     // Marker positions already contain the game's known-position rules and the
     // VR projection; reading the underlying unit would bypass those rules.
-    // Inside the cone the configured class tier wins first (so an aircraft is
-    // not lost to the missile it just launched); angle decides within a tier.
-    internal static HUDUnitMarker? Nearest(CombatHUD? hud)
+    // With the Game priority the game's own score ranks the markers inside the
+    // cone: threat and opportunity for the selected weapon, over range and the
+    // squared distance from the designator. The caller aligns the designator
+    // with the cue first. With the other priorities the configured class tier
+    // wins first (so an aircraft is not lost to the missile it just launched)
+    // and the angle decides within a tier.
+    private static HUDUnitMarker? Pick(CombatHUD? hud, bool rank)
     {
         var camera = APIBus.CockpitHudCamera;
         var exclusions = SceneSingleton<TargetListSelector>.i;
@@ -40,6 +48,11 @@ internal static class TargetCueCandidates
         var bestAlignment = MinimumAlignment;
         var bestTier = int.MaxValue;
         HUDUnitMarker? best = null;
+        var game = rank && priority == GazeLockPriority.Game;
+        var station = game && hud.aircraft.weaponManager != null ? hud.aircraft.weaponManager.currentWeaponStation : null;
+        var designator = hud.targetDesignator.gameObject;
+        var bestScore = float.NegativeInfinity;
+        HUDUnitMarker? scored = null;
         foreach (var marker in Markers(hud))
         {
             if (marker == null || marker.unit == null || marker.selected || selected.Contains(marker.unit) ||
@@ -56,6 +69,16 @@ internal static class TargetCueCandidates
             var alignment = along / Mathf.Sqrt(distanceSquared);
             if (alignment <= MinimumAlignment)
                 continue;
+            if (game)
+            {
+                // Highest score wins and an exact tie keeps the earlier marker.
+                var score = marker.AssessPriority(hud.aircraft, designator, station);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    scored = marker;
+                }
+            }
             var tier = TargetCuePriority.Tier(priority, marker.unit is Aircraft, marker.unit is Missile);
             // Exact angular ties keep the earlier marker, as before.
             if (tier > bestTier || (tier == bestTier && alignment <= bestAlignment))
@@ -64,6 +87,8 @@ internal static class TargetCueCandidates
             bestAlignment = alignment;
             best = marker;
         }
-        return best;
+        // A score that is not a number never wins; the nearest angle then
+        // still gives the tap a target.
+        return scored ?? best;
     }
 }

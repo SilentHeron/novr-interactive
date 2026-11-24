@@ -6,19 +6,20 @@ The virtual stick and throttle work across aircraft. Original instrument display
 
 ## Default right-handed layout
 
-Flight buttons require the assigned handle held or toggle-latched. Target selection and cycling happen on button release. Guns and countermeasures are held actions.
+Flight buttons require the assigned handle held or toggle-latched. Cycling happens on button release. Guns and countermeasures are held actions. Select target and Unselect are a tap or a hold, as in the game.
 
 | Action | Steam Frame | Touch / Quest |
 | --- | --- | --- |
 | Guns | Right trigger | Right trigger |
 | Selected missile / bomb release | A | A |
-| Select target nearest cue | Right thumbstick click | Right thumbstick click |
-| Unselect latest target | B | B |
+| Select target in the cue; hold for the group | Right thumbstick click | Right thumbstick click |
+| Unselect latest target; hold to clear all | B | B |
 | Next weapon | Y on stick hand | Y on throttle hand |
 | Countermeasures | Left D-pad down | X |
 | Wheel / air brake | Left trigger | Left trigger |
 | Next countermeasure type | Left D-pad right | Left thumbstick click |
-| Clear all targets | View → Flight actions | View → Flight actions |
+| Clear all targets | Hold B, or View → Flight actions | Hold B, or View → Flight actions |
+| Fire selected weapon | Unassigned | Unassigned |
 | Native option wheel, free hand | Thumbstick click | Thumbstick click |
 | Tactical map | B with stick released | B with stick released |
 | Outside view | Quick wheel → OUTSIDE VIEW | Quick wheel → OUTSIDE VIEW |
@@ -55,7 +56,7 @@ seat meshes are affected; glass and unsupported cockpit models remain unchanged.
 5. If the button is already used, choose another or explicitly replace the listed assignments. Cancel leaves your saved binding intact.
 6. **Undo last change** on the bindings page restores the previous edit, including displaced assignments or a default reset. Each preset has its own one-step undo for the current game session.
 
-Map may share a flight button because it yields to a held handle. View requires its own button. Free-hand thumbstick click is reserved for the wheel; it remains assignable to held-handle actions. Gear, radar, flight assist, and hover assist may also be assigned; they start unassigned. Grip and flight axes stay under **View → Flight controls**, separate from button bindings. **Restore defaults** changes only the selected controller preset after confirmation.
+Map may share a flight button because it yields to a held handle. View requires its own button. Free-hand thumbstick click is reserved for the wheel; it remains assignable to held-handle actions. Gear, radar, flight assist, hover assist and Fire selected weapon may also be assigned; they start unassigned. Grip and flight axes stay under **View → Flight controls**, separate from button bindings. **Restore defaults** changes only the selected controller preset after confirmation.
 
 Existing Frame custom bindings are retained. Switching between controller families does not overwrite either saved layout. Standard Touch and its Plus/Pro variants have input-profile support; new hardware still needs a real headset check. Trackpad-only Vive layouts and controller-free hand tracking are not covered by this preset.
 
@@ -132,11 +133,37 @@ For the map, horizontal and vertical corner separation change its width and heig
 
 The throttle’s inboard rail shows a monochrome slider and command percentage, with IDLE / MIL / AB / MAX where applicable. Collective and hover modes use their own captions. The look-direction cue has size, shape, opacity, visibility and vertical-position settings under **View → Look direction cue**, also available in **Settings → HUD → VR Look Direction Cue**. Position is measured above/below the centre of vision and adjusts both the cue and the target-selection ray. Reset restores the defaults. In Near targets mode, already-selected targets do not activate the cue; it appears only when another selectable target is nearby.
 
-In VR cockpit view, a target-select click chooses the eligible marker closest to
-the centre of the cue within the acquisition cone. Threat and range priority
-cannot pull the selection toward a different off-centre target. Moving the cue
-up or down moves the targeting ray with it; size, shape and opacity do not change aim.
-Native target filters, paint selection and tactical-map selection are unchanged.
+In VR cockpit view, a target-select tap chooses among the eligible markers inside
+the cue's acquisition cone. By default the game's own ranking decides, exactly as
+on a flat screen: threat and opportunity for the selected weapon, divided by range
+and by the squared distance from the cue. A unit near the centre of the cue still
+counts for more, but a clearly higher threat a little off-centre wins. **View →
+Look direction cue → Targeting** offers three alternatives: **Nearest** (closest
+to the centre of the cue), **Units first** (aircraft, ground units and ships
+before missiles) and **Aircraft first**. Moving the cue up or down moves the
+targeting ray with it; size, shape and opacity do not change aim. Friendly units
+are left out unless **Cue friendly units** is on, and native target filters and
+tactical-map selection are unchanged.
+
+**Tap and hold.** Select target and Unselect use the game's own two delays,
+**Button Click Delay** and **Button Hold Delay** under Settings → Controls
+(0.25 s to count as a tap and 0.15 s to count as a hold by default):
+
+- Tap **Select target**: one target, as above. Hold it: every hostile unit inside
+  the cue that the selected weapon can engage, the game's group selection.
+- Tap **Unselect**: the most recently selected target. Hold it: all of them.
+- A press between the two delays does both, as on a keyboard. A release after
+  the tap delay does nothing more. If slow taps on Unselect clear more than you
+  meant, raise Button Hold Delay.
+- Unselect acts when the game itself would: with at least one target, and with
+  the combat HUD shown or the tactical map open.
+
+**One fire button.** The default layout keeps guns on the trigger and missile or
+bomb release on A, so guns stay available with a missile selected. If you would
+rather have the game's single fire button, assign **Fire selected weapon** under
+**Weapons & targets** and leave **Guns** and **Missile / weapon release**
+unassigned. It fires whatever is selected, with the game's own safety, lock and
+salvo rules.
 
 A white outline and brief pulse mark entry into the stick or throttle grab range; the stronger grab cue confirms attachment and the outline disappears. Default grab reach is 15 cm (formerly 12 cm); custom distances are retained. MIL detent holds just below the native afterburner boundary.
 

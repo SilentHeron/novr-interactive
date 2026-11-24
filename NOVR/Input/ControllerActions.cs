@@ -20,8 +20,13 @@ internal sealed class ControllerActions : MonoBehaviour
     internal bool TargetSelecting => !CockpitHudWidgets.Editing && _target.Held;
 
     private readonly ControllerButtonGate _fire = new(), _release = new(), _countermeasures = new(), _weapon = new(), _target = new(), _nextCountermeasure = new(), _map = new(), _clear = new(), _brake = new(), _unlock = new();
+    // Optional single fire button: the game's own "fire the selected weapon".
+    private readonly ControllerButtonGate _fireSelected = new();
+    // Select and unselect are a tap or a hold in the game; these time the press.
+    private readonly ControllerPressTimer _targetPress = new(), _unlockPress = new();
     internal bool GunsHeld => Held(NativeControllerAction.Guns);
     internal bool WeaponReleaseHeld => Held(NativeControllerAction.WeaponRelease);
+    internal bool FireSelectedHeld => CanReadFlightButtons && _fireSelected.Held;
 
     private readonly ControllerButtonGate _gear = new(), _radar = new(), _assist = new(), _hover = new(), _lights = new();
     private readonly ControllerButtonGate _view = new(), _cockpit = new();
@@ -136,12 +141,17 @@ internal sealed class ControllerActions : MonoBehaviour
         UpdateFlightButton(ControllerActionId.FlightAssist, _assist, false);
         UpdateFlightButton(ControllerActionId.HoverAssist, _hover, false);
         UpdateFlightButton(ControllerActionId.NavLights, _lights, false);
+        UpdateFlightButton(ControllerActionId.FireSelected, _fireSelected);
+        // The game reads Select and Cancel as a tap or a hold (select a group,
+        // clear every target). Its own queries are answered from these timers,
+        // so unselecting needs no direct call here.
+        var now = Time.unscaledTime;
+        _targetPress.Update(_target, now);
+        _unlockPress.Update(_unlock, now);
         if (_lights.Released)
             QueueNativeAction(NativeControllerAction.NavLights);
-        if (_unlock.Released)
-            SceneSingleton<CombatHUD>.i?.DeselectLast();
         if (_clear.Released)
-            SceneSingleton<CombatHUD>.i?.DeselectAll();
+            ClearAllTargets();
         if (_gear.Released)
             QueueNativeAction(NativeControllerAction.Gear);
         if (_radar.Released)
@@ -243,24 +253,65 @@ internal sealed class ControllerActions : MonoBehaviour
     internal bool Held(NativeControllerAction action) => CanReadFlightButtons && action switch
     {
         NativeControllerAction.Brake => _brake.Held,
-        NativeControllerAction.Fire => _fire.Held || _release.Held,
+        NativeControllerAction.Fire => _fire.Held || _release.Held || _fireSelected.Held,
         NativeControllerAction.Guns => _fire.Held,
         NativeControllerAction.WeaponRelease => _release.Held,
         NativeControllerAction.Countermeasures => _countermeasures.Held,
         _ => false
     };
-    internal bool Released(NativeControllerAction action) => CanReadFlightButtons && action switch
+    // minimum and expireIn are the game's own arguments to its timed release
+    // query. Only Select and Cancel use them, because only their hold has a
+    // meaning of its own; the cycle actions keep acting on any release.
+    internal bool Released(NativeControllerAction action, float minimum = 0f, float expireIn = 0f) => CanReadFlightButtons && action switch
     {
         NativeControllerAction.NextWeapon => _weapon.Released,
-        NativeControllerAction.Select => _target.Released,
+        NativeControllerAction.Select => _targetPress.Tapped(minimum, expireIn),
+        NativeControllerAction.Cancel => _unlockPress.Tapped(minimum, expireIn),
         NativeControllerAction.NextCountermeasure => _nextCountermeasure.Released,
         _ => false
     };
+    // The one frame a held Select or Cancel reaches the game's press delay:
+    // select the group inside the cue, or clear every target.
+    internal bool HoldReached(NativeControllerAction action, float seconds) => CanReadFlightButtons && action switch
+    {
+        NativeControllerAction.Select => _targetPress.HoldReached(seconds),
+        NativeControllerAction.Cancel => _unlockPress.HoldReached(seconds),
+        _ => false
+    };
+
+    // What the game's own Cancel handling does. A bare CombatHUD call would
+    // leave the map icons highlighted and the target camera on its last target.
+    internal static void ClearAllTargets()
+    {
+        var hud = SceneSingleton<CombatHUD>.i;
+        if (hud == null)
+            return;
+        hud.DeselectAll(true);
+        SceneSingleton<DynamicMap>.i?.DeselectAllIcons();
+        CancelTargetCamera(hud);
+    }
+    internal static void UnselectLatestTarget()
+    {
+        var hud = SceneSingleton<CombatHUD>.i;
+        if (hud == null)
+            return;
+        hud.DeselectLast();
+        CancelTargetCamera(hud);
+    }
+    private static void CancelTargetCamera(CombatHUD hud)
+    {
+        var aircraft = hud.aircraft;
+        if (aircraft != null && aircraft.targetCam != null)
+            aircraft.targetCam.CancelTarget();
+    }
     internal void ResetButtons()
     {
         _queuedActions.Clear();
         _fire.Reset();
         _release.Reset();
+        _fireSelected.Reset();
+        _targetPress.Reset();
+        _unlockPress.Reset();
         _countermeasures.Reset();
         _weapon.Reset();
         _target.Reset();
@@ -306,12 +357,12 @@ internal static class ControllerHeldActionPatch
 internal static class ControllerReleasedActionPatch
 {
     [HarmonyPostfix]
-    private static void Postfix(Rewired.Player __instance, string __0, ref bool __result)
+    private static void Postfix(Rewired.Player __instance, string __0, float __1, float __2, ref bool __result)
     {
         if (__instance != GameManager.playerInput)
             return;
         var action = NativeControllerActionNames.Parse(__0);
-        __result |= ControllerActions.Instance?.Released(action) == true || ControllerActions.Instance?.Queued(action) == true;
+        __result |= ControllerActions.Instance?.Released(action, __1, __2) == true || ControllerActions.Instance?.Queued(action) == true;
     }
 }
 
@@ -331,13 +382,20 @@ internal static class ControllerPressedActionPatch
 
 // Hover assist is the native long-press branch of Flight Assist. Expose it as
 // its own deliberate VR action without also toggling ordinary flight assist.
+// Select and Cancel are held on the controller itself: answer their long-press
+// branch (select the group in the cue, clear every target) after the delay the
+// game asks for.
 [HarmonyPatch(typeof(Rewired.Player), "GetButtonTimedPressDown", new[] { typeof(string), typeof(float) })]
 internal static class ControllerHoverActionPatch
 {
     [HarmonyPostfix]
-    private static void Postfix(Rewired.Player __instance, string __0, ref bool __result)
+    private static void Postfix(Rewired.Player __instance, string __0, float __1, ref bool __result)
     {
-        if (__instance == GameManager.playerInput && NativeControllerActionNames.Parse(__0) == NativeControllerAction.FlightAssist)
-            __result |= ControllerActions.Instance?.Queued(NativeControllerAction.AutoHover) == true;
+        if (__instance != GameManager.playerInput)
+            return;
+        var action = NativeControllerActionNames.Parse(__0);
+        __result |= action == NativeControllerAction.FlightAssist
+            ? ControllerActions.Instance?.Queued(NativeControllerAction.AutoHover) == true
+            : ControllerActions.Instance?.HoldReached(action, __1) == true;
     }
 }

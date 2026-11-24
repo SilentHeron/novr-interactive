@@ -140,9 +140,9 @@ internal sealed partial class WristMenu
         var parent = _gazeTargetingPage.transform;
         var cue = ModConfiguration.Instance.LookCue;
         Section(parent, "Gaze lock", 214);
-        Choice(parent, "Prefer inside the cue", new[] { "Nearest", "Units first", "Aircraft first" }, () => (int)cue.CurrentLockPriority,
-            value => cue.LockPriority.Value = (GazeLockPriority)value, 159);
-        Note(parent, "The preferred class wins inside the cue's cone; the nearest\nangle decides within it. Units first: aircraft, ground and\nships before missiles. A lone missile still locks.", 68, 84);
+        Choice(parent, "Prefer inside the cue", TargetCuePriority.MenuLabels, () => TargetCuePriority.MenuIndex(cue.CurrentLockPriority),
+            value => cue.LockPriority.Value = TargetCuePriority.FromMenu(value), 159);
+        Note(parent, "Game: the game's own ranking by threat, range and distance\nfrom the cue. The others pick a class first, then the nearest\nangle. Units first: aircraft, ground, ships before missiles.", 68, 84);
         Section(parent, "Eligible units", 2);
         Setting(parent, "Cue friendly units", cue.FriendlyUnits, 0, -42);
         Note(parent, "Off: no cue or gaze lock on allies. The game's own\ntarget filters (factions, unit types) still apply.", -108, 64);

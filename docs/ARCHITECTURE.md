@@ -14,7 +14,13 @@ for builds and [verification](VERIFICATION.md) for executable checks and their l
    launch using another backend hands off once to the same executable with D3D11.
    [`StartupHandoff`](../NOVR.Patcher/StartupHandoff.cs) waits for that parent before
    copying payload or initializing plugins; the retry never changes saved Steam
-   options. Flat/headless launches skip NOVR runtime creation. Normal startup then
+   options. Flat/headless launches skip NOVR runtime creation. A windowed
+   `-novr-flat` session keeps one component,
+   [`FlatModeSwitch`](../NOVR/VrTogglers/FlatModeSwitch.cs), which offers the
+   restart into VR at the main menu.
+   [`VrModeRestart`](../NOVR/Compatibility/VrModeRestart.cs) reuses the handoff to
+   restart with the flag added or removed; there is no in-session switch, because
+   the renderer, the XR session and every patch are chosen here. Normal startup then
    publishes configuration, initializes compatibility handling, applies Harmony
    patches and creates `Core`.
    - Configuration is bound with BepInEx's save-on-every-change turned off, written
@@ -186,10 +192,12 @@ or native UI. Two-hand resizing suppresses docking until a fresh grab.
 
 ## Borrowed native UI
 
-[`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) ranks eligible
-native markers by angle from the adjusted cue ray, after the configured class tier
-(`TargetCuePriority`: units before missiles by default) and the friendly-unit
-option; native `TargetListSelector` exclusions still apply first. `GazeCueRay` derives this ray
+[`TargetCueCandidates`](../NOVR/VrUi/Targeting/TargetCueCandidates.cs) collects the
+eligible native markers inside the cue's cone, after the friendly-unit option and
+native `TargetListSelector` exclusions. By default (`TargetCuePriority.Game`) a tap
+takes the marker the game's own `HUDUnitMarker.AssessPriority` scores highest; the
+other priorities rank by class tier and then by angle from the adjusted cue ray.
+The per-frame cue only asks whether a candidate exists and never runs the score. `GazeCueRay` derives this ray
 from the tracked HUD camera and the same sanitized canvas offset as the visible
 symbol. The cue and VR single-target
 selection share this fresh scan; visible marker positions preserve native known-
@@ -276,7 +284,10 @@ rules in [`ControllerBindingModel`](../NOVR/Input/ControllerBindingModel.cs).
 Wire persistence in [`ControllerProfileBindings`](../NOVR/Input/ControllerProfileBindings.cs)
 without renaming existing keys. Add dispatch/gates in `ControllerActions`; use
 [`NativeControllerAction`](../NOVR/Input/NativeControllerAction.cs) for
-game input intents, translating strings only at the Rewired boundary. The binding
+game input intents, translating strings only at the Rewired boundary. An action
+the game reads as a tap or a hold (Select, Cancel) is timed by
+[`ControllerPressTimer`](../NOVR/Input/ControllerPressTimer.cs) and answered with
+the delays the game passes to its own query. The binding
 editor consumes the shared model. Check both hardware profiles and handedness:
 
 ```sh

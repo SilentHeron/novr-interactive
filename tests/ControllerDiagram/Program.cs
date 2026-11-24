@@ -48,5 +48,17 @@ Check(ControllerDiagramModel.ShortButton(ControllerButton.Primary, true, Control
     ControllerDiagramModel.ShortButton(ControllerButton.Primary, true, ControllerBindingProfile.Touch) == "X" &&
     ControllerDiagramModel.ShortButton(ControllerButton.Secondary, false, ControllerBindingProfile.Frame) == "X" &&
     ControllerDiagramModel.ShortButton(ControllerButton.Secondary, false, ControllerBindingProfile.Touch) == "B", "Face labels distinguish Frame and Touch layouts");
+// Every action, the appended ones included, has its own short diagram name.
+var shortNames = ControllerBindingDefaults.Actions.Select(ControllerDiagramModel.ShortAction).ToArray();
+Check(shortNames.Distinct().Count() == shortNames.Length && shortNames.All(name => name.Length is > 0 and <= 8) &&
+    ControllerDiagramModel.ShortAction(ControllerActionId.FireSelected) == "Fire" &&
+    ControllerDiagramModel.ShortAction(ControllerActionId.Guns) == "Guns" && ControllerDiagramModel.ShortAction(ControllerActionId.WeaponRelease) == "Weapon",
+    "Each action has a distinct short name that fits a diagram callout; the single fire button is not confused with the split ones");
+var fireOnly = ControllerBindingDefaults.Actions.ToDictionary(a => a, _ => new ControllerActionBinding(ControllerButton.None, ControllerHandRole.Stick));
+fireOnly[ControllerActionId.FireSelected] = new(ControllerButton.Trigger, ControllerHandRole.Stick);
+foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+    Check(ControllerDiagramModel.Assigned(false, ControllerButton.Trigger, profile, false, a => fireOnly[a]).SequenceEqual(new[] { ControllerActionId.FireSelected }) &&
+        ControllerDiagramModel.Assigned(true, ControllerButton.Trigger, profile, false, a => fireOnly[a]).Length == 0,
+        $"{profile}: a single fire button on the stick trigger shows on that controller's diagram only");
 Console.WriteLine($"Controller diagram mapping checks passed: {checks} assertions (actual mapping/default source; no UI rendering).");
 void Check(bool pass, string message) { if (!pass) throw new Exception(message); checks++; }

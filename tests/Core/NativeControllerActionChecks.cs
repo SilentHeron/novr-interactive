@@ -15,12 +15,13 @@ internal static class NativeControllerActionChecks
                 ("Next Countermeasure", NativeControllerAction.NextCountermeasure), ("Gear", NativeControllerAction.Gear),
                 ("Radar", NativeControllerAction.Radar), ("Toggle Engine", NativeControllerAction.ToggleEngine),
                 ("Flight Assist", NativeControllerAction.FlightAssist), ("Auto Hover", NativeControllerAction.AutoHover),
-                ("Eject", NativeControllerAction.Eject), ("Nav Lights", NativeControllerAction.NavLights)
+                ("Eject", NativeControllerAction.Eject), ("Nav Lights", NativeControllerAction.NavLights),
+                ("Cancel", NativeControllerAction.Cancel)
             };
             foreach (var (name, action) in names)
                 truth(NativeControllerActionNames.Parse(name) == action);
             foreach (var unknown in new[] { null, "", "gear", "NextWeapon", "Weapon Release ", "Unrelated game action",
-                         "Previous Weapon", "Nav lights", "Link Guns", "Switch View" })
+                         "Previous Weapon", "Nav lights", "Link Guns", "Switch View", "cancel", "Cancel Chat" })
                 truth(NativeControllerActionNames.Parse(unknown) == NativeControllerAction.Unknown);
         });
         check("Only maintained one-shot native intents can enter the queue", () =>

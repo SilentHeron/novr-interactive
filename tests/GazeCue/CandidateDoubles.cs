@@ -56,16 +56,29 @@ public sealed class Cockpit
     public bool Detached;
     public bool IsDetached() => Detached;
 }
+public sealed class WeaponStation
+{
+}
 public sealed class WeaponManager
 {
     public readonly List<Unit> Targets = new();
     public List<Unit> GetTargetList() => Targets;
+    public WeaponStation? currentWeaponStation = new();
 }
 public sealed class HUDUnitMarker
 {
     public Unit? unit;
     public bool selected;
     public Image? image;
+    // Native scoring boundary: the game's threat, range and designator-distance
+    // formula is its own; here a marker reports a set score and what it was asked with.
+    public float Priority = 1;
+    public readonly List<(Aircraft? aircraft, Vector3 designator, WeaponStation? station)> Assessed = new();
+    public float AssessPriority(Aircraft? aircraft, GameObject targetDesignator, WeaponStation? weaponStation)
+    {
+        Assessed.Add((aircraft, targetDesignator.transform.position, weaponStation));
+        return Priority;
+    }
 }
 public sealed class CombatHUD
 {

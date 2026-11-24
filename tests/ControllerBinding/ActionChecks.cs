@@ -10,8 +10,11 @@ internal static class ActionChecks
 {
     private enum Delivery
     {
-        Held, Released, Queued, ClearLast, ClearAll
+        Held, Released, Queued, ClearAll
     }
+    // The game's default delays: a tap is released within ClickDelay, a hold
+    // acts once it has lasted PressDelay.
+    private const float ClickDelay = .25f, PressDelay = .15f;
     private static readonly (ControllerActionId binding, NativeControllerAction native, Delivery delivery, bool combat)[] Actions =
     {
         (ControllerActionId.Brake, NativeControllerAction.Brake, Delivery.Held, false),
@@ -21,12 +24,13 @@ internal static class ActionChecks
         (ControllerActionId.NavLights, NativeControllerAction.NavLights, Delivery.Queued, false),
         (ControllerActionId.Guns, NativeControllerAction.Guns, Delivery.Held, true),
         (ControllerActionId.WeaponRelease, NativeControllerAction.WeaponRelease, Delivery.Held, true),
+        (ControllerActionId.FireSelected, NativeControllerAction.Fire, Delivery.Held, true),
         (ControllerActionId.Countermeasures, NativeControllerAction.Countermeasures, Delivery.Held, true),
         (ControllerActionId.SelectTarget, NativeControllerAction.Select, Delivery.Released, true),
         (ControllerActionId.NextWeapon, NativeControllerAction.NextWeapon, Delivery.Released, true),
         (ControllerActionId.NextCountermeasure, NativeControllerAction.NextCountermeasure, Delivery.Released, true),
         (ControllerActionId.Radar, NativeControllerAction.Radar, Delivery.Queued, true),
-        (ControllerActionId.UnlockTarget, NativeControllerAction.Unknown, Delivery.ClearLast, true),
+        (ControllerActionId.UnlockTarget, NativeControllerAction.Cancel, Delivery.Released, true),
         (ControllerActionId.ClearTargets, NativeControllerAction.Unknown, Delivery.ClearAll, true)
     };
     internal static void Run(Action<bool, string> check, Func<string, ConfigFile> config)
@@ -44,15 +48,13 @@ internal static class ActionChecks
                         f.Tick(true);
                         var held = f.Actions.Held(entry.native);
                         f.Tick(false);
-                        var released = f.Actions.Released(entry.native);
-                        var last = f.Hud.LastCleared;
+                        var released = f.Actions.Released(entry.native, 0, ClickDelay);
                         var all = f.Hud.AllCleared;
                         f.Tick(false);
                         var observed = entry.delivery switch
                         {
                             Delivery.Held => held,
                             Delivery.Released => released,
-                            Delivery.ClearLast => last == 1,
                             Delivery.ClearAll => all == 1,
                             _ => f.Actions.Queued(entry.native)
                         };
@@ -200,7 +202,7 @@ internal static class ActionChecks
                     f.TickMap(true);
                     check(!DynamicMap.mapMaximized && map.Closes == 1 && camera.followingUnit == target,
                         "Next map press returns to the same spectator target");
-                    check(f.Hud.LastCleared == 0 && f.Hud.AllCleared == 0,
+                    check(f.UnselectTaps == 0 && f.ClearHolds == 0 && f.Hud.LastCleared == 0 && f.Hud.AllCleared == 0,
                         "Spectator map button cannot dispatch its shared target-unselect binding");
                     f.TickMap(false);
                     DynamicMap.AllowedToOpen = false;
@@ -239,7 +241,7 @@ internal static class ActionChecks
         staleGrip.TickMap(true);
         check(DynamicMap.mapMaximized, "Stale cockpit grip state cannot suppress map access after switching to an external camera");
         staleGrip.TickMap(false);
-        check(staleGrip.Hud.LastCleared == 0, "External camera never unselects a combat target on map-button release");
+        check(staleGrip.UnselectTaps == 0 && staleGrip.ClearHolds == 0, "External camera never unselects a combat target on map-button release");
         GameManager.LocalPlayer = null;
         DynamicMap.mapMaximized = false;
 
@@ -314,11 +316,11 @@ internal static class ActionChecks
                 unlock.TickMap(false); unlock.TickMap(true);
                 check(PilotView.CockpitRequests == 1 && CameraStateManager.cameraMode == CameraMode.cockpit && !PilotView.External,
                     label + "B on the stick hand returns from the outside view to the cockpit");
-                check(map.Opens == 0 && unlock.Hud.LastCleared == 0, label + "that press neither opens the map nor unselects a target");
+                check(map.Opens == 0 && unlock.UnselectTaps == 0 && unlock.ClearHolds == 0, label + "that press neither opens the map nor unselects a target");
                 unlock.TickMap(true); unlock.TickMap(true);
                 check(PilotView.CockpitRequests == 1 && map.Opens == 0, label + "holding B through the change does nothing more");
                 unlock.TickMap(false);
-                check(unlock.Hud.LastCleared == 0 && map.Opens == 0, label + "releasing B after the change is not a click in the cockpit");
+                check(unlock.UnselectTaps == 0 && unlock.ClearHolds == 0 && map.Opens == 0, label + "releasing B after the change is not a click in the cockpit");
                 unlock.TickMap(true);
                 check(map.Opens == 1, label + "back in the cockpit with a free hand, a fresh B press is the map button again");
                 DynamicMap.mapMaximized = false;
@@ -416,8 +418,164 @@ internal static class ActionChecks
         }
         check(ControllerBindingDefaults.ActionLabel(ControllerActionId.ChangeView) == "Change view" &&
               ControllerBindingDefaults.ActionLabel(ControllerActionId.NavLights) == "Nav lights", "The new actions have plain labels");
-        check((int)ControllerActionId.ChangeView == 15 && (int)ControllerActionId.NavLights == 16 && (int)ControllerActionId.HoverAssist == 14,
+        check((int)ControllerActionId.ChangeView == 15 && (int)ControllerActionId.NavLights == 16 && (int)ControllerActionId.HoverAssist == 14 &&
+              (int)ControllerActionId.FireSelected == 17,
             "New actions are appended; existing action ids, and with them saved settings, do not move");
+        TapHoldChecks(check, (action, combat, profile, left) => Start(action, combat, profile, left));
+    }
+
+    // ---- 0.4.8.35: the game's own tap/hold on Select and Cancel, and a single fire button ----
+    private static void TapHoldChecks(Action<bool, string> check,
+        Func<ControllerActionId, bool, ControllerBindingProfile, bool, Fixture> start)
+    {
+        foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+        {
+            check(ControllerBindingDefaults.Get(profile, ControllerActionId.FireSelected).Button == ControllerButton.None &&
+                  ControllerBindingDefaults.Get(profile, ControllerActionId.FireSelected).Hand == ControllerHandRole.Stick &&
+                  ControllerBindingDefaults.Get(profile, ControllerActionId.Guns).Button == ControllerButton.Trigger &&
+                  ControllerBindingDefaults.Get(profile, ControllerActionId.WeaponRelease).Button == ControllerButton.Primary,
+                $"{profile}: fire selected weapon starts unassigned; the split guns and release layout stays the default");
+            var a = new ControllerActionBinding(ControllerButton.Trigger, ControllerHandRole.Stick);
+            check(ControllerBindingDefaults.RequiresGrip(ControllerActionId.FireSelected) &&
+                  ControllerBindingDefaults.IsBindingAvailable(profile, false, ControllerActionId.FireSelected, ControllerButton.Trigger) &&
+                  ControllerBindingDefaults.Conflict(ControllerActionId.FireSelected, a, ControllerActionId.Guns, a, false, profile == ControllerBindingProfile.Frame),
+                $"{profile}: fire selected weapon is a flight button, may use the trigger, and needs a button of its own");
+        }
+        check(ControllerBindingDefaults.ActionLabel(ControllerActionId.FireSelected) == "Fire selected weapon",
+            "The new action has a plain label");
+        check(ControllerBindingDefaults.ContextLabel(ControllerActionId.SelectTarget).Contains("hold") &&
+              ControllerBindingDefaults.ContextLabel(ControllerActionId.UnlockTarget).Contains("hold") &&
+              ControllerBindingDefaults.ContextLabel(ControllerActionId.FireSelected) == ControllerBindingDefaults.ContextLabel(ControllerActionId.Guns),
+            "Select and unselect explain their hold; the single fire button is held like the split ones");
+
+        foreach (var profile in new[] { ControllerBindingProfile.Frame, ControllerBindingProfile.Touch })
+            foreach (var leftHanded in new[] { false, true })
+            {
+                var label = $"{profile} left={leftHanded}: ";
+
+                // One fire button for whatever is selected.
+                var fire = start(ControllerActionId.FireSelected, true, profile, leftHanded);
+                fire.Tick(false); fire.Tick(true);
+                check(fire.Actions.Held(NativeControllerAction.Fire) && fire.Actions.FireSelectedHeld &&
+                      !fire.Actions.GunsHeld && !fire.Actions.WeaponReleaseHeld,
+                    label + "the single fire button holds the game's Fire and is neither the guns nor the release button");
+                fire.Tick(false);
+                check(!fire.Actions.Held(NativeControllerAction.Fire) && !fire.Actions.FireSelectedHeld, label + "releasing it stops firing");
+                fire.Bindings.CombatEnabled.Value = false;
+                fire.Tick(false); fire.Tick(true);
+                check(!fire.Actions.Held(NativeControllerAction.Fire), label + "it is a combat control like the others");
+
+                // Select: tap, hold, and the overlap the game itself has.
+                foreach (var (action, native) in new[] { (ControllerActionId.SelectTarget, NativeControllerAction.Select),
+                             (ControllerActionId.UnlockTarget, NativeControllerAction.Cancel) })
+                {
+                    var name = label + action + ": ";
+                    var f = start(action, true, profile, leftHanded);
+                    f.Tick(false);
+                    f.Tick(true, 0f);
+                    check(!f.Actions.HoldReached(native, PressDelay) && !f.Actions.Released(native, 0, ClickDelay), name + "a fresh press is neither a tap nor a hold yet");
+                    f.Tick(true, .1f);
+                    check(!f.Actions.HoldReached(native, PressDelay), name + "a press shorter than the press delay is not a hold");
+                    f.Tick(false, .12f);
+                    check(f.Actions.Released(native, 0, ClickDelay) && !f.Actions.HoldReached(native, PressDelay), name + "a quick release is a tap");
+                    f.Tick(false, .13f);
+                    check(!f.Actions.Released(native, 0, ClickDelay), name + "a tap is reported for one frame only");
+
+                    f.Tick(true, 1f);
+                    f.Tick(true, 1.14f);
+                    check(!f.Actions.HoldReached(native, PressDelay), name + "the hold waits for the game's press delay");
+                    f.Tick(true, 1.16f);
+                    check(f.Actions.HoldReached(native, PressDelay), name + "the hold acts on the frame the delay is reached");
+                    f.Tick(true, 1.2f);
+                    f.Tick(true, 1.5f);
+                    check(!f.Actions.HoldReached(native, PressDelay), name + "a continuing hold acts once");
+                    f.Tick(false, 1.6f);
+                    check(!f.Actions.Released(native, 0, ClickDelay), name + "releasing a long hold is not also a tap");
+                    check(f.Actions.Released(native, 0, 0) && f.Actions.Released(native), name + "a zero expiry never expires, as in the game's input library");
+                    check(!f.Actions.Released(native, 1f, 0), name + "a minimum hold time is honoured");
+
+                    // The game's defaults overlap: 0.15 s to hold, 0.25 s to tap.
+                    f.Tick(true, 2f);
+                    f.Tick(true, 2.2f);
+                    var hold = f.Actions.HoldReached(native, PressDelay);
+                    f.Tick(false, 2.22f);
+                    check(hold && f.Actions.Released(native, 0, ClickDelay), name + "a press between the two delays is both, exactly as on a keyboard");
+
+                    // A press the gate cancels is neither.
+                    foreach (var cancel in new[] { "grip", "tracking", "menu", "editing" })
+                    {
+                        f = start(action, true, profile, leftHanded);
+                        f.Tick(false); f.Tick(true, 3f);
+                        if (cancel == "grip") MotionFlightController.Instance.StickHeld = false;
+                        if (cancel == "tracking") f.Valid = false;
+                        if (cancel == "menu") WristMenu.IsOpen = true;
+                        if (cancel == "editing") CockpitHudWidgets.Editing = true;
+                        f.Tick(true, 3.05f);
+                        var tapped = f.Actions.Released(native, 0, ClickDelay);
+                        MotionFlightController.Instance.StickHeld = true;
+                        f.Valid = true;
+                        WristMenu.IsOpen = CockpitHudWidgets.Editing = false;
+                        f.Tick(true, 3.4f);
+                        check(!tapped && !f.Actions.HoldReached(native, PressDelay) && !f.Actions.HoldReached(native, 0f),
+                            name + "a press cancelled by " + cancel + " is not a tap, and holding through it is not a hold");
+                        f.Tick(false, 3.45f);
+                        check(!f.Actions.Released(native, 0, ClickDelay), name + "nor is its release a tap (" + cancel + ")");
+                        f.Tick(true, 3.5f); f.Tick(false, 3.55f);
+                        check(f.Actions.Released(native, 0, ClickDelay), name + "the next deliberate tap works (" + cancel + ")");
+                    }
+                    check(f.Hud.LastCleared == 0 && f.Hud.AllCleared == 0, name + "neither button calls the HUD directly; the game's own handling acts on the answer");
+                }
+
+                // Clear all targets, and the wrist-menu buttons, take the game's full path.
+                var clear = start(ControllerActionId.ClearTargets, true, profile, leftHanded);
+                var cam = new TargetCam();
+                clear.Hud.aircraft = new Aircraft { targetCam = cam };
+                var icons = SceneSingleton<DynamicMap>.i = new();
+                clear.Tick(false); clear.Tick(true); clear.Tick(false);
+                check(clear.Hud.AllCleared == 1 && clear.Hud.AllClearedWithAudio == 1 && icons.IconsCleared == 1 && cam.Cancelled == 1,
+                    label + "clear all targets also clears the map icons and the target camera, with the game's sound");
+                ControllerActions.UnselectLatestTarget();
+                check(clear.Hud.LastCleared == 1 && cam.Cancelled == 2 && clear.Hud.AllCleared == 1, label + "the wrist menu's unselect resets the target camera too");
+                clear.Hud.aircraft = null;
+                ControllerActions.ClearAllTargets();
+                ControllerActions.UnselectLatestTarget();
+                check(clear.Hud.AllCleared == 2 && clear.Hud.LastCleared == 2 && cam.Cancelled == 2, label + "no aircraft or target camera is not an error");
+                SceneSingleton<CombatHUD>.i = null;
+                SceneSingleton<DynamicMap>.i = null;
+                ControllerActions.ClearAllTargets();
+                ControllerActions.UnselectLatestTarget();
+                check(clear.Hud.AllCleared == 2 && clear.Hud.LastCleared == 2, label + "no HUD means nothing to clear");
+            }
+
+        // The timer on its own.
+        var gate = new ControllerButtonGate();
+        var timer = new ControllerPressTimer();
+        void Step(bool available, float value, float now)
+        {
+            gate.Update(available, value);
+            timer.Update(gate, now);
+        }
+        Step(true, 0, 10f);
+        check(!timer.Tapped(0, 0) && !timer.HoldReached(0), "an idle button is neither a tap nor a hold, even with zero thresholds");
+        Step(true, 1, 10f);
+        check(timer.HoldReached(0) && !timer.HoldReached(.01f), "a zero press delay acts on the press itself");
+        Step(true, 1, 10.5f);
+        check(!timer.HoldReached(0) && timer.HoldReached(.5f) && !timer.HoldReached(float.NaN) && !timer.HoldReached(-1f),
+            "each delay is reached once; a NaN or negative delay never repeats");
+        Step(true, 0, 10.75f); // exactly representable, so the limits can be tested at equality
+        check(timer.Tapped(.75f, 0) && !timer.Tapped(.76f, 0) && timer.Tapped(0, .75f) && !timer.Tapped(0, .74f) && !timer.Tapped(float.NaN, 0),
+            "tap limits are inclusive and a NaN minimum never taps");
+        Step(true, 1, 5f);
+        Step(true, 1, 4f);
+        Step(true, 0, 3f);
+        check(timer.Tapped(0, .25f), "a clock that runs backwards reads as a zero-length press, not as a negative one");
+        Step(true, 1, 20f);
+        timer.Reset();
+        gate.Reset();
+        Step(true, 1, 20.4f);
+        check(!timer.HoldReached(PressDelay), "after a reset a still-held button is not a hold");
+        Step(true, 0, 20.5f);
+        check(!timer.Tapped(0, 0), "and its release is not a tap");
     }
 
     private sealed class Fixture
@@ -426,6 +584,8 @@ internal static class ActionChecks
         internal readonly ControllerBindings Bindings;
         internal readonly CombatHUD Hud = new();
         internal bool Valid = true;
+        // What the game's own Cancel handling would have acted on, summed over every update.
+        internal int UnselectTaps, ClearHolds;
         private readonly bool _left, _frame;
         internal Fixture(ConfigFile config, ControllerActionId action, bool combat, ControllerBindingProfile profile, bool left)
         {
@@ -450,6 +610,7 @@ internal static class ActionChecks
             CameraStateManager.cameraMode = CameraMode.cockpit;
             ExternalFlightInput.Active = false;
             PilotView.Reset();
+            Time.unscaledTime = 0;
             SceneSingleton<CombatHUD>.i = Hud;
             Invoke("Awake");
         }
@@ -466,6 +627,11 @@ internal static class ActionChecks
             TrackedControllers.Samples[0] = TrackedControllers.Samples[1] = new ControllerSample { Valid = Valid, NativeFrame = _frame };
             TrackedControllers.Samples[_left ? 0 : 1].StickClick = pressed;
             Invoke("Update");
+        }
+        internal void Tick(bool pressed, float now)
+        {
+            Time.unscaledTime = now;
+            Tick(pressed);
         }
         internal void Tick(bool pressed)
         {
@@ -493,6 +659,15 @@ internal static class ActionChecks
                 TrackedControllers.Samples[hand].Secondary = pressed;
             Invoke("Update");
         }
-        internal void Invoke(string name) => typeof(ControllerActions).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Actions, null);
+        internal void Invoke(string name)
+        {
+            typeof(ControllerActions).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Actions, null);
+            if (name != "Update")
+                return;
+            if (Actions.Released(NativeControllerAction.Cancel, 0, ClickDelay))
+                UnselectTaps++;
+            if (Actions.HoldReached(NativeControllerAction.Cancel, PressDelay))
+                ClearHolds++;
+        }
     }
 }

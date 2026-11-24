@@ -50,6 +50,7 @@ internal static class ControllerDiagramModel
         ControllerActionId.HoverAssist => "Hover",
         ControllerActionId.ChangeView => "Camera",
         ControllerActionId.NavLights => "Lights",
+        ControllerActionId.FireSelected => "Fire",
         _ => action.ToString()
     };
     internal static string ShortButton(ControllerButton button, bool left, ControllerBindingProfile profile)

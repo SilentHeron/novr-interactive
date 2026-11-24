@@ -16,7 +16,7 @@ internal enum ControllerActionId
     Countermeasures, NextCountermeasure, Brake, Map, WristMenu,
     Gear, Radar, FlightAssist, HoverAssist,
     // Appended so saved config keys of the actions above never move.
-    ChangeView, NavLights
+    ChangeView, NavLights, FireSelected
 }
 
 internal readonly struct ControllerActionBinding
@@ -59,6 +59,8 @@ internal static class ControllerBindingDefaults
             ControllerActionId.Brake => new(ControllerButton.Trigger, ControllerHandRole.Throttle),
             ControllerActionId.Map => new(ControllerButton.OutsideOrSecondary, ControllerHandRole.Stick),
             ControllerActionId.WristMenu => new(ControllerButton.Menu, ControllerHandRole.Left),
+            // Unassigned: the split guns / weapon release layout stays the default.
+            ControllerActionId.FireSelected => new(ControllerButton.None, ControllerHandRole.Stick),
             _ => new(ControllerButton.None, ControllerHandRole.Throttle)
         };
     }
@@ -112,6 +114,7 @@ internal static class ControllerBindingDefaults
         ControllerActionId.HoverAssist => "Hover assist",
         ControllerActionId.ChangeView => "Change view",
         ControllerActionId.NavLights => "Nav lights",
+        ControllerActionId.FireSelected => "Fire selected weapon",
         _ => action.ToString()
     };
     internal static string ContextLabel(ControllerActionId action) => action switch
@@ -119,7 +122,11 @@ internal static class ControllerBindingDefaults
         ControllerActionId.Map => "Free hand, map or spectator view",
         ControllerActionId.WristMenu => "Either grip state",
         ControllerActionId.ChangeView => "Cockpit or outside view, either grip state",
-        ControllerActionId.Guns or ControllerActionId.WeaponRelease or ControllerActionId.Countermeasures or ControllerActionId.Brake => "Hold while gripping the assigned handle",
+        ControllerActionId.Guns or ControllerActionId.WeaponRelease or ControllerActionId.FireSelected or
+            ControllerActionId.Countermeasures or ControllerActionId.Brake => "Hold while gripping the assigned handle",
+        // The game's own tap and hold, with its click and press delay settings.
+        ControllerActionId.SelectTarget => "Tap, or hold for the group in the cue, while gripping",
+        ControllerActionId.UnlockTarget => "Tap, or hold to clear all targets, while gripping",
         _ => "Release while gripping the assigned handle"
     };
 }

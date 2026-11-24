@@ -25,8 +25,8 @@ internal sealed partial class WristMenu
         Section(parent, "Aircraft commands", 214);
         ActionButton(parent, "Next weapon", 0, 168, () => ControllerActions.Instance?.QueueWristAction(NativeControllerAction.NextWeapon));
         ActionButton(parent, "Next countermeasure", 1, 168, () => ControllerActions.Instance?.QueueWristAction(NativeControllerAction.NextCountermeasure));
-        ActionButton(parent, "Unlock last target", 0, 120, () => { SceneSingleton<CombatHUD>.i?.DeselectLast(); Close(); });
-        ActionButton(parent, "Clear targets", 1, 120, () => { SceneSingleton<CombatHUD>.i?.DeselectAll(); Close(); });
+        ActionButton(parent, "Unlock last target", 0, 120, () => { ControllerActions.UnselectLatestTarget(); Close(); });
+        ActionButton(parent, "Clear targets", 1, 120, () => { ControllerActions.ClearAllTargets(); Close(); });
         ActionButton(parent, "Toggle gear", 0, 72, () => ControllerActions.Instance?.QueueWristAction(NativeControllerAction.Gear));
         ActionButton(parent, "Toggle radar", 1, 72, () => ControllerActions.Instance?.QueueWristAction(NativeControllerAction.Radar));
         ActionButton(parent, "Toggle engine", 0, 24, () => ControllerActions.Instance?.QueueWristAction(NativeControllerAction.ToggleEngine));

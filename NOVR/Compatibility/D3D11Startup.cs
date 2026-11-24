@@ -16,6 +16,10 @@ internal static class D3D11Startup
     private static bool _prepared;
     private static bool _continueInitialization;
 
+    // True for a -novr-flat session with a window. Nothing of NOVR initializes
+    // in it except the switch back to VR.
+    internal static bool FlatSession { get; private set; }
+
     internal static bool Prepare()
     {
         if (_prepared)
@@ -26,15 +30,8 @@ internal static class D3D11Startup
         Environment.SetEnvironmentVariable(GraphicsStartupProtocol.RetryVariable, null);
         try
         {
-            using var process = Process.GetCurrentProcess();
-            var context = new GraphicsStartupContext(
-                Application.platform == RuntimePlatform.WindowsPlayer,
-                SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11,
-                SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null,
-                retried, GraphicsStartupProtocol.IsNuclearOptionSteamContext(
-                    Environment.GetEnvironmentVariable("SteamAppId"), Environment.GetEnvironmentVariable("SteamGameId")),
-                Environment.GetCommandLineArgs().Skip(1).ToArray(),
-                process.MainModule?.FileName ?? string.Empty, process.Id, process.StartTime.ToUniversalTime().Ticks);
+            var context = CurrentContext(retried);
+            FlatSession = !context.Headless && GraphicsStartupProtocol.IsFlatSession(context.Arguments);
             _continueInitialization = Prepare(context, StartReplacement, Application.Quit, Debug.LogWarning);
         }
         catch (Exception exception)
@@ -43,6 +40,28 @@ internal static class D3D11Startup
         }
         return _continueInitialization;
     }
+
+    // This process as the startup handoff sees it. Also used when the player
+    // asks to restart with or without VR.
+    internal static GraphicsStartupContext CurrentContext(bool retried)
+    {
+        using var process = Process.GetCurrentProcess();
+        return new GraphicsStartupContext(
+            Application.platform == RuntimePlatform.WindowsPlayer,
+            SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11,
+            SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null,
+            retried, GraphicsStartupProtocol.IsNuclearOptionSteamContext(
+                Environment.GetEnvironmentVariable("SteamAppId"), Environment.GetEnvironmentVariable("SteamGameId")),
+            Environment.GetCommandLineArgs().Skip(1).ToArray(),
+            process.MainModule?.FileName ?? string.Empty, process.Id, process.StartTime.ToUniversalTime().Ticks);
+    }
+
+    // Only a Steam-launched Nuclear Option that can name its own executable and
+    // process is restarted; anything else is left as it is.
+    internal static bool CanRelaunch(GraphicsStartupContext context) =>
+        context.SteamGame && context.ProcessId > 0 && context.StartTicks > 0 &&
+        string.Equals(Path.GetFileName(context.Executable), "NuclearOption.exe", StringComparison.OrdinalIgnoreCase) &&
+        File.Exists(context.Executable);
 
     private const string Fallback = "For VR, restart Nuclear Option with -force-d3d11; replace conflicting renderer options and preserve your other Steam launch settings.";
 
@@ -62,9 +81,7 @@ internal static class D3D11Startup
         }
         try
         {
-            if (!context.SteamGame || context.ProcessId <= 0 || context.StartTicks <= 0 ||
-                !string.Equals(Path.GetFileName(context.Executable), "NuclearOption.exe", StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(context.Executable))
+            if (!CanRelaunch(context))
                 throw new InvalidOperationException("Cannot identify the current Nuclear Option executable.");
             if (!start(context, GraphicsStartupProtocol.BuildD3D11Arguments(context.Arguments)))
                 throw new InvalidOperationException("The replacement process did not start.");
@@ -88,7 +105,7 @@ internal static class D3D11Startup
         return false;
     }
 
-    private static bool StartReplacement(GraphicsStartupContext context, string arguments)
+    internal static bool StartReplacement(GraphicsStartupContext context, string arguments)
     {
         using var child = Process.Start(CreateStartInfo(context, arguments));
         return child != null;

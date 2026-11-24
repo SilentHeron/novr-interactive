@@ -45,7 +45,18 @@ internal sealed class GazeCueSettings
             new ConfigDescription("Cue and targeting position in degrees relative to the centre of vision. Negative moves down, positive moves up. Target selection follows the centre of the cue.",
                 new AcceptableValueRange<float>(MinVerticalDegrees, MaxVerticalDegrees)));
         LockPriority = config.Bind("VR HUD", "Gaze Lock Priority", TargetCuePriority.Default,
-            "What the look-direction cue and the gaze lock prefer when several units share the cue's cone. Nearest: closest to the cue. UnitsBeforeMissiles: aircraft, ground units and ships before missiles. AircraftFirst: aircraft, then other units, missiles last. The nearest angle decides within a group; a lone missile in the cone still locks.");
+            "What a target-select tap picks when several units share the look-direction cue's cone. Game: the game's own ranking, by threat and opportunity for the selected weapon, range, and distance from the cue. Nearest: closest to the cue. UnitsBeforeMissiles: aircraft, ground units and ships before missiles. AircraftFirst: aircraft, then other units, missiles last. For the last three the nearest angle decides within a group; a lone missile in the cone still locks.");
+        // Units before missiles was the stock choice before the game's own
+        // ranking became the default. Move it once; Nearest and Aircraft first
+        // were deliberate choices and stay, as does Units first picked again.
+        var gameApplied = config.Bind("VR HUD", "Gaze Lock Game Default Applied", false,
+            "Moves the former stock gaze lock priority (units before missiles) to the game's own ranking once, preserving other chosen priorities.");
+        if (!gameApplied.Value)
+        {
+            if (LockPriority.Value == GazeLockPriority.UnitsBeforeMissiles)
+                LockPriority.Value = TargetCuePriority.Default;
+            gameApplied.Value = true;
+        }
         FriendlyUnits = config.Bind("VR HUD", "Look Cue Friendly Units", false,
             "Show the look-direction cue on friendly units and let the gaze lock select them. Off keeps the cue and gaze lock to non-friendly units. The game's own target filters still apply.");
     }

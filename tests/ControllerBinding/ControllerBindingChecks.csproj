@@ -15,6 +15,7 @@
     <Compile Include="../../NOVR/Input/ControllerActions.cs" Link="ControllerActions.cs" />
     <Compile Include="../../NOVR/VrUi/RadialMenu/NativeRadialMenuState.cs" Link="NativeRadialMenuState.cs" />
     <Compile Include="../../NOVR/Input/ControllerButtonGate.cs" Link="ControllerButtonGate.cs" />
+    <Compile Include="../../NOVR/Input/ControllerPressTimer.cs" Link="ControllerPressTimer.cs" />
     <Compile Include="../../NOVR/Input/FrameActionQueue.cs" Link="FrameActionQueue.cs" />
     <Compile Include="../../NOVR/Input/NativeControllerAction.cs" Link="NativeControllerAction.cs" />
     <Compile Include="../../NOVR/FlightControls/FlightControlMath.cs" Link="FlightControlMath.cs" />

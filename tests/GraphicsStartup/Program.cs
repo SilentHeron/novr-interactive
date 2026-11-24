@@ -30,6 +30,32 @@ foreach (var api in new[] { "-force-d3d9", "-force-glcore", "-force-glcore45", "
 foreach (var flat in new[] { "-novr-flat", "-batchmode", "-nographics", "-NOVR-FLAT" })
     Check(GraphicsStartupProtocol.IsFlatLaunch(new[] { "unknown", flat }), "explicit flat/headless recognized: " + flat);
 Check(!GraphicsStartupProtocol.IsFlatLaunch(new[] { "-novr-flat-extra", "-screen-fullscreen", "0" }), "windowed and unknown arguments do not imply flat launch");
+
+// 0.4.8.35: restart with or without VR. Only -novr-flat with a window is a
+// session that can offer the way back; headless flags never are.
+foreach (var flat in new[] { "-novr-flat", "-NOVR-FLAT" })
+    Check(GraphicsStartupProtocol.IsFlatSession(new[] { "-screen-width", "1920", flat }), "a windowed flat session is recognized: " + flat);
+foreach (var headless in new[] { "-batchmode", "-nographics", "-BatchMode" })
+{
+    Check(!GraphicsStartupProtocol.IsFlatSession(new[] { headless }), "a headless process is not a flat session: " + headless);
+    Check(!GraphicsStartupProtocol.IsFlatSession(new[] { "-novr-flat", headless }) && !GraphicsStartupProtocol.IsFlatSession(new[] { headless, "-novr-flat" }),
+        "nor with the flat flag beside it, in either order: " + headless);
+}
+Check(!GraphicsStartupProtocol.IsFlatSession(Array.Empty<string>()) && !GraphicsStartupProtocol.IsFlatSession(new[] { "-novr-flat-extra", "novr-flat" }),
+    "an ordinary launch is not a flat session");
+Check(GraphicsStartupProtocol.BuildFlatArguments(Array.Empty<string>()) == "-novr-flat", "an empty launch restarts flat with just the flag");
+var flatArguments = GraphicsStartupProtocol.BuildFlatArguments(new[]
+{
+    "-force-d3d11", "-screen-width", "1920", "-NOVR-FLAT", "-logFile", "C:\\logs with spaces\\run.log", "-novr-flat", "", "a\"b"
+});
+Check(flatArguments == "\"-force-d3d11\" \"-screen-width\" \"1920\" \"-logFile\" \"C:\\logs with spaces\\run.log\" \"\" \"a\\\"b\" -novr-flat",
+    "a flat restart keeps every argument and the renderer, quoted, with the flag exactly once");
+foreach (var renderer in new[] { "-force-vulkan", "-force-d3d12", "-force-glcore" })
+    Check(GraphicsStartupProtocol.BuildFlatArguments(new[] { renderer }) == "\"" + renderer + "\" -novr-flat", "a flat restart leaves the renderer choice alone: " + renderer);
+Check(GraphicsStartupProtocol.BuildVrArguments(new[] { "-novr-flat" }) == "-force-d3d11" && GraphicsStartupProtocol.BuildVrArguments(Array.Empty<string>()) == "-force-d3d11",
+    "a VR restart drops the flat flag and selects Direct3D 11");
+Check(GraphicsStartupProtocol.BuildVrArguments(new[] { "-force-vulkan", "-screen-width", "1920", "-Novr-Flat", "-novr-flat", "-novr-flat-extra" }) ==
+    "\"-screen-width\" \"1920\" \"-novr-flat-extra\" -force-d3d11", "a VR restart keeps the other arguments and replaces the renderer selector");
 Check(GraphicsStartupProtocol.IsNuclearOptionSteamContext("2168680", null) && GraphicsStartupProtocol.IsNuclearOptionSteamContext(null, "2168680"), "Steam app or game identity recognizes Nuclear Option");
 Check(!GraphicsStartupProtocol.IsNuclearOptionSteamContext(null, null) && !GraphicsStartupProtocol.IsNuclearOptionSteamContext("999", "999"), "untracked or other-game launch cannot trigger an automatic restart");
 
@@ -67,6 +93,55 @@ try
     Check(D3D11Startup.Prepare(Context(), (_, _) => false, Quit, messages.Add) && calls.Count == 0, "failed process creation leaves original initialization available");
     Check(D3D11Startup.Prepare(Context(), (_, _) => throw new Win32Exception(), Quit, messages.Add) && calls.Count == 0, "process-start exception never quits original");
     Check(!D3D11Startup.Prepare(Context(), Start, () => throw new InvalidOperationException(), messages.Add) && calls.SequenceEqual(new[] { "start" }), "quit failure does not create a second VR owner");
+
+    // Restart with or without VR, through the same child-start boundary.
+    Check(D3D11Startup.CanRelaunch(Context()) && !D3D11Startup.CanRelaunch(Context(steam: false)) &&
+        !D3D11Startup.CanRelaunch(Context(executable: Path.Combine(root, "OtherGame.exe"))) &&
+        !D3D11Startup.CanRelaunch(Context(executable: Path.Combine(root, "missing", "NuclearOption.exe"))),
+        "only a Steam-launched Nuclear Option that exists on disk is restarted");
+    string? started = null;
+    bool Begin(GraphicsStartupContext context, string arguments)
+    {
+        Check(context.ProcessId == 42 && context.StartTicks == ticks, "the restart hands the same parent identity to the child");
+        started = arguments;
+        calls.Add("start");
+        return true;
+    }
+    string? Restart(GraphicsStartupContext context, bool flat) => VrModeRestart.Restart(context, flat, Begin, Quit, messages.Add);
+    calls.Clear();
+    Check(Restart(Context(d3d11: true, arguments: new[] { "-force-d3d11", "-screen-width", "1920" }), true) == null &&
+        calls.SequenceEqual(new[] { "start", "quit" }) && started == "\"-force-d3d11\" \"-screen-width\" \"1920\" -novr-flat",
+        "restart without VR starts the flat child first, then closes this game");
+    Check(messages.Last().Contains("without VR"), "the restart is reported");
+    Check(GraphicsStartupProtocol.IsFlatSession(new[] { "-force-d3d11", "-screen-width", "1920", "-novr-flat" }), "that child is a flat session");
+    calls.Clear();
+    Check(Restart(Context(arguments: new[] { "-novr-flat", "-force-vulkan", "-screen-width", "1920" }), false) == null &&
+        calls.SequenceEqual(new[] { "start", "quit" }) && started == "\"-screen-width\" \"1920\" -force-d3d11",
+        "restart in VR drops the flat flag and selects Direct3D 11, whatever renderer the flat game used");
+    Check(messages.Last().Contains("in VR"), "and is reported");
+    foreach (var flat in new[] { false, true })
+    {
+        var fallback = flat ? VrModeRestart.FlatFallback : VrModeRestart.VrFallback;
+        foreach (var (context, why) in new[]
+        {
+            (Context(windows: false), "not a Windows player"), (Context(headless: true), "headless"), (Context(steam: false), "not launched by Steam"),
+            (Context(executable: Path.Combine(root, "OtherGame.exe")), "another executable")
+        })
+        {
+            calls.Clear();
+            var failure = Restart(context, flat);
+            Check(failure != null && failure.EndsWith(fallback) && calls.Count == 0, $"flat={flat}: no restart and the launch option is named when {why}");
+        }
+        calls.Clear();
+        var refused = VrModeRestart.Restart(Context(), flat, (_, _) => false, Quit, messages.Add);
+        Check(refused != null && refused.EndsWith(fallback) && calls.Count == 0, $"flat={flat}: a child that did not start leaves this game open");
+        var threw = VrModeRestart.Restart(Context(), flat, (_, _) => throw new Win32Exception(), Quit, messages.Add);
+        Check(threw != null && threw.EndsWith(fallback) && calls.Count == 0 && messages.Last().Contains("remains open"), $"flat={flat}: a process-start exception never closes this game");
+        Check(VrModeRestart.Restart(Context(), flat, Begin, () => throw new InvalidOperationException(), messages.Add) == null &&
+            calls.SequenceEqual(new[] { "start" }) && messages.Last().Contains("replacement will stop"),
+            $"flat={flat}: a failed quit after the child started is reported, not retried");
+    }
+    Check(VrModeRestart.FlatFallback.Contains("-novr-flat") && VrModeRestart.VrFallback.Contains("-novr-flat"), "both fallbacks name the launch option");
 
     var environment = new Dictionary<string, string?>
     {
@@ -129,6 +204,7 @@ try
     // process is created; a later API change must not reopen startup ownership.
     Environment.SetEnvironmentVariable(GraphicsStartupProtocol.RetryVariable, "1");
     Check(D3D11Startup.Prepare(), "actual startup wrapper accepts supported renderer");
+    Check(!D3D11Startup.FlatSession, "an ordinary launch is not treated as a flat session");
     Check(Environment.GetEnvironmentVariable(GraphicsStartupProtocol.RetryVariable) == null, "actual startup wrapper consumes retry marker before other mods inherit it");
     UnityEngine.SystemInfo.graphicsDeviceType = UnityEngine.Rendering.GraphicsDeviceType.Vulkan;
     Check(D3D11Startup.Prepare() && UnityEngine.Application.QuitCalls == 0 && UnityEngine.Debug.Warnings.Count == 0,

@@ -12,7 +12,7 @@ namespace UnityEngine
     }
     public static class Time
     {
-        public static int frameCount; public static float timeScale = 1;
+        public static int frameCount; public static float timeScale = 1, unscaledTime;
     }
     public static class Cursor
     {
@@ -57,9 +57,15 @@ namespace NuclearOption.MissionEditorScripts
         public static bool InsideInputField;
     }
 }
+public sealed class TargetCam
+{
+    public int Cancelled;
+    public void CancelTarget() => Cancelled++;
+}
 public sealed class Aircraft
 {
     public bool disabled;
+    public TargetCam? targetCam;
 }
 public sealed class ControlMapper
 {
@@ -123,6 +129,8 @@ public sealed class DynamicMap
     public int Opens, Closes;
     public void Minimize() { mapMaximized = false; Closes++; }
     public void Maximize() { if (AllowedToOpen) { mapMaximized = true; Opens++; } }
+    public int IconsCleared;
+    public void DeselectAllIcons() => IconsCleared++;
 }
 public sealed class RadialMenuMain
 {
@@ -132,9 +140,15 @@ public sealed class RadialMenuMain
 }
 public sealed class CombatHUD
 {
-    public int LastCleared, AllCleared;
+    public Aircraft? aircraft;
+    public int LastCleared, AllCleared, AllClearedWithAudio;
     public void DeselectLast() => LastCleared++;
-    public void DeselectAll() => AllCleared++;
+    public void DeselectAll(bool withAudio = false)
+    {
+        AllCleared++;
+        if (withAudio)
+            AllClearedWithAudio++;
+    }
 }
 namespace NOVR.VrUi
 {

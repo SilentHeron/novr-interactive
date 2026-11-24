@@ -43,7 +43,8 @@ internal sealed partial class ControllerBindingPanel
         Label(_bindingsPage.transform, "Restores replaced\nassignments too", new Vector2(132, 6), new Vector2(238, 49), 18);
         _bindingProfileInfo = Label(_bindingsPage.transform, "", new Vector2(0, -112), new Vector2(510, 176), 18);
         weapons = BindingGroup("WEAPONS & TARGETS", new[] { ControllerActionId.Guns, ControllerActionId.WeaponRelease,
-            ControllerActionId.SelectTarget, ControllerActionId.UnlockTarget, ControllerActionId.NextWeapon, ControllerActionId.ClearTargets });
+            ControllerActionId.FireSelected, ControllerActionId.SelectTarget, ControllerActionId.UnlockTarget,
+            ControllerActionId.NextWeapon, ControllerActionId.ClearTargets });
         flight = BindingGroup("FLIGHT & DEFENSE", new[] { ControllerActionId.Countermeasures, ControllerActionId.NextCountermeasure,
             ControllerActionId.Brake, ControllerActionId.Gear, ControllerActionId.Radar, ControllerActionId.FlightAssist,
             ControllerActionId.HoverAssist, ControllerActionId.NavLights });

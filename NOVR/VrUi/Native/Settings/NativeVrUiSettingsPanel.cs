@@ -32,6 +32,9 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
     private Text? _distanceValueText;
     private Text? _heightValueText;
     private Text? _statusText;
+    private Text? _restartText;
+    private bool _restartArmed;
+    private const string RestartLabel = "RESTART WITHOUT VR";
     private Action? _close;
     private Action? _recenter;
 
@@ -100,8 +103,12 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
             () => ChangeHeightOffset(0.05f),
             out _heightValueText);
 
-        CreateMenuButton("RESET DEFAULTS", panel, new Vector2(-160f, -290f), new Vector2(220f, 42f), ButtonColor, ResetDefaults, 13);
-        CreateMenuButton("RECENTER", panel, new Vector2(160f, -290f), new Vector2(180f, 42f), ActionButtonColor, Recenter, 14);
+        CreateMenuButton("RESET DEFAULTS", panel, new Vector2(-320f, -290f), new Vector2(220f, 42f), ButtonColor, ResetDefaults, 13);
+        CreateMenuButton("RECENTER", panel, new Vector2(-90f, -290f), new Vector2(180f, 42f), ActionButtonColor, Recenter, 14);
+        // Closes the game and starts it again on the desktop. Two clicks, so a
+        // stray pointer press cannot end the session.
+        _restartText = CreateMenuButton(RestartLabel, panel, new Vector2(230f, -290f), new Vector2(300f, 42f), ToggleOffColor, RestartWithoutVr, 13)
+            .GetComponentInChildren<Text>();
         _statusText = CreateText("Status", panel, "", new Vector2(0f, -340f), new Vector2(860f, 34f), 13, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
 
         CreateMenuButton("BACK", _container, new Vector2(NativeUiLayout.FooterLeftX, NativeUiLayout.FooterY), NativeUiLayout.FooterButtonSize, BackButtonColor, Close, 15);
@@ -181,8 +188,30 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
 
     private void Recenter()
     {
+        DisarmRestart();
         _recenter?.Invoke();
         SetStatus("Recenter queued. Look where you want the menu.");
+    }
+
+    private void RestartWithoutVr()
+    {
+        if (!_restartArmed)
+        {
+            _restartArmed = true;
+            if (_restartText != null)
+                _restartText.text = "CONFIRM RESTART";
+            SetStatus("The game will close and start again without VR. Click again to confirm.");
+            return;
+        }
+        DisarmRestart();
+        SetStatus(Compatibility.VrModeRestart.Restart(flat: true) ?? "Restarting without VR...");
+    }
+
+    private void DisarmRestart()
+    {
+        _restartArmed = false;
+        if (_restartText != null)
+            _restartText.text = RestartLabel;
     }
 
     private void Close()
@@ -199,6 +228,8 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
 
     private void RefreshValues()
     {
+        // Opening the panel or changing anything else withdraws a half-given restart.
+        DisarmRestart();
         var config = ModConfiguration.Instance;
         RefreshNativeUiToggle(config.EnableNativeMenuUi.Value);
         if (_scaleValueText != null)

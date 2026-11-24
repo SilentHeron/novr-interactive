@@ -37,7 +37,10 @@ launch options in place.
 runtime was not ready when the game launched. NOVR tries again by itself three
 times over the first minute. After that, press **F11** once SteamVR shows the
 headset as ready; there is no need to restart the game. To play on the desktop
-on purpose, start the game with `-novr-flat`.
+instead, click **Restart without VR** under that message. The game starts again
+with NOVR switched off; at its main menu, **F11** or the button in the bottom-left
+corner restarts in VR. To always start on the desktop, add `-novr-flat` to the
+game's launch options.
 
 **The wrist menu's VR performance page lists NOVR warnings:** the game is a
 different version from the one this NOVR build targets, or some VR adjustments

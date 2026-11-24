@@ -36,7 +36,7 @@ internal static class OffsetRayChecks
                 var aligned = CandidateChecks.Marker(camera.transform.position + renderedRay * 1000);
                 var headCentre = CandidateChecks.Marker(camera.transform.position + camera.transform.forward * 1000);
                 var hud = CandidateChecks.Hud(headCentre, aligned);
-                check(TargetCueCandidates.Nearest(hud) == aligned, "cue-aligned target wins over a competing head-centred target");
+                check(TargetCueCandidates.Pick(hud) == aligned, "cue-aligned target wins over a competing head-centred target");
                 check(!GazeTargetSelectionPatch.Prefix(hud, false) && hud.SelectedCalls.SequenceEqual(new[] { aligned.unit }),
                     "actual selection endpoint receives the target beneath the offset cue");
                 updateDesignator.Invoke(designator, null);
@@ -52,9 +52,9 @@ internal static class OffsetRayChecks
         var centre = CandidateChecks.Marker(Vector3.forward * 1000);
         var lower = CandidateChecks.Marker(Quaternion.Euler(4, 0, 0) * Vector3.forward * 1000);
         var competing = CandidateChecks.Hud(centre, upper, lower);
-        check(TargetCueCandidates.Nearest(competing) == centre, "zero offset starts with head-centred candidate");
+        check(TargetCueCandidates.Pick(competing) == centre, "zero offset starts with head-centred candidate");
         settings.VerticalDegrees.Value = 4;
-        check(TargetCueCandidates.Nearest(competing) == upper, "changing cue offset immediately changes candidate without advancing a frame");
+        check(TargetCueCandidates.Pick(competing) == upper, "changing cue offset immediately changes candidate without advancing a frame");
         GazeTargetSelectionPatch.Prefix(competing, false);
         settings.VerticalDegrees.Value = -4;
         GazeTargetSelectionPatch.Prefix(competing, false);

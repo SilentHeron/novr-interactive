@@ -17,9 +17,12 @@ internal static class SeparateWeaponControls
             !GameManager.GetLocalAircraft(out var aircraft) || aircraft.weaponManager != __instance)
             return true;
 
+        // Fire selected weapon is the game's single fire button. Alone it never
+        // reaches this point; pressed together with a split button it still
+        // fires what is selected.
         var selectedGun = __instance.currentWeaponStation != null && __instance.currentWeaponStation.WeaponInfo.gun;
         if (selectedGun)
-            return actions.GunsHeld;
+            return actions.GunsHeld || actions.FireSelectedHeld;
 
         if (actions.GunsHeld && !aircraft.remoteSim)
         {
@@ -30,6 +33,6 @@ internal static class SeparateWeaponControls
         }
         // A never fires guns. Non-gun weapons retain the game's ordinary
         // launch/lock/salvo behavior; holding trigger cannot launch a missile.
-        return actions.WeaponReleaseHeld;
+        return actions.WeaponReleaseHeld || actions.FireSelectedHeld;
     }
 }

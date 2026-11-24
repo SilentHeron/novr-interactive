@@ -12,7 +12,7 @@ namespace NOVR;
 [BepInPlugin(
     "deltawing.novr",
     "NOVR Interactive",
-    "0.4.8.34")]
+    "0.4.8.35")]
 public class NOVRPlugin : BaseUnityPlugin
 {
     public static string ModFolderPath { get; private set; } = string.Empty;
@@ -22,7 +22,12 @@ public class NOVRPlugin : BaseUnityPlugin
     {
         ModFolderPath = Path.GetDirectoryName(typeof(NOVRPlugin).Assembly.Location) ?? string.Empty;
         if (!Compatibility.D3D11Startup.Prepare())
+        {
+            // -novr-flat: nothing of NOVR runs except the way back into VR.
+            if (Compatibility.D3D11Startup.FlatSession)
+                VrTogglers.FlatModeSwitch.Create();
             return;
+        }
         StartupDiagnostics.Log = Debug.LogWarning;
         // By default BepInEx rewrites the whole file on every Bind and every
         // changed value. Bind everything first, write once, then save shortly

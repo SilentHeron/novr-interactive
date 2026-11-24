@@ -30,11 +30,54 @@ internal static class GraphicsStartupProtocol
     internal static bool IsFlatLaunch(IEnumerable<string> arguments)
     {
         foreach (var argument in arguments)
-            if (string.Equals(argument, FlatArgument, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(argument, "-batchmode", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(argument, "-nographics", StringComparison.OrdinalIgnoreCase))
+            if (IsFlatArgument(argument) || IsHeadlessArgument(argument))
                 return true;
         return false;
+    }
+
+    private static bool IsFlatArgument(string argument) =>
+        string.Equals(argument, FlatArgument, StringComparison.OrdinalIgnoreCase);
+    private static bool IsHeadlessArgument(string argument) =>
+        string.Equals(argument, "-batchmode", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(argument, "-nographics", StringComparison.OrdinalIgnoreCase);
+
+    // The player chose a session without VR and there is a window to offer
+    // the way back in. A headless process has neither.
+    internal static bool IsFlatSession(IEnumerable<string> arguments)
+    {
+        var flat = false;
+        foreach (var argument in arguments)
+        {
+            if (IsHeadlessArgument(argument))
+                return false;
+            flat |= IsFlatArgument(argument);
+        }
+        return flat;
+    }
+
+    // Restart without VR: every argument stays, the renderer choice included,
+    // and the flat flag is present exactly once.
+    internal static string BuildFlatArguments(IEnumerable<string> arguments)
+    {
+        var result = new StringBuilder();
+        foreach (var argument in arguments)
+        {
+            if (IsFlatArgument(argument))
+                continue;
+            result.Append(QuoteWindowsArgument(argument)).Append(' ');
+        }
+        return result.Append(FlatArgument).ToString();
+    }
+
+    // Restart in VR: the flat flag goes and Direct3D 11 is selected, exactly
+    // as the automatic startup handoff would.
+    internal static string BuildVrArguments(IEnumerable<string> arguments)
+    {
+        var kept = new List<string>();
+        foreach (var argument in arguments)
+            if (!IsFlatArgument(argument))
+                kept.Add(argument);
+        return BuildD3D11Arguments(kept);
     }
 
     // Input excludes argv[0]. Keep unknown flags and values, including the user's

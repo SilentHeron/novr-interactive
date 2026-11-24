@@ -17,8 +17,8 @@ try
     var settings = config.LookCue;
     Check(settings.Size.Value == 1 && settings.Opacity.Value == .65f && settings.Shape.Value == GazeCueShape.Diamond && settings.CurrentShape == GazeCueShape.Diamond,
         "The game's own diamond is the default cue; size and opacity defaults are unchanged");
-    Check(settings.CurrentLockPriority == GazeLockPriority.UnitsBeforeMissiles && !settings.FriendlyUnits.Value,
-        "Gaze lock prefers units over missiles and skips friendly units by default");
+    Check(settings.CurrentLockPriority == GazeLockPriority.Game && !settings.FriendlyUnits.Value,
+        "Gaze lock uses the game's own ranking and skips friendly units by default");
     var go = GazeRingGraphic.Create(new GameObject("parent").transform);
     var cue = go.GetComponent<GazeRingGraphic>();
     void Refresh() => typeof(GazeRingGraphic).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(cue, null);
@@ -145,7 +145,23 @@ try
     reloaded.Reset();
     Check(reloaded.VerticalAngle == -1, "Reset restores modest lower default");
     Check(reloaded.CurrentShape == GazeCueShape.Diamond, "Reset restores the game's diamond");
-    Check(reloaded.CurrentLockPriority == GazeLockPriority.UnitsBeforeMissiles && !reloaded.FriendlyUnits.Value, "Reset restores the default gaze lock rules");
+    Check(reloaded.CurrentLockPriority == GazeLockPriority.Game && !reloaded.FriendlyUnits.Value, "Reset restores the default gaze lock rules");
+    GazeCueSettings Saved(string? priority, string name, bool applied = false)
+    {
+        var path = Path.Combine(dir, name + ".cfg");
+        if (priority != null)
+            File.WriteAllText(path, "[VR HUD]\n\nGaze Lock Priority = " + priority + "\n" + (applied ? "\nGaze Lock Game Default Applied = true\n" : ""));
+        return new GazeCueSettings(new ConfigFile(path, false));
+    }
+    Check(Saved(null, "priority-new").LockPriority.Value == GazeLockPriority.Game, "A new installation starts with the game's ranking");
+    Check(Saved("UnitsBeforeMissiles", "priority-stock").LockPriority.Value == GazeLockPriority.Game, "The former stock priority moves to the game's ranking once");
+    foreach (var kept in new[] { GazeLockPriority.Nearest, GazeLockPriority.AircraftFirst })
+        Check(Saved(kept.ToString(), "priority-kept-" + kept).LockPriority.Value == kept, "A chosen priority is kept: " + kept);
+    Saved("UnitsBeforeMissiles", "priority-again").LockPriority.Value = GazeLockPriority.UnitsBeforeMissiles;
+    Check(Saved(null, "priority-again").LockPriority.Value == GazeLockPriority.UnitsBeforeMissiles, "Units first picked after the switch stays");
+    Check(Saved("UnitsBeforeMissiles", "priority-applied", applied: true).LockPriority.Value == GazeLockPriority.UnitsBeforeMissiles,
+        "The move never runs twice");
+    Check(Saved("NotAPriority", "priority-invalid").CurrentLockPriority == GazeLockPriority.Game, "An unreadable saved priority falls back to the game's ranking");
     GazeCueSettings Fresh(string? savedShape, string name)
     {
         var path = Path.Combine(dir, name + ".cfg");

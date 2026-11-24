@@ -10,7 +10,7 @@ A [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/) V
 
 > Most of my contributions are AI-assisted. I’m not an experienced developer; I’m focused on creating a passable VR implementation while learning. This is an unofficial experiment intended as a stopgap, and I’m looking forward to the forthcoming official implementation from Shockfront. I’m doing my best to respect the game’s design and preserve the character of its excellent vanilla and modded aircraft.
 
-Experimental version **0.4.8.34**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
+Experimental version **0.4.8.35**. Targets Nuclear Option **0.34.6** and PC VR through OpenXR. Original cockpit displays stay in use. All aircraft share the FS-20 stick and grip; helicopters use a native collective lever instead of the plane throttle. The maintainer has tested Windows PC streaming with Steam Frame and Quest 3 through Steam Link.
 
 ## Install
 
@@ -24,7 +24,7 @@ Download the experimental package from [Releases](https://github.com/SilentHeron
 
 **On Linux, you still need Windows BepInEx:** Nuclear Option runs as a Windows game through Proton. BepInEx has no separate installer `.exe` to run; it loads when the game starts. The Linux BepInEx package and its `run_bepinex.sh` are for native Linux games. The optional **NOVR Linux installer** is a different tool and chooses Windows BepInEx for you.
 
-This replaces upstream NOVR; do not install both. The installer does not change Proton launch options. DirectX 11 also applies on Linux: Proton translates it to Vulkan through DXVK. If automatic startup fails, replace any other renderer flag with `-force-d3d11`. Use `-novr-flat` for an intentional non-VR launch. [Installation troubleshooting](docs/STEAM_FRAME.md#installation-troubleshooting).
+This replaces upstream NOVR; do not install both. The installer does not change Proton launch options. DirectX 11 also applies on Linux: Proton translates it to Vulkan through DXVK. If automatic startup fails, replace any other renderer flag with `-force-d3d11`. To play without VR, see [Playing without VR](#playing-without-vr). [Installation troubleshooting](docs/STEAM_FRAME.md#installation-troubleshooting).
 
 ## Default controls
 
@@ -34,8 +34,8 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | --- | --- | --- | --- |
 | Guns | Right trigger | Right trigger | Stick held |
 | Selected weapon release | A | A | Stick held |
-| Select target nearest cue | Right thumbstick click | Right thumbstick click | Stick held |
-| Unselect latest target | B | B | Stick held |
+| Select target in the cue; hold for the group | Right thumbstick click | Right thumbstick click | Stick held |
+| Unselect latest target; hold to clear all | B | B | Stick held |
 | Next weapon | Y | Y | Frame: stick held; Touch: throttle held |
 | Deploy countermeasures | Left D-pad down | X | Throttle held |
 | Next countermeasure type | Left D-pad right | Left thumbstick click | Throttle held |
@@ -48,7 +48,7 @@ These buttons assume the flight stick is in your right hand. Left-handed mode mo
 | Quick wheel | Either thumbstick click | Either thumbstick click | That hand free |
 | Reopen layout menu | Either thumbstick click | Either thumbstick click | Edit layout active |
 
-Target selection and cycling act on button release; guns, weapon release, countermeasures and brakes are held actions. The look-direction cue is the game's own squashed diamond by default; circle, dot, crosshair and brackets remain under **View → Look direction cue**. The cue and **Select target nearest cue** prefer aircraft, ground units and ships over missiles inside the cue's cone, so an aircraft is not lost to the missile it just fired (**View → Look direction cue → Targeting**: Nearest, Units first or Aircraft first). Friendly units get no cue and no gaze lock unless **Cue friendly units** is on; the game's own target filters still apply. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** View in the cockpit; map outside it.
+Cycling acts on button release; guns, weapon release, countermeasures and brakes are held actions. **Select target** and **Unselect** work as in the game: a tap selects one target or unselects the latest, and holding the button selects the group inside the cue or clears every target. The game's own click and press delays apply. Prefer one fire button? Bind **Fire selected weapon** under **View → Controller bindings → Weapons & targets** and leave Guns and Weapon release unassigned. The look-direction cue is the game's own squashed diamond by default; circle, dot, crosshair and brackets remain under **View → Look direction cue**. A tap takes what the game itself ranks highest inside the cue's cone: threat and opportunity for the selected weapon, weighed against range and distance from the cue. **View → Look direction cue → Targeting** also offers Nearest, Units first (aircraft, ground units and ships before missiles) and Aircraft first. Friendly units get no cue and no gaze lock unless **Cue friendly units** is on; the game's own target filters still apply. A white outline marks a handle within grab range (15 cm by default). Grip grabs it; **View → Flight controls** offers Hold or Toggle for each. **F7:** motion controls. **F8:** place handles. **F9:** View in the cockpit; map outside it.
 
 For a persistent manual Ibis pusher-fan setting, turn Flight Assist off; enabled assist resumes native automatic control. For wing sweep, push the thumbstick forward to extend the wings or backward to sweep them aft.
 
@@ -82,7 +82,9 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **Game graphics:** View → VR performance → Game graphics adjusts the game's tree distance, shadow quality and cloud detail. Lower settings can help in scenes heavy with trees, shadows or clouds. Existing settings stay unchanged until you adjust them.
 
-**If VR does not start:** when the headset or its runtime is not ready at launch, the desktop window says so. NOVR tries again three times over the first minute; after that, press **F11** to try again without restarting the game. Use `-novr-flat` to play on the desktop on purpose. When the game is a different version from the one this build targets, the wrist menu's VR performance page lists what could not be applied and the rest of the mod keeps working.
+**If VR does not start:** when the headset or its runtime is not ready at launch, the desktop window says so. NOVR tries again three times over the first minute; after that, press **F11** to try again without restarting the game, or click **Restart without VR** on the desktop window. When the game is a different version from the one this build targets, the wrist menu's VR performance page lists what could not be applied and the rest of the mod keeps working.
+
+<a id="playing-without-vr"></a>**Playing without VR:** in the headset, open the main menu's **VR UI SETTINGS** and click **RESTART WITHOUT VR** twice. The game closes and starts again on the desktop with NOVR switched off. Back at the flat main menu, **F11** or the button in the bottom-left corner restarts in VR. The switch lasts for that session only, so starting the game again from Steam also returns to VR. Both restarts keep your other launch options. To always start without VR, add `-novr-flat` to the game's launch options. The switch needs a restart because the renderer and the headset session are set up as the game starts.
 
 **Image quality:** View → VR performance → Image quality has four fixes that cost next to nothing to draw, all on by default: dithering for banded sky and haze gradients, no resting edge darkening (G-force effects still close the view in), mipmaps and anisotropic filtering for the cockpit's tactical screen, and a mipmapped copy of the cockpit map's terrain for when it is zoomed out. Switch one off if it looks wrong in your headset. **Hide distant cloud banks** is on the same page.
 
@@ -94,7 +96,7 @@ For a physical HOTAS, turn **View → Flight controls → Motion controls** off 
 
 **View distance:** the game's camera stops rendering 80 km out, which a head-tracked view at altitude sees as a flat grey wall that pivots with your head. NOVR extends the tracked VR view's far plane to 250 km by default; **VR View → Far Clip Distance** in the BepInEx config is a minimum (0 keeps the game's value). The grass and tree detail window also stays centred on the aircraft's forward instead of swinging with your head.
 
-[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.34.md)
+[Controls](docs/CONTROLLER_BINDINGS.md) · [Changes](docs/RELEASE_0.4.8.35.md)
 
 ## Build
 

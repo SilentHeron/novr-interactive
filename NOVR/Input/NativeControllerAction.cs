@@ -19,7 +19,8 @@ internal enum NativeControllerAction
     FlightAssist,
     AutoHover,
     Eject,
-    NavLights
+    NavLights,
+    Cancel
 }
 
 internal static class NativeControllerActionNames
@@ -42,6 +43,7 @@ internal static class NativeControllerActionNames
         "Auto Hover" => NativeControllerAction.AutoHover,
         "Eject" => NativeControllerAction.Eject,
         "Nav Lights" => NativeControllerAction.NavLights,
+        "Cancel" => NativeControllerAction.Cancel,
         _ => NativeControllerAction.Unknown
     };
 

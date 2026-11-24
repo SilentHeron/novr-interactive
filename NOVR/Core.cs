@@ -121,7 +121,7 @@ public class Core : MonoBehaviour
         var reason = _vrTogglerManager.LastFailure ?? "The VR runtime did not start.";
         Debug.LogWarning("[NOVR] VR did not start: " + reason + (_vrRetry.WaitingToRetry
             ? " Trying again in " + _vrRetry.SecondsUntilRetry(now).ToString("0") + " s."
-            : " Press F11 to try again, or start the game with -novr-flat to play without VR."));
+            : " Press F11 to try again, or use Restart without VR on the desktop window (launch option: -novr-flat)."));
         if (_vrNotice != null)
             _vrNotice.Show(reason, _vrRetry.SecondsUntilRetry(now));
     }
